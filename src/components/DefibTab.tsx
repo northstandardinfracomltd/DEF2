@@ -1,0 +1,4166 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Defibrillateur, Client, Variable } from '../types';
+import MapModal from './MapModal';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
+import {
+  formatDateToFR,
+  exportToCSV,
+  REGIONS_FRANCAISES,
+  generateRandomShortCode,
+  computeProchaineMaintenance
+} from '../utils';
+import {
+  Plus,
+  Search,
+  Trash2,
+  Download,
+  Edit,
+  X,
+  Sliders,
+  Check,
+  AlertTriangle,
+  ChevronDown,
+  FolderLock,
+  Heart,
+  Palette,
+  Eye,
+  Settings,
+  XCircle,
+  HelpCircle,
+  Activity,
+  User,
+  Package,
+  MapPin,
+  Calendar,
+  Zap,
+  Info,
+  Layers,
+  Sparkles,
+  RefreshCw,
+  Clock,
+  Filter,
+  Map as MapIcon
+} from 'lucide-react';
+
+function parseDateHelper(dStr: string | undefined | null): Date | null {
+  if (!dStr) return null;
+  const s = dStr.trim();
+  if (!s) return null;
+  if (s.includes('/')) {
+    const parts = s.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const year = parseInt(parts[2], 10);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return new Date(year, month, day);
+      }
+    }
+  }
+  if (s.includes('-')) {
+    const parts = s.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+        return new Date(year, month, day);
+      }
+    }
+  }
+  const fallback = Date.parse(s);
+  if (!isNaN(fallback)) {
+    return new Date(fallback);
+  }
+  return null;
+}
+
+function getSafetyStatus(df: Defibrillateur): { colorClass: string; title: string } {
+  const datesToCheck: Date[] = [];
+  
+  // 1. Prochaine maintenance
+  const prochaineMaintStr = computeProchaineMaintenance(df.derniereMaintenance);
+  const mDate = parseDateHelper(prochaineMaintStr);
+  if (mDate) datesToCheck.push(mDate);
+
+  // 2. Péremption Électrode A
+  const eADate = parseDateHelper(df.peremptionElectrodeA);
+  if (eADate) datesToCheck.push(eADate);
+
+  // 3. Péremption Électrode P
+  const ePDate = parseDateHelper(df.peremptionElectrodeP);
+  if (ePDate) datesToCheck.push(ePDate);
+
+  // 4. Péremption Batterie
+  const bDate = parseDateHelper(df.peremptionBatterie);
+  if (bDate) datesToCheck.push(bDate);
+
+  if (datesToCheck.length === 0) {
+    return { colorClass: 'bg-[#94a3b8]', title: 'Rien à signaler' };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Check from highest severity to lowest
+  const hasExpired = datesToCheck.some(d => {
+    const checkDate = new Date(d);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate < today;
+  });
+  if (hasExpired) {
+    return { colorClass: 'bg-[#ef4444]', title: 'Au moins une date est expirée' };
+  }
+
+  const getDaysDiff = (targetDate: Date) => {
+    const checkDate = new Date(targetDate);
+    checkDate.setHours(0, 0, 0, 0);
+    const diffTime = checkDate.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
+  const hasUnder3Months = datesToCheck.some(d => {
+    const dDiff = getDaysDiff(d);
+    return dDiff >= 0 && dDiff < 90;
+  });
+  if (hasUnder3Months) {
+    return { colorClass: 'bg-[#f97316]', title: 'Au moins une date est sous 3 mois' };
+  }
+
+  const hasUnder6Months = datesToCheck.some(d => {
+    const dDiff = getDaysDiff(d);
+    return dDiff >= 90 && dDiff <= 180;
+  });
+  if (hasUnder6Months) {
+    return { colorClass: 'bg-[#3b82f6]', title: 'Au moins une date est sous 3 à 6 mois' };
+  }
+
+  return { colorClass: 'bg-[#94a3b8]', title: 'Rien à signaler' };
+}
+
+function getDateColor(dStr: string | undefined | null): string {
+  const parsed = parseDateHelper(dStr);
+  if (!parsed) return '#000000';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const checkDate = new Date(parsed);
+  checkDate.setHours(0, 0, 0, 0);
+
+  if (checkDate < today) {
+    return '#ef4444';
+  }
+
+  const diffTime = checkDate.getTime() - today.getTime();
+  const dDiff = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  if (dDiff >= 0 && dDiff < 90) {
+    return '#f97316';
+  }
+
+  if (dDiff >= 90 && dDiff <= 180) {
+    return '#3b82f6';
+  }
+
+  return '#000000';
+}
+
+interface DefibTabProps {
+  defibrillateurs: Defibrillateur[];
+  clients: Client[];
+  variables: Variable[];
+  onAddDefib: (defib: Omit<Defibrillateur, 'id'>) => void;
+  onUpdateDefib: (defib: Defibrillateur) => void;
+  onDeleteDefib: (id: string) => void;
+  onBulkDelete: (ids: string[]) => void;
+  onBulkEdit: (ids: string[], updates: Partial<Omit<Defibrillateur, 'id'>>) => void;
+  fsmTours?: any[];
+  onUpdateFsmTours?: (updated: any[]) => void;
+  setActiveTab?: (tab: any) => void;
+}
+
+export default function DefibTab({
+  defibrillateurs,
+  clients,
+  variables,
+  onAddDefib,
+  onUpdateDefib,
+  onDeleteDefib,
+  onBulkDelete,
+  onBulkEdit,
+  fsmTours = [],
+  onUpdateFsmTours,
+  setActiveTab,
+}: DefibTabProps) {
+  // Navigation, Search & Filters State
+  const [search, setSearch] = useState('');
+  const [isFilterPaneOpen, setIsFilterPaneOpen] = useState(false);
+  const [isSearchHovered, setIsSearchHovered] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  const searchInputStyle: React.CSSProperties = {
+    border: '1px solid #dedede',
+    borderRadius: '13px',
+    padding: '9px 19px',
+    fontSize: '18px',
+    fontWeight: '100',
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+    outline: (isSearchHovered || isSearchFocused) ? '2.5px solid #fa53d5' : 'none',
+    outlineOffset: (isSearchHovered || isSearchFocused) ? '2px' : '0px',
+    transition: 'all 0s',
+  };
+
+  const customButtonStyle: React.CSSProperties = {
+    backgroundColor: '#000',
+    color: '#fff',
+    boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+    borderRadius: '12px',
+    fontSize: '18px',
+    padding: '9px 19px',
+    fontWeight: '100',
+    transition: 'all 0s ease-in-out',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    cursor: 'pointer',
+    border: 'none',
+  };
+
+  const rowActionButtonStyle: React.CSSProperties = {
+    backgroundColor: '#000',
+    color: '#fff',
+    boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+    borderRadius: '10px',
+    fontSize: '16px',
+    padding: '11px 22px',
+    fontWeight: '100',
+    transition: 'all 0s ease-in-out',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem',
+    cursor: 'pointer',
+    border: 'none',
+  };
+
+  const rowActionButton18Style: React.CSSProperties = {
+    ...rowActionButtonStyle,
+    fontSize: '18px',
+    padding: '9px 19px',
+  };
+
+  const filterInputStyle: React.CSSProperties = {
+    border: '1px solid #dedede',
+    borderRadius: '13px',
+    padding: '9px 19px',
+    fontSize: '16px',
+    fontWeight: '100',
+    color: '#000000',
+    backgroundColor: '#ffffff',
+    fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+    outline: 'none',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+    width: '100%',
+  };
+
+  const cancelFiltersButtonStyle: React.CSSProperties = {
+    ...rowActionButtonStyle,
+    backgroundColor: '#000000',
+    color: '#ffffff',
+    width: '100%',
+  };
+
+  const applyFiltersButtonStyle: React.CSSProperties = {
+    ...rowActionButtonStyle,
+    backgroundColor: '#000000',
+    color: '#ffffff',
+    width: '100%',
+  };
+
+  const thStyle: React.CSSProperties = {
+    fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+    fontWeight: 100,
+    letterSpacing: 'normal',
+    textTransform: 'none',
+    color: '#000000',
+    cursor: 'default',
+  };
+
+  // Active applied filters (1 to 10 filters)
+  const [activeFilters, setActiveFilters] = useState({
+    region: 'Tous',
+    modeleId: 'Tous',
+    action3To6: false,
+    actionUnder3: false,
+    actionExpired: false,
+    categorie: 'Tous',
+    contrat: 'Tous',
+  });
+
+  // Draft filters inside the sidebar/pane
+  const [draftFilters, setDraftFilters] = useState({
+    region: 'Tous',
+    modeleId: 'Tous',
+    action3To6: false,
+    actionUnder3: false,
+    actionExpired: false,
+    categorie: 'Tous',
+    contrat: 'Tous',
+  });
+  
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const isAnySelectedInTour = selectedIds.some(id => {
+    const defib = defibrillateurs.find(d => d.id === id);
+    if (!defib) return false;
+    return (fsmTours || []).some(t =>
+      (t.missions || []).some((m: any) => m.defibIdentifiant === defib.identifiant)
+    );
+  });
+
+  // Modals state
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [isClientSearchFocused, setIsClientSearchFocused] = useState(false);
+  const [editingDefib, setEditingDefib] = useState<Defibrillateur | null>(null);
+  const [isBulkEditOpen, setIsBulkEditOpen] = useState(false);
+  const [isMapOpen, setIsMapOpen] = useState(false);
+  const [isLotScannerOpen, setIsLotScannerOpen] = useState(false);
+  const [isSerieScannerOpen, setIsSerieScannerOpen] = useState(false);
+  const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
+  const [isLotPScannerOpen, setIsLotPScannerOpen] = useState(false);
+  const [isLotBatScannerOpen, setIsLotBatScannerOpen] = useState(false);
+  
+  // Tour Action State
+  const [isTourDropdownOpen, setIsTourDropdownOpen] = useState(false);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+
+  const executeNouvelleTournee = () => {
+    if (!onUpdateFsmTours) return;
+    const missions = selectedIds.map((id, index) => {
+      const defib = defibrillateurs.find(d => d.id === id);
+      const client = clients.find(c => c.id === defib?.clientId);
+      const clientName = client ? client.denomination : (defib?.nomPrenomSite || 'Nom du Site');
+      return {
+        id: 'fsm-m-auto-' + Date.now() + '-' + index,
+        clientName,
+        defibIdentifiant: defib?.identifiant || 'PAR-101',
+        reason: 'Maintenance',
+        requiredParts: [],
+        status: 'À faire',
+        priority: 'Normale',
+        time: '14:00'
+      };
+    });
+
+    const newTour = {
+      id: 'fsm-tour-auto-' + Date.now(),
+      title: "Nouvelle tournée sans titre",
+      techName: 'Thierry LEFEBVRE',
+      startDate: new Date().toISOString().split('T')[0],
+      status: 'Brouillon',
+      missions
+    };
+    
+    onUpdateFsmTours([...fsmTours, newTour]);
+    
+    // Reset selection and close dropdown
+    setSelectedIds([]);
+    setIsTourDropdownOpen(false);
+    setSelectedDraftId(null);
+    
+    if (setActiveTab) {
+      setActiveTab('fsm');
+    }
+  };
+
+  const executeAddTournee = (targetTourId: string) => {
+    if (!onUpdateFsmTours) return;
+    const targetTour = fsmTours.find(t => t.id === targetTourId);
+    if (!targetTour) return;
+
+    const updated = fsmTours.map(t => {
+      if (t.id === targetTourId) {
+        const addedMissions = selectedIds.map((id, index) => {
+          const defib = defibrillateurs.find(d => d.id === id);
+          const client = clients.find(c => c.id === defib?.clientId);
+          const clientName = client ? client.denomination : (defib?.nomPrenomSite || 'Nom du Site');
+          return {
+            id: 'fsm-m-auto-' + Date.now() + '-' + index,
+            clientName,
+            defibIdentifiant: defib?.identifiant || 'PAR-101',
+            reason: 'Maintenance',
+            requiredParts: [],
+            status: 'À faire',
+            priority: 'Normale',
+            time: '14:00'
+          };
+        });
+        return {
+          ...t,
+          missions: [...t.missions, ...addedMissions]
+        };
+      }
+      return t;
+    });
+
+    onUpdateFsmTours(updated);
+
+    // Reset selection and close dropdown
+    setSelectedIds([]);
+    setIsTourDropdownOpen(false);
+    setSelectedDraftId(null);
+
+    if (setActiveTab) {
+      setActiveTab('fsm');
+    }
+  };
+
+  // --- SECTIONS FIELD STATE (Form Fields) ---
+  
+  // Section 1 - Défibrillateur
+  const [identifiant, setIdentifiant] = useState('');
+  const [numeroSerie, setNumeroSerie] = useState('');
+  const [commentaire, setCommentaire] = useState('');
+  const [modeleId, setModeleId] = useState('');
+
+  // Section 2 - Client Site Link (autopopulates from active client selection)
+  const [clientId, setClientId] = useState('');
+  const [nomPrenomSite, setNomPrenomSite] = useState('');
+  const [telephoneSite, setTelephoneSite] = useState('');
+  const [emailSite, setEmailSite] = useState('');
+  const [contrat, setContrat] = useState<'Oui' | 'Non'>('Non');
+  const [nomContrat, setNomContrat] = useState('');
+  const [referenceContrat, setReferenceContrat] = useState('');
+  const [debutContrat, setDebutContrat] = useState('');
+  const [finContrat, setFinContrat] = useState('');
+
+  // Section 3 - Coffret
+  const [modeleCoffretId, setModeleCoffretId] = useState('');
+  const [numeroLotCoffret, setNumeroLotCoffret] = useState('');
+  const [commentaireCoffret, setCommentaireCoffret] = useState('');
+
+  // Section 4 - Accès
+  const [numVoie, setNumVoie] = useState('');
+  const [ville, setVille] = useState('');
+  const [cp, setCp] = useState('');
+  const [region, setRegion] = useState('');
+  const [pays, setPays] = useState('France');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [commentaireAdresse, setCommentaireAdresse] = useState('');
+  const [acces247, setAcces247] = useState(false);
+  const [accesSemaine, setAccesSemaine] = useState(false);
+  const [accesWeekend, setAccesWeekend] = useState(false);
+  const [exterieur, setExterieur] = useState(false);
+
+  // Ref to track the loaded address so we don't auto-geocode on initial open
+  const loadedAddressRef = React.useRef({ numVoie: '', cp: '', ville: '', pays: '' });
+
+  // Auto geocode address on interactive change/typing
+  useEffect(() => {
+    const trimmedVoie = numVoie.trim();
+    const trimmedCp = cp.trim();
+    const trimmedVille = ville.trim();
+    const trimmedPays = pays.trim();
+
+    // Check if current fields are identical to what was loaded (to prevent overwriting custom coords on form open)
+    if (
+      trimmedVoie === loadedAddressRef.current.numVoie &&
+      trimmedCp === loadedAddressRef.current.cp &&
+      trimmedVille === loadedAddressRef.current.ville &&
+      trimmedPays === loadedAddressRef.current.pays
+    ) {
+      return;
+    }
+
+    const queryParts = [];
+    if (trimmedVoie) queryParts.push(trimmedVoie);
+    if (trimmedCp) queryParts.push(trimmedCp);
+    if (trimmedVille) queryParts.push(trimmedVille);
+
+    // Only geocode if we have at least a street or a city typed
+    if (queryParts.length === 0 || (!trimmedVille && !trimmedVoie)) {
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(() => {
+      const isFranceInstance = !trimmedPays || trimmedPays.toLowerCase() === 'france' || trimmedPays.toLowerCase() === 'fr';
+
+      if (isFranceInstance) {
+        // Use the high-accuracy official French government database
+        const frenchSearchQuery = `${trimmedVoie} ${trimmedCp} ${trimmedVille}`.trim();
+        const apiGovUrl = `https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(frenchSearchQuery)}&limit=1`;
+
+        fetch(apiGovUrl)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.features && data.features.length > 0) {
+              const feature = data.features[0];
+              if (feature.geometry && feature.geometry.coordinates) {
+                const [lon, lat] = feature.geometry.coordinates;
+                if (lat !== undefined && lon !== undefined) {
+                  setLatitude(parseFloat(lat).toFixed(6));
+                  setLongitude(parseFloat(lon).toFixed(6));
+                }
+              }
+            }
+          })
+          .catch(err => {
+            console.warn('Official French geocoding API error:', err);
+          });
+      } else {
+        // Fallback or non-France countries: Try structured and then unstructured Nominatim
+        let structuredUrl = `https://nominatim.openstreetmap.org/search?format=json&limit=1`;
+        if (trimmedVoie) {
+          structuredUrl += `&street=${encodeURIComponent(trimmedVoie)}`;
+        }
+        if (trimmedCp) {
+          structuredUrl += `&postalcode=${encodeURIComponent(trimmedCp)}`;
+        }
+        if (trimmedVille) {
+          structuredUrl += `&city=${encodeURIComponent(trimmedVille)}`;
+        }
+        if (trimmedPays) {
+          structuredUrl += `&country=${encodeURIComponent(trimmedPays)}`;
+        }
+
+        fetch(structuredUrl)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.length > 0 && data[0].lat && data[0].lon) {
+              setLatitude(parseFloat(data[0].lat).toFixed(6));
+              setLongitude(parseFloat(data[0].lon).toFixed(6));
+            } else {
+              const freeQueryParts = [];
+              if (trimmedVoie) freeQueryParts.push(trimmedVoie);
+              if (trimmedCp) freeQueryParts.push(trimmedCp);
+              if (trimmedVille) freeQueryParts.push(trimmedVille);
+              if (trimmedPays) freeQueryParts.push(trimmedPays);
+              const searchQuery = freeQueryParts.join(', ');
+
+              fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=1`)
+                .then(res => res.json())
+                .then(fallbackData => {
+                  if (fallbackData && fallbackData.length > 0 && fallbackData[0].lat && fallbackData[0].lon) {
+                    setLatitude(parseFloat(fallbackData[0].lat).toFixed(6));
+                    setLongitude(parseFloat(fallbackData[0].lon).toFixed(6));
+                  }
+                })
+                .catch(err => console.warn('Free-form geocoding fallback error:', err));
+            }
+          })
+          .catch(err => {
+            console.warn('Geocoding error:', err);
+          });
+      }
+    }, 800);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [numVoie, cp, ville, pays]);
+
+  // Section 5 - Dates
+  const [finGarantie, setFinGarantie] = useState('');
+  const [fabrication, setFabrication] = useState('');
+  const [miseEnService, setMiseEnService] = useState('');
+  const [derniereMaintenance, setDerniereMaintenance] = useState('');
+  const [sortieFabricant, setSortieFabricant] = useState('');
+
+  // Section 6 - Électrode Mixte ou Adulte (A)
+  const [modeleElectrodeAId, setModeleElectrodeAId] = useState('');
+  const [lotElectrodeA, setLotElectrodeA] = useState('');
+  const [insertionElectrodeA, setInsertionElectrodeA] = useState('');
+  const [peremptionElectrodeA, setPeremptionElectrodeA] = useState('');
+  const [livraisonElectrodeA, setLivraisonElectrodeA] = useState('');
+  const [situationElectrodeA, setSituationElectrodeA] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
+  const [commentaireElectrodeA, setCommentaireElectrodeA] = useState('');
+  const [peremptionSecoursElectrodeA, setPeremptionSecoursElectrodeA] = useState('');
+
+  // Section 7 - Électrode Pédiatrique (P)
+  const [modeleElectrodePId, setModeleElectrodePId] = useState('');
+  const [lotElectrodeP, setLotElectrodeP] = useState('');
+  const [insertionElectrodeP, setInsertionElectrodeP] = useState('');
+  const [peremptionElectrodeP, setPeremptionElectrodeP] = useState('');
+  const [livraisonElectrodeP, setLivraisonElectrodeP] = useState('');
+  const [situationElectrodeP, setSituationElectrodeP] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
+  const [commentaireElectrodeP, setCommentaireElectrodeP] = useState('');
+  const [peremptionSecoursElectrodeP, setPeremptionSecoursElectrodeP] = useState('');
+
+  // Section 8 - Batterie (B)
+  const [modeleBatterieId, setModeleBatterieId] = useState('');
+  const [lotBatterie, setLotBatterie] = useState('');
+  const [insertionBatterie, setInsertionBatterie] = useState('');
+  const [peremptionBatterie, setPeremptionBatterie] = useState('');
+  const [livraisonBatterie, setLivraisonBatterie] = useState('');
+  const [situationBatterie, setSituationBatterie] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
+  const [pourcentageBatterie, setPourcentageBatterie] = useState('100');
+  const [commentaireBatterie, setCommentaireBatterie] = useState('');
+
+  // Section 9 - Catégories
+  const [loue, setLoue] = useState<'Oui' | 'Non'>('Non');
+  const [prete, setPrete] = useState<'Oui' | 'Non'>('Non');
+  const [stocke, setStocke] = useState<'Oui' | 'Non'>('Non');
+  const [archive, setArchive] = useState<'Oui' | 'Non'>('Non');
+  const [conforme, setConforme] = useState<'Oui' | 'Non'>('Oui');
+  const [sousTraitance, setSousTraitance] = useState<'Oui' | 'Non'>('Non');
+  const [fsmAutorise, setFsmAutorise] = useState<'Oui' | 'Non'>('Oui');
+  const [victimeSurvie, setVictimeSurvie] = useState<'Oui' | 'Non'>('Non');
+  const [victimeSansSurvie, setVictimeSansSurvie] = useState<'Oui' | 'Non'>('Non');
+  const [ageVictime, setAgeVictime] = useState('0');
+  const [commentaireCampagneRappel, setCommentaireCampagneRappel] = useState('');
+  const [rappelMensuelAuto, setRappelMensuelAuto] = useState<'Oui' | 'Non'>('Non');
+
+  const [formError, setFormError] = useState('');
+
+  // --- BULK EDIT FIELDS ---
+  const [bulkApplyModele, setBulkApplyModele] = useState(false);
+  const [bulkModeleId, setBulkModeleId] = useState('');
+
+  const [bulkApplyCommentaire, setBulkApplyCommentaire] = useState(false);
+  const [bulkCommentaire, setBulkCommentaire] = useState('');
+
+  const [bulkApplyDerniereMaint, setBulkApplyDerniereMaint] = useState(false);
+  const [bulkDerniereMaint, setBulkDerniereMaint] = useState('');
+
+  const [bulkApplyProchaineMaint, setBulkApplyProchaineMaint] = useState(false);
+  const [bulkProchaineMaint, setBulkProchaineMaint] = useState('');
+
+  const [bulkApplyArchive, setBulkApplyArchive] = useState(false);
+  const [bulkArchive, setBulkArchive] = useState<'Oui' | 'Non'>('Non');
+
+  const [bulkApplyConforme, setBulkApplyConforme] = useState(false);
+  const [bulkConforme, setBulkConforme] = useState<'Oui' | 'Non'>('Oui');
+
+  const [bulkApplyFsmAutorise, setBulkApplyFsmAutorise] = useState(false);
+  const [bulkFsmAutorise, setBulkFsmAutorise] = useState<'Oui' | 'Non'>('Oui');
+
+  const [bulkApplyRappelMensuelAuto, setBulkApplyRappelMensuelAuto] = useState(false);
+  const [bulkRappelMensuelAuto, setBulkRappelMensuelAuto] = useState<'Oui' | 'Non'>('Non');
+
+  // --- LOOKUP INDEXES ---
+  const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients]);
+  const variableMap = useMemo(() => new Map(variables.map(v => [v.id, v])), [variables]);
+
+  // Variables categorized lists for fast lookup selects
+  const modelesDefib = useMemo(() => variables.filter(v => v.category === 'Modèle Défibrillateur'), [variables]);
+  const modelesCoffret = useMemo(() => variables.filter(v => v.category === 'Modèle Coffret'), [variables]);
+  const modelesElectrode = useMemo(() => variables.filter(v => v.category === 'Modèle Électrode'), [variables]);
+  const modelesBatterie = useMemo(() => variables.filter(v => v.category === 'Modèle Batterie'), [variables]);
+
+
+
+  // Autopopulate site / contract fields on Client lookup change
+  const handleClientChange = (selectedClientId: string) => {
+    setClientId(selectedClientId);
+    const linkedClient = clientMap.get(selectedClientId);
+    if (linkedClient) {
+      setNomPrenomSite(linkedClient.nomPrenomSite || '');
+      setTelephoneSite(linkedClient.telephoneSite || '');
+      setEmailSite(linkedClient.emailSite || '');
+      setContrat(linkedClient.contrat || 'Non');
+      setNomContrat(linkedClient.nomContrat || '');
+      setReferenceContrat(linkedClient.referenceContrat || '');
+      setDebutContrat(linkedClient.debutContrat || '');
+      setFinContrat(linkedClient.finContrat || '');
+    } else {
+      setNomPrenomSite('');
+      setTelephoneSite('');
+      setEmailSite('');
+      setContrat('Non');
+      setNomContrat('');
+      setReferenceContrat('');
+      setDebutContrat('');
+      setFinContrat('');
+    }
+  };
+
+  // List search & filters computation
+  const filteredDefibs = useMemo(() => {
+    return defibrillateurs.filter(df => {
+      const clientName = clientMap.get(df.clientId)?.denomination || '';
+      const modelName = variableMap.get(df.modeleId)?.nom || '';
+      const isMatchSearch =
+        (df.identifiant || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.numeroSerie || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.ville || '').toLowerCase().includes(search.toLowerCase()) ||
+        (clientName || '').toLowerCase().includes(search.toLowerCase()) ||
+        (modelName || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.nomPrenomSite || '').toLowerCase().includes(search.toLowerCase());
+
+      const isMatchRegion = activeFilters.region === 'Tous' || df.region === activeFilters.region;
+      const isMatchModele = activeFilters.modeleId === 'Tous' || df.modeleId === activeFilters.modeleId;
+
+      // Dates logic
+      const datesToCheck: Date[] = [];
+      const mDate = parseDateHelper(computeProchaineMaintenance(df.derniereMaintenance));
+      if (mDate) datesToCheck.push(mDate);
+      const eADate = parseDateHelper(df.peremptionElectrodeA);
+      if (eADate) datesToCheck.push(eADate);
+      const ePDate = parseDateHelper(df.peremptionElectrodeP);
+      if (ePDate) datesToCheck.push(ePDate);
+      const bDate = parseDateHelper(df.peremptionBatterie);
+      if (bDate) datesToCheck.push(bDate);
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const getDaysDiff = (targetDate: Date) => {
+        const checkDate = new Date(targetDate);
+        checkDate.setHours(0, 0, 0, 0);
+        const diffTime = checkDate.getTime() - today.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      };
+
+      const hasExpired = datesToCheck.some(d => {
+        const checkDate = new Date(d);
+        checkDate.setHours(0, 0, 0, 0);
+        return checkDate < today;
+      });
+
+      const hasUnder3Months = datesToCheck.some(d => {
+        const dDiff = getDaysDiff(d);
+        return dDiff >= 0 && dDiff < 90;
+      });
+
+      const hasUnder6Months = datesToCheck.some(d => {
+        const dDiff = getDaysDiff(d);
+        return dDiff >= 90 && dDiff <= 180;
+      });
+
+      // 3. Action 3-6 Mois Match
+      const isMatchAction3To6 = !activeFilters.action3To6 || hasUnder6Months;
+
+      // 4. Action 3 Mois Match
+      const isMatchActionUnder3 = !activeFilters.actionUnder3 || hasUnder3Months;
+
+      // 5. Action Expired Match
+      const isMatchActionExpired = !activeFilters.actionExpired || hasExpired;
+
+      // 6. Catégorie Match (Loué, Prêté, Stocké, Archivé, Sous-Traitance)
+      let isMatchCategorie = true;
+      if (activeFilters.categorie !== 'Tous') {
+        const cat = activeFilters.categorie;
+        if (cat === 'Loué') isMatchCategorie = df.loue === 'Oui';
+        else if (cat === 'Prêté') isMatchCategorie = df.prete === 'Oui';
+        else if (cat === 'Stocké') isMatchCategorie = df.stocke === 'Oui';
+        else if (cat === 'Archivé') isMatchCategorie = df.archive === 'Oui';
+        else if (cat === 'Sous-Traitance') isMatchCategorie = df.sousTraitance === 'Oui';
+      }
+
+      // 7. Contrat Match
+      const isMatchContrat = activeFilters.contrat === 'Tous' || df.contrat === activeFilters.contrat;
+
+      return isMatchSearch && 
+             isMatchRegion && 
+             isMatchModele &&
+             isMatchAction3To6 &&
+             isMatchActionUnder3 &&
+             isMatchActionExpired &&
+             isMatchCategorie &&
+             isMatchContrat;
+    });
+  }, [defibrillateurs, search, activeFilters, clientMap, variableMap]);
+
+  // Row selectors
+  const handleSelectRow = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedIds.includes(id)) {
+      setSelectedIds(selectedIds.filter(selectedId => selectedId !== id));
+    } else {
+      setSelectedIds([...selectedIds, id]);
+    }
+  };
+
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedIds(filteredDefibs.map(df => df.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const isAllSelected = filteredDefibs.length > 0 && selectedIds.length === filteredDefibs.length;
+
+  // Re-roll random identifiant button helper
+  const reRollIdentifiant = () => {
+    const existingIds = defibrillateurs.map(df => df.identifiant);
+    const code = generateRandomShortCode(existingIds);
+    setIdentifiant(code);
+  };
+
+  // Populate form state for creation
+  const openAddForm = () => {
+    setEditingDefib(null);
+    setFormError('');
+
+    // Clear loaded address ref to allow auto geocoding for new items
+    loadedAddressRef.current = { numVoie: '', cp: '', ville: '', pays: 'France' };
+
+    // Pre-roll unique randomized code
+    const existingIds = defibrillateurs.map(df => df.identifiant);
+    setIdentifiant(generateRandomShortCode(existingIds));
+
+    // Reset standard fields
+    setNumeroSerie('');
+    setCommentaire('');
+    setModeleId('');
+
+    // Reset client to empty, autotriggering copy
+    setClientId('');
+    setClientSearchQuery('');
+    handleClientChange('');
+
+    // Reset Coffret
+    setModeleCoffretId('');
+    setNumeroLotCoffret('');
+    setCommentaireCoffret('');
+
+    // Reset Accès
+    setNumVoie('');
+    setVille('');
+    setCp('');
+    setRegion('');
+    setLatitude('');
+    setLongitude('');
+    setPays('France');
+    setCommentaireAdresse('');
+    setAcces247(false);
+    setAccesSemaine(true);
+    setAccesWeekend(false);
+    setExterieur(false);
+
+    // Dates
+    setFinGarantie('');
+    setFabrication('');
+    setMiseEnService('');
+    setDerniereMaintenance('');
+    setSortieFabricant('');
+
+    // Electrodes Mixed/Adult (A)
+    setModeleElectrodeAId('');
+    setLotElectrodeA('');
+    setInsertionElectrodeA('');
+    setPeremptionElectrodeA('');
+    setLivraisonElectrodeA('');
+    setSituationElectrodeA('Vert');
+    setCommentaireElectrodeA('');
+    setPeremptionSecoursElectrodeA('');
+
+    // Electrodes Pediatric (P)
+    setModeleElectrodePId('');
+    setLotElectrodeP('');
+    setInsertionElectrodeP('');
+    setPeremptionElectrodeP('');
+    setLivraisonElectrodeP('');
+    setSituationElectrodeP('Vert');
+    setCommentaireElectrodeP('');
+    setPeremptionSecoursElectrodeP('');
+
+    // Battery (B)
+    setModeleBatterieId('');
+    setLotBatterie('');
+    setInsertionBatterie('');
+    setPeremptionBatterie('');
+    setLivraisonBatterie('');
+    setSituationBatterie('Vert');
+    setPourcentageBatterie('');
+    setCommentaireBatterie('');
+
+    // Categories
+    setLoue('Non');
+    setPrete('Non');
+    setStocke('Non');
+    setArchive('Non');
+    setConforme('Oui');
+    setSousTraitance('Non');
+    setFsmAutorise('Oui');
+    setVictimeSurvie('Non');
+    setVictimeSansSurvie('Non');
+    setAgeVictime('0');
+    setCommentaireCampagneRappel('');
+    setRappelMensuelAuto('Non');
+
+    setIsFormOpen(true);
+  };
+
+  // Populate state for editing
+  const openEditForm = (df: Defibrillateur) => {
+    setEditingDefib(df);
+    setFormError('');
+
+    // Load initial address values to avoid auto geocoding immediately on load
+    loadedAddressRef.current = {
+      numVoie: df.numVoie || '',
+      cp: df.cp || '',
+      ville: df.ville || '',
+      pays: df.pays || 'France'
+    };
+
+    setIdentifiant(df.identifiant);
+    setNumeroSerie(df.numeroSerie);
+    setCommentaire(df.commentaire || '');
+    setModeleId(df.modeleId);
+
+    setClientId(df.clientId);
+    const linkedClient = clients.find(c => c.id === df.clientId);
+    setClientSearchQuery(linkedClient ? `${linkedClient.denomination} (${linkedClient.siret || ''})` : '');
+    setNomPrenomSite(df.nomPrenomSite || '');
+    setTelephoneSite(df.telephoneSite || '');
+    setEmailSite(df.emailSite || '');
+    setContrat(df.contrat || 'Non');
+    setNomContrat(df.nomContrat || '');
+    setReferenceContrat(df.referenceContrat || '');
+    setDebutContrat(df.debutContrat || '');
+    setFinContrat(df.finContrat || '');
+
+    setModeleCoffretId(df.modeleCoffretId || '');
+    setNumeroLotCoffret(df.numeroLotCoffret || '');
+    setCommentaireCoffret(df.commentaireCoffret || '');
+
+    setNumVoie(df.numVoie || '');
+    setVille(df.ville || '');
+    setCp(df.cp || '');
+    setRegion(df.region || 'Île-de-France');
+    setPays(df.pays || 'France');
+    setLatitude(df.latitude || '48.8566');
+    setLongitude(df.longitude || '2.3522');
+    setCommentaireAdresse(df.commentaireAdresse || '');
+    setAcces247(!!df.acces247);
+    setAccesSemaine(!!df.accesSemaine);
+    setAccesWeekend(!!df.accesWeekend);
+    setExterieur(!!df.exterieur);
+
+    setFinGarantie(df.finGarantie || '');
+    setFabrication(df.fabrication || '');
+    setMiseEnService(df.miseEnService || '');
+    setDerniereMaintenance(df.derniereMaintenance || '');
+    setSortieFabricant(df.sortieFabricant || '');
+
+    setModeleElectrodeAId(df.modeleElectrodeAId || '');
+    setLotElectrodeA(df.lotElectrodeA || '');
+    setInsertionElectrodeA(df.insertionElectrodeA || '');
+    setPeremptionElectrodeA(df.peremptionElectrodeA || '');
+    setLivraisonElectrodeA(df.livraisonElectrodeA || '');
+    setSituationElectrodeA(df.situationElectrodeA || 'Vert');
+    setCommentaireElectrodeA(df.commentaireElectrodeA || '');
+    setPeremptionSecoursElectrodeA(df.peremptionSecoursElectrodeA || '');
+
+    setModeleElectrodePId(df.modeleElectrodePId || '');
+    setLotElectrodeP(df.lotElectrodeP || '');
+    setInsertionElectrodeP(df.insertionElectrodeP || '');
+    setPeremptionElectrodeP(df.peremptionElectrodeP || '');
+    setLivraisonElectrodeP(df.livraisonElectrodeP || '');
+    setSituationElectrodeP(df.situationElectrodeP || 'Vert');
+    setCommentaireElectrodeP(df.commentaireElectrodeP || '');
+    setPeremptionSecoursElectrodeP(df.peremptionSecoursElectrodeP || '');
+
+    setModeleBatterieId(df.modeleBatterieId || '');
+    setLotBatterie(df.lotBatterie || '');
+    setInsertionBatterie(df.insertionBatterie || '');
+    setPeremptionBatterie(df.peremptionBatterie || '');
+    setLivraisonBatterie(df.livraisonBatterie || '');
+    setSituationBatterie(df.situationBatterie || 'Vert');
+    setPourcentageBatterie(df.pourcentageBatterie || '100');
+    setCommentaireBatterie(df.commentaireBatterie || '');
+
+    setLoue(df.loue || 'Non');
+    setPrete(df.prete || 'Non');
+    setStocke(df.stocke || 'Non');
+    setArchive(df.archive || 'Non');
+    setConforme(df.conforme || 'Oui');
+    setSousTraitance(df.sousTraitance || 'Non');
+    setFsmAutorise(df.fsmAutorise || 'Oui');
+    setVictimeSurvie(df.victimeSurvie || 'Non');
+    setVictimeSansSurvie(df.victimeSansSurvie || 'Non');
+    setAgeVictime(df.ageVictime || '0');
+    setCommentaireCampagneRappel(df.commentaireCampagneRappel || '');
+    setRappelMensuelAuto(df.rappelMensuelAuto || 'Non');
+
+    setIsFormOpen(true);
+  };
+
+  // Submit handler
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError('');
+
+    // Validation
+    if (!identifiant.trim()) {
+      setFormError('L\'identifiant unique est requis.');
+      return;
+    }
+    if (!numeroSerie.trim()) {
+      setFormError('Le numéro de série est requis.');
+      return;
+    }
+    if (!clientId) {
+      setFormError('Veuillez associer un client à l\'appareil.');
+      return;
+    }
+
+    // Block Duplicates of Identifiant on creation
+    const isDuplicate = defibrillateurs.some(
+      df => (df.identifiant || '').toLowerCase() === identifiant.trim().toLowerCase() && df.id !== editingDefib?.id
+    );
+    if (isDuplicate) {
+      setFormError(`L'identifiant "${identifiant}" existe déjà pour un autre appareil. Reroulez un code unique svp.`);
+      return;
+    }
+
+    const payload = {
+      identifiant: identifiant.trim().toUpperCase(),
+      numeroSerie: numeroSerie.trim(),
+      commentaire: commentaire.trim(),
+      modeleId,
+
+      clientId,
+      nomPrenomSite: nomPrenomSite.trim(),
+      telephoneSite: telephoneSite.trim(),
+      emailSite: emailSite.trim(),
+      contrat,
+      nomContrat: nomContrat.trim(),
+      referenceContrat: referenceContrat.trim(),
+      debutContrat,
+      finContrat,
+
+      modeleCoffretId,
+      numeroLotCoffret: numeroLotCoffret.trim(),
+      commentaireCoffret: commentaireCoffret.trim(),
+
+      numVoie: numVoie.trim(),
+      ville: ville.trim(),
+      cp: cp.trim(),
+      region,
+      pays,
+      latitude,
+      longitude,
+      commentaireAdresse: commentaireAdresse.trim(),
+      acces247,
+      accesSemaine,
+      accesWeekend,
+      exterieur,
+
+      finGarantie,
+      fabrication,
+      miseEnService,
+      derniereMaintenance,
+      sortieFabricant,
+
+      modeleElectrodeAId,
+      lotElectrodeA: lotElectrodeA.trim(),
+      insertionElectrodeA,
+      peremptionElectrodeA,
+      livraisonElectrodeA,
+      situationElectrodeA,
+      commentaireElectrodeA: commentaireElectrodeA.trim(),
+      peremptionSecoursElectrodeA,
+
+      modeleElectrodePId,
+      lotElectrodeP: lotElectrodeP.trim(),
+      insertionElectrodeP,
+      peremptionElectrodeP,
+      livraisonElectrodeP,
+      situationElectrodeP,
+      commentaireElectrodeP: commentaireElectrodeP.trim(),
+      peremptionSecoursElectrodeP,
+
+      modeleBatterieId,
+      lotBatterie: lotBatterie.trim(),
+      insertionBatterie,
+      peremptionBatterie,
+      livraisonBatterie,
+      situationBatterie,
+      pourcentageBatterie: pourcentageBatterie.trim(),
+      commentaireBatterie: commentaireBatterie.trim(),
+
+      loue,
+      prete,
+      stocke,
+      archive,
+      conforme,
+      sousTraitance,
+      fsmAutorise,
+      victimeSurvie,
+      victimeSansSurvie,
+      ageVictime: ageVictime.trim(),
+      commentaireCampagneRappel: commentaireCampagneRappel.trim(),
+      rappelMensuelAuto,
+    };
+
+    if (editingDefib) {
+      onUpdateDefib({
+        id: editingDefib.id,
+        ...payload,
+      });
+    } else {
+      onAddDefib(payload);
+    }
+
+    setIsFormOpen(false);
+  };
+
+  // Bulk Edit submission
+  const handleBulkEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const subtractOneYear = (dateStr: string): string => {
+      if (!dateStr) return '';
+      const p = dateStr.split('-');
+      if (p.length === 3) {
+        const year = parseInt(p[0], 10);
+        return `${year - 1}-${p[1].padStart(2, '0')}-${p[2].padStart(2, '0')}`;
+      }
+      return dateStr;
+    };
+
+    const updates: Partial<Omit<Defibrillateur, 'id'>> = {};
+    if (bulkApplyModele) updates.modeleId = bulkModeleId;
+    if (bulkApplyCommentaire) updates.commentaire = bulkCommentaire;
+    if (bulkApplyDerniereMaint) updates.derniereMaintenance = bulkDerniereMaint;
+    if (bulkApplyProchaineMaint) {
+      updates.derniereMaintenance = subtractOneYear(bulkProchaineMaint);
+    }
+    if (bulkApplyArchive) updates.archive = bulkArchive;
+    if (bulkApplyConforme) updates.conforme = bulkConforme;
+    if (bulkApplyFsmAutorise) updates.fsmAutorise = bulkFsmAutorise;
+    if (bulkApplyRappelMensuelAuto) updates.rappelMensuelAuto = bulkRappelMensuelAuto;
+
+    if (Object.keys(updates).length > 0) {
+      onBulkEdit(selectedIds, updates);
+    }
+
+    // Reset fields to original/safe defaults
+    setBulkApplyModele(false);
+    setBulkModeleId('');
+    setBulkApplyCommentaire(false);
+    setBulkCommentaire('');
+    setBulkApplyDerniereMaint(false);
+    setBulkDerniereMaint('');
+    setBulkApplyProchaineMaint(false);
+    setBulkProchaineMaint('');
+    setBulkApplyArchive(false);
+    setBulkArchive('Non');
+    setBulkApplyConforme(false);
+    setBulkConforme('Oui');
+    setBulkApplyFsmAutorise(false);
+    setBulkFsmAutorise('Oui');
+    setBulkApplyRappelMensuelAuto(false);
+    setBulkRappelMensuelAuto('Non');
+
+    setIsBulkEditOpen(false);
+    setSelectedIds([]);
+  };
+
+  // Bulk deletion
+  const handleBulkDeleteAction = () => {
+    if (confirm(`Voulez-vous vraiment supprimer définitivement ces ${selectedIds.length} défibrillateur(s) ?`)) {
+      onBulkDelete(selectedIds);
+      setSelectedIds([]);
+    }
+  };
+
+  // Safe search resetting helper
+  const clearFilters = () => {
+    setSearch('');
+    const defaults = {
+      region: 'Tous',
+      modeleId: 'Tous',
+      action3To6: false,
+      actionUnder3: false,
+      actionExpired: false,
+      categorie: 'Tous',
+      contrat: 'Tous',
+    };
+    setActiveFilters(defaults);
+    setDraftFilters(defaults);
+  };
+
+  return (
+    <div className="space-y-6" id="defib-tab-container">
+      {!isFormOpen && (
+        <>
+          {/* Top action block & Search metrics */}
+          <div 
+            className="bg-white space-y-4"
+            style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px 0px 18px 18px', maxWidth: '98%', margin: 'auto', padding: '20px', backgroundColor: '#ffffff' }}
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight font-gochi" style={{ color: '#000000', cursor: 'default' }}>Défibrillateurs</h2>
+              </div>
+
+              {/* Both search and buttons are placed directly next to the title */}
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Field recherche (Search input) with size reduced */}
+                <div className="relative w-full sm:w-64">
+                  <input
+                    type="text"
+                    id="search-defibs-input"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Recherche."
+                    className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
+                    style={searchInputStyle}
+                    onMouseEnter={() => setIsSearchHovered(true)}
+                    onMouseLeave={() => setIsSearchHovered(false)}
+                    onFocus={() => setIsSearchFocused(true)}
+                    onBlur={() => setIsSearchFocused(false)}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setIsFilterPaneOpen(true)}
+                  id="btn-trigger-filters"
+                  style={customButtonStyle}
+                >
+                  <span>Filtres</span>
+                  {(() => {
+                    const count = [
+                      activeFilters.region !== 'Tous',
+                      activeFilters.modeleId !== 'Tous',
+                      activeFilters.action3To6 === true,
+                      activeFilters.actionUnder3 === true,
+                      activeFilters.actionExpired === true,
+                      activeFilters.categorie !== 'Tous',
+                      activeFilters.contrat !== 'Tous',
+                    ].filter(Boolean).length;
+                    return count > 0 ? (
+                      <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-black text-white bg-[#fe4eba] rounded-full ml-1">
+                        {count}
+                      </span>
+                    ) : null;
+                  })()}
+                </button>
+                <a
+                  href="https://www.google.com/maps"
+                  target="_blank"
+                  rel="noreferrer"
+                  id="btn-open-map"
+                  style={customButtonStyle}
+                >
+                  Plan
+                </a>
+                <button
+                  onClick={() => window.location.reload()}
+                  id="btn-refresh-page"
+                  style={customButtonStyle}
+                >
+                  Actualiser
+                </button>
+                <button
+                  onClick={openAddForm}
+                  id="btn-add-defib"
+                  style={{
+                    ...customButtonStyle,
+                    backgroundColor: 'rgb(53, 86, 236)',
+                    boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
+                  }}
+                >
+                  Nouveau
+                </button>
+              </div>
+            </div>
+          </div>
+
+            {/* Dynamic bulk Action Bar at the top of the table if at least one record checked */}
+            {selectedIds.length > 0 && (
+              <div 
+                className="p-4 flex items-center justify-between gap-4 animate-fadeIn" 
+                id="bulk-actions-status-bar"
+                style={{
+                  backgroundColor: '#ffffff',
+                  border: '1px solid rgb(231, 231, 231)',
+                  borderRadius: '16px',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="w-6 h-6 text-white rounded-full flex items-center justify-center text-xs font-bold font-sans shrink-0"
+                    style={{ backgroundColor: '#fe4eba' }}
+                  >
+                    {selectedIds.length}
+                  </span>
+                  <span 
+                    className="font-sans"
+                    style={{ fontSize: '18px', color: '#000000', fontWeight: '100', cursor: 'default' }}
+                  >
+                    Sélectionné(s)
+                  </span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsBulkEditOpen(true)}
+                    id="btn-bulk-modify"
+                    style={rowActionButton18Style}
+                    className="cursor-pointer"
+                  >
+                    Corriger
+                  </button>
+                  
+                  {/* Action Tournee Dropdown */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      disabled={isAnySelectedInTour}
+                      onClick={() => {
+                        if (!isAnySelectedInTour) {
+                           setIsTourDropdownOpen(!isTourDropdownOpen);
+                        }
+                      }}
+                      title={isAnySelectedInTour ? "Action impossible : l'un des défibrillateurs sélectionnés fait déjà partie d'une tournée." : "Associer à une tournée"}
+                      style={{
+                        ...rowActionButton18Style,
+                        opacity: isAnySelectedInTour ? 0.6 : 1,
+                        cursor: isAnySelectedInTour ? 'not-allowed' : 'pointer'
+                      }}
+                    >
+                      <span>Tournée</span>
+                    </button>
+                    {isTourDropdownOpen && !isAnySelectedInTour && (
+                      <div 
+                        className="absolute right-0 mt-1 w-72 bg-white rounded-lg z-50 py-2.5 font-sans animate-fadeIn"
+                        style={{ 
+                          fontSize: '18px',
+                          border: '1px solid rgb(218 218 218)',
+                          boxShadow: 'none'
+                        }}
+                      >
+                        <div className="px-3 pb-2 bg-transparent">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              executeNouvelleTournee();
+                            }}
+                            style={{
+                              ...rowActionButton18Style,
+                              width: '100%',
+                            }}
+                            className="w-full text-center transition-colors cursor-pointer"
+                          >
+                            Nouvelle Tournée
+                          </button>
+                        </div>
+
+                        {selectedDraftId && (
+                          <div className="px-3 pb-2 bg-transparent">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                executeAddTournee(selectedDraftId);
+                              }}
+                              style={{
+                                ...rowActionButton18Style,
+                                width: '100%',
+                                boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+                                background: 'rgb(53, 86, 236)'
+                              }}
+                              className="w-full text-center transition-colors cursor-pointer"
+                            >
+                              Confirmer l'action
+                            </button>
+                          </div>
+                        )}
+                        
+                        {(() => {
+                          const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon');
+                          if (drafts.length === 0) {
+                            return (
+                              <div className="px-4 py-2 text-slate-400 font-sans italic text-center" style={{ fontSize: '15px' }}>
+                                Aucune tournée en brouillon
+                              </div>
+                            );
+                          }
+                          return drafts.map(t => {
+                            const isSelected = selectedDraftId === t.id;
+                            const displayTitle = t.title.length > 25 ? t.title.substring(0, 25) + '(...)' : t.title;
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedDraftId(isSelected ? null : t.id);
+                                }}
+                                className="w-full text-left px-4 py-2 font-semibold truncate cursor-pointer border-0 bg-transparent hover:bg-transparent"
+                                style={{ 
+                                  fontSize: '16px',
+                                  color: isSelected ? 'rgb(254, 78, 186)' : '#000000',
+                                  textDecoration: isSelected ? 'underline' : 'none'
+                                }}
+                              >
+                                {displayTitle}
+                              </button>
+                            );
+                          });
+                        })()}
+                      </div>
+                    )}
+                  </div>
+     
+                  <button
+                    onClick={() => exportToCSV(defibrillateurs.filter(d => selectedIds.includes(d.id)), clients, variables)}
+                    style={rowActionButton18Style}
+                    className="cursor-pointer"
+                  >
+                    CSV
+                  </button>
+                  <button
+                    onClick={handleBulkDeleteAction}
+                    id="btn-bulk-delete"
+                    style={rowActionButton18Style}
+                    className="cursor-pointer"
+                  >
+                    Supprimer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+      {/* Main Table Records Sheet */}
+      <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>
+        <div className="overflow-x-auto">
+          {filteredDefibs.length === 0 ? (
+            <div className="p-16 text-center font-sans lg:py-24" id="no-defibs-view">
+              <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>Aucun résultat</p>
+            </div>
+          ) : (
+            <table className="w-full text-left font-sans border-collapse text-xs" id="records-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
+              <thead>
+                <tr className="bg-transparent">
+                  <th className="px-4 py-3.5 w-12 text-center select-none" style={{ cursor: 'default' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isAllSelected) {
+                          setSelectedIds([]);
+                        } else {
+                          setSelectedIds(filteredDefibs.map(df => df.id));
+                        }
+                      }}
+                      id="select-all-radio-checkbox"
+                      className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center focus:outline-hidden focus:ring-2 focus:ring-[#fe4eba]/20 cursor-pointer mx-auto ${
+                        isAllSelected
+                          ? 'border-[#fe4eba] bg-transparent'
+                          : 'border-slate-400 bg-white hover:border-[#fe4eba]'
+                      }`}
+                      style={{ borderWidth: '2.5px' }}
+                      role="checkbox"
+                      aria-checked={isAllSelected}
+                    >
+                      {isAllSelected && (
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                      )}
+                    </button>
+                  </th>
+                  <th className="px-4 py-3.5 w-14" style={thStyle}>Miniature.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Identifiant.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Série.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Client.</th>
+                  <th className="px-4 py-3.5 text-center" style={thStyle}>Contrat.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Localisation.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Expir. garantie.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Pro. visite.</th>
+                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption A.</th>
+                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption P.</th>
+                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption B.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>Tournée.</th>
+                  <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions.</th>
+                </tr>
+              </thead>
+              <tbody className="text-slate-700 text-xs">
+                {filteredDefibs.map(df => {
+                  const linkedClient = clientMap.get(df.clientId);
+                  const linkedModel = variableMap.get(df.modeleId);
+                  const isChecked = selectedIds.includes(df.id);
+                  const prochaineMaint = computeProchaineMaintenance(df.derniereMaintenance);
+
+                  return (
+                    <tr
+                      key={df.id}
+                      id={`defib-row-${df.id}`}
+                      onClick={() => openEditForm(df)}
+                      className={`group hover:bg-[#ffecf8] transition-all cursor-pointer ${
+                        isChecked ? 'bg-[#ffecf8]/60' : ''
+                      }`}
+                    >
+                      {/* Checkbox column */}
+                      <td className="px-4 py-5 text-center" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={(e) => handleSelectRow(df.id, e)}
+                          id={`radio-checkbox-row-${df.id}`}
+                          className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center focus:outline-hidden focus:ring-2 focus:ring-[#fe4eba]/20 cursor-pointer mx-auto ${
+                            isChecked
+                              ? 'border-[#fe4eba] bg-transparent'
+                              : 'border-slate-400 bg-white hover:border-[#fe4eba]'
+                          }`}
+                          style={{ borderWidth: '2.5px' }}
+                          role="checkbox"
+                          aria-checked={isChecked}
+                        >
+                          {isChecked && (
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                          )}
+                        </button>
+                      </td>
+
+                      {/* Miniature thumbnail column */}
+                      <td className="px-4 py-3.5">
+                        <div className="w-14 h-14 rounded-md bg-slate-105 border border-slate-200 overflow-hidden relative flex items-center justify-center">
+                          {linkedModel?.imageUrl ? (
+                            <img
+                               src={linkedModel.imageUrl}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <Heart className="w-6 h-6 text-slate-300 fill-slate-50" />
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Identifiant */}
+                      <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                        <div 
+                          style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '8px',
+                            border: '1px solid rgb(231, 231, 231)',
+                            borderRadius: '1000px',
+                            padding: '4px 12px',
+                            backgroundColor: '#ffffff'
+                          }} 
+                          className="whitespace-nowrap"
+                        >
+                          {(() => {
+                            const status = getSafetyStatus(df);
+                            return (
+                              <span 
+                                className={`w-2 h-2 rounded-full shrink-0 ${status.colorClass}`} 
+                                title={status.title}
+                              />
+                            );
+                          })()}
+                          <span className="whitespace-nowrap">{df.identifiant}</span>
+                        </div>
+                      </td>
+
+                      {/* Série */}
+                      <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                        {df.numeroSerie}
+                      </td>
+
+                      {/* Client */}
+                      <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }} title={linkedClient?.denomination}>
+                        {linkedClient?.denomination || 'Client Inconnu'}
+                      </td>
+
+                      {/* Contrat Yes/No */}
+                      <td className="px-4 py-5 text-center">
+                        {df.contrat ? (
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            borderRadius: '1000px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid rgb(231, 231, 231)',
+                            color: '#000000',
+                            fontSize: '16px',
+                            fontWeight: 100,
+                            padding: '4px 12px',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {df.contrat}
+                          </span>
+                        ) : null}
+                      </td>
+
+                      {/* Localisation (ville / cp) */}
+                      <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                        {df.ville && df.cp ? `${df.ville}, ${df.cp}` : (df.ville || df.cp || '-')}
+                      </td>
+
+                      {/* Fin Garantie */}
+                      <td className="px-4 py-5 font-sans" style={{ fontSize: '16px', fontWeight: 100, color: getDateColor(df.finGarantie), backgroundColor: 'transparent' }}>
+                        {formatDateToFR(df.finGarantie) || '-'}
+                      </td>
+
+                      {/* Prochaine Maintenance */}
+                      <td className="px-4 py-5 font-sans" style={{ fontSize: '16px', fontWeight: 100, color: getDateColor(prochaineMaint), backgroundColor: 'transparent' }}>
+                        {formatDateToFR(prochaineMaint) || '-'}
+                      </td>
+
+                      {/* Electrode Adult Expiry */}
+                      <td className="px-3 py-5 text-center font-sans" style={{ fontSize: '16px', fontWeight: 100, color: getDateColor(df.peremptionElectrodeA), backgroundColor: 'transparent' }}>
+                        {formatDateToFR(df.peremptionElectrodeA) || '-'}
+                      </td>
+
+                      {/* Electrode Pediatric Expiry */}
+                      <td className="px-3 py-5 text-center font-sans" style={{ fontSize: '16px', fontWeight: 100, color: getDateColor(df.peremptionElectrodeP), backgroundColor: 'transparent' }}>
+                        {formatDateToFR(df.peremptionElectrodeP) || '-'}
+                      </td>
+
+                      {/* Battery Expiry */}
+                      <td className="px-3 py-5 text-center font-sans" style={{ fontSize: '16px', fontWeight: 100, color: getDateColor(df.peremptionBatterie), backgroundColor: 'transparent' }}>
+                        {formatDateToFR(df.peremptionBatterie) || '-'}
+                      </td>
+
+                      {/* Tournée association column */}
+                      <td className="px-4 py-5 text-left font-sans" onClick={(e) => e.stopPropagation()}>
+                        {(() => {
+                          const matchingTours = (fsmTours || []).filter(t => 
+                            t.missions?.some((m: any) => m.defibIdentifiant === df.identifiant)
+                          );
+                          if (matchingTours.length > 0) {
+                            // Show only the single most recent one (the last matching one in our list)
+                            const latestTour = matchingTours[matchingTours.length - 1];
+                            return (
+                              <span 
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  borderRadius: '1000px',
+                                  backgroundColor: '#ffffff',
+                                  border: '1px solid rgb(231, 231, 231)',
+                                  color: '#000000',
+                                  fontSize: '16px',
+                                  fontWeight: 100,
+                                  padding: '4px 12px',
+                                  whiteSpace: 'nowrap',
+                                }} 
+                                title={latestTour.title}
+                              >
+                                {latestTour.title}
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="px-4 py-5 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex gap-1.5">
+                          <button
+                            onClick={() => openEditForm(df)}
+                            style={rowActionButton18Style}
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm(`Supprimer définitivement l'appareil ${df.identifiant} (${df.numeroSerie}) ?`)) {
+                                onDeleteDefib(df.id);
+                              }
+                            }}
+                            style={rowActionButton18Style}
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
+      <div style={{ fontSize: '18px', color: '#000000', fontWeight: 'bold', cursor: 'default' }} className="p-4 font-sans text-left" id="defib-tab-total-summary">
+        Total défibrillateurs (Tous): {defibrillateurs.length}.
+      </div>
+
+      {/* Cartographie GIS Overlay */}
+      <MapModal
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        defibrillateurs={defibrillateurs}
+        clients={clients}
+        variables={variables}
+      />
+        </>
+      )}
+
+      {/* ======================================= */}
+      {/* 🛠️ DOUBLE COLUMN SPACIOUS MODAL FORM 🛠️ */}
+      {/* ======================================= */}
+      {isFormOpen && (
+        <div
+          className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto"
+          id="defib-form-overlay"
+        >
+          {/* Header */}
+          <div 
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
+            style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px 0px 18px 18px', maxWidth: '98%', margin: 'auto', padding: '20px' }}
+            id="defib-form-header-box"
+          >
+            <div>
+              <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#000000', cursor: 'default' }}>
+                {editingDefib ? 'Modification Défibrillateur' : 'Nouveau Défibrillateur'}
+              </h3>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
+                id="btn-close-defib-modal"
+                style={rowActionButton18Style}
+                className="transition-colors cursor-pointer"
+              >
+                <span>Fermer</span>
+              </button>
+
+              <button
+                type="submit"
+                form="defibrillateur-core-form"
+                id="btn-submit-defib-form"
+                style={{
+                  ...rowActionButton18Style,
+                  backgroundColor: 'rgb(53, 86, 236)',
+                  color: '#ffffff',
+                  boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
+                }}
+                className="transition-all cursor-pointer"
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="w-full animate-fadeIn mt-6"
+            style={{ marginTop: '24px' }}
+            id="defib-form-box"
+          >
+            {/* Body */}
+            <style>{`
+              #defibrillateur-core-form input:not([type="radio"]):not([type="checkbox"]),
+              #defibrillateur-core-form select,
+              #defibrillateur-core-form textarea {
+                padding: 12px !important;
+                border: 1px solid #dedede !important;
+                border-radius: 13px !important;
+                font-size: 16px !important;
+                font-weight: 100 !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                font-family: "DefibeoMain", "Civilprom", sans-serif !important;
+                box-sizing: border-box !important;
+                outline: none !important;
+                transition: all 0s !important;
+              }
+              #defibrillateur-core-form input:not([type="radio"]):not([type="checkbox"]):hover,
+              #defibrillateur-core-form input:not([type="radio"]):not([type="checkbox"]):focus,
+              #defibrillateur-core-form select:hover,
+              #defibrillateur-core-form select:focus,
+              #defibrillateur-core-form textarea:hover,
+              #defibrillateur-core-form textarea:focus {
+                outline: 2.5px solid #fa53d5 !important;
+                outline-offset: 2px !important;
+                transition: all 0s !important;
+              }
+              #defibrillateur-core-form input:not([type="radio"]):not([type="checkbox"])::placeholder,
+              #defibrillateur-core-form textarea::placeholder {
+                color: #000000 !important;
+                opacity: 1 !important;
+                font-weight: 100 !important;
+                font-family: "DefibeoMain", "Civilprom", sans-serif !important;
+              }
+              #defibrillateur-core-form input:disabled,
+              #defibrillateur-core-form select:disabled,
+              #defibrillateur-core-form textarea:disabled {
+                color: #000000 !important;
+                -webkit-text-fill-color: #000000 !important;
+                background-color: #f1f5f9 !important;
+                opacity: 0.95 !important;
+                font-family: "DefibeoMain", "Civilprom", sans-serif !important;
+                cursor: not-allowed !important;
+              }
+              #defibrillateur-core-form input:disabled:hover,
+              #defibrillateur-core-form input:disabled:focus,
+              #defibrillateur-core-form select:disabled:hover,
+              #defibrillateur-core-form select:disabled:focus,
+              #defibrillateur-core-form textarea:disabled:hover,
+              #defibrillateur-core-form textarea:disabled:focus {
+                outline: none !important;
+              }
+              #defibrillateur-core-form select {
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                -moz-appearance: none !important;
+                background-image: none !important;
+              }
+              #defibrillateur-core-form select option {
+                color: #000000 !important;
+                background: #ffffff !important;
+                font-family: "DefibeoMain", "Civilprom", sans-serif !important;
+              }
+              #defibrillateur-core-form input[type="date"]::-webkit-calendar-picker-indicator {
+                display: none !important;
+                -webkit-appearance: none !important;
+                background: none !important;
+                width: 0 !important;
+                height: 0 !important;
+              }
+              #defibrillateur-core-form label,
+              #defibrillateur-core-form .section-title-label,
+              #defibrillateur-core-form span.block.uppercase {
+                letter-spacing: normal !important;
+                text-transform: none !important;
+                font-size: 16px !important;
+                color: #000000 !important;
+                font-weight: 600 !important;
+              }
+              #defibrillateur-core-form input[type="radio"] {
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                width: 18px !important;
+                height: 18px !important;
+                border: 2px solid #cbd5e1 !important;
+                border-radius: 50% !important;
+                background-color: #ffffff !important;
+                outline: none !important;
+                cursor: pointer !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: all 0.2s ease !important;
+                margin-right: 6px !important;
+              }
+              #defibrillateur-core-form input[type="radio"]:hover {
+                border-color: oklch(0.44 0.16 324.65) !important;
+              }
+              #defibrillateur-core-form input[type="radio"]:checked {
+                border-color: oklch(0.44 0.16 324.65) !important;
+                background-color: oklch(0.44 0.16 324.65) !important;
+              }
+              #defibrillateur-core-form input[type="radio"]:checked::after {
+                content: "" !important;
+                width: 8px !important;
+                height: 8px !important;
+                background-color: #ffffff !important;
+                border-radius: 50% !important;
+                display: block !important;
+              }
+              #defibrillateur-core-form input[type="checkbox"] {
+                appearance: none !important;
+                -webkit-appearance: none !important;
+                width: 18px !important;
+                height: 18px !important;
+                border: 2px solid #cbd5e1 !important;
+                border-radius: 4px !important;
+                background-color: #ffffff !important;
+                outline: none !important;
+                cursor: pointer !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                transition: all 0.2s ease !important;
+                margin-right: 6px !important;
+              }
+              #defibrillateur-core-form input[type="checkbox"]:hover {
+                border-color: oklch(0.44 0.16 324.65) !important;
+              }
+              #defibrillateur-core-form input[type="checkbox"]:checked {
+                border-color: oklch(0.44 0.16 324.65) !important;
+                background-color: oklch(0.44 0.16 324.65) !important;
+              }
+              #defibrillateur-core-form input[type="checkbox"]:checked::after {
+                content: "✓" !important;
+                color: #ffffff !important;
+                font-size: 11px !important;
+                font-weight: 900 !important;
+                display: block !important;
+              }
+            `}</style>
+            <form onSubmit={handleFormSubmit} className="space-y-6" id="defibrillateur-core-form">
+              {formError && (
+                <div
+                  className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-xs font-semibold"
+                  id="form-submit-error"
+                >
+                  {formError}
+                </div>
+              )}
+
+              {/* Stacked Layout: Sections one above another */}
+              <div className="space-y-0" style={{ maxWidth: '98%', margin: 'auto' }}>
+
+                  {/* Section 1 - Défibrillateur */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderRadius: '18px 18px 0px 0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        1 — Identification
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Identifiant */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-identifiant" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Identifiant.
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-identifiant"
+                            value={identifiant}
+                            readOnly
+                            placeholder="AAA-111"
+                            className="flex-1 min-w-0 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-mono font-bold bg-slate-100 text-slate-500 cursor-not-allowed"
+                            required
+                          />
+                          {!editingDefib && (
+                            <button
+                              type="button"
+                              onClick={reRollIdentifiant}
+                              title="Générer un code aléatoire libre"
+                              style={rowActionButton18Style}
+                              className="shrink-0 font-sans"
+                            >
+                              Générer
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Série */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-serie" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Série.
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-serie"
+                            value={numeroSerie}
+                            onChange={(e) => setNumeroSerie(e.target.value)}
+                            placeholder="Nombres et chiffres."
+                            className="flex-1 min-w-0 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-mono"
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsSerieScannerOpen(true)}
+                            style={rowActionButton18Style}
+                            className="shrink-0 font-sans"
+                          >
+                            Scan
+                          </button>
+                        </div>
+                        {isSerieScannerOpen && (
+                          <BarcodeScannerModal
+                            isOpen={isSerieScannerOpen}
+                            onClose={() => setIsSerieScannerOpen(false)}
+                            onScanSuccess={(scannedText) => {
+                              setNumeroSerie(scannedText);
+                              setIsSerieScannerOpen(false);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Modèle Lookup select - spans full column */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-modeleid" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Modèle.
+                        </label>
+                        <select
+                          id="form-modeleid"
+                          value={modeleId}
+                          onChange={(e) => setModeleId(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                          required
+                        >
+                          <option value="">-- Sélectionner Modèle --</option>
+                          {modelesDefib.map(v => (
+                            <option key={v.id} value={v.id}>
+                              {v.marque} - {v.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Commentaire simple */}
+                    <div className="space-y-1">
+                      <label htmlFor="form-commentaire" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Commentaire.
+                      </label>
+                      <textarea
+                        id="form-commentaire"
+                        value={commentaire}
+                        onChange={(e) => setCommentaire(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        rows={2}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 resize-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 2 - Client (Auto-Populate Source) */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        2 — Client
+                      </span>
+                    </div>
+
+                    {/* Client Selector with integrated search box, filtering, and 10 results limit */}
+                    <div className="space-y-1 relative">
+                      <label htmlFor="form-client-search" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        Client.
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="form-client-search"
+                          value={clientSearchQuery}
+                          onChange={(e) => {
+                            setClientSearchQuery(e.target.value);
+                            setIsClientSearchFocused(true);
+                          }}
+                          onFocus={() => setIsClientSearchFocused(true)}
+                          onBlur={() => {
+                            // Slight timeout so that clicks on dropdown item register before blur hide
+                            setTimeout(() => setIsClientSearchFocused(false), 250);
+                          }}
+                          placeholder="Recherchez un client."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                          required
+                        />
+                        {clientSearchQuery && !clientId && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setClientSearchQuery('');
+                              setClientId('');
+                              setIsClientSearchFocused(true);
+                            }}
+                            className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Dropdown list element representing select results with auto filtering (max 10 results) */}
+                      {isClientSearchFocused && (
+                        <div 
+                          className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg z-50 py-1 animate-fadeIn shadow-none text-slate-800"
+                          style={{ minWidth: '240px', fontSize: '16px' }}
+                        >
+                          {(() => {
+                            const searchLower = clientSearchQuery.toLowerCase();
+                            const hits = clients.filter(c => 
+                              c.denomination.toLowerCase().includes(searchLower) || 
+                              (c.siret && c.siret.includes(searchLower)) ||
+                              c.id.toLowerCase().includes(searchLower)
+                            ).slice(0, 10);
+
+                            if (hits.length === 0) {
+                              return (
+                                <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
+                                  Aucun client trouvé pour "{clientSearchQuery}"
+                                </div>
+                              );
+                            }
+
+                            return hits.map(c => {
+                              const labelStr = `${c.denomination} (${c.siret || ''})`;
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    handleClientChange(c.id);
+                                    setClientSearchQuery(labelStr);
+                                    setIsClientSearchFocused(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 cursor-pointer text-slate-800 transition-colors ${
+                                    clientId === c.id ? 'bg-slate-50 font-semibold' : ''
+                                  }`}
+                                  style={{ fontSize: '16px' }}
+                                >
+                                  {labelStr}
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Contacts du site fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-site-nom" className="block text-[10px] uppercase font-semibold text-slate-400">Nom et prénom.</label>
+                        <input
+                          type="text"
+                          id="form-site-nom"
+                          value={nomPrenomSite}
+                          onChange={(e) => setNomPrenomSite(e.target.value)}
+                          placeholder="Auto-complété."
+                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 font-semibold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-site-tel" className="block text-[10px] uppercase font-semibold text-slate-400">Téléphone portable.</label>
+                        <input
+                          type="text"
+                          id="form-site-tel"
+                          value={telephoneSite}
+                          onChange={(e) => setTelephoneSite(e.target.value)}
+                          placeholder="Auto-complété."
+                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-site-mail" className="block text-[10px] uppercase font-semibold text-slate-400">Email.</label>
+                        <input
+                          type="text"
+                          id="form-site-mail"
+                          value={emailSite}
+                          onChange={(e) => setEmailSite(e.target.value)}
+                          placeholder="Auto-complété."
+                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 truncate"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Enabled Contract fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1 pt-1">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Contrat en cours.</label>
+                        <select
+                          value={contrat || 'Non'}
+                          onChange={(e) => setContrat(e.target.value as 'Oui' | 'Non')}
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 bg-white"
+                        >
+                          <option value="Oui">Oui</option>
+                          <option value="Non">Non</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Titre du contrat.</label>
+                        <input
+                          type="text"
+                          value={nomContrat}
+                          onChange={(e) => setNomContrat(e.target.value)}
+                          placeholder="Nom du contrat"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 bg-white"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Référence du contrat.</label>
+                        <input
+                          type="text"
+                          value={referenceContrat}
+                          onChange={(e) => setReferenceContrat(e.target.value)}
+                          placeholder="Référence de contrat"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Début du contrat.</label>
+                        <input
+                          type="date"
+                          value={debutContrat}
+                          onChange={(e) => setDebutContrat(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Expiration du contrat.</label>
+                        <input
+                          type="date"
+                          value={finContrat}
+                          onChange={(e) => setFinContrat(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 3 - Coffret */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        3 — Boîtier
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Modèle de coffret */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-mod-coffret" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Modèle.
+                        </label>
+                        <select
+                          id="form-mod-coffret"
+                          value={modeleCoffretId}
+                          onChange={(e) => setModeleCoffretId(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sans coffret --</option>
+                          {modelesCoffret.map(v => (
+                            <option key={v.id} value={v.id}>
+                              {v.marque} - {v.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Numéro Lot Coffret */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-lot-coffret" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Lot.
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-lot-coffret"
+                            value={numeroLotCoffret}
+                            onChange={(e) => setNumeroLotCoffret(e.target.value)}
+                            placeholder="Nombres et chiffres."
+                            className="flex-1 min-w-0 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsLotScannerOpen(true)}
+                            style={rowActionButton18Style}
+                            className="shrink-0 font-sans"
+                          >
+                            Scan
+                          </button>
+                        </div>
+                        {isLotScannerOpen && (
+                          <BarcodeScannerModal
+                            isOpen={isLotScannerOpen}
+                            onClose={() => setIsLotScannerOpen(false)}
+                            onScanSuccess={(scannedText) => {
+                              setNumeroLotCoffret(scannedText);
+                              setIsLotScannerOpen(false);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Note Coffret */}
+                    <div className="space-y-1">
+                      <label htmlFor="form-comm-coffret" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Commentaire.
+                      </label>
+                      <input
+                        type="text"
+                        id="form-comm-coffret"
+                        value={commentaireCoffret}
+                        onChange={(e) => setCommentaireCoffret(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-750"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 4 - Accès */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        4 — Localisation
+                      </span>
+                    </div>
+
+                    {/* Localisation fields */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1 sm:col-span-3">
+                        <label htmlFor="form-voie" className="block text-[10px] font-bold text-slate-400 uppercase">Numéro et voie.</label>
+                        <input
+                          type="text"
+                          id="form-voie"
+                          value={numVoie}
+                          onChange={(e) => setNumVoie(e.target.value)}
+                          placeholder="Ex: 1 Rue Dupont."
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-ville" className="block text-[10px] font-bold text-slate-400 uppercase">Ville.</label>
+                        <input
+                          type="text"
+                          id="form-ville"
+                          value={ville}
+                          onChange={(e) => setVille(e.target.value)}
+                          placeholder="Ex: Dupont."
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-850 font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-cp" className="block text-[10px] font-bold text-slate-400 uppercase">Code postal.</label>
+                        <input
+                          type="text"
+                          id="form-cp"
+                          value={cp}
+                          onChange={(e) => setCp(e.target.value)}
+                          placeholder="Ex: 12345."
+                          className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-800 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-region" className="block text-[10px] font-bold text-slate-400 uppercase">Région.</label>
+                        <select
+                          id="form-region"
+                          value={region}
+                          onChange={(e) => setRegion(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        >
+                          <option value="">Choisir une région.</option>
+                          {REGIONS_FRANCAISES.map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-pays" className="block text-[10px] font-bold text-slate-400 uppercase">Pays.</label>
+                        <input
+                          type="text"
+                          id="form-pays"
+                          value={pays}
+                          onChange={(e) => setPays(e.target.value)}
+                          placeholder="Ex: France."
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700 font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-lat" className="block text-[10px] font-bold text-slate-400 uppercase">Latitude.</label>
+                        <input
+                          type="text"
+                          id="form-lat"
+                          value={latitude}
+                          onChange={(e) => setLatitude(e.target.value)}
+                          placeholder="Auto-complété."
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-slate-700 font-sans"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-lng" className="block text-[10px] font-bold text-slate-400 uppercase">Longitude.</label>
+                        <input
+                          type="text"
+                          id="form-lng"
+                          value={longitude}
+                          onChange={(e) => setLongitude(e.target.value)}
+                          placeholder="Auto-complété."
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-slate-700 font-sans"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="form-com-adresse" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Aide d'accès.
+                      </label>
+                      <input
+                        type="text"
+                        id="form-com-adresse"
+                        value={commentaireAdresse}
+                        onChange={(e) => setCommentaireAdresse(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs text-slate-750"
+                      />
+                    </div>
+
+                    {/* Checkbox settings converted to stylized radio checks */}
+                    <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {/* Accès 24h/24 & 7j/7 */}
+                      <div className="p-2 rounded-lg space-y-1">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès permanent.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAcces247(true)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${acces247 === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {acces247 === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAcces247(false)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${acces247 === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {acces247 === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Accès Semaine Uniquement */}
+                      <div className="p-2 rounded-lg space-y-1">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès jours ouvrés.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAccesSemaine(true)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesSemaine === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {accesSemaine === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAccesSemaine(false)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesSemaine === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {accesSemaine === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Accès Week-end Uniquement */}
+                      <div className="p-2 rounded-lg space-y-1">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès week-end.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setAccesWeekend(true)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesWeekend === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {accesWeekend === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setAccesWeekend(false)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesWeekend === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {accesWeekend === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Implanté en Extérieur */}
+                      <div className="p-2 rounded-lg space-y-1">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Installé en extérieur.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setExterieur(true)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${exterieur === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {exterieur === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setExterieur(false)}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${exterieur === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {exterieur === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 5 - Dates */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        5 — Dates
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-fin-garantie" className="block text-[10px] font-bold text-slate-400 uppercase">Expiration de garantie.</label>
+                        <input
+                          type="date"
+                          id="form-fin-garantie"
+                          value={finGarantie}
+                          onChange={(e) => setFinGarantie(e.target.value)}
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-fabrication" className="block text-[10px] font-bold text-slate-400 uppercase">Fabrication.</label>
+                        <input
+                          type="date"
+                          id="form-fabrication"
+                          value={fabrication}
+                          onChange={(e) => setFabrication(e.target.value)}
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-mise-service" className="block text-[10px] font-bold text-slate-400 uppercase">Mise en service.</label>
+                        <input
+                          type="date"
+                          id="form-mise-service"
+                          value={miseEnService}
+                          onChange={(e) => setMiseEnService(e.target.value)}
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-der-maint" className="block text-[10px] font-bold text-slate-400 uppercase">Dernière maintenance.</label>
+                        <input
+                          type="date"
+                          id="form-der-maint"
+                          value={derniereMaintenance}
+                          onChange={(e) => setDerniereMaintenance(e.target.value)}
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-1">
+                        <label htmlFor="form-sortie-fab" className="block text-[10px] font-bold text-slate-400 uppercase">Sortie d'usine.</label>
+                        <input
+                          type="date"
+                          id="form-sortie-fab"
+                          value={sortieFabricant}
+                          onChange={(e) => setSortieFabricant(e.target.value)}
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        />
+                      </div>
+
+                      {/* Displaying computed next maintenance date like other input fields */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-prochaine-maint" className="block text-[10px] font-bold text-slate-400 uppercase">Prochaine maintenance.</label>
+                        <input
+                          type="text"
+                          id="form-prochaine-maint"
+                          value={formatDateToFR(computeProchaineMaintenance(derniereMaintenance))}
+                          readOnly
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs bg-slate-50 text-slate-700 font-semibold"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        6 — Électrode Adulte ou Mixte
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <select
+                          id="form-elec-a-lookup"
+                          value={modeleElectrodeAId}
+                          onChange={(e) => setModeleElectrodeAId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sélectionner Électrode --</option>
+                          {modelesElectrode.map(v => (
+                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-elec-a-lot"
+                            value={lotElectrodeA}
+                            onChange={(e) => setLotElectrodeA(e.target.value)}
+                            placeholder="Nombres et chiffres."
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsLotAScannerOpen(true)}
+                            style={rowActionButton18Style}
+                            className="shrink-0 font-sans"
+                          >
+                            Scan
+                          </button>
+                        </div>
+                        {isLotAScannerOpen && (
+                          <BarcodeScannerModal
+                            isOpen={isLotAScannerOpen}
+                            onClose={() => setIsLotAScannerOpen(false)}
+                            onScanSuccess={(scannedText) => {
+                              setLotElectrodeA(scannedText);
+                              setIsLotAScannerOpen(false);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                        <input
+                          type="date"
+                          id="form-elec-a-ins"
+                          value={insertionElectrodeA}
+                          onChange={(e) => setInsertionElectrodeA(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                        <input
+                          type="date"
+                          id="form-elec-a-per"
+                          value={peremptionElectrodeA}
+                          onChange={(e) => setPeremptionElectrodeA(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
+                        <input
+                          type="date"
+                          id="form-elec-a-liv"
+                          value={livraisonElectrodeA}
+                          onChange={(e) => setLivraisonElectrodeA(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-sit" className="block text-[10px] font-bold text-slate-400 uppercase">Statut.</label>
+                        <select
+                          id="form-elec-a-sit"
+                          value={situationElectrodeA}
+                          onChange={(e) => setSituationElectrodeA(e.target.value as any)}
+                          className={`w-full px-2 py-1 border border-slate-200 rounded text-xs font-semibold ${
+                            situationElectrodeA === 'Vert' ? 'bg-emerald-50 text-emerald-800' : situationElectrodeA === 'Orange' ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800'
+                          }`}
+                        >
+                          <option value="Vert">Conforme</option>
+                          <option value="Orange">Attention</option>
+                          <option value="Rouge">Alerte</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption Secours.</label>
+                        <input
+                          type="date"
+                          id="form-elec-a-sec"
+                          value={peremptionSecoursElectrodeA}
+                          onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="form-elec-a-com" className="block text-[11px] font-bold text-slate-500 uppercase">Commentaire.</label>
+                      <input
+                        type="text"
+                        id="form-elec-a-com"
+                        value={commentaireElectrodeA}
+                        onChange={(e) => setCommentaireElectrodeA(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 7 - Électrode Pédiatrique (P) */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        7 — Électrode Pédiatrique
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <select
+                          id="form-elec-p-lookup"
+                          value={modeleElectrodePId}
+                          onChange={(e) => setModeleElectrodePId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sélectionner Électrode --</option>
+                          {modelesElectrode.map(v => (
+                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-elec-p-lot"
+                            value={lotElectrodeP}
+                            onChange={(e) => setLotElectrodeP(e.target.value)}
+                            placeholder="Nombres et chiffres."
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsLotPScannerOpen(true)}
+                            style={rowActionButton18Style}
+                            className="shrink-0 font-sans"
+                          >
+                            Scan
+                          </button>
+                        </div>
+                        {isLotPScannerOpen && (
+                          <BarcodeScannerModal
+                            isOpen={isLotPScannerOpen}
+                            onClose={() => setIsLotPScannerOpen(false)}
+                            onScanSuccess={(scannedText) => {
+                              setLotElectrodeP(scannedText);
+                              setIsLotPScannerOpen(false);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                        <input
+                          type="date"
+                          id="form-elec-p-ins"
+                          value={insertionElectrodeP}
+                          onChange={(e) => setInsertionElectrodeP(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                        <input
+                          type="date"
+                          id="form-elec-p-per"
+                          value={peremptionElectrodeP}
+                          onChange={(e) => setPeremptionElectrodeP(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
+                        <input
+                          type="date"
+                          id="form-elec-p-liv"
+                          value={livraisonElectrodeP}
+                          onChange={(e) => setLivraisonElectrodeP(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-sit" className="block text-[10px] font-bold text-slate-400 uppercase">Statut.</label>
+                        <select
+                          id="form-elec-p-sit"
+                          value={situationElectrodeP}
+                          onChange={(e) => setSituationElectrodeP(e.target.value as any)}
+                          className={`w-full px-2 py-1 border border-slate-200 rounded text-xs font-semibold ${
+                            situationElectrodeP === 'Vert' ? 'bg-emerald-50 text-emerald-800' : situationElectrodeP === 'Orange' ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800'
+                          }`}
+                        >
+                          <option value="Vert">Conforme</option>
+                          <option value="Orange">Attention</option>
+                          <option value="Rouge">Alerte</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption Secours.</label>
+                        <input
+                          type="date"
+                          id="form-elec-p-sec"
+                          value={peremptionSecoursElectrodeP}
+                          onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="form-elec-p-com" className="block text-[11px] font-bold text-slate-500 uppercase">Commentaire.</label>
+                      <input
+                        type="text"
+                        id="form-elec-p-com"
+                        value={commentaireElectrodeP}
+                        onChange={(e) => setCommentaireElectrodeP(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 8 - Batterie (B) */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        8 — Batterie
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <select
+                          id="form-bat-lookup"
+                          value={modeleBatterieId}
+                          onChange={(e) => setModeleBatterieId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sélectionner Batterie --</option>
+                          {modelesBatterie.map(v => (
+                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            id="form-bat-lot"
+                            value={lotBatterie}
+                            onChange={(e) => setLotBatterie(e.target.value)}
+                            placeholder="Nombres et chiffres."
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setIsLotBatScannerOpen(true)}
+                            style={rowActionButton18Style}
+                            className="shrink-0 font-sans"
+                          >
+                            Scan
+                          </button>
+                        </div>
+                        {isLotBatScannerOpen && (
+                          <BarcodeScannerModal
+                            isOpen={isLotBatScannerOpen}
+                            onClose={() => setIsLotBatScannerOpen(false)}
+                            onScanSuccess={(scannedText) => {
+                              setLotBatterie(scannedText);
+                              setIsLotBatScannerOpen(false);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                        <input
+                          type="date"
+                          id="form-bat-ins"
+                          value={insertionBatterie}
+                          onChange={(e) => setInsertionBatterie(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                        <input
+                          type="date"
+                          id="form-bat-per"
+                          value={peremptionBatterie}
+                          onChange={(e) => setPeremptionBatterie(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
+                        <input
+                          type="date"
+                          id="form-bat-liv"
+                          value={livraisonBatterie}
+                          onChange={(e) => setLivraisonBatterie(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-sit" className="block text-[10px] font-bold text-slate-400 uppercase">Statut.</label>
+                        <select
+                          id="form-bat-sit"
+                          value={situationBatterie}
+                          onChange={(e) => setSituationBatterie(e.target.value as any)}
+                          className={`w-full px-2 py-1 border border-slate-200 rounded text-xs font-semibold ${
+                            situationBatterie === 'Vert' ? 'bg-emerald-50 text-emerald-800' : situationBatterie === 'Orange' ? 'bg-amber-50 text-amber-800' : 'bg-red-50 text-red-800'
+                          }`}
+                        >
+                          <option value="Vert">Conforme</option>
+                          <option value="Orange">Attention</option>
+                          <option value="Rouge">Alerte</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-pct" className="block text-[10px] font-bold text-slate-400 uppercase">Pourcentage constaté.</label>
+                        <input
+                          type="text"
+                          id="form-bat-pct"
+                          value={pourcentageBatterie}
+                          onChange={(e) => setPourcentageBatterie(e.target.value)}
+                          placeholder="Ex: 93%."
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-semibold text-slate-850"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="form-bat-com" className="block text-[11px] font-bold text-slate-500 uppercase">Commentaire.</label>
+                      <input
+                        type="text"
+                        id="form-bat-com"
+                        value={commentaireBatterie}
+                        onChange={(e) => setCommentaireBatterie(e.target.value)}
+                        placeholder="Entrez votre commentaire."
+                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 9 - Catégories (Toggles) */}
+                  <div 
+                    className="bg-white p-5 relative space-y-3"
+                    style={{
+                      border: '1px solid rgb(218, 218, 218)',
+                      borderTop: 'none',
+                      borderRadius: '0px 0px 18px 18px',
+                    }}
+                  >
+                    <div className="mb-2 bg-transparent">
+                      <span 
+                        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                        style={{
+                          backgroundColor: 'oklch(0.44 0.16 324.65)',
+                          borderRadius: '1000px',
+                          cursor: 'default',
+                          fontWeight: 100,
+                          textTransform: 'none',
+                        }}
+                      >
+                        9 — Catégories
+                      </span>
+                    </div>
+
+                    {/* Yes/No Choices of Category */}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      
+                      {/* Loué */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Loué.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setLoue('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${loue === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {loue === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setLoue('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${loue === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {loue === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Prêté */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Prêté.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setPrete('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${prete === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {prete === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPrete('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${prete === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {prete === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Stocké */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Stocké.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setStocke('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${stocke === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {stocke === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setStocke('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${stocke === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {stocke === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Archivé */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Archivé.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setArchive('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${archive === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {archive === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setArchive('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${archive === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {archive === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Conforme */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">
+                          Conforme.
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setConforme('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${conforme === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {conforme === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConforme('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${conforme === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {conforme === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Sous-traitance */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Opéré en sous-traitance.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSousTraitance('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${sousTraitance === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {sousTraitance === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSousTraitance('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${sousTraitance === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {sousTraitance === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* FSM Autorisé */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Maintenance autorisée.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setFsmAutorise('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${fsmAutorise === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {fsmAutorise === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFsmAutorise('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${fsmAutorise === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {fsmAutorise === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Survie */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Utilisé par une victime.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setVictimeSurvie('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {victimeSurvie === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVictimeSurvie('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {victimeSurvie === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Email Mensuel Auto-Vigilence */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email mensuel d'auto-vigilance.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setRappelMensuelAuto('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelMensuelAuto === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelMensuelAuto === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRappelMensuelAuto('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelMensuelAuto === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelMensuelAuto === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+                      {/* Âge Victime */}
+                      <div className="space-y-1 sm:col-span-1">
+                        <label htmlFor="form-age" className="block text-[10px] font-bold text-slate-400 uppercase">Âge de la victime.</label>
+                        <input
+                          type="number"
+                          id="form-age"
+                          value={ageVictime}
+                          onChange={(e) => setAgeVictime(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-slate-800"
+                        />
+                      </div>
+
+                      {/* Rappel Fabricant */}
+                      <div className="space-y-1 sm:col-span-3">
+                        <label htmlFor="form-rappel" className="block text-[10px] font-bold text-slate-400 uppercase">Commentaire vigilance ou rappel fabricant.</label>
+                        <input
+                          type="text"
+                          id="form-rappel"
+                          value={commentaireCampagneRappel}
+                          onChange={(e) => setCommentaireCampagneRappel(e.target.value)}
+                          placeholder="Entrez votre commentaire."
+                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs text-slate-750"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ======================================= */}
+      {/* 🛠️ BULK EDIT / MASS SELECTION SIDE PANE 🛠️ */}
+      {/* ======================================= */}
+      {isBulkEditOpen && (
+        <div 
+          className="fixed inset-y-0 right-0 w-80 sm:w-96 bg-white shadow-2xl z-[90] flex flex-col border-l border-slate-200 transform transition-transform animate-none" 
+          id="bulk-side-pane"
+          style={{ height: '100%' }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 shrink-0">
+            <h3 className="text-md font-bold font-sans animate-none" style={{ fontSize: '18px', color: '#000000', cursor: 'default' }}>
+              Modification de {selectedIds.length} défibrillateur(s).
+            </h3>
+          </div>
+
+          <form onSubmit={handleBulkEditSubmit} className="flex-1 flex flex-col min-h-0" id="bulk-edit-form">
+            {/* Scroll Area containing all fields */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+              {/* Toggle 1: Modèle. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyModele(!bulkApplyModele)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyModele ? 'bold' : 100 }}>
+                    Modèle.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyModele ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyModele && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyModele && (
+                  <div className="py-2">
+                    <div className="relative">
+                      <select
+                        value={bulkModeleId}
+                        onChange={(e) => setBulkModeleId(e.target.value)}
+                        style={{ ...filterInputStyle, appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
+                        className="w-full outline-none"
+                      >
+                        <option value="">-- Choisir un modèle --</option>
+                        {modelesDefib.map(m => (
+                          <option key={m.id} value={m.id}>{m.nom}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 2: Commentaire. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyCommentaire(!bulkApplyCommentaire)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyCommentaire ? 'bold' : 100 }}>
+                    Commentaire.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyCommentaire ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyCommentaire && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyCommentaire && (
+                  <div className="py-2">
+                    <input
+                      type="text"
+                      value={bulkCommentaire}
+                      onChange={(e) => setBulkCommentaire(e.target.value)}
+                      placeholder="Entrez votre commentaire."
+                      style={filterInputStyle}
+                      className="outline-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 3: Dernière maintenance. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyDerniereMaint(!bulkApplyDerniereMaint)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyDerniereMaint ? 'bold' : 100 }}>
+                    Dernière maintenance.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyDerniereMaint ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyDerniereMaint && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyDerniereMaint && (
+                  <div className="py-2">
+                    <input
+                      type="date"
+                      value={bulkDerniereMaint}
+                      onChange={(e) => setBulkDerniereMaint(e.target.value)}
+                      style={filterInputStyle}
+                      className="outline-none bg-white font-sans text-black [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 4: Prochaine maintenance. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyProchaineMaint(!bulkApplyProchaineMaint)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyProchaineMaint ? 'bold' : 100 }}>
+                    Prochaine maintenance.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyProchaineMaint ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyProchaineMaint && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyProchaineMaint && (
+                  <div className="py-2">
+                    <input
+                      type="date"
+                      value={bulkProchaineMaint}
+                      onChange={(e) => setBulkProchaineMaint(e.target.value)}
+                      style={filterInputStyle}
+                      className="outline-none bg-white font-sans text-black [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 5: Archivé. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyArchive(!bulkApplyArchive)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyArchive ? 'bold' : 100 }}>
+                    Archivé.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyArchive ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyArchive && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyArchive && (
+                  <div className="py-2 flex items-center gap-6 font-sans">
+                    <button
+                      type="button"
+                      onClick={() => setBulkArchive('Oui')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkArchive === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkArchive === 'Oui' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkArchive('Non')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkArchive === 'Non' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkArchive === 'Non' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 6: Conforme. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyConforme(!bulkApplyConforme)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyConforme ? 'bold' : 100 }}>
+                    Conforme.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyConforme ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyConforme && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyConforme && (
+                  <div className="py-2 flex items-center gap-6 font-sans">
+                    <button
+                      type="button"
+                      onClick={() => setBulkConforme('Oui')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkConforme === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkConforme === 'Oui' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkConforme('Non')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkConforme === 'Non' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkConforme === 'Non' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 7: Maintenance autorisée. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyFsmAutorise(!bulkApplyFsmAutorise)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyFsmAutorise ? 'bold' : 100 }}>
+                    Maintenance autorisée.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyFsmAutorise ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyFsmAutorise && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyFsmAutorise && (
+                  <div className="py-2 flex items-center gap-6 font-sans">
+                    <button
+                      type="button"
+                      onClick={() => setBulkFsmAutorise('Oui')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkFsmAutorise === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkFsmAutorise === 'Oui' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkFsmAutorise('Non')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkFsmAutorise === 'Non' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkFsmAutorise === 'Non' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Toggle 8: Email Mensuel AutoVigilance. */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setBulkApplyRappelMensuelAuto(!bulkApplyRappelMensuelAuto)}
+                  className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
+                >
+                  <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyRappelMensuelAuto ? 'bold' : 100 }}>
+                    Email mensuel d'auto-vigilance.
+                  </span>
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      bulkApplyRappelMensuelAuto ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`}
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {bulkApplyRappelMensuelAuto && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                </button>
+                
+                {bulkApplyRappelMensuelAuto && (
+                  <div className="py-2 flex items-center gap-6 font-sans">
+                    <button
+                      type="button"
+                      onClick={() => setBulkRappelMensuelAuto('Oui')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkRappelMensuelAuto === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkRappelMensuelAuto === 'Oui' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setBulkRappelMensuelAuto('Non')}
+                      className="flex items-center gap-2 cursor-pointer focus:outline-hidden bg-transparent border-0"
+                    >
+                      <div 
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                          bulkRappelMensuelAuto === 'Non' ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                        }`} 
+                        style={{ borderWidth: '2.5px' }}
+                      >
+                        {bulkRappelMensuelAuto === 'Non' && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                        )}
+                      </div>
+                      <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+            </div>
+
+            {/* Footer Actions matching Filters side pane button styles */}
+            <div className="p-6 bg-white flex gap-4 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsBulkEditOpen(false)}
+                style={{ ...cancelFiltersButtonStyle, fontSize: '18px' }}
+                className="flex-1 text-center font-sans cursor-pointer animate-none"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={!bulkApplyModele && !bulkApplyCommentaire && !bulkApplyDerniereMaint && !bulkApplyProchaineMaint && !bulkApplyArchive && !bulkApplyConforme && !bulkApplyFsmAutorise && !bulkApplyRappelMensuelAuto}
+                style={{
+                  ...applyFiltersButtonStyle,
+                  backgroundColor: 'rgb(53, 86, 236)',
+                  color: 'rgb(255, 255, 255)',
+                  boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+                  fontSize: '18px',
+                }}
+                className="flex-1 text-center font-sans cursor-pointer animate-none"
+              >
+                Confirmer
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Bulk side overlay background backdrop */}
+      {isBulkEditOpen && (
+        <div 
+          onClick={() => setIsBulkEditOpen(false)}
+          className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-[85]"
+        />
+      )}
+
+      {/* 🧭 FILTER SIDE PANE / DRAWER 🧭 */}
+      {isFilterPaneOpen && (
+        <div 
+          className="fixed inset-y-0 right-0 w-80 sm:w-96 bg-white shadow-2xl z-[90] flex flex-col border-l border-slate-200 transform transition-transform" 
+          id="filter-side-pane"
+          style={{ height: '100%' }}
+        >
+          {/* Scroll Area containing all fields */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            {/* Filter 1: Région */}
+            <div className="space-y-1.5">
+              <div className="relative">
+                <select
+                  value={draftFilters.region}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, region: e.target.value })}
+                  style={filterInputStyle}
+                >
+                  <option value="Tous">Toutes régions.</option>
+                  {REGIONS_FRANCAISES.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Filter 2: Modèle Appareil */}
+            <div className="space-y-1.5">
+              <div className="relative">
+                <select
+                  value={draftFilters.modeleId}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, modeleId: e.target.value })}
+                  style={filterInputStyle}
+                >
+                  <option value="Tous">Tous modèles.</option>
+                  {modelesDefib.map(m => (
+                    <option key={m.id} value={m.id}>{m.nom}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Filter 6: Catégorie */}
+            <div className="space-y-1.5">
+              <div className="relative">
+                <select
+                  value={draftFilters.categorie}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, categorie: e.target.value })}
+                  style={filterInputStyle}
+                >
+                  <option value="Tous">Toutes catégories.</option>
+                  <option value="Loué">Loué</option>
+                  <option value="Prêté">Prêté</option>
+                  <option value="Stocké">Stocké</option>
+                  <option value="Archivé">Archivé</option>
+                  <option value="Sous-Traitance">Sous-Traitance</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Filter 7: Contrat */}
+            <div className="space-y-1.5">
+              <div className="relative">
+                <select
+                  value={draftFilters.contrat}
+                  onChange={(e) => setDraftFilters({ ...draftFilters, contrat: e.target.value })}
+                  style={filterInputStyle}
+                >
+                  <option value="Tous">Avec ou sans contrat.</option>
+                  <option value="Oui">Avec contrat</option>
+                  <option value="Non">Sans contrat</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Filter 3: Action Requise 3-6 Mois */}
+            <div className="py-1 flex items-center justify-between gap-4">
+              <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: 100 }}>Action requise 3 à 6 mois.</span>
+              <div className="flex items-center gap-4">
+                {/* Oui Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, action3To6: true })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      draftFilters.action3To6 ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {draftFilters.action3To6 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                </button>
+
+                {/* Non Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, action3To6: false })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      !draftFilters.action3To6 ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {!draftFilters.action3To6 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter 4: Action Requise 3 Mois */}
+            <div className="py-1 flex items-center justify-between gap-4">
+              <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: 100 }}>Action requise 3 mois.</span>
+              <div className="flex items-center gap-4">
+                {/* Oui Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionUnder3: true })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      draftFilters.actionUnder3 ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {draftFilters.actionUnder3 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                </button>
+
+                {/* Non Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionUnder3: false })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      !draftFilters.actionUnder3 ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {!draftFilters.actionUnder3 && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filter 5: Action Requise Expirée */}
+            <div className="py-1 flex items-center justify-between gap-4">
+              <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: 100 }}>Action requise expirée.</span>
+              <div className="flex items-center gap-4">
+                {/* Oui Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionExpired: true })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      draftFilters.actionExpired ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {draftFilters.actionExpired && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                </button>
+
+                {/* Non Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionExpired: false })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      !draftFilters.actionExpired ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {!draftFilters.actionExpired && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Footer Actions - 50/50 Side by side with zero top divider, matching active column action button styles */}
+          <div className="p-6 bg-white flex gap-4 shrink-0">
+            <button
+              onClick={() => {
+                const defaults = {
+                  region: 'Tous',
+                  modeleId: 'Tous',
+                  action3To6: false,
+                  actionUnder3: false,
+                  actionExpired: false,
+                  categorie: 'Tous',
+                  contrat: 'Tous',
+                };
+                setDraftFilters(defaults);
+                setActiveFilters(defaults);
+                setIsFilterPaneOpen(false);
+              }}
+              style={{ ...cancelFiltersButtonStyle, fontSize: '18px' }}
+              className="flex-1 text-center font-sans cursor-pointer animate-none"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={() => {
+                setActiveFilters(draftFilters);
+                setIsFilterPaneOpen(false);
+              }}
+              style={{
+                ...applyFiltersButtonStyle,
+                backgroundColor: 'rgb(53, 86, 236)',
+                color: 'rgb(255, 255, 255)',
+                boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+                fontSize: '18px',
+              }}
+              className="flex-1 text-center font-sans cursor-pointer animate-none"
+            >
+              Appliquer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Drawer Overlay backdrop */}
+      {isFilterPaneOpen && (
+        <div 
+          onClick={() => setIsFilterPaneOpen(false)}
+          className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-[85]"
+        />
+      )}
+
+
+    </div>
+  );
+}

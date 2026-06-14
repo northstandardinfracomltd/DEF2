@@ -1,0 +1,10 @@
+{
+  "name": "Remix: Gestion de Défibrillateurs",
+  "description": "Logiciel de gestion et suivi des défibrillateurs, clients, et modèles avec export et édition en masse.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

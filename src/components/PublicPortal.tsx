@@ -43,6 +43,44 @@ import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, P
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import GmaoCorrectionForm from './GmaoCorrectionForm';
 
+// Helper functions for French date <-> ISO date picker compatibility
+const getIsoDate = (dateStr: string) => {
+  if (!dateStr) return "";
+  const parts = dateStr.includes('/') ? dateStr.split('/') : dateStr.split('-');
+  if (parts.length === 3) {
+    if (parts[0].length === 4) {
+      return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    } else {
+      const d = parts[0].padStart(2, '0');
+      const m = parts[1].padStart(2, '0');
+      const y = parts[2];
+      return `${y}-${m}-${d}`;
+    }
+  }
+  return dateStr;
+};
+
+const getFrenchDate = (isoDate: string) => {
+  if (!isoDate) return "";
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return isoDate;
+};
+
+const formatToNormalCase = (str: string) => {
+  if (!str) return "";
+  const trimmed = str.trim();
+  if (trimmed.length === 0) return "";
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+const truncateTourTitle = (title: string) => {
+  if (!title) return "";
+  return title.length > 15 ? title.substring(0, 15) + "..." : title;
+};
+
 interface PublicPortalProps {
   companyInfo: CompanyInfo;
   members: Member[];
@@ -193,7 +231,11 @@ export default function PublicPortal({
   const [activeTab, setActiveTab] = useState<WebappTab>('interventions');
 
   // Selected tour ID for mobile view
-  const [selectedTourId, setSelectedTourId] = useState<string>('tour-1');
+  const [selectedTourId, setSelectedTourId] = useState<string>('');
+
+  // Selected tour ID and passage num for currently opening GMAO report overlay
+  const [reportActiveTourId, setReportActiveTourId] = useState<string>('');
+  const [reportActivePassageNum, setReportActivePassageNum] = useState<number | null>(null);
 
   // Navigation scrolling state and ref for fades
   const navRef = useRef<HTMLDivElement>(null);
@@ -224,7 +266,82 @@ export default function PublicPortal({
 
   // Tournées/Interventions Dummy State
   const [tours, setTours] = useState(() => {
-    const saved = localStorage.getItem('defib_mobile_tours2'); // use a fresh key to refresh schema
+    // Try to load and translate from defib_fsm_tours
+    try {
+      const mainToursRaw = localStorage.getItem('defib_fsm_tours');
+      const activeTechRaw = localStorage.getItem('defib_active_tech_session');
+      let activeTech: Member | null = null;
+      if (activeTechRaw) {
+        try { activeTech = JSON.parse(activeTechRaw); } catch {}
+      }
+      const activeTechName = activeTech ? activeTech.name : '';
+
+      if (mainToursRaw) {
+        const mainTours = JSON.parse(mainToursRaw);
+        if (Array.isArray(mainTours) && mainTours.length > 0) {
+          // Filter by active technician if logged in
+          const matchedFsmTours = mainTours.filter((mt: any) => {
+            if (!activeTechName) return true;
+            return mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
+          });
+
+          if (matchedFsmTours.length > 0) {
+            return matchedFsmTours.map((mt: any, index: number) => {
+              const tryFormatDateToFrench = (dateStr: string) => {
+                if (!dateStr) return "";
+                const parts = dateStr.split('-');
+                if (parts.length === 3 && parts[0].length === 4) {
+                  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+                return dateStr;
+              };
+
+              return {
+                id: mt.id || `fsm-tour-${index}`,
+                title: mt.title || 'Tournée',
+                startDate: tryFormatDateToFrench(mt.startDate),
+                status: mt.status || 'À faire',
+                techName: mt.techName || '',
+                passages: (mt.missions || []).map((m: any, idx: number) => {
+                  const defib = defibrillateurs.find((d: any) => 
+                    d.identifiant === m.defibIdentifiant || 
+                    d.id === m.defibIdentifiant ||
+                    (m.clientName && m.clientName.includes(d.identifiant))
+                  );
+                  let model = 'Défibrillateur standard';
+                  let address = m.clientName || 'Adresse non spécifiée';
+                  if (defib) {
+                    const modelVar = variables.find((v: any) => v.id === defib.modeleId);
+                    if (modelVar) {
+                      model = modelVar.marque ? `${modelVar.marque} ${modelVar.nom}` : modelVar.nom;
+                    }
+                    const addrParts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
+                    if (addrParts.length > 0) {
+                      address = addrParts.join(', ');
+                    }
+                  }
+                  return {
+                    num: idx + 1,
+                    id: m.id || `df-p-${idx}`,
+                    identifiant: m.defibIdentifiant || defib?.identifiant || '',
+                    model,
+                    address,
+                    status: m.status || 'À faire',
+                    reason: m.reason || 'Visite technique',
+                    requiredParts: m.requiredParts || []
+                  };
+                })
+              };
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing defib_fsm_tours in technician portal state init:', e);
+    }
+
+    // Fallback to local storage defib_mobile_tours2, or hardcoded default ones
+    const saved = localStorage.getItem('defib_mobile_tours2');
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -251,11 +368,144 @@ export default function PublicPortal({
     ];
   });
 
-  // Persist tour state changes
+  // Persist tour state changes and sync to general FSM tours
   const saveTours = (updated: typeof tours) => {
     setTours(updated);
     localStorage.setItem('defib_mobile_tours2', JSON.stringify(updated));
+
+    // Also sync back to defib_fsm_tours
+    try {
+      const mainToursRaw = localStorage.getItem('defib_fsm_tours');
+      if (mainToursRaw) {
+        const mainTours = JSON.parse(mainToursRaw);
+        const updatedMainTours = mainTours.map((mt: any) => {
+          // Find if there is a matching tour in updated mobile tours
+          const matchedMobileTour = updated.find(t => t.id === mt.id || t.title === mt.title);
+          if (matchedMobileTour) {
+            // Update the status of each mission
+            const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
+              const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
+              if (matchedPassage) {
+                return { ...m, status: matchedPassage.status };
+              }
+              return m;
+            });
+            // Check if any mission is still to be done to update overall status
+            const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
+            const newStatus = hasTodo ? 'En cours' : 'Terminé';
+
+            return {
+              ...mt,
+              status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
+              missions: updatedMissions
+            };
+          }
+          return mt;
+        });
+        localStorage.setItem('defib_fsm_tours', JSON.stringify(updatedMainTours));
+      }
+    } catch (e) {
+      console.error('Error syncing back to defib_fsm_tours:', e);
+    }
   };
+
+  const getSortedTours = () => {
+    const parseTourDate = (dateStr: string) => {
+      if (!dateStr) return 0;
+      const clean = dateStr.replace(/\//g, '-');
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          return new Date(y, m, d).getTime();
+        } else {
+          const d = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const y = parseInt(parts[2], 10);
+          return new Date(y, m, d).getTime();
+        }
+      }
+      return 0;
+    };
+    return [...tours].sort((a, b) => parseTourDate(b.startDate) - parseTourDate(a.startDate));
+  };
+
+  // Dynamic sync of tours from main defib_fsm_tours on login, defibrillateurs change or mount
+  useEffect(() => {
+    try {
+      const mainToursRaw = localStorage.getItem('defib_fsm_tours');
+      const activeTechName = authenticatedUser ? authenticatedUser.name : '';
+
+      if (mainToursRaw) {
+        const mainTours = JSON.parse(mainToursRaw);
+        if (Array.isArray(mainTours)) {
+          // Filter by active technician if logged in
+          const matchedFsmTours = mainTours.filter((mt: any) => {
+            if (!activeTechName) return true;
+            return mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
+          });
+
+          if (matchedFsmTours.length > 0) {
+            const mapped = matchedFsmTours.map((mt: any, index: number) => {
+              const tryFormatDateToFrench = (dateStr: string) => {
+                if (!dateStr) return "";
+                const parts = dateStr.split('-');
+                if (parts.length === 3 && parts[0].length === 4) {
+                  return `${parts[2]}-${parts[1]}-${parts[0]}`;
+                }
+                return dateStr;
+              };
+
+              return {
+                id: mt.id || `fsm-tour-${index}`,
+                title: mt.title || 'Tournée',
+                startDate: tryFormatDateToFrench(mt.startDate),
+                status: mt.status || 'À faire',
+                techName: mt.techName || '',
+                passages: (mt.missions || []).map((m: any, idx: number) => {
+                  const defib = defibrillateurs.find((d: any) => 
+                    d.identifiant === m.defibIdentifiant || 
+                    d.id === m.defibIdentifiant ||
+                    (m.clientName && m.clientName.includes(d.identifiant))
+                  );
+                  let model = 'Défibrillateur standard';
+                  let address = m.clientName || 'Adresse non spécifiée';
+                  if (defib) {
+                    const modelVar = variables.find((v: any) => v.id === defib.modeleId);
+                    if (modelVar) {
+                      model = modelVar.marque ? `${modelVar.marque} ${modelVar.nom}` : modelVar.nom;
+                    }
+                    const addrParts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
+                    if (addrParts.length > 0) {
+                      address = addrParts.join(', ');
+                    }
+                  }
+                  return {
+                    num: idx + 1,
+                    id: m.id || `df-p-${idx}`,
+                    identifiant: m.defibIdentifiant || defib?.identifiant || '',
+                    model,
+                    address,
+                    status: m.status || 'À faire',
+                    reason: m.reason || 'Visite technique',
+                    requiredParts: m.requiredParts || []
+                  };
+                })
+              };
+            });
+
+            setTours(mapped);
+          } else {
+            setTours([]);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error syncing FSM tours inside useEffect:', e);
+    }
+  }, [authenticatedUser, defibrillateurs]);
 
   // Switch/Toggle status of a passage
   const togglePassageStatus = (tourId: string, passageNum: number) => {
@@ -1070,7 +1320,7 @@ export default function PublicPortal({
     }
   };
 
-  const handleEditPointage = (id: string, newStart: string, newEnd: string, comment?: string) => {
+  const handleEditPointage = (id: string, newStart: string, newEnd: string, comment?: string, newStartDate?: string) => {
     const updated = pointages.map(p => {
       if (p.id === id) {
         // Calculate raw estimated parsed minutes
@@ -1080,6 +1330,7 @@ export default function PublicPortal({
 
         return {
           ...p,
+          startDate: newStartDate !== undefined ? newStartDate : p.startDate,
           startTime: newStart,
           endTime: newEnd,
           durationSeconds: durationMin * 60,
@@ -1166,7 +1417,7 @@ export default function PublicPortal({
 
             {/* FULL WIDTH SPECIAL REPORT FORM OVERLAY */}
             {isReportOverlayOpen && (
-              <div className="absolute inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto p-4 animate-slideUp text-black animate-slideUp" id="report-form-overlay">
+              <div className="absolute inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-2 py-2 sm:p-4 animate-slideUp text-black" id="report-form-overlay">
                 <GmaoCorrectionForm
                   isNew={true}
                   clients={clients}
@@ -1178,6 +1429,8 @@ export default function PublicPortal({
                     setIsReportOverlayOpen(false);
                     setSelectedDefibId('');
                     setSelectedDefibData(null);
+                    setReportActiveTourId('');
+                    setReportActivePassageNum(null);
                   }}
                   onSave={(updatedReport) => {
                     const reportId = 'REP-' + Date.now();
@@ -1191,10 +1444,31 @@ export default function PublicPortal({
                     saveReports([submission, ...generatedReports]);
                     onUpdateDefib(updatedReport.defibSnapshot);
                     
-                    alert(`Le rapport "${submission.title}" a été enregistré avec succès et l'état du matériel a été mis à jour !`);
+                    // Automatically transition corresponding passage status to "Effectué"
+                    if (reportActiveTourId && reportActivePassageNum !== null) {
+                      const updated = tours.map(t => {
+                        if (t.id === reportActiveTourId) {
+                          return {
+                            ...t,
+                            passages: t.passages.map(p => {
+                              if (p.num === reportActivePassageNum) {
+                                return { ...p, status: 'Effectué' };
+                              }
+                              return p;
+                            })
+                          };
+                        }
+                        return t;
+                      });
+                      saveTours(updated);
+                    }
+
+                    alert(`Le rapport "${submission.title}" a été enregistré avec succès, rattaché et l'état du matériel a été mis à jour !`);
                     setIsReportOverlayOpen(false);
                     setSelectedDefibId('');
                     setSelectedDefibData(null);
+                    setReportActiveTourId('');
+                    setReportActivePassageNum(null);
                   }}
                 />
 
@@ -2102,23 +2376,49 @@ export default function PublicPortal({
             {/* Top Bar Navigation for Mobile - requested Header style: 
                 TOUT EN HAUT À GAUCHE: Le nom de l'entreprise
                 À DROITE: Le Prénom/Nom de l'utilisateur */}
-            <header className="px-5 py-3.5 bg-white flex flex-col gap-2.5 shrink-0 select-none border-b border-slate-100 text-slate-800">
+            <header 
+              className="px-5 py-3.5 flex flex-col gap-2.5 shrink-0 select-none text-white"
+              style={{ backgroundColor: '#5d1f74', borderBottom: 'none' }}
+            >
               {/* Ligne 1 : Nom de l'entreprise - centré */}
               <div className="flex items-center justify-center text-center">
-                <div style={{ fontSize: '18px' }} className="font-bold text-slate-905 text-center">
+                <div style={{ color: '#ffffff' }} className="font-gochi text-2xl text-center tracking-wide">
                   {companyInfo.name.length > 25 ? companyInfo.name.substring(0, 25) + "..." : companyInfo.name}
                 </div>
               </div>
 
               {/* Ligne 2 : Technicien et Quitter - 50% / 50% */}
               <div className="flex items-center justify-between gap-2.5 w-full">
-                <span style={{ fontSize: '15px' }} className="font-bold text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-full truncate w-1/2 text-center select-all">
+                <span 
+                  style={{ 
+                    fontSize: '16px', 
+                    padding: '10px', 
+                    background: 'transparent', 
+                    border: '1px solid #ffffff2b', 
+                    color: '#fff',
+                    borderRadius: '9999px',
+                    textAlign: 'center',
+                    width: '50%',
+                    fontWeight: 'bold'
+                  }} 
+                  className="truncate"
+                >
                   {authenticatedUser.name}
                 </span>
                 <button
                   onClick={handleLogout}
-                  className="w-1/2 py-1.5 font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-full transition-colors cursor-pointer text-center"
-                  style={{ fontSize: '14px' }}
+                  style={{
+                    fontSize: '16px',
+                    padding: '10px',
+                    background: '#ffffff1a',
+                    border: '1px solid #ffffff2b',
+                    color: '#fff',
+                    borderRadius: '9999px',
+                    width: '50%',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                  className="hover:bg-[#ffffff2a] transition-all text-center"
                 >
                   Quitter
                 </button>
@@ -2126,30 +2426,31 @@ export default function PublicPortal({
             </header>
 
             {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
-            <nav className="bg-slate-50 py-0 px-0 relative shrink-0" id="nav-tabs">
+            <nav className="py-0 px-0 relative shrink-0" id="nav-tabs" style={{ backgroundColor: '#5d1f74' }}>
               {showLeftFade && (
-                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-slate-50 to-transparent pointer-events-none z-10" />
+                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#5d1f74] to-transparent pointer-events-none z-10" />
               )}
               {showRightFade && (
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-slate-50 to-transparent pointer-events-none z-10" />
+                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#5d1f74] to-transparent pointer-events-none z-10" />
               )}
               
               <div 
                 ref={navRef}
                 onScroll={handleNavScroll}
-                className="flex p-2.5 bg-slate-200/65 gap-3.5 shrink-0 overflow-x-auto no-scrollbar scroll-smooth min-w-full"
+                className="flex p-2.5 gap-3.5 shrink-0 overflow-x-auto no-scrollbar scroll-smooth min-w-full"
+                style={{ backgroundColor: '#5d1f74' }}
               >
                 <button
                   onClick={() => setActiveTab('interventions')}
                   style={activeTab === 'interventions' ? {
-                    backgroundColor: '#3556ec',
+                    backgroundColor: 'rgb(254, 78, 187)',
                     color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                    boxShadow: 'none',
                   } : {
-                    color: '#475569',
+                    color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                   }}
@@ -2161,14 +2462,14 @@ export default function PublicPortal({
                 <button
                   onClick={() => setActiveTab('rapports')}
                   style={activeTab === 'rapports' ? {
-                    backgroundColor: '#3556ec',
+                    backgroundColor: 'rgb(254, 78, 187)',
                     color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                    boxShadow: 'none',
                   } : {
-                    color: '#475569',
+                    color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                   }}
@@ -2180,14 +2481,14 @@ export default function PublicPortal({
                 <button
                   onClick={() => setActiveTab('temps')}
                   style={activeTab === 'temps' ? {
-                    backgroundColor: '#3556ec',
+                    backgroundColor: 'rgb(254, 78, 187)',
                     color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                    boxShadow: 'none',
                   } : {
-                    color: '#475569',
+                    color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                   }}
@@ -2199,14 +2500,14 @@ export default function PublicPortal({
                 <button
                   onClick={() => setActiveTab('frais')}
                   style={activeTab === 'frais' ? {
-                    backgroundColor: '#3556ec',
+                    backgroundColor: 'rgb(254, 78, 187)',
                     color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                    boxShadow: 'none',
                   } : {
-                    color: '#475569',
+                    color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                   }}
@@ -2218,14 +2519,14 @@ export default function PublicPortal({
                 <button
                   onClick={() => setActiveTab('localisation')}
                   style={activeTab === 'localisation' ? {
-                    backgroundColor: '#3556ec',
+                    backgroundColor: 'rgb(254, 78, 187)',
                     color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                     borderRadius: '12px',
-                    boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                    boxShadow: 'none',
                   } : {
-                    color: '#475569',
+                    color: '#ffffff',
                     fontSize: '18px',
                     fontWeight: 'bold',
                   }}
@@ -2242,36 +2543,35 @@ export default function PublicPortal({
               {/* ----------------- TAB 1: INTERVENTIONS ----------------- */}
               {activeTab === 'interventions' && (
                 <div className="space-y-4 pb-16 animate-fadeIn" id="tab-interventions-screen">
-                  {/* Selectable capsules (gelulles) for each tour */}
-                  <div className="flex gap-2.5 overflow-x-auto pb-3 pt-1 no-scrollbar shrink-0 select-none">
-                    {tours.map((t) => {
-                      const isSelected = selectedTourId === t.id;
-                      return (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setSelectedTourId(t.id)}
-                          style={isSelected ? {
-                            backgroundColor: '#3556ec',
-                            color: '#ffffff',
-                            fontWeight: 'bold',
-                            fontSize: '16px',
-                          } : {
-                            backgroundColor: '#f1f5f9',
-                            color: '#475569',
-                            fontWeight: 'semibold',
-                            fontSize: '16px',
-                          }}
-                          className="px-5 py-2.5 rounded-full transition-all cursor-pointer whitespace-nowrap"
-                        >
-                          {t.title} {t.startDate} {t.status === 'Terminé' ? ' (Terminé)' : ''}
-                        </button>
-                      );
-                    })}
+                  {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
+                  <div className="px-1 select-none">
+                    <select
+                      value={selectedTourId}
+                      onChange={(e) => setSelectedTourId(e.target.value)}
+                      className="w-full bg-white text-black cursor-pointer appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
+                      style={{
+                        border: '1px solid rgb(201, 190, 205)',
+                        borderRadius: '14px',
+                        padding: '14px 20px',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        boxShadow: 'none',
+                        outline: 'none',
+                        textAlign: 'center',
+                        textAlignLast: 'center'
+                      }}
+                    >
+                      <option value="" disabled>Sélectionnez une tournée</option>
+                      {getSortedTours().map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {truncateTourTitle(t.title)} - {t.startDate} {t.status === 'Terminé' ? ' (Terminé)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* List of stacked tournées */}
-                  {tours.filter(t => t.id === selectedTourId).map((t) => (
+                  {selectedTourId && getSortedTours().filter(t => t.id === selectedTourId).map((t) => (
                     <div key={t.id} className="space-y-3">
 
                       {/* Stacked Passage records list */}
@@ -2279,128 +2579,147 @@ export default function PublicPortal({
                         {t.passages.map((p) => {
                           const isCompleted = p.status === 'Effectué';
                           return (
-                            <div key={p.num} className="bg-white p-5 rounded-xl border border-slate-100 shadow-xs space-y-4" id={`passage-card-${p.num}`}>
-                              <div className="flex justify-between items-start gap-2">
-                                <div className="space-y-2">
-                                  <div className="flex flex-col gap-2">
-                                    {/* Rond rose avec le numéro du passage */}
-                                    <div 
-                                      className="flex items-center justify-center font-bold text-white rounded-full shrink-0"
-                                      style={{
-                                        backgroundColor: '#fe4eba',
-                                        width: '28px',
-                                        height: '28px',
-                                        fontSize: '14px',
-                                      }}
-                                    >
-                                      {p.num}
-                                    </div>
-                                    <span style={{ fontSize: '18px' }} className="font-bold text-slate-800">
-                                      {p.identifiant}
-                                    </span>
+                            <div 
+                              key={p.num} 
+                              className="bg-white p-5 space-y-4" 
+                              style={{ border: '1px solid rgb(201, 190, 205)', borderRadius: '14px', boxShadow: 'none' }} 
+                              id={`passage-card-${p.num}`}
+                            >
+                              {/* Toggle Status Check above passage number, aligned to the left */}
+                              <div className="flex justify-start w-full">
+                                <button
+                                  type="button"
+                                  onClick={() => togglePassageStatus(t.id, p.num)}
+                                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                                  style={{ fontSize: '16px' }}
+                                >
+                                  <span 
+                                    className="rounded-full flex items-center justify-center transition-all bg-white"
+                                    style={{
+                                      border: isCompleted ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                                      width: '22px',
+                                      height: '22px',
+                                      minWidth: '22px',
+                                      minHeight: '22px',
+                                      backgroundColor: '#ffffff'
+                                    }}
+                                  >
+                                    {isCompleted && (
+                                      <span className="rounded-full bg-[#fe4eba]" style={{ width: '10px', height: '10px' }} />
+                                    )}
+                                  </span>
+                                  <span className="font-semibold text-black">
+                                    {isCompleted ? 'Effectué' : 'À faire'}
+                                  </span>
+                                </button>
+                              </div>
+
+                              <div className="space-y-3">
+                                <div className="flex items-center gap-3">
+                                  {/* Rond rose avec le numéro du passage */}
+                                  <div 
+                                    className="flex items-center justify-center font-bold text-white rounded-full shrink-0"
+                                    style={{
+                                      backgroundColor: '#fe4eba',
+                                      width: '28px',
+                                      height: '28px',
+                                      fontSize: '14px',
+                                    }}
+                                  >
+                                    {p.num}
                                   </div>
-                                  <p style={{ fontSize: '16px' }} className="text-slate-500 leading-normal">
-                                    Modèle: <span className="font-semibold text-slate-700">{p.model}</span>
+                                  
+                                  {/* Identifiant du défibrillateur dans une gelule alignée à gauche et pas en full width */}
+                                  <span style={{
+                                    color: '#ffffff',
+                                    backgroundColor: '#5d1f74',
+                                    padding: '8px 16px',
+                                    borderRadius: '9999px',
+                                    fontWeight: 'bold',
+                                    fontSize: '16px',
+                                    display: 'inline-block'
+                                  }}>
+                                    {p.identifiant}
+                                  </span>
+                                </div>
+
+                                {/* Textes de la div en font color black */}
+                                <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
+                                  <p style={{ color: '#000000' }}>
+                                    Modèle : <span className="font-semibold" style={{ color: '#000000' }}>{p.model}</span>
                                   </p>
-                                  <p style={{ fontSize: '16px' }} className="text-slate-500 leading-normal">
-                                    Adresse: <span className="font-semibold text-slate-700">{p.address}</span>
+                                  <p style={{ color: '#000000' }}>
+                                    Adresse : <span className="font-semibold" style={{ color: '#000000' }}>{p.address}</span>
                                   </p>
                                   {p.reason && p.reason.trim() !== '' && (
-                                    <p style={{ fontSize: '16px' }} className="text-slate-500 leading-normal">
-                                      Motif: <span className="font-semibold text-slate-700">{p.reason}</span>
+                                    <p style={{ color: '#000000' }}>
+                                      Motif : <span className="font-semibold" style={{ color: '#000000' }}>{p.reason}</span>
                                     </p>
                                   )}
                                   {p.requiredParts && p.requiredParts.length > 0 && p.requiredParts.some(part => part && part.trim() !== 'Aucune pièce' && part.trim() !== 'Aucune pièce requise' && part.trim() !== 'Aucune' && part.trim() !== '') && (
-                                    <p style={{ fontSize: '16px' }} className="text-slate-500 leading-normal">
-                                      Pièce(s): <span className="font-semibold text-slate-700">{p.requiredParts.join(', ')}</span>
+                                    <p style={{ color: '#000000' }}>
+                                      Pièce(s) : <span className="font-semibold" style={{ color: '#000000' }}>{p.requiredParts.join(', ')}</span>
                                     </p>
                                   )}
                                 </div>
- 
-                                 <div className="flex flex-col items-end gap-2.5 shrink-0">
-                                   {/* Toggle Status Check styled exactly as requested standard checkbox state shape */}
-                                   <button
-                                     type="button"
-                                     onClick={() => togglePassageStatus(t.id, p.num)}
-                                     className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
-                                     style={{ fontSize: '16px' }}
-                                   >
-                                     <span 
-                                       className="rounded-full flex items-center justify-center transition-all bg-white"
-                                       style={{
-                                         border: isCompleted ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
-                                         width: '22px',
-                                         height: '22px',
-                                         minWidth: '22px',
-                                         minHeight: '22px',
-                                         backgroundColor: '#ffffff'
-                                       }}
-                                     >
-                                       {isCompleted && (
-                                         <span className="rounded-full bg-[#fe4eba]" style={{ width: '10px', height: '10px' }} />
-                                       )}
-                                     </span>
-                                     <span className="font-semibold text-black">
-                                       {isCompleted ? 'Effectué' : 'À faire'}
-                                     </span>
-                                   </button>
-                                 </div>
-                               </div>
- 
-                               <div className="flex gap-3">
-                                 <button
-                                   type="button"
-                                   disabled={isCompleted}
-                                   onClick={() => alert(`Lancement du GPS vers local : ${p.address}`)}
-                                   style={{
-                                     backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
-                                     color: isCompleted ? '#94a3b8' : '#fff',
-                                     fontSize: '16px',
-                                     fontWeight: 'bold',
-                                     borderRadius: '12px',
-                                     padding: '11px 20px',
-                                     border: 'none',
-                                     boxShadow: isCompleted ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
-                                     cursor: isCompleted ? 'not-allowed' : 'pointer',
-                                     flex: 1
-                                   }}
-                                   className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
-                                 >
-                                   Y aller
-                                 </button>
-                                 
-                                 <button
-                                   type="button"
-                                   disabled={isCompleted}
-                                   onClick={() => {
-                                     const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
-                                     if (matched) {
-                                       handleDefibLookupChange(matched.id);
-                                       // Pre-fill fields for nicer wizard UX!
-                                       setReceiptTitle('Rapport technique défibrillateur');
-                                       setMissionSite('DÉPLACEMENT');
-                                       setIsReportOverlayOpen(true);
-                                     } else {
-                                       alert(`Aucun matériel central disponible.`);
-                                     }
-                                   }}
-                                   style={{
-                                     backgroundColor: isCompleted ? '#e2e8f0' : '#3556ec',
-                                     color: isCompleted ? '#94a3b8' : '#fff',
-                                     fontSize: '16px',
-                                     fontWeight: 'bold',
-                                     borderRadius: '12px',
-                                     padding: '11px 20px',
-                                     border: 'none',
-                                     boxShadow: isCompleted ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
-                                     cursor: isCompleted ? 'not-allowed' : 'pointer',
-                                     flex: 1
-                                   }}
-                                   className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
-                                 >
-                                   Rapport
-                                 </button>
-                               </div>
+                              </div>
+
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  disabled={isCompleted}
+                                  onClick={() => alert(`Lancement du GPS vers local : ${p.address}`)}
+                                  style={{
+                                    backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
+                                    color: isCompleted ? '#94a3b8' : '#fff',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    borderRadius: '12px',
+                                    padding: '11px 20px',
+                                    border: 'none',
+                                    boxShadow: 'none',
+                                    cursor: isCompleted ? 'not-allowed' : 'pointer',
+                                    flex: 1
+                                  }}
+                                  className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
+                                >
+                                  Y aller
+                                </button>
+                                
+                                <button
+                                  type="button"
+                                  disabled={isCompleted}
+                                  onClick={() => {
+                                    const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
+                                    if (matched) {
+                                      handleDefibLookupChange(matched.id);
+                                      // Pre-fill fields for nicer wizard UX!
+                                      setReceiptTitle('Rapport technique défibrillateur');
+                                      setMissionSite('DÉPLACEMENT');
+                                      setReportActiveTourId(t.id);
+                                      setReportActivePassageNum(p.num);
+                                      setIsReportOverlayOpen(true);
+                                    } else {
+                                      alert(`Aucun matériel central disponible.`);
+                                    }
+                                  }}
+                                  style={{
+                                    backgroundColor: isCompleted ? '#e2e8f0' : '#3556ec',
+                                    color: isCompleted ? '#94a3b8' : '#fff',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    borderRadius: '12px',
+                                    padding: '11px 20px',
+                                    border: 'none',
+                                    boxShadow: 'none',
+                                    cursor: isCompleted ? 'not-allowed' : 'pointer',
+                                    flex: 1
+                                  }}
+                                  className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
+                                >
+                                  Rapport
+                                </button>
+                              </div>
                             </div>
                           );
                         })}
@@ -2444,7 +2763,7 @@ export default function PublicPortal({
                           style={{
                             backgroundColor: '#dc2626',
                             color: '#ffffff',
-                            fontSize: '16px',
+                            fontSize: '18px',
                             fontWeight: 'bold',
                             borderRadius: '12px',
                             padding: '14px 20px',
@@ -2471,22 +2790,38 @@ export default function PublicPortal({
                 <div className="space-y-4 pb-16 animate-fadeIn" id="tab-rapports-screen">
 
                   <div className="space-y-4">
-                    {generatedReports.map(rep => (
-                      <div key={rep.id} className="p-5 bg-white border border-slate-100 rounded-xl space-y-3 shadow-xs" id={`report-card-${rep.id}`}>
-                        <div className="flex justify-between items-start">
-                          <span className="font-bold text-slate-800" style={{ fontSize: '18px' }}>
-                            {rep.title || 'Rapport de maintenance'}
-                          </span>
-                          <span className="px-3 py-1 rounded-full text-slate-700 bg-slate-100 font-medium" style={{ fontSize: '16px' }}>
-                            {rep.date}
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-1" style={{ fontSize: '16px' }}>
-                          <p className="text-slate-600">Défibrillateur : <span className="font-semibold text-slate-800">{rep.defibIdentifiant}</span></p>
-                          <p className="text-slate-600">Technicien : <span className="font-semibold text-indigo-600">{rep.techName}</span></p>
-                          <p className="text-slate-600">Site : <span className="text-slate-705">{rep.siteMission}</span></p>
-                        </div>
+                    {generatedReports.map(rep => {
+                      const snapshot = rep.defibSnapshot || defibrillateurs.find(d => d.id === rep.defibId || d.identifiant === rep.defibIdentifiant) || {};
+                      const clientFound = clients.find(c => c.id === snapshot.clientId);
+                      const clientName = clientFound ? clientFound.denomination : (snapshot.nomPrenomSite || 'Non rattaché');
+
+                      return (
+                        <div key={rep.id} className="p-5 bg-white rounded-[14px] space-y-4" style={{ border: '1px solid rgb(201, 190, 205)', boxShadow: 'none' }} id={`report-card-${rep.id}`}>
+                          
+                          {/* Gelule Date en premier */}
+                          <div className="flex items-center justify-center pb-1">
+                            <span style={{
+                              color: '#ffffff',
+                              backgroundColor: '#5d1f74',
+                              padding: '10px 20px',
+                              margin: 'auto',
+                              borderRadius: '9999px',
+                              fontWeight: 'bold',
+                              fontSize: '16px',
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'center'
+                            }}>
+                              {rep.date}
+                            </span>
+                          </div>
+                          
+                          <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
+                            <p style={{ color: '#000000' }}>Document : <span className="font-semibold" style={{ color: '#000000' }}>{formatToNormalCase(rep.title || 'Rapport de maintenance')}</span></p>
+                            <p style={{ color: '#000000' }}>Défibrillateur : <span className="font-semibold" style={{ color: '#000000' }}>{rep.defibIdentifiant}</span></p>
+                            <p style={{ color: '#000000' }}>Technicien : <span className="font-semibold" style={{ color: '#000000' }}>{rep.techName}</span></p>
+                            <p style={{ color: '#000000' }}>Client : <span className="font-semibold" style={{ color: '#000000' }}>{formatToNormalCase(clientName)}</span></p>
+                          </div>
 
                         <button
                           type="button"
@@ -2494,12 +2829,12 @@ export default function PublicPortal({
                           style={{
                             backgroundColor: '#3556ec',
                             color: '#fff',
-                            fontSize: '16px',
+                            fontSize: '18px',
                             fontWeight: 'bold',
                             borderRadius: '12px',
                             padding: '12px 20px',
                             border: 'none',
-                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                            boxShadow: 'none',
                             cursor: 'pointer',
                             width: '100%'
                           }}
@@ -2508,7 +2843,7 @@ export default function PublicPortal({
                           Télécharger PDF
                         </button>
                       </div>
-                    ))}
+                    ); })}
                   </div>
                 </div>
               )}
@@ -2517,13 +2852,25 @@ export default function PublicPortal({
               {activeTab === 'temps' && (
                 <div className="space-y-6 pb-16 animate-fadeIn" id="tab-temps-screen">
                   
+                  <style>{`
+                    #tab-temps-screen input[type="date"]::-webkit-calendar-picker-indicator,
+                    #tab-temps-screen input[type="time"]::-webkit-calendar-picker-indicator {
+                      display: none !important;
+                      -webkit-appearance: none !important;
+                      background: none !important;
+                      width: 0 !important;
+                      height: 0 !important;
+                      margin: 0 !important;
+                    }
+                  `}</style>
+                  
                   {/* Digital Clock Section */}
-                  <div className="bg-slate-950 p-5 rounded-2xl text-center space-y-2">
-                    <span style={{ fontSize: '18px' }} className="text-slate-450 font-normal block">Date et heure actuelle</span>
-                    <div className="text-2xl font-bold text-indigo-400 font-mono">
+                  <div style={{ backgroundColor: '#000000' }} className="p-5 rounded-2xl text-center space-y-2">
+                    <span style={{ fontSize: '18px', color: '#ffffff', fontFamily: 'var(--font-sans), sans-serif' }} className="font-normal block !text-white">Date et heure.</span>
+                    <div style={{ fontSize: '18px', color: '#ffffff', fontFamily: 'var(--font-sans), sans-serif' }} className="font-bold !text-white">
                       {currentTime.toLocaleTimeString('fr-FR')}
                     </div>
-                    <div style={{ fontSize: '16px' }} className="text-slate-550 font-mono">
+                    <div style={{ fontSize: '18px', color: '#ffffff', fontFamily: 'var(--font-sans), sans-serif' }} className="font-bold !text-white">
                       {currentTime.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                     </div>
                   </div>
@@ -2547,7 +2894,7 @@ export default function PublicPortal({
                           type="button"
                           onClick={handleTogglePointage}
                           style={{
-                            backgroundColor: isTracking ? '#000000' : '#3556ec',
+                            backgroundColor: isTracking ? '#dc2626' : '#3556ec',
                             color: '#fff',
                             fontSize: '18px',
                             fontWeight: 'bold',
@@ -2561,22 +2908,19 @@ export default function PublicPortal({
                           className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                         >
                           {isTracking ? (
-                            <>
-                              <Square className="w-5 h-5 text-white fill-white" />
-                              <span>Terminer le pointage</span>
-                            </>
+                            <span>Terminer le pointage</span>
                           ) : (
                             <span>Démarrer la période</span>
                           )}
                         </button>
 
                         {isTracking && (
-                          <div className="p-4 bg-rose-50 border border-rose-150 rounded-xl text-center space-y-1.5 animate-pulse">
-                            <span style={{ fontSize: '16px' }} className="font-semibold text-rose-700 block">Temps de travail calculé automatiquement</span>
-                            <div className="text-2xl font-bold font-mono text-rose-600">
+                          <div style={{ backgroundColor: '#f5ceff', color: '#651c78' }} className="p-4 rounded-xl text-center space-y-1.5">
+                            <span style={{ fontSize: '16px', color: '#651c78', fontFamily: 'var(--font-sans), sans-serif' }} className="font-semibold block">Calcul du temps de travail.</span>
+                            <div style={{ fontSize: '24px', color: '#651c78', fontFamily: 'var(--font-sans), sans-serif' }} className="font-bold">
                               {formatStopwatch(ongoingSeconds)}
                             </div>
-                            <p style={{ fontSize: '16px' }} className="text-slate-500 font-semibold">Début : {activePointage?.startTime}</p>
+                            <p style={{ fontSize: '16px', color: '#651c78', fontFamily: 'var(--font-sans), sans-serif' }} className="font-semibold">Débuté à {activePointage?.startTime}</p>
                           </div>
                         )}
                       </div>
@@ -2585,89 +2929,116 @@ export default function PublicPortal({
 
                   {/* Pointages registered historical log list */}
                   <div className="space-y-3">
-                    <span style={{ fontSize: '18px' }} className="font-bold text-slate-800 block">Historique de pointage</span>
 
                     <div className="space-y-4">
-                      {pointages.filter(p => p.techName === authenticatedUser?.name).map(p => (
-                        <div key={p.id} className="p-5 bg-white border border-slate-100 rounded-xl space-y-4 shadow-xs" id={`pointage-card-${p.id}`}>
+                      {pointages.filter(p => p.techName === authenticatedUser?.name && !p.isOngoing).map(p => (
+                        <div key={p.id} className="p-5 bg-white rounded-[14px] space-y-4" style={{ border: '1px solid rgb(201, 190, 205)', boxShadow: 'none' }} id={`pointage-card-${p.id}`}>
                           
-                          <div className="flex items-center justify-between pb-1">
-                            <span style={{ fontSize: '18px' }} className="font-bold text-slate-800">Date : {p.startDate}</span>
-                            {p.isOngoing ? (
-                              <span style={{ fontSize: '16px' }} className="px-3 py-1 bg-amber-100 text-amber-800 font-bold rounded-full animate-pulse">En cours</span>
-                            ) : (
-                              <span style={{ fontSize: '16px' }} className="px-3 py-1 bg-indigo-50 text-indigo-700 font-bold rounded-full">
-                                {Math.round((p.durationSeconds || 0) / 60)} min ({((p.durationSeconds || 0) / 3600).toFixed(2)} h)
-                              </span>
-                            )}
+                          <div className="flex items-center justify-center pb-1">
+                            <span style={{
+                              color: '#ffffff',
+                              backgroundColor: '#5d1f74',
+                              padding: '10px 20px',
+                              margin: 'auto',
+                              borderRadius: '9999px',
+                              fontWeight: 'bold',
+                              fontSize: '16px',
+                              display: 'block',
+                              width: '100%',
+                              textAlign: 'center'
+                            }}>
+                              Pointage de {Math.round((p.durationSeconds || 0) / 60)} min ({((p.durationSeconds || 0) / 3600).toFixed(2)} h)
+                            </span>
                           </div>
 
                           {/* Editable fields for past Pointages */}
-                          {!p.isOngoing && (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-3">
-                                <div className="space-y-1.5">
-                                  <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Heure de début</label>
-                                  <input
-                                    type="text"
-                                    value={p.startTime}
-                                    style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                                    className="w-full bg-white text-slate-800 text-center font-mono focus:border-indigo-500"
-                                    onChange={(e) => handleEditPointage(p.id, e.target.value, p.endTime || '12:00')}
-                                  />
-                                </div>
-                                <div className="space-y-1.5">
-                                  <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Heure de fin</label>
-                                  <input
-                                    type="text"
-                                    value={p.endTime || ''}
-                                    style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                                    className="w-full bg-white text-slate-800 text-center font-mono focus:border-indigo-500"
-                                    onChange={(e) => handleEditPointage(p.id, p.startTime, e.target.value)}
-                                  />
-                                </div>
-                              </div>
+                          <div className="space-y-4">
+                            <div className="space-y-1.5">
+                              <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Date.</label>
+                              <input
+                                type="date"
+                                value={getIsoDate(p.startDate)}
+                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', p.comment, getFrenchDate(e.target.value))}
+                              />
+                            </div>
 
+                            <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1.5">
-                                <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Notes de suivi</label>
+                                <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Début.</label>
                                 <input
-                                  type="text"
-                                  maxLength={50}
-                                  placeholder="Observations, trajet retour, etc."
-                                  value={p.comment || ''}
-                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                                  className="w-full bg-white focus:border-indigo-500"
-                                  onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', e.target.value)}
+                                  type="time"
+                                  value={p.startTime}
+                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                  className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                  onChange={(e) => handleEditPointage(p.id, e.target.value, p.endTime || '12:00', p.comment, p.startDate)}
                                 />
                               </div>
-                              
-                              <div className="flex justify-start pt-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeletePointage(p.id)}
-                                  style={{
-                                    backgroundColor: '#dc2626',
-                                    color: '#ffffff',
-                                    fontSize: '14px',
-                                    fontWeight: 'bold',
-                                    borderRadius: '10px',
-                                    padding: '8px 16px',
-                                    border: 'none',
-                                    cursor: 'pointer',
-                                  }}
-                                  className="hover:bg-red-700 transition-colors font-bold"
-                                >
-                                  Supprimer
-                                </button>
+                              <div className="space-y-1.5">
+                                <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Clôture.</label>
+                                <input
+                                  type="time"
+                                  value={p.endTime || ''}
+                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                  className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                  onChange={(e) => handleEditPointage(p.id, p.startTime, e.target.value, p.comment, p.startDate)}
+                                />
                               </div>
                             </div>
-                          )}
 
-                          {p.isOngoing && (
-                            <p style={{ fontSize: '16px' }} className="text-slate-500 italic">
-                              En cours depuis {p.startTime}. Arrêtez ci-dessus pour éditer la durée totale ou saisir un commentaire.
-                            </p>
-                          )}
+                            <div className="space-y-1.5">
+                              <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Commentaire pour la période.</label>
+                              <input
+                                type="text"
+                                maxLength={50}
+                                placeholder="Entrez un commentaire."
+                                value={p.comment || ''}
+                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                className="w-full bg-white focus:border-indigo-500"
+                                onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', e.target.value, p.startDate)}
+                              />
+                            </div>
+                            
+                            <div className="flex items-center gap-3 pt-1 w-full">
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePointage(p.id)}
+                                style={{
+                                  backgroundColor: '#dc2626',
+                                  color: '#ffffff',
+                                  fontSize: '18px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '12px',
+                                  padding: '12px 18px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  width: '50%'
+                                }}
+                                className="hover:opacity-90 transition-all font-bold"
+                              >
+                                Supprimer
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => alert("Pointage enregistré avec succès !")}
+                                style={{
+                                  backgroundColor: '#000000',
+                                  color: '#ffffff',
+                                  fontSize: '18px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '12px',
+                                  padding: '12px 18px',
+                                  border: 'none',
+                                  cursor: 'pointer',
+                                  width: '50%'
+                                }}
+                                className="hover:opacity-90 transition-all font-bold"
+                              >
+                                Enregistrer
+                              </button>
+                            </div>
+                          </div>
 
                         </div>
                       ))}
@@ -2710,7 +3081,7 @@ export default function PublicPortal({
                       </div>
 
                       {/* Amounts Grid */}
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Total TTC. (€) *</label>
                           <input
@@ -2721,7 +3092,7 @@ export default function PublicPortal({
                             onChange={(e) => handleTtcChange(e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white text-emerald-600 font-bold focus:border-indigo-500"
+                            className="w-full bg-white text-black font-bold focus:border-indigo-500"
                           />
                         </div>
 
@@ -2734,10 +3105,12 @@ export default function PublicPortal({
                             onChange={(e) => handleHtChange(e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white focus:border-indigo-500"
+                            className="w-full bg-white text-black focus:border-indigo-500"
                           />
                         </div>
+                      </div>
 
+                      <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Total TVA. (€)</label>
                           <input
@@ -2747,12 +3120,10 @@ export default function PublicPortal({
                             onChange={(e) => setExpenseTva(e.target.value)}
                             placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white focus:border-indigo-500"
+                            className="w-full bg-white text-black focus:border-indigo-500"
                           />
                         </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* Date */}
                         <div className="space-y-1.5">
                           <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Date du paiement.</label>
@@ -2765,42 +3136,82 @@ export default function PublicPortal({
                             className="w-full bg-white focus:border-indigo-500"
                           />
                         </div>
+                      </div>
 
-                        {/* Photo select */}
-                        <div className="space-y-1.5">
-                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Justificatif / Photo</label>
-                          <div className="flex items-center gap-3">
-                            <button
-                              type="button"
-                              onClick={() => expensePhotoInputRef.current?.click()}
-                              style={{
-                                backgroundColor: '#000000',
-                                color: '#fff',
-                                fontSize: '16px',
-                                fontWeight: 'bold',
-                                borderRadius: '12px',
-                                padding: '11px 20px',
-                                border: 'none',
-                                boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
-                                cursor: 'pointer',
-                              }}
-                              className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
-                            >
-                              <span>Scanner</span>
-                            </button>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              ref={expensePhotoInputRef}
-                              onChange={(e) => triggerPhotoRead(e, setExpensePhotoUrl)}
-                              className="hidden"
-                            />
-                            {expensePhotoUrl && (
-                              <div className="w-14 h-14 rounded border border-slate-200 overflow-hidden shadow-xs shrink-0">
-                                <img src={expensePhotoUrl} className="w-full h-full object-cover" alt="Recu" />
-                              </div>
-                            )}
-                          </div>
+                      {/* Photo select */}
+                      <div className="space-y-1.5">
+                        <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Photographie ou fichier.</label>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => expensePhotoInputRef.current?.click()}
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#fff',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              borderRadius: '12px',
+                              padding: '9px 18px',
+                              border: 'none',
+                              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                              cursor: 'pointer',
+                            }}
+                            className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
+                          >
+                            <span>Sélectionner</span>
+                          </button>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            ref={expensePhotoInputRef}
+                            onChange={(e) => triggerPhotoRead(e, setExpensePhotoUrl)}
+                            className="hidden"
+                          />
+                          {expensePhotoUrl && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const win = window.open();
+                                  if (win) {
+                                    win.document.write(`<iframe src="${expensePhotoUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                                  }
+                                }}
+                                style={{
+                                  backgroundColor: '#000000',
+                                  color: '#fff',
+                                  fontSize: '18px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '12px',
+                                  padding: '9px 18px',
+                                  border: 'none',
+                                  boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                                  cursor: 'pointer',
+                                }}
+                                className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
+                              >
+                                Aperçu
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setExpensePhotoUrl('')}
+                                style={{
+                                  backgroundColor: '#dc2626',
+                                  color: '#fff',
+                                  fontSize: '18px',
+                                  fontWeight: 'bold',
+                                  borderRadius: '12px',
+                                  padding: '9px 18px',
+                                  border: 'none',
+                                  boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                                  cursor: 'pointer',
+                                }}
+                                className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
+                              >
+                                Supprimer
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
 
@@ -2808,21 +3219,23 @@ export default function PublicPortal({
 
                     <button
                       type="submit"
+                      disabled={!expensePhotoUrl}
                       style={{
-                        backgroundColor: '#3556ec',
+                        backgroundColor: expensePhotoUrl ? '#3556ec' : '#94a3b8',
                         color: '#fff',
                         fontSize: '18px',
                         fontWeight: 'bold',
                         borderRadius: '12px',
                         padding: '14px 20px',
                         border: 'none',
-                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
-                        cursor: 'pointer',
-                        width: '100%'
+                        boxShadow: expensePhotoUrl ? 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f' : 'none',
+                        cursor: expensePhotoUrl ? 'pointer' : 'not-allowed',
+                        width: '100%',
+                        opacity: expensePhotoUrl ? 1 : 0.6
                       }}
-                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
+                      className={`${expensePhotoUrl ? 'hover:opacity-90 active:scale-[0.99]' : ''} transition-all flex items-center justify-center font-bold`}
                     >
-                      <span>Soumettre le ticket de frais</span>
+                      <span>Enregistrer</span>
                     </button>
 
                   </form>

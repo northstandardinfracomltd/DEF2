@@ -202,7 +202,17 @@ export default function GmaoCorrectionForm({
 
   // Report fields
   const [reportTitle, setReportTitle] = useState(report?.title || 'RAPPORT TECHNIQUE DÉFIBRILLATEUR');
-  const [techName, setTechName] = useState(report?.techName || 'Technicien connecté');
+  const [techName, setTechName] = useState(() => {
+    if (report?.techName) return report.techName;
+    try {
+      const activeTechRaw = localStorage.getItem('defib_active_tech_session');
+      if (activeTechRaw) {
+        const activeTech = JSON.parse(activeTechRaw);
+        if (activeTech && activeTech.name) return activeTech.name;
+      }
+    } catch (e) {}
+    return 'Technicien connecté';
+  });
   const [interventionDate, setInterventionDate] = useState(report?.date || '');
   const [missionSite, setMissionSite] = useState<'DÉPLACEMENT' | 'ATELIER SAV'>(
     report?.siteMission === 'ATELIER SAV' ? 'ATELIER SAV' : 'DÉPLACEMENT'
@@ -496,7 +506,7 @@ export default function GmaoCorrectionForm({
       {/* Header section identical in looks to Defibrillateurs with limited width */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
-        style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px 0px 18px 18px', maxWidth: '98%', margin: 'auto', padding: '20px' }}
+        style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px 0px 18px 18px', maxWidth: '100%', margin: 'auto', padding: '20px' }}
         id="defib-form-header-box"
       >
         <div>
@@ -529,7 +539,7 @@ export default function GmaoCorrectionForm({
       </div>
 
       {errorText && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium" style={{ maxWidth: '98%', margin: 'auto' }} id="correction-error">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium" style={{ maxWidth: '100%', margin: 'auto' }} id="correction-error">
           {errorText}
         </div>
       )}
@@ -688,7 +698,7 @@ export default function GmaoCorrectionForm({
         `}</style>
         
         {/* Stacked Layout: Sections layered one on top of the other, identical to DefibTab.tsx */}
-        <div className="space-y-0" style={{ maxWidth: '98%', margin: '48px auto 0px' }}>
+        <div className="space-y-0" style={{ maxWidth: '100%', margin: '12px auto 0px' }}>
           
           {/* Section 0 - Document Configuration & Lookup */}
           <div 

@@ -758,7 +758,7 @@ export default function PublicPortal({
   const [expenseTtc, setExpenseTtc] = useState('');
   const [expenseHt, setExpenseHt] = useState('');
   const [expenseTva, setExpenseTva] = useState('');
-  const [expenseDate, setExpenseDate] = useState('2026-06-03');
+  const [expenseDate, setExpenseDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [expensePhotoUrl, setExpensePhotoUrl] = useState('');
   const expensePhotoInputRef = useRef<HTMLInputElement>(null);
 
@@ -810,10 +810,10 @@ export default function PublicPortal({
     setExpenseTtc(val);
     const num = parseFloat(val);
     if (!isNaN(num)) {
-      const calculatedHt = (num / 1.2).toFixed(2);
-      const calculatedTva = (num - parseFloat(calculatedHt)).toFixed(2);
-      setExpenseHt(calculatedHt);
-      setExpenseTva(calculatedTva);
+      const calculatedTva = num * 0.20;
+      const calculatedHt = num - calculatedTva;
+      setExpenseHt(calculatedHt.toFixed(2));
+      setExpenseTva(calculatedTva.toFixed(2));
     } else {
       setExpenseHt('');
       setExpenseTva('');
@@ -824,8 +824,8 @@ export default function PublicPortal({
     setExpenseHt(val);
     const num = parseFloat(val);
     if (!isNaN(num)) {
-      const ttcNum = num * 1.2;
-      const tvaNum = ttcNum - num;
+      const ttcNum = num / 0.80;
+      const tvaNum = ttcNum * 0.20;
       setExpenseTtc(ttcNum.toFixed(2));
       setExpenseTva(tvaNum.toFixed(2));
     } else {
@@ -1099,7 +1099,7 @@ export default function PublicPortal({
   const handleSaveExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (!expenseTitle.trim() || !expenseTtc) {
-      alert("Veuillez remplir au minimum la Désignation et le Montant TTC.");
+      alert("Veuillez remplir au minimum l'Objet et le Total TTC. (€).");
       return;
     }
 
@@ -2681,20 +2681,29 @@ export default function PublicPortal({
               {activeTab === 'frais' && (
                 <div className="space-y-6 pb-16 animate-fadeIn" id="tab-frais-screen">
                   
+                  <style>{`
+                    #tab-frais-screen input,
+                    #tab-frais-screen label,
+                    #tab-frais-screen input::placeholder {
+                      font-family: var(--font-sans), "Civilprom", "DefibeoMain", sans-serif !important;
+                    }
+                  `}</style>
+                  
                   {/* Ticket addition Form */}
-                  <form onSubmit={handleSaveExpense} className="space-y-5 bg-white p-5 rounded-2xl shadow-xs" id="auth-main-card">
+                  <form onSubmit={handleSaveExpense} className="space-y-5 bg-white p-0 rounded-2xl" id="auth-main-card" style={{ border: 'none', padding: '0px', boxShadow: 'none' }}>
                     
                     <div className="space-y-4">
                       
                       {/* Title */}
                       <div className="space-y-1.5">
-                        <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Désignation de la dépense *</label>
+                        <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Objet</label>
                         <input
                           type="text"
                           required
+                          maxLength={15}
                           value={expenseTitle}
                           onChange={(e) => setExpenseTitle(e.target.value)}
-                          placeholder="Ex: Péage A11 Nantes-Angers"
+                          placeholder="Entrez une raison."
                           style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
                           className="w-full bg-white focus:border-indigo-500"
                         />
@@ -2703,42 +2712,42 @@ export default function PublicPortal({
                       {/* Amounts Grid */}
                       <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-1.5">
-                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Montant TTC (€) *</label>
+                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Total TTC. (€) *</label>
                           <input
                             type="number"
                             step="0.01"
                             required
                             value={expenseTtc}
                             onChange={(e) => handleTtcChange(e.target.value)}
-                            placeholder="12.00"
+                            placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white font-mono text-emerald-600 font-bold focus:border-indigo-500"
+                            className="w-full bg-white text-emerald-600 font-bold focus:border-indigo-500"
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Montant HT (€)</label>
+                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Total HT. (€)</label>
                           <input
                             type="number"
                             step="0.01"
                             value={expenseHt}
                             onChange={(e) => handleHtChange(e.target.value)}
-                            placeholder="10.00"
+                            placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white font-mono focus:border-indigo-500"
+                            className="w-full bg-white focus:border-indigo-500"
                           />
                         </div>
 
                         <div className="space-y-1.5">
-                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Montant TVA (€)</label>
+                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Total TVA. (€)</label>
                           <input
                             type="number"
                             step="0.01"
                             value={expenseTva}
                             onChange={(e) => setExpenseTva(e.target.value)}
-                            placeholder="2.00"
+                            placeholder="0.00"
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white font-mono focus:border-indigo-500"
+                            className="w-full bg-white focus:border-indigo-500"
                           />
                         </div>
                       </div>
@@ -2746,13 +2755,14 @@ export default function PublicPortal({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {/* Date */}
                         <div className="space-y-1.5">
-                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Date de dépense</label>
+                          <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Date du paiement.</label>
                           <input
-                            type="date"
+                            type="text"
                             value={expenseDate}
                             onChange={(e) => setExpenseDate(e.target.value)}
+                            placeholder={new Date().toISOString().split('T')[0]}
                             style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
-                            className="w-full bg-white font-mono focus:border-indigo-500"
+                            className="w-full bg-white focus:border-indigo-500"
                           />
                         </div>
 
@@ -2774,7 +2784,7 @@ export default function PublicPortal({
                                 boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
                                 cursor: 'pointer',
                               }}
-                              className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center"
+                              className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
                             >
                               <span>Scanner</span>
                             </button>
@@ -2810,52 +2820,12 @@ export default function PublicPortal({
                         cursor: 'pointer',
                         width: '100%'
                       }}
-                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center"
+                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
                     >
                       <span>Soumettre le ticket de frais</span>
                     </button>
 
                   </form>
-
-                  {/* List of expenses of connected tech */}
-                  <div className="space-y-3">
-                    <span style={{ fontSize: '18px' }} className="font-bold text-slate-850 block">Mes justificatifs de frais</span>
-
-                    <div className="space-y-4">
-                      {expenses.filter(e => e.techName === authenticatedUser?.name).map(e => (
-                        <div key={e.id} className="p-5 bg-white border border-slate-100 rounded-xl flex gap-4 justify-between items-start" id={`expense-card-${e.id}`}>
-                          <div className="space-y-2">
-                            <div style={{ fontSize: '18px' }} className="font-bold text-slate-800">{e.title}</div>
-                            <div style={{ fontSize: '16px' }} className="text-slate-500 font-mono">Date : {e.dateStr}</div>
-                            <div className="flex flex-wrap items-center gap-2 pt-1 font-mono">
-                              <span style={{ fontSize: '16px' }} className="text-emerald-700 font-bold bg-emerald-50 px-3 py-1 rounded-full">TTC: {e.amountTtc.toFixed(2)}€</span>
-                              <span style={{ fontSize: '16px' }} className="text-slate-600 bg-slate-100 px-3 py-1 rounded-full">HT: {e.amountHt.toFixed(2)}€</span>
-                              <span style={{ fontSize: '16px' }} className="text-slate-505 bg-slate-100 px-3 py-1 rounded-full">TVA: {e.amountTva.toFixed(2)}€</span>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end justify-between self-stretch shrink-0">
-                            {e.photoUrl ? (
-                              <div className="w-14 h-14 rounded border border-slate-200 overflow-hidden shadow-xs">
-                                <img src={e.photoUrl} className="w-full h-full object-cover" alt="Rec" />
-                              </div>
-                            ) : (
-                              <span style={{ fontSize: '16px' }} className="px-3 py-1 bg-slate-50 text-slate-405 rounded-full">Sans photo</span>
-                            )}
-                            
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteExpense(e.id)}
-                              style={{ fontSize: '16px' }}
-                              className="text-rose-600 hover:text-rose-500 hover:underline cursor-pointer transition-colors pt-2 font-semibold"
-                            >
-                              Supprimer
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
                 </div>
               )}

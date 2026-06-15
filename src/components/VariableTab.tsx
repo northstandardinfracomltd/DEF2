@@ -475,7 +475,7 @@ export default function VariableTab({
         <div className="overflow-x-auto">
           {filteredVariables.length === 0 ? (
             <div className="p-16 text-center font-sans lg:py-24" id="no-variables-view">
-              <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>Aucun résultat</p>
+              <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>Aucun résultat.</p>
             </div>
           ) : (
             <table className="w-full text-left font-sans border-collapse text-xs" id="variables-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>

@@ -1,5 +1,5 @@
 {
-  "name": "Remix: Gestion de Défibrillateurs",
+  "name": "Défibeo",
   "description": "Logiciel de gestion et suivi des défibrillateurs, clients, et modèles avec export et édition en masse.",
   "requestFramePermissions": [
     "camera"

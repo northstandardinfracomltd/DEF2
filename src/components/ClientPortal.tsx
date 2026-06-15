@@ -11,6 +11,7 @@ interface ClientPortalProps {
   onLogout: () => void;
   initialClient?: Client | null;
   companyInfo: CompanyInfo;
+  generatedReports?: any[];
 }
 
 export default function ClientPortal({
@@ -22,8 +23,9 @@ export default function ClientPortal({
   onLogout,
   initialClient = null,
   companyInfo,
+  generatedReports = [],
 }: ClientPortalProps) {
-  const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'info'>('defibs');
+  const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info'>('defibs');
 
   const authenticatedClient = initialClient;
 
@@ -63,6 +65,37 @@ Document généré et certifié conforme.
     const link = document.createElement("a");
     link.setAttribute("href", url);
     link.setAttribute("download", `${doc.type.toLowerCase()}_${doc.ref}.txt`);
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Downloader for Reports
+  const handleDownloadReport = (rep: any) => {
+    const content = `===========================================
+${rep.title || 'RAPPORT DE MAINTENANCE DÉFIBRILLATEUR'}
+===========================================
+Référence du Rapport      : ${rep.id}
+Date de l'intervention    : ${rep.date || ''}
+Technicien                : ${rep.techName || ''}
+Défibrillateur            : ${rep.defibIdentifiant || ''} (ID: ${rep.defibId || ''})
+Site / Mission de tournée : ${rep.siteMission || ''}
+
+-------------------------------------------
+Détails supplémentaires :
+État de fonctionnement : Conforme et validé avec succès
+Document certifié conforme par le représentant technique.
+===========================================
+${companyInfo.name || 'Défibeo Solutions'}
+Merci pour votre collaboration de sécurité.
+`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `rapport_${rep.id || 'maintenance'}.txt`);
     link.style.display = 'none';
     document.body.appendChild(link);
     link.click();
@@ -121,13 +154,31 @@ Document généré et certifié conforme.
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none">
       {/* Top sticky navigation bar with requested maintainer title */}
       <header 
-        className="sticky top-0 z-50 px-4 py-4 shrink-0 border-b border-purple-950/20 shadow-md bg-gradient-to-r from-[#7e2e86] to-[#36093a]"
+        className="sticky top-0 z-50 px-4 py-5 shrink-0 border-b border-purple-950/20 shadow-md bg-gradient-to-r from-[#7e2e86] to-[#36093a]"
       >
         <div className="max-w-4xl mx-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between font-sans">
-          <div>
-            <h1 className="text-lg font-black text-white" style={{ letterSpacing: 'normal' }}>
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+            <h1 className="text-lg font-black text-white animate-fadeIn" style={{ letterSpacing: 'normal' }}>
               {companyInfo?.name || 'Défibeo Solutions'}
             </h1>
+            <div className="flex flex-wrap gap-2 items-center">
+              {companyInfo?.phone && (
+                <a
+                  href={`tel:${companyInfo.phone}`}
+                  className="px-5 py-2 text-base font-medium bg-white/10 hover:bg-white/20 select-all text-white border border-white/15 rounded-full flex items-center transition-all duration-200 outline-none hover:opacity-100"
+                >
+                  <span>{companyInfo.phone}</span>
+                </a>
+              )}
+              {companyInfo?.email && (
+                <a
+                  href={`mailto:${companyInfo.email}`}
+                  className="px-5 py-2 text-base font-medium bg-white/10 hover:bg-white/20 select-all text-white border border-white/15 rounded-full flex items-center transition-all duration-200 outline-none hover:opacity-100"
+                >
+                  <span>{companyInfo.email}</span>
+                </a>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center">
@@ -178,6 +229,17 @@ Document généré et certifié conforme.
             Devis et factures
           </button>
           <button
+            onClick={() => setActivePortalTab('reports')}
+            className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
+              activePortalTab === 'reports'
+                ? 'bg-white shadow-xs'
+                : 'bg-transparent hover:bg-white/45'
+            }`}
+            style={{ borderRadius: '12px' }}
+          >
+            Rapports PDF
+          </button>
+          <button
             onClick={() => setActivePortalTab('info')}
             className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
               activePortalTab === 'info'
@@ -195,14 +257,7 @@ Document généré et certifié conforme.
           
           {/* Section 1: Défibrillateurs */}
           {activePortalTab === 'defibs' && (
-            clientDefibs.length === 0 ? (
-              <div 
-                className="text-[18px] text-black font-semibold text-center py-12"
-                style={{ fontSize: '18px', fontWeight: 'bold' }}
-              >
-                Aucun résultat.
-              </div>
-            ) : (
+            clientDefibs.length === 0 ? null : (
               <div className="space-y-6">
                 {clientDefibs.map((df) => {
                   const modelNom = variables.find(v => v.id === df.modeleId)?.nom || df.modeleId || 'Non spécifié';
@@ -249,11 +304,7 @@ Document généré et certifié conforme.
 
           {/* Section 2: Devis et factures */}
           {activePortalTab === 'bills' && (
-            clientDocs.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 italic">
-                Aucun document commercial ou historique de facturation trouvé.
-              </div>
-            ) : (
+            clientDocs.length === 0 ? null : (
               <div className="space-y-6">
                 {clientDocs.map((doc) => (
                   <div
@@ -301,6 +352,73 @@ Document généré et certifié conforme.
                 ))}
               </div>
             )
+          )}
+
+          {/* Section 4: Rapports PDF */}
+          {activePortalTab === 'reports' && (
+            (() => {
+              const clientDefibIds = new Set(clientDefibs.map(df => df.id));
+              const clientDefibIdents = new Set(clientDefibs.map(df => df.identifiant));
+              const clientReports = generatedReports.filter(rep => 
+                (rep.defibId && clientDefibIds.has(rep.defibId)) || 
+                (rep.defibIdentifiant && clientDefibIdents.has(rep.defibIdentifiant))
+              );
+
+              const formatTitle = (str: string) => {
+                const s = (str || 'Constat de maintenance').trim();
+                if (!s) return '';
+                return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+              };
+
+              return clientReports.length === 0 ? null : (
+                <div className="space-y-6">
+                  {clientReports.map((rep) => (
+                    <div
+                      key={rep.id}
+                      className="bg-white p-5 space-y-4"
+                      style={{
+                        border: '1px solid #cfcfcf',
+                        borderRadius: '13px',
+                      }}
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
+                          {formatTitle(rep.title)}
+                        </h2>
+                        <button
+                          onClick={() => handleDownloadReport(rep)}
+                          style={{
+                            backgroundColor: '#3556ec',
+                            color: '#ffffff',
+                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                            borderRadius: '13px',
+                            fontSize: '18px',
+                            padding: '10px 20px',
+                            fontWeight: '100',
+                            transition: 'all 0s ease-in-out',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            border: 'none',
+                          }}
+                        >
+                          Télécharger
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                        {renderField('Référence Rapport', rep.id)}
+                        {renderField('Défibrillateur concerné', rep.defibIdentifiant || 'Non spécifié')}
+                        {renderField('Date d\'intervention', rep.date)}
+                        {renderField('Technicien intervenant', rep.techName)}
+                        {renderField('Site / Mission', rep.siteMission || '-')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()
           )}
 
           {/* Section 3: Informations (contrat) */}

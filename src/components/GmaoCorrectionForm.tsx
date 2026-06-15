@@ -1557,7 +1557,7 @@ export default function GmaoCorrectionForm({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label htmlFor="snap-insertionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
                   Insertion.
@@ -1579,6 +1579,18 @@ export default function GmaoCorrectionForm({
                   id="snap-peremptionElectrodeA"
                   value={snapshot.peremptionElectrodeA || ''}
                   onChange={(e) => handleSnapshotChange('peremptionElectrodeA', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label htmlFor="snap-peremptionSecoursElectrodeA" className="block text-[11px] font-bold text-black uppercase">
+                  Péremption Secours.
+                </label>
+                <input
+                  type="date"
+                  id="snap-peremptionSecoursElectrodeA"
+                  value={snapshot.peremptionSecoursElectrodeA || ''}
+                  onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeA', e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                 />
               </div>
@@ -1688,7 +1700,7 @@ export default function GmaoCorrectionForm({
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
                 <label htmlFor="snap-lotElectrodeP" className="block text-[11px] font-bold text-black uppercase">
                   Lot P.
@@ -1731,6 +1743,19 @@ export default function GmaoCorrectionForm({
                   id="snap-peremptionElectrodeP"
                   value={snapshot.peremptionElectrodeP || ''}
                   onChange={(e) => handleSnapshotChange('peremptionElectrodeP', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="snap-peremptionSecoursElectrodeP" className="block text-[11px] font-bold text-black uppercase">
+                  Péremption Secours.
+                </label>
+                <input
+                  type="date"
+                  id="snap-peremptionSecoursElectrodeP"
+                  value={snapshot.peremptionSecoursElectrodeP || ''}
+                  onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeP', e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                 />
               </div>

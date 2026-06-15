@@ -103,6 +103,9 @@ export default function App() {
     localStorage.setItem('defib_admin_logged_in', 'true');
     localStorage.setItem('defib_admin_logged_user', JSON.stringify(user));
 
+    const emailLower = email.trim().toLowerCase();
+    const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === emailLower);
+
     if (email === 'tech.ouest@defibeo.com') {
       const techSession = {
         name: 'Technicien Ouest',
@@ -114,7 +117,10 @@ export default function App() {
       };
       localStorage.setItem('defib_active_tech_session', JSON.stringify(techSession));
       setIsPublicPortalOpen(true);
-    } else if (email === 'client@demo.com') {
+    } else if (matchedClient) {
+      setIsClientPortalOpen(true);
+      setActivePortalClient(matchedClient);
+    } else if (emailLower === 'client@demo.com') {
       setIsClientPortalOpen(true);
       const spoClient = clients.find(c => c.id === 'c1') || {
         id: 'c1',
@@ -163,12 +169,19 @@ export default function App() {
         if (!localStorage.getItem('defib_active_tech_session')) {
           localStorage.setItem('defib_active_tech_session', JSON.stringify(techSession));
         }
-      } else if (loggedUser.email === 'client@demo.com') {
-        setIsClientPortalOpen(true);
-        if (!activePortalClient && clients.length > 0) {
-          const spoClient = clients.find(c => c.id === 'c1');
-          if (spoClient) {
-            setActivePortalClient(spoClient);
+      } else {
+        const loggedEmailLower = loggedUser.email.trim().toLowerCase();
+        const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === loggedEmailLower);
+        if (matchedClient) {
+          setIsClientPortalOpen(true);
+          setActivePortalClient(matchedClient);
+        } else if (loggedEmailLower === 'client@demo.com') {
+          setIsClientPortalOpen(true);
+          if (!activePortalClient && clients.length > 0) {
+            const spoClient = clients.find(c => c.id === 'c1');
+            if (spoClient) {
+              setActivePortalClient(spoClient);
+            }
           }
         }
       }
@@ -1694,6 +1707,7 @@ export default function App() {
         onLogout={handleLogout}
         initialClient={activePortalClient || clients.find(c => c.id === 'c1')}
         companyInfo={companyInfo}
+        generatedReports={generatedReports}
       />
     );
   }
@@ -1712,6 +1726,7 @@ export default function App() {
         onLogout={handleLogout}
         initialClient={activePortalClient}
         companyInfo={companyInfo}
+        generatedReports={generatedReports}
       />
     );
   }

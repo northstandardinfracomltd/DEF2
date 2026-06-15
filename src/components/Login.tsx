@@ -416,8 +416,29 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           setIsLoading(false);
         }
       } else if (loginRole === 'client') {
+        let matchedClient: any = null;
         if (emailLower === 'client@demo.com' && password === 'client123') {
-          onLoginSuccess('client@demo.com', 'Client Démo');
+          matchedClient = { email: 'client@demo.com', denomination: 'Client Démo' };
+        } else {
+          try {
+            const rawClients = localStorage.getItem('defib_clients');
+            if (rawClients) {
+              const parsedClients = JSON.parse(rawClients);
+              if (Array.isArray(parsedClients)) {
+                matchedClient = parsedClients.find(
+                  (c: any) =>
+                    c.email && c.email.trim().toLowerCase() === emailLower &&
+                    c.accessKey && c.accessKey.trim() === password.trim()
+                );
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching clients for validation', err);
+          }
+        }
+
+        if (matchedClient) {
+          onLoginSuccess(matchedClient.email, matchedClient.denomination);
         } else {
           setError(t.errorClient);
           setIsLoading(false);

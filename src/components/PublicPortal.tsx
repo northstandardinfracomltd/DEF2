@@ -2377,12 +2377,12 @@ export default function PublicPortal({
                 TOUT EN HAUT À GAUCHE: Le nom de l'entreprise
                 À DROITE: Le Prénom/Nom de l'utilisateur */}
             <header 
-              className="px-5 py-3.5 flex flex-col gap-2.5 shrink-0 select-none text-white"
+              className="px-5 pb-3.5 pt-8 flex flex-col gap-2.5 shrink-0 select-none text-white"
               style={{ backgroundColor: '#5d1f74', borderBottom: 'none' }}
             >
               {/* Ligne 1 : Nom de l'entreprise - centré */}
-              <div className="flex items-center justify-center text-center">
-                <div style={{ color: '#ffffff' }} className="font-gochi text-2xl text-center tracking-wide">
+              <div className="flex items-center justify-center text-center pt-2">
+                <div style={{ color: '#ffffff', paddingTop: '10px' }} className="font-gochi text-2xl text-center tracking-wide">
                   {companyInfo.name.length > 25 ? companyInfo.name.substring(0, 25) + "..." : companyInfo.name}
                 </div>
               </div>
@@ -2711,7 +2711,7 @@ export default function PublicPortal({
                                     borderRadius: '12px',
                                     padding: '11px 20px',
                                     border: 'none',
-                                    boxShadow: 'none',
+                                    boxShadow: isCompleted ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
                                     cursor: isCompleted ? 'not-allowed' : 'pointer',
                                     flex: 1
                                   }}
@@ -2834,7 +2834,7 @@ export default function PublicPortal({
                             borderRadius: '12px',
                             padding: '12px 20px',
                             border: 'none',
-                            boxShadow: 'none',
+                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
                             cursor: 'pointer',
                             width: '100%'
                           }}
@@ -3346,8 +3346,8 @@ export default function PublicPortal({
               {/* LANDING SCREEN */}
               {currentScreen === 'landing' && (
                 <div className="space-y-8 text-center animate-fadeIn" id="landing-screen">
-                  <div className="space-y-4">
-                    <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase">
+                  <div className="space-y-4 pt-10">
+                    <h1 className="text-2xl font-black text-slate-800 tracking-tight leading-tight uppercase pt-6">
                       {companyInfo.name || 'Défibeo Solutions'}
                     </h1>
                     <div className="space-y-1">

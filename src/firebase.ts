@@ -146,8 +146,21 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     }
   }
 
-  // Create unique tenant ID
-  const tenantId = cleanTenantId || `tenant_${Math.random().toString(36).substring(2, 11)}_${Date.now()}`;
+  // Create unique tenant ID (following D1, D2, D3... sequential pattern)
+  let tenantId = cleanTenantId;
+  if (!tenantId) {
+    const dPrefixTenants = tenants.filter(t => /^D\d+$/i.test(t.id));
+    if (dPrefixTenants.length > 0) {
+      const numbers = dPrefixTenants.map(t => {
+        const match = t.id.match(/^D(\d+)$/i);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+      const maxNum = Math.max(...numbers);
+      tenantId = `D${maxNum + 1}`;
+    } else {
+      tenantId = 'D1';
+    }
+  }
   
   const { customTenantId, ...restTenantData } = tenantData;
 

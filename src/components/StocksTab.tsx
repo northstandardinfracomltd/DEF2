@@ -389,7 +389,7 @@ export default function StocksTab({
                   {filteredStocks.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
-                        {stockSearchQuery || stockStorageFilter !== 'Tous' ? "Aucun résultat." : "Aucun élément enregistré en stock. Cliquez sur \"Nouveau\" pour commencer."}
+                        Aucun résultat.
                       </td>
                     </tr>
                   ) : (

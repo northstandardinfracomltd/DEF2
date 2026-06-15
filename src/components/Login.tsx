@@ -401,7 +401,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [reqAdminPassword, setReqAdminPassword] = useState('');
   const [reqLang, setReqLang] = useState('Français');
 
-  const [isReqSubmitted, setIsReqSubmitted] = useState(false);
   const [isReqLoading, setIsReqLoading] = useState(false);
   const [reqError, setReqError] = useState('');
 
@@ -551,12 +550,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setReqError('');
 
     try {
-      if (!reqCompany.trim() || !reqTenantId.trim() || !reqCompanyEmail.trim() || !reqAdminName.trim() || !reqAdminEmail.trim() || !reqAdminPassword.trim()) {
-        throw new Error('Veuillez remplir tous les champs obligatoires, y compris le Code Environnement.');
+      if (!reqCompany.trim() || !reqCompanyEmail.trim() || !reqAdminName.trim() || !reqAdminEmail.trim() || !reqAdminPassword.trim()) {
+        throw new Error('Veuillez remplir tous les champs obligatoires.');
       }
-
-      // Format custom tenant id - clean up spaces
-      const cleanTenantId = reqTenantId.replace(/\s+/g, '').toUpperCase();
 
       const tenantId = await registerNewTenant({
         companyName: reqCompany.trim(),
@@ -566,12 +562,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         adminEmail: reqAdminEmail.trim(),
         adminPasswordHexOrPlain: reqAdminPassword.trim(),
         lang: reqLang,
-        customTenantId: cleanTenantId
       });
 
       console.log('Successfully registered environment tenant ID:', tenantId);
-      setIsReqLoading(false);
-      setIsReqSubmitted(true);
 
       // Redirect current window directly to PayPal subscription to capture payment smoothly without popups being blocked
       window.location.href = "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1JV39700HV659370MNIT44AY";
@@ -818,7 +811,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               type="button"
               onClick={() => {
                 setActiveTab('login');
-                setIsReqSubmitted(false);
               }}
               style={{ fontFamily: "DefibeoMain, Civilprom, sans-serif" }}
               className={`flex-1 text-center py-2.5 rounded-[12px] text-[18px] font-bold transition-all cursor-pointer ${
@@ -833,7 +825,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               type="button"
               onClick={() => {
                 setActiveTab('register');
-                setIsReqSubmitted(false);
               }}
               style={{ fontFamily: "DefibeoMain, Civilprom, sans-serif" }}
               className={`flex-1 text-center py-2.5 rounded-[12px] text-[18px] font-bold transition-all cursor-pointer ${
@@ -1017,30 +1008,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           ) : (
             /* Request New Environment Form (Créer un compte contact form) */
             <div className="space-y-5 animate-fadeIn">
-              {isReqSubmitted ? (
-                <div className="text-center py-4 space-y-4" id="register-success-view">
-                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-full mx-auto flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <h3 className="text-sm font-black text-slate-900 uppercase tracking-tight">{t.reqSubmittedTitle}</h3>
-                    <p className="text-[10px] text-slate-500 leading-normal font-medium">
-                      {t.reqSubmittedDesc}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveTab('login');
-                      setIsReqSubmitted(false);
-                    }}
-                    className="mt-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-[10px] rounded-lg border border-slate-250 cursor-pointer transition-colors font-sans"
-                  >
-                    {t.backToLogin}
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
+              <div className="space-y-4">
                   <div className="space-y-1">
                     <p className="text-black leading-normal" style={{ fontSize: '18px', fontFamily: "DefibeoMain, Civilprom, sans-serif", fontWeight: 100, color: '#000000', cursor: 'default' }}>
                       {t.configDesc} <a href="https://defibeo.com/help" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold" style={{ fontWeight: 550 }}>{t.contactSupport}</a>.
@@ -1118,21 +1086,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                         onChange={(e) => setReqCompany(e.target.value)}
                         className="block w-full"
                         placeholder={t.companyNamePlace}
-                      />
-                    </div>
-
-                    {/* Identifiant Logiciel / Code Environnement */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-black font-sans">
-                        {t.softwareId}
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={reqTenantId}
-                        onChange={(e) => setReqTenantId(e.target.value)}
-                        className="block w-full uppercase"
-                        placeholder={t.softwareIdPlace}
                       />
                     </div>
 
@@ -1270,9 +1223,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
                   </form>
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
 
         </div>
 

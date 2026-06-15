@@ -103,6 +103,7 @@ export default function App() {
     const saved = localStorage.getItem('defib_admin_logged_user');
     return saved ? JSON.parse(saved) : null;
   });
+  const [showEnvLoading, setShowEnvLoading] = useState<boolean>(false);
 
   const handleLoginSuccess = (email: string, name: string, activeTenantId?: string, loggedInRole?: string) => {
     const tenantToSet = activeTenantId || 'demo';
@@ -121,6 +122,14 @@ export default function App() {
 
     const emailLower = email.trim().toLowerCase();
     const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === emailLower);
+
+    // Active environment loading screen for admin login (not technician and not client)
+    if (emailLower !== 'tech.ouest@defibeo.com' && roleToSet !== 'technicien' && !matchedClient && emailLower !== 'client@demo.com') {
+      setShowEnvLoading(true);
+      setTimeout(() => {
+        setShowEnvLoading(false);
+      }, 5000);
+    }
 
     if (emailLower === 'tech.ouest@defibeo.com' || roleToSet === 'technicien') {
       const techSession = {
@@ -1981,6 +1990,19 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans" id="app-root-container">
+      {showEnvLoading && (
+        <div 
+          className="fixed inset-0 z-[99999] flex items-center justify-center text-center font-sans" 
+          style={{ 
+            background: 'radial-gradient(#7e2e86, #36093a)',
+            fontSize: '18px',
+            color: '#ffffff'
+          }}
+          id="env-loading-overlay"
+        >
+          <span className="text-white text-[18px] font-sans text-center">Chargement de votre environnement.</span>
+        </div>
+      )}
       {/* LEFT SIDE BAR PANE */}
       <aside 
         className="w-64 text-slate-100 flex flex-col h-screen sticky top-0 shrink-0 shadow-xl z-30" 
@@ -2000,10 +2022,6 @@ export default function App() {
         >
           <div className="text-center">
             <h1 className="text-white font-sans font-bold text-center" style={{ fontSize: '18px', cursor: 'default' }}>Logiciel Défibeo</h1>
-            <div className="mt-1 flex items-center justify-center gap-1.5 text-[10px] text-purple-200" id="db-status-container">
-              <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseLoaded ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`} id="db-status-dot"></span>
-              <span id="db-status-text">{isFirebaseLoaded ? 'Base cloud connectée' : 'Connexion base...'}</span>
-            </div>
           </div>
         </div>
 
@@ -2388,13 +2406,7 @@ export default function App() {
 
                 {fsmTours.length === 0 ? (
                   <div className="p-16 text-center font-sans lg:py-24" id="no-fsm-view">
-                    <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100, marginBottom: '16px' }}>Aucune tournée de maintenance planifiée</p>
-                    <button
-                      onClick={addFsmTour}
-                      style={blueButtonStyle}
-                    >
-                      Nouvelle tournée
-                    </button>
+                    <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>Aucun résultat.</p>
                   </div>
                 ) : filteredTours.length === 0 ? (
                   <div className="p-16 text-center font-sans lg:py-24" id="fsm-no-results-view">
@@ -3150,7 +3162,7 @@ export default function App() {
                     {filteredReports.length === 0 ? (
                       <div className="p-16 text-center font-sans lg:py-24" id="no-gmao-view">
                         <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                          {gmaoSearchQuery ? "Aucun rapport ne correspond à votre recherche" : "Aucun rapport de maintenance n'a été généré pour le moment"}
+                          {gmaoSearchQuery ? "Aucun rapport ne correspond à votre recherche" : "Aucun résultat."}
                         </p>
                       </div>
                     ) : (
@@ -3478,7 +3490,7 @@ export default function App() {
                     {filtTickets.length === 0 ? (
                       <div className="p-16 text-center font-sans lg:py-24" id="no-crm-view">
                         <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                          {ticketSearch ? "Aucun ticket ne correspond à votre recherche" : "Aucun ticket de support trouvé"}
+                          Aucun résultat.
                         </p>
                       </div>
                     ) : (
@@ -3908,7 +3920,7 @@ export default function App() {
                         {filtDocs.length === 0 ? (
                           <div className="p-16 text-center font-sans lg:py-24" id="no-devis-view bg-white">
                             <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                              {docSearchQuery ? "Aucun résultat." : "Aucun document commercial enregistré"}
+                              Aucun résultat.
                             </p>
                           </div>
                         ) : (

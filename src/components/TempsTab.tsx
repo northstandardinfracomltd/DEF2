@@ -243,14 +243,9 @@ export default function TempsTab({
       <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>
         {filteredPointages.length === 0 ? (
           <div className="p-16 text-center font-sans lg:py-24 max-w-2xl mx-auto" id="no-pointage-view">
-            <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100, marginBottom: '8px' }}>
-              {search ? "Aucun résultat." : "Aucun pointage de technicien trouvé"}
+            <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
+              Aucun résultat.
             </p>
-            {!search && (
-              <p style={{ color: '#888888', fontSize: '13px', fontWeight: 100 }}>
-                Les vacations terrain de pointage apparaîtront ici dès qu'un technicien démarrera sa session depuis son portail dédié.
-              </p>
-            )}
           </div>
         ) : (
           <div className="overflow-x-auto">

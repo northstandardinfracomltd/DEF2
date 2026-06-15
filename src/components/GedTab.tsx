@@ -260,14 +260,9 @@ export default function GedTab({
             <div className="overflow-x-auto">
               {filteredDocs.length === 0 ? (
                 <div className="p-16 text-center font-sans lg:py-24" id="no-ged-view">
-                  <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100, marginBottom: '8px' }}>
-                    {search ? "Aucun résultat." : "Aucun document GED enregistré"}
+                  <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
+                    Aucun résultat.
                   </p>
-                  {!search && (
-                    <p style={{ color: '#888888', fontSize: '13px', fontWeight: 100 }}>
-                      Cliquez sur « Nouveau » ci-dessus pour ajouter un document.
-                    </p>
-                  )}
                 </div>
               ) : (
                 <table className="w-full text-left font-sans border-collapse text-xs" id="ged-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>

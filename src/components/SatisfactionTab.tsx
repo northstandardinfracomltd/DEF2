@@ -148,14 +148,9 @@ export default function SatisfactionTab({
         <div className="overflow-x-auto">
           {filteredReviews.length === 0 ? (
             <div className="p-16 text-center font-sans lg:py-24" id="no-reviews-view">
-              <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100, marginBottom: '8px' }}>
-                {search ? "Aucun résultat." : "Aucun avis client enregistré"}
+              <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
+                Aucun résultat.
               </p>
-              {!search && (
-                <p style={{ color: '#888888', fontSize: '13px', fontWeight: 100 }}>
-                  Les retours d'expérience et évaluation de satisfaction clients apparaîtront dans cet espace.
-                </p>
-              )}
             </div>
           ) : (
             <table className="w-full text-left font-sans border-collapse text-xs" id="satisfaction-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>

@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { AlertCircle, ShieldCheck, CheckCircle, Send, CreditCard } from 'lucide-react';
+import { 
+  registerNewTenant, 
+  loginTenantAdmin, 
+  getRegisteredTenants, 
+  fetchCollectionFromFirestore 
+} from '../firebase';
 
 interface LoginProps {
-  onLoginSuccess: (email: string, name: string) => void;
+  onLoginSuccess: (email: string, name: string, tenantId: string, role?: string) => void;
 }
+
 
 const ApplePetalsLoader = () => (
   <svg
@@ -39,13 +46,15 @@ const translations = {
     password: "Mot de passe",
     passwordPlace: "Ex: 123ABC%",
     loginBtn: "Connexion",
-    reqSubmittedTitle: "Demande enregistrée",
-    reqSubmittedDesc: "Votre demande de création d'un nouvel environnement Défibeo ainsi que votre activation ont bien été enregistrés. Notre support configure votre active sous 24h.",
+    reqSubmittedTitle: "Environnement Activé !",
+    reqSubmittedDesc: "Félicitations ! Votre nouvel environnement Défibeo a été créé et activé avec succès. Vous êtes le Super Administrateur de cet espace. Vous pouvez dès à présent vous connecter.",
     backToLogin: "Retour à la connexion",
     configDesc: "Configurez et activez votre nouvel environnement Défibeo pour votre entreprise. Si vous avez besoin d’aide, veuillez",
     contactSupport: "contacter l’assistance",
     companyName: "Nom entreprise",
     companyNamePlace: "Ex: Medical360",
+    softwareId: "Code Environnement / Identifiant Logiciel",
+    softwareIdPlace: "Ex: D18, D19...",
     companyEmail: "Email entreprise",
     companyEmailPlace: "Ex: contact@medical360.com",
     companyPhone: "Téléphone (mobile)",
@@ -99,13 +108,15 @@ const translations = {
     password: "Password",
     passwordPlace: "e.g., 123ABC%",
     loginBtn: "Login",
-    reqSubmittedTitle: "Request registered",
-    reqSubmittedDesc: "Your request for creating a new Défibeo environment and your activation have been successfully registered. Our support configures your space within 24 hours.",
+    reqSubmittedTitle: "Environment Activated!",
+    reqSubmittedDesc: "Congratulations! Your new Défibeo environment has been successfully created and configured. You can now log in using your administrator account.",
     backToLogin: "Back to login",
     configDesc: "Configure and activate the new Défibeo software environment for your establishment. If you need help, please",
     contactSupport: "contact support",
     companyName: "Company Name",
     companyNamePlace: "e.g., Medical360",
+    softwareId: "Environment Code / Software Identifier",
+    softwareIdPlace: "e.g., D18, D19...",
     companyEmail: "Company Email",
     companyEmailPlace: "e.g., contact@medical360.com",
     companyPhone: "Phone (mobile)",
@@ -166,6 +177,8 @@ const translations = {
     contactSupport: "Kundendienst",
     companyName: "Firmenname",
     companyNamePlace: "z.B. Medical360",
+    softwareId: "Umgebungscode / Software-Kennung",
+    softwareIdPlace: "z.B. D18, D19...",
     companyEmail: "Firmen-E-Mail",
     companyEmailPlace: "z.B. contact@medical360.com",
     companyPhone: "Telefon (Mobil)",
@@ -226,6 +239,8 @@ const translations = {
     contactSupport: "contato com o suporte",
     companyName: "Nome da empresa",
     companyNamePlace: "Ex: Medical360",
+    softwareId: "Código do Ambiente / Identificador do Software",
+    softwareIdPlace: "Ex: D18, D19...",
     companyEmail: "E-mail da empresa",
     companyEmailPlace: "Ex: contact@medical360.com",
     companyPhone: "Telefone (celular)",
@@ -286,6 +301,8 @@ const translations = {
     contactSupport: "contactar con el soporte",
     companyName: "Nombre de la empresa",
     companyNamePlace: "Ej: Medical360",
+    softwareId: "Código de Entorno / Identificador de Software",
+    softwareIdPlace: "Ej: D18, D19...",
     companyEmail: "Correo electrónico de la empresa",
     companyEmailPlace: "Ej: contact@medical360.com",
     companyPhone: "Teléfono (móvil)",
@@ -376,6 +393,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
            isEmailValid;
   }, [reportSubject, reportMessage, isDefibIdTypedValid, reportEmail]);
   const [reqCompany, setReqCompany] = useState('');
+  const [reqTenantId, setReqTenantId] = useState('');
   const [reqCompanyEmail, setReqCompanyEmail] = useState('');
   const [reqCompanyPhone, setReqCompanyPhone] = useState('');
   const [reqAdminName, setReqAdminName] = useState('');
@@ -385,6 +403,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
   const [isReqSubmitted, setIsReqSubmitted] = useState(false);
   const [isReqLoading, setIsReqLoading] = useState(false);
+  const [reqError, setReqError] = useState('');
 
   // Lock body scroll when report modal is open to avoid double scrolls
   React.useEffect(() => {
@@ -400,68 +419,167 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
   const t = translations[selectedLang as keyof typeof translations] || translations['Français'];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    // Simulate small delay for polished feel
-    setTimeout(() => {
-      const emailLower = email.trim().toLowerCase();
+    const emailLower = email.trim().toLowerCase();
+    const pass = password.trim();
+
+    try {
       if (loginRole === 'admin') {
-        if (emailLower === 'account@demo.com' && password === '123456') {
-          onLoginSuccess('account@demo.com', 'Admin Démo');
+        const tenant = await loginTenantAdmin(emailLower, pass);
+        if (tenant) {
+          onLoginSuccess(tenant.adminEmail, tenant.adminName, tenant.id, 'admin');
         } else {
-          setError(t.errorAdmin);
-          setIsLoading(false);
-        }
-      } else if (loginRole === 'client') {
-        let matchedClient: any = null;
-        if (emailLower === 'client@demo.com' && password === 'client123') {
-          matchedClient = { email: 'client@demo.com', denomination: 'Client Démo' };
-        } else {
-          try {
-            const rawClients = localStorage.getItem('defib_clients');
-            if (rawClients) {
-              const parsedClients = JSON.parse(rawClients);
-              if (Array.isArray(parsedClients)) {
-                matchedClient = parsedClients.find(
-                  (c: any) =>
-                    c.email && c.email.trim().toLowerCase() === emailLower &&
-                    c.accessKey && c.accessKey.trim() === password.trim()
-                );
+          // Check for sub-account "Administrateur" members across all tenants
+          const tenants = await getRegisteredTenants();
+          let matchedAdmin: any = null;
+          let matchedTenantId = 'demo';
+
+          for (const tnt of tenants) {
+            const tenantId = tnt.id;
+            const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
+            const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+            if (fetchedMembers && Array.isArray(fetchedMembers)) {
+              const found = fetchedMembers.find(
+                (m: any) =>
+                  m.email && m.email.trim().toLowerCase() === emailLower &&
+                  m.pin && m.pin.trim() === pass &&
+                  (m.role?.toLowerCase().includes('admin') || m.role?.toLowerCase().includes('propriétaire'))
+              );
+              if (found) {
+                matchedAdmin = found;
+                matchedTenantId = tenantId;
+                break;
               }
             }
-          } catch (err) {
-            console.error('Error fetching clients for validation', err);
+          }
+
+          if (matchedAdmin) {
+            onLoginSuccess(matchedAdmin.email, matchedAdmin.name, matchedTenantId, 'admin');
+          } else {
+            setError(t.errorAdmin);
+            setIsLoading(false);
+          }
+        }
+      } else if (loginRole === 'client') {
+        // Authenticate client globally
+        if (emailLower === 'client@demo.com' && pass === 'client123') {
+          onLoginSuccess('client@demo.com', 'Client Démo', 'demo', 'client');
+          return;
+        }
+
+        const tenants = await getRegisteredTenants();
+        let matchedClient: any = null;
+        let matchedTenantId = 'demo';
+
+        // Search for this client in each tenant's clients collection
+        for (const tnt of tenants) {
+          const tenantId = tnt.id;
+          const key = tenantId === 'demo' ? 'clients' : `${tenantId}_clients`;
+          const fetchedClients = await fetchCollectionFromFirestore<any[]>(key);
+          if (fetchedClients && Array.isArray(fetchedClients)) {
+            const found = fetchedClients.find(
+              (c: any) =>
+                c.email && c.email.trim().toLowerCase() === emailLower &&
+                c.accessKey && c.accessKey.trim() === pass
+            );
+            if (found) {
+              matchedClient = found;
+              matchedTenantId = tenantId;
+              break;
+            }
           }
         }
 
         if (matchedClient) {
-          onLoginSuccess(matchedClient.email, matchedClient.denomination);
+          onLoginSuccess(matchedClient.email, matchedClient.denomination, matchedTenantId, 'client');
         } else {
           setError(t.errorClient);
           setIsLoading(false);
         }
       } else if (loginRole === 'technicien') {
-        if (emailLower === 'tech.ouest@defibeo.com' && password === '4321') {
-          onLoginSuccess('tech.ouest@defibeo.com', 'Technicien Ouest');
+        // Authenticate technician globally
+        if (emailLower === 'tech.ouest@defibeo.com' && pass === '4321') {
+          onLoginSuccess('tech.ouest@defibeo.com', 'Technicien Ouest', 'demo', 'technicien');
+          return;
+        }
+
+        const tenants = await getRegisteredTenants();
+        let matchedMember: any = null;
+        let matchedTenantId = 'demo';
+
+        // Search for this member in each tenant's members list
+        for (const tnt of tenants) {
+          const tenantId = tnt.id;
+          const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
+          const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+          if (fetchedMembers && Array.isArray(fetchedMembers)) {
+            const found = fetchedMembers.find(
+              (m: any) =>
+                m.email && m.email.trim().toLowerCase() === emailLower &&
+                m.pin && m.pin.trim() === pass &&
+                (m.role?.toLowerCase().includes('tech') || m.role?.toLowerCase().includes('technicien') || m.role?.toLowerCase().includes('maintenance'))
+            );
+            if (found) {
+              matchedMember = found;
+              matchedTenantId = tenantId;
+              break;
+            }
+          }
+        }
+
+        if (matchedMember) {
+          onLoginSuccess(matchedMember.email, matchedMember.name, matchedTenantId, 'technicien');
         } else {
           setError(t.errorTech);
           setIsLoading(false);
         }
       }
-    }, 600);
+    } catch (err: any) {
+      console.error('Error logging in:', err);
+      setError('Erreur lors de la connexion: ' + (err.message || String(err)));
+      setIsLoading(false);
+    }
   };
 
-  const handleRequestSubmit = (e: React.FormEvent) => {
+  const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsReqLoading(true);
+    setReqError('');
 
-    setTimeout(() => {
+    try {
+      if (!reqCompany.trim() || !reqTenantId.trim() || !reqCompanyEmail.trim() || !reqAdminName.trim() || !reqAdminEmail.trim() || !reqAdminPassword.trim()) {
+        throw new Error('Veuillez remplir tous les champs obligatoires, y compris le Code Environnement.');
+      }
+
+      // Format custom tenant id - clean up spaces
+      const cleanTenantId = reqTenantId.replace(/\s+/g, '').toUpperCase();
+
+      const tenantId = await registerNewTenant({
+        companyName: reqCompany.trim(),
+        companyEmail: reqCompanyEmail.trim(),
+        companyPhone: reqCompanyPhone.trim(),
+        adminName: reqAdminName.trim(),
+        adminEmail: reqAdminEmail.trim(),
+        adminPasswordHexOrPlain: reqAdminPassword.trim(),
+        lang: reqLang,
+        customTenantId: cleanTenantId
+      });
+
+      console.log('Successfully registered environment tenant ID:', tenantId);
       setIsReqLoading(false);
       setIsReqSubmitted(true);
-    }, 800);
+
+      // Redirect current window directly to PayPal subscription to capture payment smoothly without popups being blocked
+      window.location.href = "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1JV39700HV659370MNIT44AY";
+    } catch (err: any) {
+      console.error('Registration failed:', err);
+      setReqError(err.message || String(err));
+      setIsReqLoading(false);
+    }
   };
 
   return (
@@ -930,6 +1048,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   </div>
 
                   <form className="space-y-3.5" onSubmit={handleRequestSubmit} id="request-env-form">
+                    {reqError && (
+                      <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-xs font-semibold flex items-center gap-2" id="req-error-message">
+                        <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+                        <span>{reqError}</span>
+                      </div>
+                    )}
                     
                     {/* Sélection langue */}
                     <div className="space-y-1.5">
@@ -994,6 +1118,21 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                         onChange={(e) => setReqCompany(e.target.value)}
                         className="block w-full"
                         placeholder={t.companyNamePlace}
+                      />
+                    </div>
+
+                    {/* Identifiant Logiciel / Code Environnement */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-black font-sans">
+                        {t.softwareId}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={reqTenantId}
+                        onChange={(e) => setReqTenantId(e.target.value)}
+                        className="block w-full uppercase"
+                        placeholder={t.softwareIdPlace}
                       />
                     </div>
 
@@ -1081,9 +1220,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
                     {/* Activer l'abonnement button leading to PayPal */}
                     <div className="pt-3 space-y-3">
-                      <a
-                        href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1JV39700HV659370MNIT44AY"
-                        target="_self"
+                      <button
+                        type="submit"
+                        disabled={isReqLoading}
                         style={{
                           backgroundColor: '#3556ec',
                           color: '#fff',
@@ -1101,10 +1240,17 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                           outlineOffset: '0px',
                           marginLeft: '0px',
                         }}
-                        className="w-full flex justify-center items-center gap-2 transition-all cursor-pointer box-border"
+                        className={`w-full flex justify-center items-center gap-2 transition-all cursor-pointer box-border ${isReqLoading ? 'opacity-80 cursor-not-allowed' : ''}`}
                       >
-                        {t.activateSub}
-                      </a>
+                        {isReqLoading ? (
+                          <div className="flex items-center gap-2">
+                            <ApplePetalsLoader />
+                            <span>Configuration en cours...</span>
+                          </div>
+                        ) : (
+                          t.activateSub
+                        )}
+                      </button>
 
                       {/* Small text disclaimer with terms and secure info */}
                       <p className="text-[14px] leading-relaxed text-center font-medium font-sans" style={{ color: '#000000', cursor: 'default' }}>

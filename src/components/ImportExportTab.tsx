@@ -36,9 +36,10 @@ const INITIAL_RECORDS: ImportExportRecord[] = [
   }
 ];
 
-export default function ImportExportTab() {
+export default function ImportExportTab({ tenantId }: { tenantId: string }) {
   const [records, setRecords] = useState<ImportExportRecord[]>(() => {
-    const saved = localStorage.getItem('defib_import_export_records');
+    const key = `defib_import_export_records_${tenantId}`;
+    const saved = localStorage.getItem(key);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as any[];
@@ -47,10 +48,10 @@ export default function ImportExportTab() {
           format: 'Google Sheets.'
         }));
       } catch (e) {
-        return INITIAL_RECORDS;
+        return tenantId === 'demo' ? INITIAL_RECORDS : [];
       }
     }
-    return INITIAL_RECORDS;
+    return tenantId === 'demo' ? INITIAL_RECORDS : [];
   });
 
   const [search, setSearch] = useState('');
@@ -71,8 +72,29 @@ export default function ImportExportTab() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    localStorage.setItem('defib_import_export_records', JSON.stringify(records));
-  }, [records]);
+    const key = `defib_import_export_records_${tenantId}`;
+    localStorage.setItem(key, JSON.stringify(records));
+  }, [records, tenantId]);
+
+  useEffect(() => {
+    const key = `defib_import_export_records_${tenantId}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as any[];
+        setRecords(parsed.map((r) => ({
+          ...r,
+          format: 'Google Sheets.'
+        })));
+      } catch (e) {
+        setRecords(tenantId === 'demo' ? INITIAL_RECORDS : []);
+      }
+    } else {
+      setRecords(tenantId === 'demo' ? INITIAL_RECORDS : []);
+    }
+    setSearch('');
+    setShowForm(false);
+  }, [tenantId]);
 
   // Clean filters
   const filteredRecords = records.filter((r) => {

@@ -19,6 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { CompanyInfo, Member } from '../types';
+import { getRegisteredTenants, fetchCollectionFromFirestore } from '../firebase';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -117,7 +118,7 @@ export default function SettingsModal({
       updated[index] = { 
         ...updated[index], 
         role: newRole,
-        pin: isTech ? updated[index].pin : undefined,
+        pin: updated[index].pin || '1234',
         locationLink: isTech ? updated[index].locationLink : undefined
       };
       return updated;
@@ -154,7 +155,9 @@ export default function SettingsModal({
     }
   };
 
-  const handleAddMemberSubmit = (e: React.FormEvent) => {
+  const [isVerifyingEmail, setIsVerifyingEmail] = React.useState(false);
+
+  const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMemberName.trim()) {
       alert("Veuillez saisir un Nom & Prénom");
@@ -164,18 +167,63 @@ export default function SettingsModal({
       alert("Veuillez saisir une adresse email");
       return;
     }
-    
-    const isTechRole = newMemberRole === 'Technicien';
-    if (isTechRole && newMemberPin.length !== 4) {
+    if (newMemberPin.length !== 4) {
       alert("Le code PIN doit comporter exactement 4 chiffres");
       return;
+    }
+
+    const candidateEmail = newMemberEmail.trim().toLowerCase();
+
+    // 1. Check local state duplicates
+    const existsLocally = localMembers.some(m => m.email?.trim().toLowerCase() === candidateEmail);
+    if (existsLocally) {
+      alert("Erreur, l'email est déjà utilisé.");
+      return;
+    }
+
+    setIsVerifyingEmail(true);
+    try {
+      // 2. Check registered tenants (primary admins)
+      const tenants = await getRegisteredTenants();
+      const existsAsTenantAdmin = tenants.some(t => t.adminEmail.trim().toLowerCase() === candidateEmail);
+      if (existsAsTenantAdmin) {
+        alert("Erreur, l'email est déjà utilisé.");
+        setIsVerifyingEmail(false);
+        return;
+      }
+
+      // 3. Check members in all tenants' sub-accounts
+      let existsAsSubAccount = false;
+      for (const tnt of tenants) {
+        const tenantId = tnt.id;
+        const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
+        const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+        if (fetchedMembers && Array.isArray(fetchedMembers)) {
+          const found = fetchedMembers.some(m => m.email && m.email.trim().toLowerCase() === candidateEmail);
+          if (found) {
+            existsAsSubAccount = true;
+            break;
+          }
+        }
+      }
+
+      if (existsAsSubAccount) {
+        alert("Erreur, l'email est déjà utilisé.");
+        setIsVerifyingEmail(false);
+        return;
+      }
+
+    } catch (err) {
+      console.error('Error verifying email uniqueness:', err);
+    } finally {
+      setIsVerifyingEmail(false);
     }
 
     const m: Member = {
       name: newMemberName.trim(),
       email: newMemberEmail.trim(),
       role: newMemberRole,
-      pin: isTechRole ? newMemberPin : undefined,
+      pin: newMemberPin,
       status: 'Inactif',
       lastActive: 'Jamais'
     };
@@ -191,7 +239,62 @@ export default function SettingsModal({
   };
 
   // Perform overall save to parent state upon Enregistrer click
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
+    setIsVerifyingEmail(true);
+    setSaveSuccessMsg(null);
+
+    try {
+      // 1. Check local duplicates within the local list itself
+      const emailsSeen = new Set<string>();
+      for (const m of localMembers) {
+        const emailLower = m.email?.trim().toLowerCase();
+        if (!emailLower) continue;
+        if (emailsSeen.has(emailLower)) {
+          alert(`Erreur, l'email est déjà utilisé.`);
+          setIsVerifyingEmail(false);
+          return;
+        }
+        emailsSeen.add(emailLower);
+      }
+
+      // 2. Fetch all tenants and their sub-accounts to make sure there are no collisions with other accounts (excluding their own unchanged values)
+      const tenants = await getRegisteredTenants();
+      const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+
+      for (const m of localMembers) {
+        const candidateEmail = m.email?.trim().toLowerCase();
+        if (!candidateEmail) continue;
+
+        // Check if candidateEmail is used as admin in a different tenant
+        const otherTenantAdmin = tenants.some(t => t.id !== myTenantId && t.adminEmail.trim().toLowerCase() === candidateEmail);
+        if (otherTenantAdmin) {
+          alert(`Erreur, l'email est déjà utilisé.`);
+          setIsVerifyingEmail(false);
+          return;
+        }
+
+        // Check if candidateEmail is used as a member in any other tenant
+        for (const tnt of tenants) {
+          if (tnt.id === myTenantId) continue; // skip our own tenant
+          const key = tnt.id === 'demo' ? 'members' : `${tnt.id}_members`;
+          const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+          if (fetchedMembers && Array.isArray(fetchedMembers)) {
+            const found = fetchedMembers.some(fm => fm.email && fm.email.trim().toLowerCase() === candidateEmail);
+            if (found) {
+              alert(`Erreur, l'email est déjà utilisé.`);
+              setIsVerifyingEmail(false);
+              return;
+            }
+          }
+        }
+      }
+
+    } catch (err) {
+      console.error('Error validation before save:', err);
+    } finally {
+      setIsVerifyingEmail(false);
+    }
+
     onUpdateCompanyInfo(localCompany);
     onUpdateMembers(localMembers);
     
@@ -522,11 +625,10 @@ export default function SettingsModal({
                   <input
                     type="text"
                     maxLength={4}
-                    value={newMemberRole === 'Technicien' ? newMemberPin : ''}
-                    disabled={newMemberRole !== 'Technicien'}
+                    value={newMemberPin}
                     onChange={(e) => setNewMemberPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                    placeholder=""
-                    className="w-full text-black text-center font-mono font-bold text-xs disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
+                    placeholder="Ex: 1234"
+                    className="w-full text-black text-center font-mono font-bold text-xs"
                   />
                 </div>
               </div>
@@ -657,8 +759,8 @@ export default function SettingsModal({
                                   <input
                                     type="text"
                                     maxLength={4}
-                                    value={isTech ? (m.pin || '') : ''}
-                                    disabled={!canEditThisMember || !isTech}
+                                    value={m.pin || ''}
+                                    disabled={!canEditThisMember}
                                     onChange={(e) => handlePinChange(idx, e.target.value)}
                                     placeholder=""
                                     className="w-full text-left font-mono font-bold text-xs bg-white text-black disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"

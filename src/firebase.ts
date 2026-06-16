@@ -442,4 +442,48 @@ export async function checkIfDefibIdentifiantExistsAnywhere(
   return { exists: false };
 }
 
+/**
+ * Finds the tenant information owning a specified defibrillator identifiant.
+ */
+export async function findTenantAndDefibGlobally(identifiant: string): Promise<{ tenantId: string; companyName: string; companyEmail: string; exists: boolean } | null> {
+  const checkIdent = identifiant.trim().toUpperCase();
+  if (!checkIdent) return null;
+  try {
+    const tenants = await getRegisteredTenants();
+    const tenantIds = ['demo', ...tenants.map(t => t.id)];
+
+    for (const tid of tenantIds) {
+      const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
+      const defibList = await fetchRawCollectionFromFirestore<any[]>(key) || [];
+      if (Array.isArray(defibList)) {
+        const hasMatch = defibList.some(df => 
+          (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) ||
+          (df.id && df.id.trim().toUpperCase() === checkIdent)
+        );
+        if (hasMatch) {
+          if (tid === 'demo') {
+            return {
+              tenantId: 'demo',
+              companyName: 'Défibeo Solutions',
+              companyEmail: 'contact@defibeo-solutions.com',
+              exists: true
+            };
+          } else {
+            const tenantObj = tenants.find(t => t.id === tid);
+            return {
+              tenantId: tid,
+              companyName: tenantObj ? tenantObj.companyName : tid,
+              companyEmail: tenantObj ? tenantObj.companyEmail : 'support@defibeo.com',
+              exists: true
+            };
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error finding tenant and defib globally:', error);
+  }
+  return null;
+}
+
 

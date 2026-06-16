@@ -313,10 +313,10 @@ export default function StatsModal({
             }}
             className="shadow-3xs transition-all hover:border-slate-350"
           >
-            <div style={{ fontSize: '30px', fontWeight: 900, color: '#000000', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif', cursor: 'default'" }}>
+            <div style={{ fontSize: '30px', fontWeight: 900, color: '#000000', fontFamily: "'Gochi', cursive, sans-serif", cursor: 'default' }}>
               {item.value}
             </div>
-            <div style={{ fontSize: '16px', fontWeight: 500, color: '#000000', marginTop: '8px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif', cursor: 'default'", letterSpacing: 'normal' }}>
+            <div style={{ fontSize: '16px', fontWeight: 500, color: '#000000', marginTop: '8px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default', letterSpacing: 'normal' }}>
               {item.label}
             </div>
           </div>

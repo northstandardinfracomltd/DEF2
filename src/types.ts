@@ -203,5 +203,11 @@ export interface GedDocument {
   dateStr: string;
 }
 
+export interface Memo {
+  id: string;
+  text: string;
+  createdAt: number;
+}
+
 
 

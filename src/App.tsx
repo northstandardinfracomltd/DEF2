@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -258,6 +258,49 @@ export default function App() {
     }
   }, [isLoggedIn, loggedUser, clients]);
 
+  // Automatic logout after 1 hour of inactivity for all session types (admin, client, technician)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => {
+        handleLogout();
+      }, 3600000); // 1 hour = 3600000 ms
+    };
+
+    // Listen to user activity events
+    const activityEvents = [
+      'mousedown',
+      'mousemove',
+      'keydown',
+      'scroll',
+      'touchstart',
+      'click'
+    ];
+
+    // Initialize the inactivity timer
+    resetTimer();
+
+    // Attach listeners to document and window
+    activityEvents.forEach(event => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [isLoggedIn]);
+
   // Device Clock
   const [currentTime, setCurrentTime] = useState('');
   useEffect(() => {
@@ -295,6 +338,7 @@ export default function App() {
   const [gmaoSearchQuery, setGmaoSearchQuery] = useState('');
   const [fsmDateFilter, setFsmDateFilter] = useState<string>('Tous');
   const [fsmTourDrafts, setFsmTourDrafts] = useState<Record<string, any>>({});
+  const [savingTourIds, setSavingTourIds] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const key = `defib_${tenantId}_stocks`;
@@ -372,6 +416,7 @@ export default function App() {
   });
   const [members, setMembers] = useState<Member[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [memos, setMemos] = useState<Memo[]>([]);
   const [activeUser, setActiveUser] = useState<Member | null>(null);
   const [pointages, setPointages] = useState<PointageLog[]>([]);
   const [commercialDocs, setCommercialDocs] = useState<CommercialDoc[]>([]);
@@ -1333,7 +1378,7 @@ export default function App() {
         const [
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
-          fReports, fTours
+          fReports, fTours, fMemos
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -1348,7 +1393,8 @@ export default function App() {
           fetchCollectionFromFirestore<PointageLog[]>('pointages'),
           fetchCollectionFromFirestore<any[]>('expenses'),
           fetchCollectionFromFirestore<any[]>('generatedReports'),
-          fetchCollectionFromFirestore<any[]>('fsmTours')
+          fetchCollectionFromFirestore<any[]>('fsmTours'),
+          fetchCollectionFromFirestore<Memo[]>('memos')
         ]);
 
         // Handlers to apply state or write if empty
@@ -1549,6 +1595,15 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(defaultTours));
         }
 
+                if (fMemos !== null) {
+          setMemos(fMemos);
+          localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(fMemos));
+        } else {
+          setMemos([]);
+          await saveCollectionToFirestore('memos', []);
+          localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify([]));
+        }
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       } catch (err) {
@@ -1574,6 +1629,9 @@ export default function App() {
 
         const savedTickets = localStorage.getItem(`defib_${tenantId}_support_tickets`);
         if (savedTickets) setTickets(JSON.parse(savedTickets));
+
+        const savedMemos = localStorage.getItem(`defib_${tenantId}_memos`);
+        if (savedMemos) setMemos(JSON.parse(savedMemos));
 
         const savedCommercialDocs = localStorage.getItem(`defib_${tenantId}_commercial_docs`);
         if (savedCommercialDocs) setCommercialDocs(JSON.parse(savedCommercialDocs));
@@ -1686,6 +1744,13 @@ export default function App() {
       localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(fsmTours));
     }
   }, [fsmTours, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('memos', memos);
+      localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(memos));
+    }
+  }, [memos, isFirebaseLoaded, tenantId]);
 
   const saveGedDocs = (newGed: GedDocument[]) => {
     setGedDocs(newGed);
@@ -2043,6 +2108,16 @@ export default function App() {
     const updated = tickets.filter(t => t.id !== id);
     setTickets(updated);
     localStorage.setItem('defib_support_tickets', JSON.stringify(updated));
+  };
+
+  const handleUpdateMemoText = (id: string, text: string) => {
+    const updated = memos.map(m => m.id === id ? { ...m, text } : m);
+    setMemos(updated);
+  };
+
+  const handleDeleteMemo = (id: string) => {
+    const updated = memos.filter(m => m.id !== id);
+    setMemos(updated);
   };
 
   const handleReplyToTicket = (id: string, responseText: string) => {
@@ -2780,7 +2855,10 @@ export default function App() {
                               {/* Enregistrer button */}
                               <button
                                 type="button"
+                                disabled={!!savingTourIds[t.id]}
                                 onClick={() => {
+                                  if (savingTourIds[t.id]) return;
+
                                   const draftVal = fsmTourDrafts[t.id] || {};
                                   const finalTitle = draftVal.title !== undefined ? draftVal.title : (t.title || '');
                                   const finalTech = draftVal.techName !== undefined ? draftVal.techName : (t.techName || '');
@@ -2793,6 +2871,9 @@ export default function App() {
                                     alert("Veuillez sélectionner un technicien.");
                                     return;
                                   }
+
+                                  // Disable button and lower opacity
+                                  setSavingTourIds(prev => ({ ...prev, [t.id]: true }));
 
                                   // Apply draft changes
                                   if (fsmTourDrafts[t.id]) {
@@ -2809,6 +2890,15 @@ export default function App() {
                                     saveFsmTours([...fsmTours]);
                                   }
                                   alert("La tournée a été enregistrée avec succès !");
+
+                                  // Re-enable after 3 seconds
+                                  setTimeout(() => {
+                                    setSavingTourIds(prev => {
+                                      const copy = { ...prev };
+                                      delete copy[t.id];
+                                      return copy;
+                                    });
+                                  }, 3000);
                                 }}
                                 style={{
                                   ...blueButtonStyle,
@@ -2820,9 +2910,11 @@ export default function App() {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  width: '100%'
+                                  width: '100%',
+                                  opacity: savingTourIds[t.id] ? 0.7 : 1,
+                                  pointerEvents: savingTourIds[t.id] ? 'none' : 'auto'
                                 }}
-                                className="cursor-pointer md:w-auto flex-1 md:flex-initial"
+                                className={`${savingTourIds[t.id] ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} md:w-auto flex-1 md:flex-initial`}
                               >
                                 Enregistrer
                               </button>
@@ -3779,14 +3871,106 @@ export default function App() {
 
                       <div className="flex flex-wrap items-center gap-2">
                         <button
-                          onClick={() => window.location.reload()}
-                          id="btn-refresh-crm"
-                          style={customButtonStyle}
+                          onClick={() => {
+                            if (memos.length >= 15) {
+                              return;
+                            }
+                            const newMemo: Memo = {
+                              id: 'memo_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+                              text: '',
+                              createdAt: Date.now()
+                            };
+                            setMemos([newMemo, ...memos]);
+                          }}
+                          disabled={memos.length >= 15}
+                          id="btn-new-memo"
+                          style={{
+                            ...customButtonStyle,
+                            backgroundColor: memos.length >= 15 ? '#cbd5e1' : '#2563eb',
+                            color: '#ffffff',
+                            cursor: memos.length >= 15 ? 'not-allowed' : 'pointer',
+                            opacity: memos.length >= 15 ? 0.75 : 1
+                          }}
                         >
-                          Actualiser
+                          {memos.length >= 15 ? 'Mémos max (15)' : 'Nouveau mémo'}
                         </button>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Memos List Container (Post-its Row) */}
+                <div className="px-4 pt-5 pb-2 max-w-[98%] mx-auto" id="crm-memos-section">
+                  <div className="flex flex-row overflow-x-auto gap-4 pb-4 select-none scroll-smooth" style={{ scrollbarWidth: 'thin' }}>
+                    {memos.length === 0 ? (
+                      <div className="w-full h-[120px] flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-[18px] bg-slate-50/50 text-slate-400 text-sm">
+                        <p className="font-sans font-light">Aucun mémo. Cliquez sur "Nouveau mémo" ci-dessus pour ajouter un post-it.</p>
+                      </div>
+                    ) : (
+                      memos.map((memo) => (
+                        <div
+                          key={memo.id}
+                          style={{
+                            width: '300px',
+                            height: '300px',
+                            minWidth: '300px',
+                            backgroundColor: '#fffbeb',
+                            border: '1px solid #fde047',
+                            borderRadius: '16px',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            padding: '20px',
+                          }}
+                          className="transition-transform duration-200 hover:scale-[1.01]"
+                        >
+                          <div className="flex-1 flex flex-col pt-1">
+                            <textarea
+                              value={memo.text}
+                              onChange={(e) => handleUpdateMemoText(memo.id, e.target.value.slice(0, 220))}
+                              placeholder="Saisissez votre mémo ici (max 220 caractères)..."
+                              maxLength={220}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                outline: 'none',
+                                resize: 'none',
+                                fontSize: '16px',
+                                fontWeight: 'normal',
+                                color: '#451a03',
+                                fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                lineHeight: '1.5',
+                              }}
+                              className="placeholder-amber-800/30"
+                            />
+                          </div>
+
+                          <button
+                            onClick={() => handleDeleteMemo(memo.id)}
+                            style={{
+                              width: '100%',
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              borderRadius: '10px',
+                              padding: '10px 14px',
+                              fontSize: '14px',
+                              fontWeight: 'normal',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              marginTop: '12px'
+                            }}
+                            className="hover:bg-red-700 transition-colors"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -3968,8 +4152,8 @@ export default function App() {
                                     <td colSpan={7} className="px-6 py-6 bg-slate-50/70 border-t border-b border-slate-200/55">
                                       <div className="space-y-5 max-w-4xl ml-4 font-sans">
                                         <div className="space-y-2">
-                                          <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '13px' }}>
-                                            Message détaillé du ticket
+                                          <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '16px' }}>
+                                            Demande ou signalement.
                                           </span>
                                           <div style={{ fontSize: '16px', lineHeight: '1.6', borderRadius: '12px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }} className="bg-white p-4 border border-slate-200">
                                             "{t.message}"
@@ -3977,48 +4161,49 @@ export default function App() {
                                         </div>
 
                                         {/* Reply section */}
-                                        <div className="space-y-2">
-                                          <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '13px' }} className="block">
-                                            Répondre au client
-                                          </span>
-                                          <div className="flex flex-col sm:flex-row gap-3">
-                                            <textarea
-                                              value={repliesDraft[t.id] || ''}
-                                              onChange={(e) => setRepliesDraft({ ...repliesDraft, [t.id]: e.target.value })}
-                                              placeholder="Saisissez votre réponse ici..."
-                                              style={{
-                                                border: '1px solid #dedede',
-                                                borderRadius: '10px',
-                                                padding: '10px 14px',
-                                                fontSize: '14px',
-                                                fontWeight: '100',
-                                                color: '#000000',
-                                                backgroundColor: '#ffffff',
-                                                minHeight: '80px',
-                                                fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
-                                              }}
-                                              className="flex-1 font-sans focus:outline-none"
-                                            />
-                                            <button
-                                              onClick={() => {
-                                                const typed = repliesDraft[t.id]?.trim();
-                                                if (!typed) return;
-                                                handleReplyToTicket(t.id, typed);
-                                                setRepliesDraft({ ...repliesDraft, [t.id]: '' });
-                                              }}
-                                              style={rowActionButtonStyle}
-                                              className="cursor-pointer self-start sm:self-end h-11"
-                                            >
-                                              Envoyer la réponse
-                                            </button>
-                                          </div>
-                                        </div>
-
-                                        {/* Published replies */}
+                                         {!t.reponse && (
+                                           <div className="space-y-2">
+                                             <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '16px' }} className="block">
+                                               Votre message de réponse.
+                                             </span>
+                                             <div className="flex flex-col sm:flex-row gap-3">
+                                               <textarea
+                                                 value={repliesDraft[t.id] || ''}
+                                                 onChange={(e) => setRepliesDraft({ ...repliesDraft, [t.id]: e.target.value })}
+                                                 placeholder="Saisissez votre réponse ici..."
+                                                 style={{
+                                                   border: '1px solid #dedede',
+                                                   borderRadius: '10px',
+                                                   padding: '10px 14px',
+                                                   fontSize: '14px',
+                                                   fontWeight: '100',
+                                                   color: '#000000',
+                                                   backgroundColor: '#ffffff',
+                                                   minHeight: '80px',
+                                                   fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                                 }}
+                                                 className="flex-1 font-sans focus:outline-none"
+                                               />
+                                               <button
+                                                 onClick={() => {
+                                                   const typed = repliesDraft[t.id]?.trim();
+                                                   if (!typed) return;
+                                                   handleReplyToTicket(t.id, typed);
+                                                   setRepliesDraft({ ...repliesDraft, [t.id]: '' });
+                                                 }}
+                                                 style={rowActionButtonStyle}
+                                                 className="cursor-pointer self-start sm:self-end h-11"
+                                               >
+                                                 Envoyer
+                                               </button>
+                                             </div>
+                                           </div>
+                                         )}
+                                         {/* Published replies */}
                                         {t.reponse && (
                                           <div className="space-y-2 pt-2">
-                                            <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '13px' }} className="block">
-                                              Réponse envoyée
+                                            <span style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100, color: '#000000', fontSize: '16px' }} className="block">
+                                              Réponsée envoyée.
                                             </span>
                                             <div style={{ fontSize: '16px', lineHeight: '1.6', borderRadius: '12px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }} className="bg-white p-4 border border-slate-200">
                                               {t.reponse}

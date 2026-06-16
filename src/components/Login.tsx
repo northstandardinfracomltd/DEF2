@@ -4,9 +4,13 @@ import {
   registerNewTenant, 
   loginTenantAdmin, 
   getRegisteredTenants, 
-  fetchCollectionFromFirestore 
+  fetchCollectionFromFirestore,
+  fetchRawCollectionFromFirestore,
+  findTenantAndDefibGlobally,
+  db
 } from '../firebase';
-import { triggerEmail1Inscription } from '../utils/emailService';
+import { doc, setDoc } from 'firebase/firestore';
+import { triggerEmail1Inscription, triggerEmail4Signalement } from '../utils/emailService';
 
 interface LoginProps {
   onLoginSuccess: (email: string, name: string, tenantId: string, role?: string) => void;
@@ -368,21 +372,34 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [isReportSubmitted, setIsReportSubmitted] = useState(false);
 
   // Live lookup check of defibrillator identifier against main software's registry
-  const isDefibIdTypedValid = React.useMemo(() => {
+  const [isDefibIdTypedValid, setIsDefibIdTypedValid] = useState<boolean | null>(null);
+  const [isCheckingId, setIsCheckingId] = useState(false);
+
+  React.useEffect(() => {
     const trimmed = reportDefibId.trim();
-    if (!trimmed) return null;
-    try {
-      const raw = localStorage.getItem('defib_defibrillateurs');
-      if (!raw) return false;
-      const defibs = JSON.parse(raw);
-      if (!Array.isArray(defibs)) return false;
-      return defibs.some((df: any) => {
-        return (df.identifiant && df.identifiant.toLowerCase() === trimmed.toLowerCase()) ||
-               (df.id && df.id.toLowerCase() === trimmed.toLowerCase());
-      });
-    } catch (e) {
-      return false;
+    if (!trimmed) {
+      setIsDefibIdTypedValid(null);
+      return;
     }
+
+    setIsCheckingId(true);
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const result = await findTenantAndDefibGlobally(trimmed);
+        if (result && result.exists) {
+          setIsDefibIdTypedValid(true);
+        } else {
+          setIsDefibIdTypedValid(false);
+        }
+      } catch (err) {
+        console.error("Error looking up defib ID globally:", err);
+        setIsDefibIdTypedValid(false);
+      } finally {
+        setIsCheckingId(false);
+      }
+    }, 600); // 600ms debounce
+
+    return () => clearTimeout(delayDebounce);
   }, [reportDefibId]);
 
   // Combined validity check for the form to be enabled
@@ -391,8 +408,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     return reportSubject.trim().length > 0 &&
            reportMessage.trim().length > 0 &&
            isDefibIdTypedValid === true &&
-           isEmailValid;
-  }, [reportSubject, reportMessage, isDefibIdTypedValid, reportEmail]);
+           isEmailValid &&
+           !isCheckingId;
+  }, [reportSubject, reportMessage, isDefibIdTypedValid, reportEmail, isCheckingId]);
   const [reqCompany, setReqCompany] = useState('');
   const [reqTenantId, setReqTenantId] = useState('');
   const [reqCompanyEmail, setReqCompanyEmail] = useState('');
@@ -1290,18 +1308,72 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
             <div className="space-y-6">
               <form
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
                     if (!isFormValid) return;
                     setIsReportSubmitting(true);
-                    setTimeout(() => {
-                      setIsReportSubmitting(false);
+                    try {
+                      // 1. Locate the correct tenant owning the defibrillator identification
+                      const tenantInfo = await findTenantAndDefibGlobally(reportDefibId);
+                      if (!tenantInfo) {
+                        alert("Erreur: Impossible de localiser le propriétaire de ce défibrillateur.");
+                        setIsReportSubmitting(false);
+                        return;
+                      }
+
+                      const { tenantId, companyName, companyEmail } = tenantInfo;
+
+                      // 2. Add the incident ticket to that specific tenant's dynamic partition in firestore
+                      const key = tenantId === 'demo' ? 'tickets' : `${tenantId}_tickets`;
+                      const existingTickets = await fetchRawCollectionFromFirestore<any[]>(key) || [];
+
+                      const randomNum = Math.floor(100000 + Math.random() * 900000);
+                      const ticketId = `#${randomNum}`;
+                      const newTicket = {
+                        id: ticketId,
+                        identifiant: reportDefibId.trim().toUpperCase(),
+                        objet: reportSubject,
+                        message: reportMessage,
+                        email: reportEmail.trim(),
+                        phone: '',
+                        date: new Date().toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+                        status: 'Nouveau'
+                      };
+
+                      const updatedList = [newTicket, ...existingTickets];
+
+                      // Persist the updated tickets to Firestore under the correct tenant partition
+                      const docRef = doc(db, 'appData', key);
+                      await setDoc(docRef, { value: updatedList });
+
+                      // Also synchronize local storage if that same tenant is active in cached/demo mode
+                      const currentActiveTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+                      if (currentActiveTenant === tenantId) {
+                        localStorage.setItem(`defib_${tenantId}_support_tickets`, JSON.stringify(updatedList));
+                      }
+
+                      // 3. Dispatch the Email 4 notification warns the tenant
+                      try {
+                        await triggerEmail4Signalement(
+                          reportDefibId.trim().toUpperCase(),
+                          companyName,
+                          companyEmail
+                        );
+                      } catch (emailErr) {
+                        console.error("Error sending CRM and Email warning notification:", emailErr);
+                      }
+
                       setIsReportSubmitted(true);
                       setReportDefibId('');
                       setReportEmail('');
                       setReportSubject('');
                       setReportMessage('');
-                    }, 800);
+                    } catch (err: any) {
+                      console.error("Failed to submit public incident ticket:", err);
+                      alert("Une erreur est survenue lors de l'envoi : " + (err.message || String(err)));
+                    } finally {
+                      setIsReportSubmitting(false);
+                    }
                   }}
                   className="space-y-4"
                 >
@@ -1321,12 +1393,17 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                       className="block w-full"
                       placeholder={t.defibIdPlace}
                     />
-                    {isDefibIdTypedValid === true && (
+                    {isCheckingId && (
+                      <p className="text-[14px] text-slate-500 font-medium font-sans mt-1 animate-pulse" style={{ cursor: 'default' }}>
+                        Vérification de l'identifiant...
+                      </p>
+                    )}
+                    {!isCheckingId && isDefibIdTypedValid === true && (
                       <p className="text-[14px] text-emerald-600 font-medium font-sans mt-1" style={{ cursor: 'default' }}>
                         {t.defibIdValid}
                       </p>
                     )}
-                    {isDefibIdTypedValid === false && (
+                    {!isCheckingId && isDefibIdTypedValid === false && (
                       <p className="text-[14px] text-rose-600 font-medium font-sans mt-1" style={{ cursor: 'default' }}>
                         {t.defibIdInvalid}
                       </p>

@@ -6,6 +6,12 @@ import {
   INITIAL_VARIABLES,
   INITIAL_DEFIBRILLATEURS,
 } from './utils';
+import {
+  triggerEmail4Signalement,
+  triggerEmail5AvisageFSM,
+  triggerEmail7CrmReply,
+  triggerEmail8NouvelleTourneeTech
+} from './utils/emailService';
 
 import DefibTab from './components/DefibTab';
 import ClientTab from './components/ClientTab';
@@ -621,7 +627,69 @@ export default function App() {
   };
 
   const updateFsmTour = (tourId: string, fields: any) => {
+    const existingTour = fsmTours.find(t => t.id === tourId);
+    const oldStatus = existingTour?.status || 'Brouillon';
+    const newStatus = fields.status || oldStatus;
+
     saveFsmTours(fsmTours.map(t => t.id === tourId ? { ...t, ...fields } : t));
+
+    if (newStatus === 'À faire' && oldStatus !== 'À faire' && existingTour) {
+      const companyName = companyInfo.name || 'Défibeo Suite';
+      const companyEmail = companyInfo.email || '';
+      
+      const tourTitle = fields.title !== undefined ? fields.title : (existingTour.title || '');
+      const techName = fields.techName !== undefined ? fields.techName : (existingTour.techName || '');
+      const startDate = fields.startDate !== undefined ? fields.startDate : (existingTour.startDate || '');
+      
+      let formattedDate = startDate;
+      if (startDate && startDate.includes('-')) {
+        const parts = startDate.split('-');
+        if (parts.length === 3) {
+          formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+      }
+
+      // Email 5: AVISAGE FSM DESTINÉ AUX CLIENTS
+      try {
+        const toursMissions = existingTour.missions || [];
+        toursMissions.forEach((m: any) => {
+          const defibId = m.defibIdentifiant;
+          const defib = defibrillateurs.find(df => df.identifiant === defibId);
+          if (defib) {
+            const matchingClient = clients.find(c => c.id === defib.clientId);
+            const clientEmail = defib.emailSite || matchingClient?.email || matchingClient?.emailSite;
+            if (clientEmail && clientEmail.trim()) {
+              triggerEmail5AvisageFSM(
+                clientEmail.trim(),
+                defibId,
+                companyName,
+                companyEmail,
+                formattedDate || 'prochainement'
+              ).catch(e => console.error("Error sending Email 5:", e));
+            }
+          }
+        });
+      } catch (err5) {
+        console.error("Error triggering Email 5 sequence:", err5);
+      }
+
+      // Email 8: NOUVELLE TOURNÉE POUR LE TECHNICIEN
+      try {
+        const matchingTech = members.find(m => m.name === techName);
+        const techEmail = matchingTech?.email;
+        if (techEmail && techEmail.trim()) {
+          triggerEmail8NouvelleTourneeTech(
+            techEmail.trim(),
+            tourTitle || 'Tournée d’interventions',
+            formattedDate || 'prochainement',
+            companyName,
+            companyEmail
+          ).catch(e => console.error("Error sending Email 8:", e));
+        }
+      } catch (err8) {
+        console.error("Error triggering Email 8:", err8);
+      }
+    }
   };
 
   const addFsmMission = (tourId: string) => {
@@ -1774,6 +1842,18 @@ export default function App() {
     const updated = [newTicket, ...tickets];
     setTickets(updated);
     localStorage.setItem('defib_support_tickets', JSON.stringify(updated));
+
+    // Email 4: NOUVEAU SIGNALEMENT FORMULAIRE PUBLIQUE
+    try {
+      triggerEmail4Signalement(
+        ticketData.identifiant || 'Inconnu',
+        companyInfo.name || 'Défibeo Suite',
+        companyInfo.email || ''
+      ).catch(e => console.error("Error triggering Email 4:", e));
+    } catch (err) {
+      console.error("Error sending signalement email:", err);
+    }
+
     return ticketId;
   };
 
@@ -1790,9 +1870,24 @@ export default function App() {
   };
 
   const handleReplyToTicket = (id: string, responseText: string) => {
+    const ticketObj = tickets.find(t => t.id === id);
     const updated = tickets.map(t => t.id === id ? { ...t, reponse: responseText } : t);
     setTickets(updated);
     localStorage.setItem('defib_support_tickets', JSON.stringify(updated));
+
+    // Email 7: RÉPONSE ENVOYÉE DEPUIS LE CRM POUR LE CLIENT
+    if (ticketObj && ticketObj.email && ticketObj.email.trim()) {
+      try {
+        triggerEmail7CrmReply(
+          ticketObj.email.trim(),
+          responseText,
+          companyInfo.name || 'Défibeo Suite',
+          companyInfo.email || ''
+        ).catch(e => console.error("Error triggering Email 7:", e));
+      } catch (err7) {
+        console.error("Error sending CRM reply email:", err7);
+      }
+    }
   };
 
   // Company and Members Settings Sync
@@ -2121,6 +2216,7 @@ export default function App() {
               fsmTours={fsmTours}
               onUpdateFsmTours={saveFsmTours}
               setActiveTab={setActiveTab}
+              companyInfo={companyInfo}
             />
           )}
 

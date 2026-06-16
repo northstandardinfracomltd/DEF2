@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Defibrillateur, Client, Variable } from '../types';
+import { Defibrillateur, Client, Variable, CompanyInfo } from '../types';
 import MapModal from './MapModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { runMonthlyVigilanceCampaign } from '../utils/emailService';
 import {
   formatDateToFR,
   exportToCSV,
@@ -178,6 +179,7 @@ interface DefibTabProps {
   fsmTours?: any[];
   onUpdateFsmTours?: (updated: any[]) => void;
   setActiveTab?: (tab: any) => void;
+  companyInfo?: CompanyInfo;
 }
 
 export default function DefibTab({
@@ -192,6 +194,7 @@ export default function DefibTab({
   fsmTours = [],
   onUpdateFsmTours,
   setActiveTab,
+  companyInfo,
 }: DefibTabProps) {
   // Navigation, Search & Filters State
   const [search, setSearch] = useState('');
@@ -341,6 +344,27 @@ export default function DefibTab({
   // Tour Action State
   const [isTourDropdownOpen, setIsTourDropdownOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
+
+  // Campaign State
+  const [isCampaignLoading, setIsCampaignLoading] = useState(false);
+
+  const handleTriggerVigilanceCampaign = async () => {
+    if (confirm("Voulez-vous lancer l'envoi des e-mails de rappel d'auto-vigilance pour tous les défibrillateurs actifs configurés en 'Rappel mensuel = Oui' ?")) {
+      setIsCampaignLoading(true);
+      try {
+        const count = await runMonthlyVigilanceCampaign(defibrillateurs, clients, {
+          name: companyInfo?.name || "Défibeo Suite",
+          email: companyInfo?.email || ""
+        });
+        alert(`Campagne de rappel d'auto-vigilance exécutée avec succès ! ${count} e-mail(s) ont été envoyés via votre Google Apps Script.`);
+      } catch (err) {
+        console.error("Failed to run campaign:", err);
+        alert("Erreur lors de l'exécution de la campagne d'auto-vigilance. Veuillez vérifier que l'URL d'Apps Script est paramétrée.");
+      } finally {
+        setIsCampaignLoading(false);
+      }
+    }
+  };
 
   const executeNouvelleTournee = () => {
     if (!onUpdateFsmTours) return;
@@ -1248,6 +1272,14 @@ export default function DefibTab({
                 >
                   Plan
                 </a>
+                <button
+                  onClick={handleTriggerVigilanceCampaign}
+                  disabled={isCampaignLoading}
+                  style={customButtonStyle}
+                  className="cursor-pointer"
+                >
+                  {isCampaignLoading ? "Envoi..." : "Rappels"}
+                </button>
                 <button
                   onClick={() => window.location.reload()}
                   id="btn-refresh-page"

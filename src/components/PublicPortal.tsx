@@ -42,6 +42,7 @@ import {
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, PointageLog, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import GmaoCorrectionForm from './GmaoCorrectionForm';
+import { triggerEmail6RapportIntervention } from '../utils/emailService';
 
 // Helper functions for French date <-> ISO date picker compatibility
 const getIsoDate = (dateStr: string) => {
@@ -1270,6 +1271,25 @@ export default function PublicPortal({
     };
 
     saveReports([newReportRecord, ...generatedReports]);
+
+    // Email 6: RAPPORT SUITE À UNE INTERVENTION AU CLIENT
+    try {
+      const matchingClient = clients?.find((c: any) => c.id === selectedDefibData.clientId);
+      const clientEmail = selectedDefibData.emailSite || matchingClient?.email || matchingClient?.emailSite;
+      if (clientEmail && clientEmail.trim()) {
+        triggerEmail6RapportIntervention(
+          clientEmail.trim(),
+          selectedDefibData.identifiant,
+          newReportRecord.date,
+          companyInfo.name || 'Défibeo Suite',
+          companyInfo.email || ''
+        ).catch(e => console.error("Error triggering Email 6:", e));
+      } else {
+        console.warn(`[Email 6] Client email not found for defibrillator ${selectedDefibData.identifiant}`);
+      }
+    } catch (err6) {
+      console.error("Error triggering Email 6 workflow:", err6);
+    }
 
     alert(`Le rapport "${receiptTitle}" a été enregistré avec succès et rattaché avec l'historique du défibrillateur ${selectedDefibData.identifiant}. Les données du matériel central ont été mises à jour !`);
 

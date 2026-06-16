@@ -6,6 +6,7 @@ import {
   getRegisteredTenants, 
   fetchCollectionFromFirestore 
 } from '../firebase';
+import { triggerEmail1Inscription } from '../utils/emailService';
 
 interface LoginProps {
   onLoginSuccess: (email: string, name: string, tenantId: string, role?: string) => void;
@@ -565,6 +566,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       });
 
       console.log('Successfully registered environment tenant ID:', tenantId);
+
+      // Envoi de l'email automatique d'ouverture de l'environnement (différé de 15 min)
+      try {
+        triggerEmail1Inscription(reqAdminEmail.trim(), reqAdminPassword.trim());
+      } catch (emailErr) {
+        console.error("Error sending welcome email during signup:", emailErr);
+      }
 
       // Redirect current window directly to PayPal subscription to capture payment smoothly without popups being blocked
       window.location.href = "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1JV39700HV659370MNIT44AY";

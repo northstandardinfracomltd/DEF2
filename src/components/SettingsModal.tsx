@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { CompanyInfo, Member } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore } from '../firebase';
+import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion } from '../utils/emailService';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -49,6 +50,15 @@ export default function SettingsModal({
   currentUser
 }: SettingsModalProps) {
   const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
+  const [appsScriptUrl, setAppsScriptUrl] = React.useState<string>('');
+  
+  React.useEffect(() => {
+    if (isOpen || isPage) {
+      getAppsScriptUrl().then(url => {
+        setAppsScriptUrl(url);
+      });
+    }
+  }, [isOpen, isPage]);
   
   // Local states for form editing without auto-saving until save clicked ("pas d'auto-save")
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
@@ -297,6 +307,35 @@ export default function SettingsModal({
 
     onUpdateCompanyInfo(localCompany);
     onUpdateMembers(localMembers);
+
+    // Envoi des emails aux nouveaux membres (Email 2 & 3)
+    try {
+      const originalEmails = new Set(members.map(m => m.email?.trim().toLowerCase()));
+      const newMembers = localMembers.filter(m => m.email && !originalEmails.has(m.email.trim().toLowerCase()));
+
+      for (const m of newMembers) {
+        if (m.role === 'Technicien') {
+          triggerEmail2TechnicianConnexion(
+            m.email.trim(),
+            m.pin,
+            localCompany.name || 'Défibeo Suite',
+            localCompany.email || ''
+          ).catch(e => console.error("Error sending tech invite:", e));
+        } else if (m.role === 'Administrateur') {
+          triggerEmail3AdminConnexion(
+            m.email.trim(),
+            m.pin,
+            localCompany.name || 'Défibeo Suite',
+            localCompany.email || ''
+          ).catch(e => console.error("Error sending admin invite:", e));
+        }
+      }
+    } catch (err) {
+      console.error("Error dispatching member invites:", err);
+    }
+    
+    // Sauvegarder l'url de l'app script
+    saveAppsScriptUrl(appsScriptUrl).catch(console.error);
     
     // Highlight successful sync to the user
     setSaveSuccessMsg("Paramètres enregistrés avec succès !");

@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { INITIAL_VARIABLES } from './utils';
+import { Member, Client } from './types';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
@@ -18,6 +19,7 @@ export interface Tenant {
   adminPasswordHexOrPlain: string;
   lang: string;
   createdAt: string;
+  shortEnvId?: string;
 }
 
 let currentTenantId: string = localStorage.getItem('defib_tenant_id') || 'demo';
@@ -95,6 +97,25 @@ export async function saveCollectionToFirestore<T>(collectionName: string, value
   }
 }
 
+export function generateUniqueShortEnvId(existingCodes: string[]): string {
+  let attempts = 0;
+  while (attempts < 1000) {
+    const num = Math.floor(Math.random() * 90) + 10; // 10 to 99
+    const candidate = `D${num}`;
+    if (!existingCodes.includes(candidate) && candidate !== 'D18') {
+      return candidate;
+    }
+    attempts++;
+  }
+  for (let num = 10; num <= 99; num++) {
+    const candidate = `D${num}`;
+    if (!existingCodes.includes(candidate) && candidate !== 'D18') {
+      return candidate;
+    }
+  }
+  return 'D99';
+}
+
 /**
  * Fetches the master list of registered tenants. 
  */
@@ -103,7 +124,28 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
     const docRef = doc(db, 'appData', 'registered_tenants');
     const snap = await getDoc(docRef);
     if (snap.exists()) {
-      return (snap.data().value || []) as Tenant[];
+      const tenants = (snap.data().value || []) as Tenant[];
+      let needsUpdate = false;
+      const existingShortCodes = tenants
+        .map(t => t.shortEnvId)
+        .filter((code): code is string => !!code);
+
+      const updatedTenants = tenants.map(t => {
+        if (!t.shortEnvId) {
+          const newCode = generateUniqueShortEnvId(existingShortCodes);
+          existingShortCodes.push(newCode);
+          needsUpdate = true;
+          return { ...t, shortEnvId: newCode };
+        }
+        return t;
+      });
+
+      if (needsUpdate) {
+        await setDoc(docRef, { value: updatedTenants });
+        console.log('Successfully migrated missing shortEnvId for some tenants:', updatedTenants);
+      }
+
+      return updatedTenants;
     }
     return [];
   } catch (err) {
@@ -113,31 +155,130 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
 }
 
 /**
+ * Fetches a raw collection key from Firestore bypassing the default prefix.
+ */
+export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promise<T | null> {
+  try {
+    const docRef = doc(db, 'appData', rawKey);
+    const snap = await getDoc(docRef);
+    if (snap.exists()) {
+      const payload = snap.data();
+      return payload.value as T;
+    }
+    return null;
+  } catch (error) {
+    console.error(`Error fetching raw collection ${rawKey} from Firestore:`, error);
+    return null;
+  }
+}
+
+/**
+ * Verifies if an email exists anywhere in the entire database (cross-environments, cross-roles).
+ */
+export async function checkIfEmailExistsAnywhere(
+  email: string,
+  excludeCurrentTenant?: {
+    tenantId: string;
+    excludeOption: 'member' | 'client' | 'none';
+    uniqueId?: string; // member email or client ID
+  }
+): Promise<{ exists: boolean; message: string }> {
+  const checkEmail = email.trim().toLowerCase();
+  if (!checkEmail) {
+    return { exists: false, message: '' };
+  }
+
+  if (checkEmail === 'account@demo.com') {
+    return { exists: true, message: 'Cette adresse email est réservée pour le compte de démonstration.' };
+  }
+
+  // 1. Check registered tenants main data
+  const tenants = await getRegisteredTenants();
+  for (const t of tenants) {
+    if (excludeCurrentTenant?.tenantId === t.id && excludeCurrentTenant?.excludeOption === 'none') {
+      continue;
+    }
+    if (t.adminEmail.trim().toLowerCase() === checkEmail) {
+      return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+    }
+    if (t.companyEmail.trim().toLowerCase() === checkEmail) {
+      return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+    }
+  }
+
+  // 2. Scan every tenant's lists
+  const tenantIds = ['demo', ...tenants.map(t => t.id)];
+
+  for (const tid of tenantIds) {
+    // Check members
+    const mKey = tid === 'demo' ? 'members' : `${tid}_members`;
+    const membersList = await fetchRawCollectionFromFirestore<Member[]>(mKey) || [];
+    if (Array.isArray(membersList)) {
+      for (const m of membersList) {
+        if (
+          excludeCurrentTenant?.tenantId === tid &&
+          excludeCurrentTenant?.excludeOption === 'member' &&
+          excludeCurrentTenant?.uniqueId?.trim().toLowerCase() === m.email.trim().toLowerCase() &&
+          m.email.trim().toLowerCase() === checkEmail
+        ) {
+          continue;
+        }
+        if (m.email && m.email.trim().toLowerCase() === checkEmail) {
+          return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+        }
+      }
+    }
+
+    // Check clients
+    const cKey = tid === 'demo' ? 'clients' : `${tid}_clients`;
+    const clientsList = await fetchRawCollectionFromFirestore<Client[]>(cKey) || [];
+    if (Array.isArray(clientsList)) {
+      for (const c of clientsList) {
+        if (
+          excludeCurrentTenant?.tenantId === tid &&
+          excludeCurrentTenant?.excludeOption === 'client' &&
+          excludeCurrentTenant?.uniqueId === c.id
+        ) {
+          continue;
+        }
+        if (
+          (c.email && c.email.trim().toLowerCase() === checkEmail) ||
+          (c.emailSite && c.emailSite.trim().toLowerCase() === checkEmail)
+        ) {
+          return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+        }
+      }
+    }
+  }
+
+  return { exists: false, message: '' };
+}
+
+/**
  * Registers a new environment (new tenant instance) in Firestore.
  * Initializes all client/defibrillator database partitions.
  */
 export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'createdAt'> & { customTenantId?: string }): Promise<string> {
-  const tenants = await getRegisteredTenants();
-  
-  // Check duplicates
-  const emailLower = tenantData.adminEmail.trim().toLowerCase();
+  const adminEmailLower = tenantData.adminEmail.trim().toLowerCase();
   const companyEmailLower = tenantData.companyEmail.trim().toLowerCase();
-  
+
   // Also check demo hardcoded credential to prevent collisions
-  if (emailLower === 'account@demo.com') {
+  if (adminEmailLower === 'account@demo.com') {
     throw new Error('Cette adresse email est réservée pour le compte de démonstration.');
   }
 
-  const existingEmail = tenants.find(t => t.adminEmail.trim().toLowerCase() === emailLower);
-  if (existingEmail) {
-    throw new Error('Cette adresse email est déjà associée à un environnement existant.');
+  // Perform whole-db cross validation
+  const checkAdmin = await checkIfEmailExistsAnywhere(adminEmailLower);
+  if (checkAdmin.exists) {
+    throw new Error(checkAdmin.message);
   }
 
-  const existingCompany = tenants.find(t => t.companyEmail.trim().toLowerCase() === companyEmailLower);
-  if (existingCompany) {
-    throw new Error('Cette adresse email d\'entreprise est déjà associée à un environnement existant.');
+  const checkCompany = await checkIfEmailExistsAnywhere(companyEmailLower);
+  if (checkCompany.exists) {
+    throw new Error(checkCompany.message);
   }
 
+  const tenants = await getRegisteredTenants();
   const cleanTenantId = tenantData.customTenantId ? tenantData.customTenantId.trim() : '';
   if (cleanTenantId) {
     const existingTenantId = tenants.find(t => t.id.trim().toLowerCase() === cleanTenantId.toLowerCase());
@@ -164,9 +305,15 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
   
   const { customTenantId, ...restTenantData } = tenantData;
 
+  const existingShortCodes = tenants
+    .map(t => t.shortEnvId)
+    .filter((code): code is string => !!code);
+  const assignedShortEnvId = generateUniqueShortEnvId(existingShortCodes);
+
   const newTenant: Tenant = {
     ...restTenantData,
     id: tenantId,
+    shortEnvId: assignedShortEnvId,
     createdAt: new Date().toISOString()
   };
 
@@ -180,7 +327,7 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
   
   const customCompanyInfo = {
     name: tenantData.companyName,
-    logo: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=80&auto=format&fit=crop",
+    logo: "",
     website: `${tenantData.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.defibeo.com`,
     email: tenantData.companyEmail,
     phone: tenantData.companyPhone
@@ -252,4 +399,47 @@ export async function loginTenantAdmin(email: string, passwordPlain: string): Pr
   const found = tenants.find(t => t.adminEmail.trim().toLowerCase() === searchEmail && t.adminPasswordHexOrPlain.trim() === searchPass);
   return found || null;
 }
+
+/**
+ * Verifies if a defibrillator identifiant exists anywhere in the entire database (cross-environments/tenants).
+ */
+export async function checkIfDefibIdentifiantExistsAnywhere(
+  identifiant: string,
+  excludeDefibId?: string
+): Promise<{ exists: boolean; tenantName?: string }> {
+  const checkIdent = identifiant.trim().toUpperCase();
+  if (!checkIdent) {
+    return { exists: false };
+  }
+
+  try {
+    const tenants = await getRegisteredTenants();
+    const tenantIds = ['demo', ...tenants.map(t => t.id)];
+
+    for (const tid of tenantIds) {
+      const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
+      const defibList = await fetchRawCollectionFromFirestore<any[]>(key) || [];
+      if (Array.isArray(defibList)) {
+        for (const df of defibList) {
+          if (excludeDefibId && df.id === excludeDefibId) {
+            continue;
+          }
+          if (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) {
+            let tenantLabel = 'Démonstration';
+            if (tid !== 'demo') {
+              const matchingTenant = tenants.find(t => t.id === tid);
+              tenantLabel = matchingTenant ? matchingTenant.companyName : tid;
+            }
+            return { exists: true, tenantName: tenantLabel };
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking global defibrillator uniqueness:', error);
+  }
+
+  return { exists: false };
+}
+
 

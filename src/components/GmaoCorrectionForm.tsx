@@ -169,18 +169,36 @@ export default function GmaoCorrectionForm({
   members = []
 }: GmaoCorrectionFormProps) {
 
-  const [availableMembers] = useState<Member[]>(() => {
-    if (members && members.length > 0) return members;
-    try {
-      const saved = localStorage.getItem('defib_members');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {}
-    return [
-      { name: 'Ronan Roesch', role: 'Propriétaire / Admin', email: 'roesch.ronan@gmail.com', status: 'Actif', lastActive: 'En ligne', pin: '1234' },
-      { name: 'Technicien Ouest', role: 'Maintenance Terrain', email: 'tech.ouest@defibeo.com', status: 'Actif', lastActive: 'Il y a 10 min', pin: '4321' },
-      { name: 'Secrétariat Clientèle', role: 'Support & Contrats', email: 'support@defibeo.com', status: 'Inactif', lastActive: 'Hier', pin: '0000' },
-    ];
-  });
+  const availableMembers = React.useMemo<Member[]>(() => {
+    let list: Member[] = [];
+    if (members && members.length > 0) {
+      list = members;
+    } else {
+      try {
+        const keys = Object.keys(localStorage);
+        const membersKey = keys.find(k => k.startsWith('defib_') && k.endsWith('_members'));
+        if (membersKey) {
+          const saved = localStorage.getItem(membersKey);
+          if (saved) list = JSON.parse(saved);
+        }
+      } catch (e) {}
+    }
+    if (!list || list.length === 0) {
+      list = [
+        { name: 'Ronan Roesch', role: 'Propriétaire / Admin', email: 'roesch.ronan@gmail.com', status: 'Actif', lastActive: 'En ligne', pin: '1234' },
+        { name: 'Technicien Ouest', role: 'Maintenance Terrain', email: 'tech.ouest@defibeo.com', status: 'Actif', lastActive: 'Il y a 10 min', pin: '4321' },
+        { name: 'Secrétariat Clientèle', role: 'Support & Contrats', email: 'support@defibeo.com', status: 'Inactif', lastActive: 'Hier', pin: '0000' },
+      ];
+    }
+    return list.filter(m => {
+      const roleLower = (m.role || '').toLowerCase();
+      return (
+        roleLower.includes('tech') ||
+        roleLower.includes('maintenance') ||
+        roleLower.includes('terrain')
+      );
+    });
+  }, [members]);
 
   // Auto-determination of selected DAE
   const [selectedDefibId, setSelectedDefibId] = useState(() => {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId } from './firebase';
+import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument } from './types';
 import {
   INITIAL_CLIENTS,
@@ -102,6 +102,23 @@ export default function App() {
     return localStorage.getItem('defib_tenant_id') || 'demo';
   });
 
+  useEffect(() => {
+    if (tenantId === 'demo') {
+      localStorage.setItem('defib_short_env_id', 'D18');
+    } else {
+      getRegisteredTenants().then(tenants => {
+        const found = tenants.find(t => t.id === tenantId);
+        if (found && found.shortEnvId) {
+          localStorage.setItem('defib_short_env_id', found.shortEnvId);
+        } else {
+          localStorage.setItem('defib_short_env_id', 'D18');
+        }
+      }).catch(err => {
+        console.error('Error fetching shortEnvId on startup/change:', err);
+      });
+    }
+  }, [tenantId]);
+
   const loadedTenantIdRef = useRef<string>('');
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => localStorage.getItem('defib_admin_logged_in') === 'true');
@@ -110,6 +127,23 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
   const [showEnvLoading, setShowEnvLoading] = useState<boolean>(false);
+  const [windowWidth, setWindowWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth;
+    }
+    return 1000;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   const handleLoginSuccess = (email: string, name: string, activeTenantId?: string, loggedInRole?: string) => {
     const tenantToSet = activeTenantId || 'demo';
@@ -600,21 +634,25 @@ export default function App() {
   const saveFsmTours = (updated: any[]) => {
     setFsmTours(updated);
     localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('fsmTours', updated);
+    }
   };
 
   const addFsmTour = () => {
     const newId = 'fsm-tour-' + Date.now();
+    const defaultTech = members.find(m => m.role === 'Maintenance Terrain' || m.role?.toLowerCase().includes('tech'))?.name || members[0]?.name || '';
     setFsmTourDrafts(prev => ({
       ...prev,
       [newId]: {
-        title: '',
-        techName: ''
+        title: 'Nouvelle Tournée',
+        techName: defaultTech
       }
     }));
     const newTour = {
       id: newId,
-      title: '',
-      techName: '',
+      title: 'Nouvelle Tournée',
+      techName: defaultTech,
       startDate: new Date().toISOString().split('T')[0],
       status: 'Brouillon',
       missions: []
@@ -623,6 +661,41 @@ export default function App() {
   };
 
   const deleteFsmTour = (tourId: string) => {
+    const tour = fsmTours.find(t => t.id === tourId);
+    if (tour && tour.missions) {
+      let updatedStocks = stocks.map(st => ({
+        ...st,
+        quantite: Number(st.quantite) || 0,
+        quantiteReservee: Number(st.quantiteReservee) || 0
+      }));
+      let mutated = false;
+      tour.missions.forEach((mission: any) => {
+        if (mission.requiredParts && mission.requiredParts.length > 0) {
+          mission.requiredParts.forEach((partName: string) => {
+            const idx = updatedStocks.findIndex(st => {
+              const vObj = variables.find(v => v.id === st.denominationPieceId);
+              return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+            });
+            const idxToUse = idx !== -1 ? idx : updatedStocks.findIndex(st => {
+              const vObj = variables.find(v => v.id === st.denominationPieceId);
+              return vObj && vObj.nom === partName;
+            });
+            if (idxToUse !== -1) {
+              const item = updatedStocks[idxToUse];
+              updatedStocks[idxToUse] = {
+                ...item,
+                quantite: item.quantite + 1,
+                quantiteReservee: Math.max(0, item.quantiteReservee - 1)
+              };
+              mutated = true;
+            }
+          });
+        }
+      });
+      if (mutated) {
+        saveStocks(updatedStocks);
+      }
+    }
     saveFsmTours(fsmTours.filter(t => t.id !== tourId));
   };
 
@@ -712,12 +785,106 @@ export default function App() {
   };
 
   const deleteFsmMission = (tourId: string, missionId: string) => {
+    const tour = fsmTours.find(t => t.id === tourId);
+    const mission = tour?.missions.find((m: any) => m.id === missionId);
+    if (mission && mission.requiredParts && mission.requiredParts.length > 0) {
+      let updatedStocks = stocks.map(st => ({
+        ...st,
+        quantite: Number(st.quantite) || 0,
+        quantiteReservee: Number(st.quantiteReservee) || 0
+      }));
+      let mutated = false;
+      mission.requiredParts.forEach((partName: string) => {
+        const idx = updatedStocks.findIndex(st => {
+          const vObj = variables.find(v => v.id === st.denominationPieceId);
+          return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+        });
+        const idxToUse = idx !== -1 ? idx : updatedStocks.findIndex(st => {
+          const vObj = variables.find(v => v.id === st.denominationPieceId);
+          return vObj && vObj.nom === partName;
+        });
+        if (idxToUse !== -1) {
+          const item = updatedStocks[idxToUse];
+          updatedStocks[idxToUse] = {
+            ...item,
+            quantite: item.quantite + 1,
+            quantiteReservee: Math.max(0, item.quantiteReservee - 1)
+          };
+          mutated = true;
+        }
+      });
+      if (mutated) {
+        saveStocks(updatedStocks);
+      }
+    }
+
     saveFsmTours(fsmTours.map(t => {
       if (t.id === tourId) {
         return { ...t, missions: t.missions.filter(m => m.id !== missionId) };
       }
       return t;
     }));
+  };
+
+  const changeFsmMissionParts = (tourId: string, missionId: string, oldParts: string[], newParts: string[]) => {
+    const added = newParts.filter(p => !oldParts.includes(p));
+    const removed = oldParts.filter(p => !newParts.includes(p));
+
+    let updatedStocks = stocks.map(st => ({
+      ...st,
+      quantite: Number(st.quantite) || 0,
+      quantiteReservee: Number(st.quantiteReservee) || 0
+    }));
+    let stocksMutated = false;
+
+    added.forEach(partName => {
+      const stockIdx = updatedStocks.findIndex(st => {
+        const vObj = variables.find(v => v.id === st.denominationPieceId);
+        return vObj && vObj.nom === partName && st.quantite > 0;
+      });
+
+      const idxToUse = stockIdx !== -1 ? stockIdx : updatedStocks.findIndex(st => {
+        const vObj = variables.find(v => v.id === st.denominationPieceId);
+        return vObj && vObj.nom === partName;
+      });
+
+      if (idxToUse !== -1) {
+        const item = updatedStocks[idxToUse];
+        updatedStocks[idxToUse] = {
+          ...item,
+          quantite: Math.max(0, item.quantite - 1),
+          quantiteReservee: item.quantiteReservee + 1
+        };
+        stocksMutated = true;
+      }
+    });
+
+    removed.forEach(partName => {
+      const stockIdx = updatedStocks.findIndex(st => {
+        const vObj = variables.find(v => v.id === st.denominationPieceId);
+        return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+      });
+
+      const idxToUse = stockIdx !== -1 ? stockIdx : updatedStocks.findIndex(st => {
+        const vObj = variables.find(v => v.id === st.denominationPieceId);
+        return vObj && vObj.nom === partName;
+      });
+
+      if (idxToUse !== -1) {
+        const item = updatedStocks[idxToUse];
+        updatedStocks[idxToUse] = {
+          ...item,
+          quantite: item.quantite + 1,
+          quantiteReservee: Math.max(0, item.quantiteReservee - 1)
+        };
+        stocksMutated = true;
+      }
+    });
+
+    if (stocksMutated) {
+      saveStocks(updatedStocks);
+    }
+    updateFsmMission(tourId, missionId, { requiredParts: newParts });
   };
 
   const updateFsmMission = (tourId: string, missionId: string, fields: any) => {
@@ -1228,11 +1395,11 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(fCompanyInfo));
         } else {
           const defaultInfo = {
-            name: "Défibeo Solutions",
-            logo: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=80&auto=format&fit=crop",
-            website: "29382302.defibeo.com",
-            email: "contact@defibeo-solutions.com",
-            phone: "+33 1 47 20 00 01"
+            name: tenantId === 'demo' ? "Défibeo Solutions" : "Mon Cabinet",
+            logo: tenantId === 'demo' ? "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=80&auto=format&fit=crop" : "",
+            website: tenantId === 'demo' ? "29382302.defibeo.com" : "",
+            email: tenantId === 'demo' ? "contact@defibeo-solutions.com" : "",
+            phone: tenantId === 'demo' ? "+33 1 47 20 00 01" : ""
           };
           setCompanyInfo(defaultInfo);
           await saveCollectionToFirestore('companyInfo', defaultInfo);
@@ -1816,17 +1983,26 @@ export default function App() {
   // Save changes to LocalStorage whenever state updates
   const saveClients = (newClients: Client[]) => {
     setClients(newClients);
-    localStorage.setItem('defib_clients', JSON.stringify(newClients));
+    localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(newClients));
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('clients', newClients);
+    }
   };
 
   const saveVariables = (newVariables: Variable[]) => {
     setVariables(newVariables);
-    localStorage.setItem('defib_variables', JSON.stringify(newVariables));
+    localStorage.setItem(`defib_${tenantId}_variables`, JSON.stringify(newVariables));
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('variables', newVariables);
+    }
   };
 
   const saveDefibs = (newDefibs: Defibrillateur[]) => {
     setDefibrillateurs(newDefibs);
-    localStorage.setItem('defib_defibrillateurs', JSON.stringify(newDefibs));
+    localStorage.setItem(`defib_${tenantId}_defibrillateurs`, JSON.stringify(newDefibs));
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('defibrillateurs', newDefibs);
+    }
   };
 
   // Ticket Operations
@@ -2083,6 +2259,25 @@ export default function App() {
     return <Login onLoginSuccess={handleLoginSuccess} />;
   }
 
+  if (windowWidth < 1000) {
+    return (
+      <div 
+        className="fixed inset-0 z-[99999] flex flex-col items-center justify-center text-center font-sans p-6" 
+        style={{ 
+          background: 'radial-gradient(#7e2e86, #36093a)',
+          color: '#ffffff'
+        }}
+        id="resolution-warning-overlay"
+      >
+        <div className="flex flex-col items-center gap-4 max-w-lg">
+          <span className="text-white text-[18px] font-sans font-medium leading-relaxed">
+            Le logiciel doit-être utilisé depuis un ordinateur d'au moins 1000 pixels de large.
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans" id="app-root-container">
       {showEnvLoading && (
@@ -2217,6 +2412,7 @@ export default function App() {
               onUpdateFsmTours={saveFsmTours}
               setActiveTab={setActiveTab}
               companyInfo={companyInfo}
+              members={members}
             />
           )}
 
@@ -2437,9 +2633,15 @@ export default function App() {
                 </div>
 
                 <datalist id="fsm-techs-list">
-                  {members.map(m => m.name).concat(['Thierry LEFEBVRE', 'Marc VIGNAL', 'Thierry Martin', 'Sébastien PETIT']).map((name, idx) => (
-                    <option key={idx} value={name} />
-                  ))}
+                  {members
+                    .filter(m => {
+                      const roleLower = (m.role || '').toLowerCase();
+                      return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                    })
+                    .map(m => m.name)
+                    .map((name, idx) => (
+                      <option key={idx} value={name} />
+                    ))}
                 </datalist>
 
                 <datalist id="fsm-clients-list">
@@ -2493,7 +2695,7 @@ export default function App() {
                           }}
                           className="transition-all"
                         >
-                          Tournées {formatFrenchDate(dateStr)}
+                          Tournée(s) {formatFrenchDate(dateStr)}
                         </button>
                       ))}
                     </div>
@@ -2681,8 +2883,10 @@ export default function App() {
                                 )}
                                 {(() => {
                                   const techOptions = Array.from(new Set([
-                                    ...members.map(m => m.name),
-                                    ...['Thierry LEFEBVRE', 'Marc VIGNAL', 'Thierry Martin', 'Sébastien PETIT'],
+                                    ...members.filter(m => {
+                                      const roleLower = (m.role || '').toLowerCase();
+                                      return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                                    }).map(m => m.name),
                                     tourTechName
                                   ].filter(Boolean).filter(name => name.trim() !== '')));
                                   return techOptions.map((name) => (
@@ -2730,7 +2934,7 @@ export default function App() {
 
                             {/* Date */}
                             <div className="w-full">
-                              <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Date.</label>
+                              <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Date période.</label>
                               <input
                                 type="date"
                                 value={tourStartDate}
@@ -2824,121 +3028,154 @@ export default function App() {
                             </div>
                           ) : (
                             <div className="space-y-4 bg-white">
-                              {t.missions.map((m: any, idx: number) => (
-                                <div key={m.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans">
-                                  {/* Ligne 1: Numéro de passage */}
-                                  <div className="flex items-center gap-2 bg-white pb-0.5">
-                                    <div
-                                      style={{
-                                        backgroundColor: '#fa53d5',
-                                        color: '#ffffff',
-                                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                                        fontWeight: 610,
-                                        width: '28px',
-                                        height: '28px',
-                                        borderRadius: '50%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '14px',
-                                        boxShadow: '0 2px 4px rgba(250, 83, 213, 0.2)'
-                                      }}
-                                    >
-                                      {idx + 1}
-                                    </div>
-                                  </div>
-
-                                  {/* Ligne 2: Site., Identifiant., Raison., Situation. */}
-                                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full bg-white">
-                                    {/* Site. (toujours disabled) */}
-                                    <div className="space-y-0.5 bg-white">
-                                      <label className="block mb-1 fsm-label-style">Site.</label>
-                                      <input
-                                        type="text"
-                                        value={m.clientName || ""}
-                                        disabled={true}
-                                        className="w-full font-sans cursor-not-allowed"
-                                        placeholder="Nom du Site"
-                                      />
-                                    </div>
-
-                                    {/* Identifiant. (toujours disabled) */}
-                                    <div className="space-y-0.5 bg-white">
-                                      <label className="block mb-1 fsm-label-style">Identifiant.</label>
-                                      <input
-                                        type="text"
-                                        value={m.defibIdentifiant || ""}
-                                        disabled={true}
-                                        className="w-full font-mono cursor-not-allowed"
-                                        placeholder="ID Défib"
-                                      />
-                                    </div>
-
-                                    {/* Raison. */}
-                                    <div className="space-y-0.5 bg-white">
-                                      <label className="block mb-1 fsm-label-style">Raison.</label>
-                                      <select
-                                        value={m.reason}
-                                        onChange={(e) => updateFsmMission(t.id, m.id, { reason: e.target.value })}
-                                        className="w-full font-sans focus:outline-none cursor-pointer"
-                                      >
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Mise en service">Mise en service</option>
-                                        <option value="Remplacement B">Remplacement B</option>
-                                        <option value="Remplacer B & A">Remplacer B & A</option>
-                                        <option value="Remplacer A & P">Remplacer A & P</option>
-                                        <option value="Remplacer B & P">Remplacer B & P</option>
-                                      </select>
-                                    </div>
-
-                                    {/* Situation. */}
-                                    <div className="space-y-0.5 font-sans relative bg-white">
-                                      <label className="block mb-1 fsm-label-style">Situation.</label>
-                                      <div className="relative flex items-center bg-white">
-                                        <div 
+                              {t.missions.map((m: any, idx: number) => {
+                                const calculatedDate = (() => {
+                                  if (!tourStartDate) return '';
+                                  const d = new Date(tourStartDate);
+                                  if (isNaN(d.getTime())) return tourStartDate;
+                                  const daysToAdd = Math.floor(idx / 6);
+                                  d.setDate(d.getDate() + daysToAdd);
+                                  return d.toISOString().split('T')[0];
+                                })();
+                                const estimatedDateValue = m.estimatedDate || calculatedDate;
+                                return (
+                                  <div key={m.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans">
+                                      {/* Ligne 1: Numéro de passage */}
+                                      <div className="flex items-center gap-2 bg-white pb-0.5">
+                                        <div
                                           style={{
-                                            position: 'absolute',
-                                            left: '14px',
-                                            top: '50%',
-                                            transform: 'translateY(-50%)',
-                                            width: '10px',
-                                            height: '10px',
+                                            backgroundColor: '#fa53d5',
+                                            color: '#ffffff',
+                                            fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                            fontWeight: 610,
+                                            width: '28px',
+                                            height: '28px',
                                             borderRadius: '50%',
-                                            backgroundColor: 
-                                              (m.status || 'À faire') === 'Brouillon' ? '#94a3b8' : 
-                                              (m.status || 'À faire') === 'À faire' ? '#3b82f6' :  
-                                              (m.status || 'À faire') === 'En cours' ? '#ef4444' :  
-                                              (m.status || 'À faire') === 'Effectué' ? '#22c55e' :  
-                                              '#3b82f6',
-                                            zIndex: 10,
-                                            pointerEvents: 'none'
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '14px'
                                           }}
-                                        />
-                                        <select
-                                          value={m.status || 'À faire'}
-                                          onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
-                                          style={{
-                                            paddingLeft: '34px',
-                                            paddingRight: '12px',
-                                            paddingTop: '12px',
-                                            paddingBottom: '12px',
-                                            width: '100%'
-                                          }}
-                                          className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
                                         >
-                                          <option value="À faire">À faire</option>
-                                          <option value="En cours">En cours</option>
-                                          <option value="Effectué">Effectué</option>
-                                        </select>
+                                          {idx + 1}
+                                        </div>
                                       </div>
-                                    </div>
-                                  </div>
+
+                                      {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Situation. */}
+                                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 w-full bg-white">
+                                        {/* Site. (toujours disabled) */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Site.</label>
+                                          <input
+                                            type="text"
+                                            value={m.clientName || ""}
+                                            disabled={true}
+                                            className="w-full font-sans cursor-not-allowed"
+                                            placeholder="Nom du Site"
+                                          />
+                                        </div>
+
+                                        {/* Identifiant. (toujours disabled) */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Identifiant.</label>
+                                          <input
+                                            type="text"
+                                            value={m.defibIdentifiant || ""}
+                                            disabled={true}
+                                            className="w-full font-mono cursor-not-allowed"
+                                            placeholder="ID Défib"
+                                          />
+                                        </div>
+
+                                        {/* Raison. */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Raison.</label>
+                                          <select
+                                            value={m.reason}
+                                            onChange={(e) => updateFsmMission(t.id, m.id, { reason: e.target.value })}
+                                            className="w-full font-sans focus:outline-none cursor-pointer"
+                                          >
+                                            <option value="Maintenance">Maintenance</option>
+                                            <option value="Mise en service">Mise en service</option>
+                                            <option value="Remplacement B">Remplacement B</option>
+                                            <option value="Remplacer B & A">Remplacer B & A</option>
+                                            <option value="Remplacer A & P">Remplacer A & P</option>
+                                            <option value="Remplacer B & P">Remplacer B & P</option>
+                                            <option value="Remplacement A">Remplacement A</option>
+                                            <option value="Remplacement P">Remplacement P</option>
+                                            <option value="Remplacement">Remplacement</option>
+                                            <option value="Diagnostic">Diagnostic</option>
+                                            <option value="Non renseigné">Non renseigné</option>
+                                          </select>
+                                        </div>
+
+                                        {/* Date estimée. */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Date estimée.</label>
+                                          <input
+                                            type="date"
+                                            value={estimatedDateValue}
+                                            onChange={(e) => updateFsmMission(t.id, m.id, { estimatedDate: e.target.value })}
+                                            className="w-full font-sans cursor-pointer focus:outline-none"
+                                            style={{
+                                              border: '1px solid #dedede',
+                                              borderRadius: '13px',
+                                              padding: '12px',
+                                              fontSize: '16px',
+                                              fontWeight: '100',
+                                              color: '#000000',
+                                              backgroundColor: '#ffffff'
+                                            }}
+                                          />
+                                        </div>
+
+                                        {/* Situation. */}
+                                        <div className="space-y-0.5 font-sans relative bg-white">
+                                          <label className="block mb-1 fsm-label-style">Situation.</label>
+                                          <div className="relative flex items-center bg-white">
+                                            <div 
+                                              style={{
+                                                position: 'absolute',
+                                                left: '14px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                width: '10px',
+                                                height: '10px',
+                                                borderRadius: '50%',
+                                                backgroundColor: 
+                                                  (m.status || 'À faire') === 'Brouillon' ? '#94a3b8' : 
+                                                  (m.status || 'À faire') === 'À faire' ? '#3b82f6' :  
+                                                  (m.status || 'À faire') === 'En cours' ? '#ef4444' :  
+                                                  (m.status || 'À faire') === 'Effectué' ? '#22c55e' :  
+                                                  '#3b82f6',
+                                                zIndex: 10,
+                                                pointerEvents: 'none'
+                                              }}
+                                            />
+                                            <select
+                                              value={m.status || 'À faire'}
+                                              onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
+                                              style={{
+                                                paddingLeft: '34px',
+                                                paddingRight: '12px',
+                                                paddingTop: '12px',
+                                                paddingBottom: '12px',
+                                                width: '100%'
+                                              }}
+                                              className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
+                                            >
+                                              <option value="À faire">À faire</option>
+                                              <option value="Effectué">Effectué</option>
+                                            </select>
+                                          </div>
+                                        </div>
+                                      </div>
 
                                   {/* Lookup field for required components with stock items selector */}
                                   {(() => {
                                     const stockItems = stocks.map(st => {
                                       const vObj = variables.find(v => v.id === st.denominationPieceId);
-                                      const name = vObj ? vObj.valeur : `Pièce indéfinie (${st.id})`;
+                                      const name = vObj ? vObj.nom : `Pièce indéfinie (${st.id})`;
                                       return {
                                         id: st.id,
                                         name: name,
@@ -2964,12 +3201,12 @@ export default function App() {
                                                 key={part}
                                                 onClick={() => {
                                                   const updatedParts = m.requiredParts.filter((p: string) => p !== part);
-                                                  updateFsmMission(t.id, m.id, { requiredParts: updatedParts });
+                                                  changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts);
                                                 }}
                                                 style={{
                                                   fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
                                                 }}
-                                                className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-950 hover:text-white transition-all duration-150 select-none"
+                                                className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-800 hover:text-white transition-all duration-150 select-none"
                                                 title="Cliquez pour supprimer"
                                               >
                                                 {part} (x1)
@@ -2986,7 +3223,7 @@ export default function App() {
                                               const selectedVal = e.target.value;
                                               if (selectedVal && !m.requiredParts.includes(selectedVal)) {
                                                 const updatedParts = [...m.requiredParts, selectedVal];
-                                                updateFsmMission(t.id, m.id, { requiredParts: updatedParts });
+                                                changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts);
                                               }
                                               e.target.value = ""; // Reset
                                             }}
@@ -3027,7 +3264,8 @@ export default function App() {
                                         display: 'flex',
                                         justifyContent: 'center',
                                         alignItems: 'center',
-                                        padding: '10px 16px'
+                                        padding: '10px 16px',
+                                        fontSize: '18px'
                                       }}
                                       className="cursor-pointer"
                                     >
@@ -3035,7 +3273,8 @@ export default function App() {
                                     </button>
                                   </div>
                                 </div>
-                              ))}
+                              );
+                            })}
                             </div>
                           )}
                         </div>
@@ -3075,6 +3314,7 @@ export default function App() {
                     variables={variables}
                     defibrillateurs={defibrillateurs}
                     stocks={stocks}
+                    members={members}
                   />
                 );
               }

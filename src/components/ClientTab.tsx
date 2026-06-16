@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Client, Defibrillateur, Variable } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck } from 'lucide-react';
+import { checkIfEmailExistsAnywhere } from '../firebase';
 
 interface ClientTabProps {
   clients: Client[];
@@ -168,7 +169,7 @@ export default function ClientTab({
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -180,6 +181,35 @@ export default function ClientTab({
     if (!siret.trim()) {
       setError('Le numéro d\'enregistrement (SIRET) est obligatoire.');
       return;
+    }
+
+    const targetEmail = email.trim().toLowerCase();
+    const targetEmailSite = emailSite.trim().toLowerCase();
+
+    // Verification for client email
+    if (targetEmail) {
+      const emailChanged = !editingClient || editingClient.email?.trim().toLowerCase() !== targetEmail;
+      if (emailChanged) {
+        const option = editingClient ? { tenantId: localStorage.getItem('defib_tenant_id') || 'demo', excludeOption: 'client' as const, uniqueId: editingClient.id } : undefined;
+        const checkResult = await checkIfEmailExistsAnywhere(targetEmail, option);
+        if (checkResult.exists) {
+          setError("Erreur: un utilisateur avec cet email est déjà existant.");
+          return;
+        }
+      }
+    }
+
+    // Verification for client emailSite
+    if (targetEmailSite && targetEmailSite !== targetEmail) {
+      const emailSiteChanged = !editingClient || editingClient.emailSite?.trim().toLowerCase() !== targetEmailSite;
+      if (emailSiteChanged) {
+        const option = editingClient ? { tenantId: localStorage.getItem('defib_tenant_id') || 'demo', excludeOption: 'client' as const, uniqueId: editingClient.id } : undefined;
+        const checkResult = await checkIfEmailExistsAnywhere(targetEmailSite, option);
+        if (checkResult.exists) {
+          setError("Erreur: un utilisateur avec cet email est déjà existant.");
+          return;
+        }
+      }
     }
 
     const hasContract = nomContrat && nomContrat.trim() !== '' && nomContrat.trim() !== 'Sans contrat de maintenance';

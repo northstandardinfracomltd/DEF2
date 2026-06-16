@@ -165,6 +165,7 @@ export interface StockRecord {
   id: string;
   denominationPieceId: string; // ID corresponding to a Variable
   quantite: number;
+  quantiteReservee?: number;
   livraisonDate: string;
   reapprovisionnementDate: string;
   valeurAchat: number;

@@ -3,6 +3,8 @@ import { Defibrillateur, Client, Variable, CompanyInfo } from '../types';
 import MapModal from './MapModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { runMonthlyVigilanceCampaign } from '../utils/emailService';
+import { checkIfDefibIdentifiantExistsAnywhere } from '../firebase';
+
 import {
   formatDateToFR,
   exportToCSV,
@@ -22,7 +24,6 @@ import {
   AlertTriangle,
   ChevronDown,
   FolderLock,
-  Heart,
   Palette,
   Eye,
   Settings,
@@ -180,6 +181,7 @@ interface DefibTabProps {
   onUpdateFsmTours?: (updated: any[]) => void;
   setActiveTab?: (tab: any) => void;
   companyInfo?: CompanyInfo;
+  members?: any[];
 }
 
 export default function DefibTab({
@@ -195,6 +197,7 @@ export default function DefibTab({
   onUpdateFsmTours,
   setActiveTab,
   companyInfo,
+  members = [],
 }: DefibTabProps) {
   // Navigation, Search & Filters State
   const [search, setSearch] = useState('');
@@ -387,7 +390,7 @@ export default function DefibTab({
     const newTour = {
       id: 'fsm-tour-auto-' + Date.now(),
       title: "Nouvelle tournée sans titre",
-      techName: 'Thierry LEFEBVRE',
+      techName: members.find((m: any) => m.role === 'Maintenance Terrain' || m.role?.toLowerCase().includes('tech'))?.name || members[0]?.name || '',
       startDate: new Date().toISOString().split('T')[0],
       status: 'Brouillon',
       missions
@@ -448,6 +451,7 @@ export default function DefibTab({
   };
 
   // --- SECTIONS FIELD STATE (Form Fields) ---
+  const [isSubmitChecking, setIsSubmitChecking] = useState(false);
   
   // Section 1 - Défibrillateur
   const [identifiant, setIdentifiant] = useState('');
@@ -1010,35 +1014,50 @@ export default function DefibTab({
     setIsFormOpen(true);
   };
 
-  // Submit handler
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError('');
-
-    // Validation
-    if (!identifiant.trim()) {
-      setFormError('L\'identifiant unique est requis.');
-      return;
-    }
-    if (!numeroSerie.trim()) {
-      setFormError('Le numéro de série est requis.');
-      return;
-    }
-    if (!clientId) {
-      setFormError('Veuillez associer un client à l\'appareil.');
-      return;
-    }
-
-    // Block Duplicates of Identifiant on creation
-    const isDuplicate = defibrillateurs.some(
-      df => (df.identifiant || '').toLowerCase() === identifiant.trim().toLowerCase() && df.id !== editingDefib?.id
-    );
-    if (isDuplicate) {
-      setFormError(`L'identifiant "${identifiant}" existe déjà pour un autre appareil. Reroulez un code unique svp.`);
-      return;
-    }
-
-    const payload = {
+   // Submit handler
+   const handleFormSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+     if (isSubmitChecking) return;
+     setFormError('');
+ 
+     // Validation
+     if (!identifiant.trim()) {
+       setFormError('L\'identifiant unique est requis.');
+       return;
+     }
+     if (!numeroSerie.trim()) {
+       setFormError('Le numéro de série est requis.');
+       return;
+     }
+     if (!clientId) {
+       setFormError('Veuillez associer un client à l\'appareil.');
+       return;
+     }
+ 
+     setIsSubmitChecking(true);
+     try {
+       // 1. Block Duplicates of Identifiant on creation/editing in local environment
+       const isDuplicate = defibrillateurs.some(
+         df => (df.identifiant || '').toLowerCase() === identifiant.trim().toLowerCase() && df.id !== editingDefib?.id
+       );
+       if (isDuplicate) {
+         setFormError(`L'identifiant "${identifiant}" existe déjà pour un autre appareil. Reroulez un code unique svp.`);
+         setIsSubmitChecking(false);
+         return;
+       }
+ 
+       // 2. Block Duplicates globally across ALL environments/tenants
+       const globalCheck = await checkIfDefibIdentifiantExistsAnywhere(identifiant, editingDefib?.id);
+       if (globalCheck.exists) {
+         setFormError(`L'identifiant "${identifiant.toUpperCase()}" existe déjà dans un autre environnement (${globalCheck.tenantName || 'externe'}). L'identifiant doit être unique à travers tous les environnements.`);
+         setIsSubmitChecking(false);
+         return;
+       }
+     } catch (err) {
+       console.error('Error validating defibrillator identifier:', err);
+     }
+ 
+     const payload = {
       identifiant: identifiant.trim().toUpperCase(),
       numeroSerie: numeroSerie.trim(),
       commentaire: commentaire.trim(),
@@ -1128,6 +1147,7 @@ export default function DefibTab({
     }
 
     setIsFormOpen(false);
+    setIsSubmitChecking(false);
   };
 
   // Bulk Edit submission
@@ -1406,14 +1426,15 @@ export default function DefibTab({
                           const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon');
                           if (drafts.length === 0) {
                             return (
-                              <div className="px-4 py-2 text-slate-400 font-sans italic text-center" style={{ fontSize: '15px' }}>
+                              <div className="px-4 py-2 text-black font-sans text-center" style={{ fontSize: '15px' }}>
                                 Aucune tournée en brouillon
                               </div>
                             );
                           }
                           return drafts.map(t => {
                             const isSelected = selectedDraftId === t.id;
-                            const displayTitle = t.title.length > 25 ? t.title.substring(0, 25) + '(...)' : t.title;
+                            const tourTitle = t.title || 'Nouvelle Tournée';
+                            const displayTitle = tourTitle.length > 25 ? tourTitle.substring(0, 25) + '(...)' : tourTitle;
                             return (
                               <button
                                 key={t.id}
@@ -1547,17 +1568,15 @@ export default function DefibTab({
 
                       {/* Miniature thumbnail column */}
                       <td className="px-4 py-3.5">
-                        <div className="w-14 h-14 rounded-md bg-slate-105 border border-slate-200 overflow-hidden relative flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center">
                           {linkedModel?.imageUrl ? (
                             <img
-                               src={linkedModel.imageUrl}
+                              src={linkedModel.imageUrl}
                               alt=""
                               className="w-full h-full object-cover"
                               referrerPolicy="no-referrer"
                             />
-                          ) : (
-                            <Heart className="w-6 h-6 text-slate-300 fill-slate-50" />
-                          )}
+                          ) : null}
                         </div>
                       </td>
 

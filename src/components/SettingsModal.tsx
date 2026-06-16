@@ -19,7 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { CompanyInfo, Member } from '../types';
-import { getRegisteredTenants, fetchCollectionFromFirestore } from '../firebase';
+import { getRegisteredTenants, fetchCollectionFromFirestore, checkIfEmailExistsAnywhere } from '../firebase';
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion } from '../utils/emailService';
 
 interface SettingsModalProps {
@@ -50,6 +50,28 @@ export default function SettingsModal({
   currentUser
 }: SettingsModalProps) {
   const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
+  const [shortEnvId, setShortEnvId] = React.useState(() => localStorage.getItem('defib_short_env_id') || 'D18');
+
+  React.useEffect(() => {
+    const activeId = localStorage.getItem('defib_tenant_id') || 'demo';
+    if (activeId.toLowerCase() === 'demo') {
+      setShortEnvId('D18');
+      localStorage.setItem('defib_short_env_id', 'D18');
+    } else {
+      getRegisteredTenants().then(tenants => {
+        const found = tenants.find(t => t.id === activeId);
+        if (found && found.shortEnvId) {
+          setShortEnvId(found.shortEnvId);
+          localStorage.setItem('defib_short_env_id', found.shortEnvId);
+        } else {
+          setShortEnvId('D18');
+        }
+      }).catch(err => {
+        console.error('Error fetching registered tenants shortEnvId in SettingsModal:', err);
+      });
+    }
+  }, []);
+
   const [appsScriptUrl, setAppsScriptUrl] = React.useState<string>('');
   
   React.useEffect(() => {
@@ -63,7 +85,7 @@ export default function SettingsModal({
   // Local states for form editing without auto-saving until save clicked ("pas d'auto-save")
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
-  const [saveSuccessMsg, setSaveSuccessMsg] = React.useState<string | null>(null);
+  const [isSaving, setIsSaving] = React.useState(false);
 
   // Synchronise if parent prop changes upon load or reset
   const hasLoadedRef = React.useRef(false);
@@ -166,19 +188,22 @@ export default function SettingsModal({
   };
 
   const [isVerifyingEmail, setIsVerifyingEmail] = React.useState(false);
+  const [newMemberError, setNewMemberError] = React.useState<string | null>(null);
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNewMemberError(null);
+
     if (!newMemberName.trim()) {
-      alert("Veuillez saisir un Nom & Prénom");
+      setNewMemberError("Veuillez saisir un Nom & Prénom.");
       return;
     }
     if (!newMemberEmail.trim()) {
-      alert("Veuillez saisir une adresse email");
+      setNewMemberError("Veuillez saisir une adresse email.");
       return;
     }
     if (newMemberPin.length !== 4) {
-      alert("Le code PIN doit comporter exactement 4 chiffres");
+      setNewMemberError("Le code PIN doit comporter exactement 4 chiffres.");
       return;
     }
 
@@ -187,42 +212,18 @@ export default function SettingsModal({
     // 1. Check local state duplicates
     const existsLocally = localMembers.some(m => m.email?.trim().toLowerCase() === candidateEmail);
     if (existsLocally) {
-      alert("Erreur, l'email est déjà utilisé.");
+      setNewMemberError("Erreur: un utilisateur avec cet email est déjà existant.");
       return;
     }
 
     setIsVerifyingEmail(true);
     try {
-      // 2. Check registered tenants (primary admins)
-      const tenants = await getRegisteredTenants();
-      const existsAsTenantAdmin = tenants.some(t => t.adminEmail.trim().toLowerCase() === candidateEmail);
-      if (existsAsTenantAdmin) {
-        alert("Erreur, l'email est déjà utilisé.");
+      const emailCheck = await checkIfEmailExistsAnywhere(candidateEmail);
+      if (emailCheck.exists) {
+        setNewMemberError("Erreur: un utilisateur avec cet email est déjà existant.");
         setIsVerifyingEmail(false);
         return;
       }
-
-      // 3. Check members in all tenants' sub-accounts
-      let existsAsSubAccount = false;
-      for (const tnt of tenants) {
-        const tenantId = tnt.id;
-        const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
-        const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
-        if (fetchedMembers && Array.isArray(fetchedMembers)) {
-          const found = fetchedMembers.some(m => m.email && m.email.trim().toLowerCase() === candidateEmail);
-          if (found) {
-            existsAsSubAccount = true;
-            break;
-          }
-        }
-      }
-
-      if (existsAsSubAccount) {
-        alert("Erreur, l'email est déjà utilisé.");
-        setIsVerifyingEmail(false);
-        return;
-      }
-
     } catch (err) {
       console.error('Error verifying email uniqueness:', err);
     } finally {
@@ -246,12 +247,14 @@ export default function SettingsModal({
     setNewMemberRole('Administrateur');
     setNewMemberPin('');
     setNewMemberLocation('');
+    setNewMemberError(null);
   };
 
   // Perform overall save to parent state upon Enregistrer click
   const handleSaveAll = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     setIsVerifyingEmail(true);
-    setSaveSuccessMsg(null);
 
     try {
       // 1. Check local duplicates within the local list itself
@@ -260,42 +263,35 @@ export default function SettingsModal({
         const emailLower = m.email?.trim().toLowerCase();
         if (!emailLower) continue;
         if (emailsSeen.has(emailLower)) {
-          alert(`Erreur, l'email est déjà utilisé.`);
+          alert(`Erreur: un utilisateur avec cet email est déjà existant.`);
+          setIsSaving(false);
           setIsVerifyingEmail(false);
           return;
         }
         emailsSeen.add(emailLower);
       }
 
-      // 2. Fetch all tenants and their sub-accounts to make sure there are no collisions with other accounts (excluding their own unchanged values)
-      const tenants = await getRegisteredTenants();
+      // 2. Fetch and check entire database for collisions (excluding unmodified emails)
       const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
 
       for (const m of localMembers) {
         const candidateEmail = m.email?.trim().toLowerCase();
         if (!candidateEmail) continue;
 
-        // Check if candidateEmail is used as admin in a different tenant
-        const otherTenantAdmin = tenants.some(t => t.id !== myTenantId && t.adminEmail.trim().toLowerCase() === candidateEmail);
-        if (otherTenantAdmin) {
-          alert(`Erreur, l'email est déjà utilisé.`);
-          setIsVerifyingEmail(false);
-          return;
+        // Is this member new, or did they change their email?
+        const originalMember = members.find(orig => orig.email?.trim().toLowerCase() === candidateEmail);
+        if (originalMember) {
+          // This email is unchanged for this member: skip cross-db lookup
+          continue;
         }
 
-        // Check if candidateEmail is used as a member in any other tenant
-        for (const tnt of tenants) {
-          if (tnt.id === myTenantId) continue; // skip our own tenant
-          const key = tnt.id === 'demo' ? 'members' : `${tnt.id}_members`;
-          const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
-          if (fetchedMembers && Array.isArray(fetchedMembers)) {
-            const found = fetchedMembers.some(fm => fm.email && fm.email.trim().toLowerCase() === candidateEmail);
-            if (found) {
-              alert(`Erreur, l'email est déjà utilisé.`);
-              setIsVerifyingEmail(false);
-              return;
-            }
-          }
+        // Email has been added or edited to something else
+        const emailCheck = await checkIfEmailExistsAnywhere(candidateEmail);
+        if (emailCheck.exists) {
+          alert("Erreur: un utilisateur avec cet email est déjà existant.");
+          setIsSaving(false);
+          setIsVerifyingEmail(false);
+          return;
         }
       }
 
@@ -337,10 +333,9 @@ export default function SettingsModal({
     // Sauvegarder l'url de l'app script
     saveAppsScriptUrl(appsScriptUrl).catch(console.error);
     
-    // Highlight successful sync to the user
-    setSaveSuccessMsg("Paramètres enregistrés avec succès !");
+    // Keep disabled for 3 seconds as requested, then release
     setTimeout(() => {
-      setSaveSuccessMsg(null);
+      setIsSaving(false);
     }, 3000);
   };
 
@@ -451,16 +446,7 @@ export default function SettingsModal({
         }
       `}</style>
 
-      {/* Success indicator toast */}
-      {saveSuccessMsg && (
-        <div 
-          className="fixed bottom-6 right-6 z-[200] bg-black text-white px-5 py-3.5 rounded-xl border border-slate-700 shadow-2xl flex items-center gap-2 animate-scaleUp font-sans"
-          style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}
-        >
-          <span className="text-pink-400 font-bold">✓</span>
-          <span>{saveSuccessMsg}</span>
-        </div>
-      )}
+
 
       <div 
         className={isPage ? "bg-white w-full max-w-[760px] mx-auto flex flex-col overflow-hidden animate-fadeIn" : "bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 flex flex-col transform transition-all animate-scaleUp"}
@@ -494,6 +480,7 @@ export default function SettingsModal({
           
           <div className="flex items-center gap-3">
             <button
+              disabled={isSaving}
               onClick={handleSaveAll}
               style={{
                 backgroundColor: 'rgb(53, 86, 236)',
@@ -508,7 +495,8 @@ export default function SettingsModal({
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                cursor: 'pointer',
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                opacity: isSaving ? 0.6 : 1,
                 border: 'none',
                 fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
               }}
@@ -630,7 +618,7 @@ export default function SettingsModal({
                   <input
                     type="text"
                     value={newMemberName}
-                    onChange={(e) => setNewMemberName(e.target.value)}
+                    onChange={(e) => { setNewMemberName(e.target.value); setNewMemberError(null); }}
                     placeholder=""
                     className="w-full text-black text-xs font-sans"
                   />
@@ -641,7 +629,7 @@ export default function SettingsModal({
                   <input
                     type="email"
                     value={newMemberEmail}
-                    onChange={(e) => setNewMemberEmail(e.target.value)}
+                    onChange={(e) => { setNewMemberEmail(e.target.value); setNewMemberError(null); }}
                     placeholder=""
                     className="w-full text-black text-xs font-sans"
                   />
@@ -651,7 +639,7 @@ export default function SettingsModal({
                   <label className="block text-[16px] font-bold text-black font-sans">Rôle.</label>
                   <select
                     value={newMemberRole}
-                    onChange={(e) => setNewMemberRole(e.target.value)}
+                    onChange={(e) => { setNewMemberRole(e.target.value); setNewMemberError(null); }}
                     className="w-full text-black font-semibold text-xs font-sans cursor-pointer"
                   >
                     <option value="Administrateur">Administrateur</option>
@@ -660,13 +648,15 @@ export default function SettingsModal({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[16px] font-bold text-black font-sans">PIN d’accès.</label>
+                  <label className="block text-[16px] font-bold text-black font-sans">
+                    {newMemberRole === 'Administrateur' ? 'Mot de passe.' : 'PIN d’accès.'}
+                  </label>
                   <input
                     type="text"
                     maxLength={4}
                     value={newMemberPin}
-                    onChange={(e) => setNewMemberPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4))}
-                    placeholder="Ex: 1234"
+                    onChange={(e) => { setNewMemberPin(e.target.value.replace(/[^0-9]/g, '').slice(0, 4)); setNewMemberError(null); }}
+                    placeholder="Entrez un code."
                     className="w-full text-black text-center font-mono font-bold text-xs"
                   />
                 </div>
@@ -680,6 +670,11 @@ export default function SettingsModal({
                 >
                   Nouveau membre
                 </button>
+                {newMemberError && (
+                  <div className="mt-2 text-red-600 text-[16px] font-sans font-medium text-left animate-fadeIn">
+                    {newMemberError}
+                  </div>
+                )}
               </div>
             </form>
 
@@ -794,14 +789,16 @@ export default function SettingsModal({
                                 </div>
 
                                 <div className="space-y-1">
-                                  <span className="text-[16px] font-bold text-black block font-sans text-left" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>PIN d’accès.</span>
+                                  <span className="text-[16px] font-bold text-black block font-sans text-left" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>
+                                    {isTech ? 'PIN d’accès.' : 'Mot de passe.'}
+                                  </span>
                                   <input
                                     type="text"
                                     maxLength={4}
                                     value={m.pin || ''}
                                     disabled={!canEditThisMember}
                                     onChange={(e) => handlePinChange(idx, e.target.value)}
-                                    placeholder=""
+                                    placeholder="Entrez un code."
                                     className="w-full text-left font-mono font-bold text-xs bg-white text-black disabled:bg-slate-100 disabled:cursor-not-allowed disabled:text-slate-400"
                                     style={{ height: '36px', padding: '6px 10px' }}
                                   />
@@ -852,10 +849,30 @@ export default function SettingsModal({
                 </div>
                 <div style={{ backgroundColor: '#ffffff1c', border: 'none', padding: '20px', borderRadius: '13px' }}>
                   <div className="font-semibold text-white text-[16px] font-sans" style={{ textTransform: 'none' }}>
-                    {localMembers.length >= 4 ? 'Abonnement PME ETI' : 'Abonnement Indépendant TPE'}
+                    Votre abonnement Défibeo.
                   </div>
                   <div className="text-xl text-white mt-1 font-sans" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100 }}>
-                    149€ Mensuel
+                    380€ Mensuel.
+                  </div>
+                  <div className="mt-4">
+                    <a
+                      href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8P432259DF5486110NIYZTWY"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all w-full"
+                      style={{
+                        backgroundColor: 'rgb(53, 86, 236)',
+                        borderRadius: '0.75rem',
+                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                        fontWeight: '100',
+                        boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, inset 0 6px 12px #ffffff25',
+                        border: 'none',
+                        cursor: 'pointer',
+                        width: '100%'
+                      }}
+                    >
+                      Mettre à jour
+                    </a>
                   </div>
                 </div>
 
@@ -864,7 +881,7 @@ export default function SettingsModal({
                     Les factures sont automatiquement envoyées par e-mail. Les taxes et frais sont inclus dans le montant de l'abonnement. Vous trouverez ci-dessous l'identifiant de votre environnement logiciel.
                   </span>
                   <div className="inline-flex items-center justify-center rounded-full bg-transparent text-white border border-white/30 px-3 py-1.5 text-sm font-semibold w-fit select-none" style={{ backgroundColor: 'transparent' }}>
-                    Défibeo D18
+                    Défibeo {shortEnvId.toUpperCase()}
                   </div>
                 </div>
               </div>
@@ -873,13 +890,8 @@ export default function SettingsModal({
             {/* SECTION 3: ASSISTANCE SUPPORT */}
             <div className="border border-slate-200 rounded-2xl p-5 flex flex-col justify-between bg-white animate-fadeIn" id="settings-section-support">
               <div className="space-y-2 bg-white">
-                <div className="flex items-center gap-2 bg-white">
-                  <h4 className="font-bold text-black cursor-default select-none" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-                    Assistance Défibeo.
-                  </h4>
-                </div>
                 <p className="text-[16px] text-black leading-relaxed font-sans">
-                  Le support Défibeo est disponible tous les jours, y compris les jours fériés, en Français et en Anglais par email à{' '}
+                  L'assistance Défibeo est disponible tous les jours, y compris les jours fériés, en Français et en Anglais par email à{' '}
                   <a href="mailto:support@defibeo.com" className="text-blue-600 hover:underline hover:text-blue-700 font-bold">
                     support@defibeo.com
                   </a>

@@ -19,6 +19,12 @@ export const REGIONS_FRANCAISES = [
 export function generateRandomShortCode(existingIds: string[]): string {
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   let attempts = 0;
+  
+  // Dynamically determine the environment identifier using the short ID
+  const tenantIdDigit = typeof window !== 'undefined' 
+    ? (localStorage.getItem('defib_short_env_id') || 'D18') 
+    : 'D18';
+
   while (attempts < 1000) {
     const l1 = letters[Math.floor(Math.random() * letters.length)];
     const l2 = letters[Math.floor(Math.random() * letters.length)];
@@ -26,13 +32,13 @@ export function generateRandomShortCode(existingIds: string[]): string {
     const n1 = Math.floor(Math.random() * 10);
     const n2 = Math.floor(Math.random() * 10);
     const n3 = Math.floor(Math.random() * 10);
-    const code = `${l1}${l2}${l3}-D18-${n1}${n2}${n3}`;
+    const code = `${l1}${l2}${l3}-${tenantIdDigit}-${n1}${n2}${n3}`;
     if (!existingIds.includes(code)) {
       return code;
     }
     attempts++;
   }
-  return `DAE-D18-${Math.floor(Math.random() * 900) + 100}`;
+  return `DAE-${tenantIdDigit}-${Math.floor(Math.random() * 900) + 100}`;
 }
 
 export const INITIAL_CLIENTS: Client[] = [

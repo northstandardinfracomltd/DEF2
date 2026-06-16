@@ -346,7 +346,6 @@ export default function VariableTab({
                       const filtered = e.target.value.replace(/[^a-zA-Z0-9\s-àâäéèêëîïôöùûüçœæÀÂÄÉÈÊËÎÏÔÖÙÛÜÇŒÆ]/g, '');
                       setNom(filtered);
                     }}
-                    placeholder="Ex: Batterie ProPlus MédicalDupont."
                     required
                   />
                 </div>

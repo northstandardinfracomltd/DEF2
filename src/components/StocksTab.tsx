@@ -19,6 +19,7 @@ export default function StocksTab({
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState(variables[0]?.id || '');
   const [newQty, setNewQty] = useState<number>(0);
+  const [newQtyReservee, setNewQtyReservee] = useState<number>(0);
 
   React.useEffect(() => {
     if (!newDenomStr && variables.length > 0) {
@@ -80,6 +81,7 @@ export default function StocksTab({
             ...st,
             denominationPieceId: newDenomStr,
             quantite: Number(newQty),
+            quantiteReservee: Number(newQtyReservee),
             livraisonDate: newLivDate,
             reapprovisionnementDate: newReapDate,
             valeurAchat: Number(newValAchat) || 0,
@@ -97,6 +99,7 @@ export default function StocksTab({
         id: 'st_' + Date.now(),
         denominationPieceId: newDenomStr,
         quantite: Number(newQty),
+        quantiteReservee: Number(newQtyReservee),
         livraisonDate: newLivDate,
         reapprovisionnementDate: newReapDate,
         valeurAchat: Number(newValAchat) || 0,
@@ -109,6 +112,7 @@ export default function StocksTab({
     
     // Reset
     setNewQty(0);
+    setNewQtyReservee(0);
     setNewLivDate('');
     setNewReapDate('');
     setNewValAchat('');
@@ -126,6 +130,7 @@ export default function StocksTab({
       setEditingStockId(null);
       setNewDenomStr(variables[0]?.id || '');
       setNewQty(0);
+      setNewQtyReservee(0);
       setNewLivDate('');
       setNewReapDate('');
       setNewValAchat('');
@@ -376,7 +381,9 @@ export default function StocksTab({
                 <thead>
                   <tr className="bg-transparent">
                     <th className="px-4 py-3.5" style={thStyle}>Pièce.</th>
-                    <th className="px-4 py-3.5 text-center" style={thStyle}>Volume.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Qté disponible.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Qté réservée.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Qté totale.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Entrant.</th>
                     <th className="px-4 py-3.5 text-right" style={thStyle}>Tarif fournisseur.</th>
                     <th className="px-4 py-3.5 text-right" style={thStyle}>Marge.</th>
@@ -388,7 +395,7 @@ export default function StocksTab({
                 <tbody className="text-slate-700 text-xs">
                   {filteredStocks.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
+                      <td colSpan={10} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
                         Aucun résultat.
                       </td>
                     </tr>
@@ -405,6 +412,12 @@ export default function StocksTab({
                           </td>
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {st.quantite}
+                          </td>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                            {st.quantiteReservee ?? 0}
+                          </td>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                            {st.quantite + (st.quantiteReservee ?? 0)}
                           </td>
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {st.livraisonDate ? st.livraisonDate : '-'}
@@ -446,6 +459,7 @@ export default function StocksTab({
                                   setEditingStockId(st.id);
                                   setNewDenomStr(st.denominationPieceId);
                                   setNewQty(st.quantite);
+                                  setNewQtyReservee(st.quantiteReservee ?? 0);
                                   setNewLivDate(st.livraisonDate || '');
                                   setNewReapDate(st.reapprovisionnementDate || '');
                                   setNewValAchat((st.valeurAchat ?? 0).toString());
@@ -564,60 +578,90 @@ export default function StocksTab({
                 </select>
               </div>
 
-              {/* Quantité */}
-              <div className="flex flex-col gap-1 bg-white md:col-span-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Quantité disponible.</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={newQty}
-                  onChange={(e) => setNewQty(Number(e.target.value))}
-                  className="focus:outline-none w-full font-sans"
-                  required
-                  placeholder="0"
-                />
+              {/* Quantities Row */}
+              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Quantité disponible.</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newQty}
+                    onChange={(e) => setNewQty(Number(e.target.value))}
+                    className="focus:outline-none w-full font-sans"
+                    required
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Quantité réservée.</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newQtyReservee}
+                    onChange={(e) => setNewQtyReservee(Number(e.target.value))}
+                    className="focus:outline-none w-full font-sans"
+                    required
+                    placeholder="0"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Quantité totale.</label>
+                  <input
+                    type="number"
+                    value={Number(newQty) + Number(newQtyReservee)}
+                    disabled
+                    readOnly
+                    className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100"
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
-              {/* Stockage Location */}
-              <div className="flex flex-col gap-1 bg-white md:col-span-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Stockage.</label>
-                <select
-                  value={newStorage}
-                  onChange={(e) => setNewStorage(e.target.value)}
-                  className="focus:outline-none w-full cursor-pointer font-sans"
-                  required
-                >
-                  <option value="" disabled hidden>Sélectionnez un stockage.</option>
-                  <option value="Entrepôt A">Entrepôt A</option>
-                  <option value="Entrepôt B">Entrepôt B</option>
-                  <option value="Véhicule A">Véhicule A</option>
-                  <option value="Véhicule B">Véhicule B</option>
-                  <option value="Véhicule C">Véhicule C</option>
-                </select>
-              </div>
+              {/* Storage and Dates Row */}
+              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Stockage Location */}
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Stockage.</label>
+                  <select
+                    value={newStorage}
+                    onChange={(e) => setNewStorage(e.target.value)}
+                    className="focus:outline-none w-full cursor-pointer font-sans"
+                    required
+                  >
+                    <option value="" disabled hidden>Sélectionnez un stockage.</option>
+                    <option value="Entrepôt A">Entrepôt A</option>
+                    <option value="Entrepôt B">Entrepôt B</option>
+                    <option value="Véhicule A">Véhicule A</option>
+                    <option value="Véhicule B">Véhicule B</option>
+                    <option value="Véhicule C">Véhicule C</option>
+                  </select>
+                </div>
 
-              {/* Livraison Date */}
-              <div className="flex flex-col gap-1 bg-white md:col-span-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Livraison.</label>
-                <input
-                  type="date"
-                  value={newLivDate}
-                  onChange={(e) => setNewLivDate(e.target.value)}
-                  className="focus:outline-none w-full font-sans"
-                  placeholder="jj/mm.aaaa"
-                />
-              </div>
+                {/* Livraison Date */}
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Livraison.</label>
+                  <input
+                    type="date"
+                    value={newLivDate}
+                    onChange={(e) => setNewLivDate(e.target.value)}
+                    className="focus:outline-none w-full font-sans"
+                    placeholder="jj/mm.aaaa"
+                  />
+                </div>
 
-              {/* Réappro Date */}
-              <div className="flex flex-col gap-1 bg-white md:col-span-1">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Réapprovisionnement.</label>
-                <input
-                  type="date"
-                  value={newReapDate}
-                  onChange={(e) => setNewReapDate(e.target.value)}
-                  className="focus:outline-none w-full font-sans"
-                  placeholder="jj/mm.aaaa"
-                />
+                {/* Réappro Date */}
+                <div className="flex flex-col gap-1 bg-white">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Réapprovisionnement.</label>
+                  <input
+                    type="date"
+                    value={newReapDate}
+                    onChange={(e) => setNewReapDate(e.target.value)}
+                    className="focus:outline-none w-full font-sans"
+                    placeholder="jj/mm.aaaa"
+                  />
+                </div>
               </div>
 
               {/* Pricing section - 3 elegant columns spanning full row width */}

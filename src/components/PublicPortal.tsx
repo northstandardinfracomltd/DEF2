@@ -428,12 +428,15 @@ export default function PublicPortal({
             }
             return m;
           });
-          const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
-          const newStatus = hasTodo ? 'En cours' : 'Terminé';
+          const hasStarted = updatedMissions.some((m: any) => m.status === 'Effectué' || m.status === 'En cours');
+          let newStatus = mt.status;
+          if (mt.status !== 'Effectué' && mt.status !== 'Terminé') {
+            newStatus = hasStarted ? 'En cours' : 'À faire';
+          }
 
           return {
             ...mt,
-            status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
+            status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? mt.status : newStatus,
             missions: updatedMissions
           };
         }
@@ -456,12 +459,15 @@ export default function PublicPortal({
                 }
                 return m;
               });
-              const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
-              const newStatus = hasTodo ? 'En cours' : 'Terminé';
+              const hasStarted = updatedMissions.some((m: any) => m.status === 'Effectué' || m.status === 'En cours');
+              let newStatus = mt.status;
+              if (mt.status !== 'Effectué' && mt.status !== 'Terminé') {
+                newStatus = hasStarted ? 'En cours' : 'À faire';
+              }
 
               return {
                 ...mt,
-                status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
+                status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? mt.status : newStatus,
                 missions: updatedMissions
               };
             }
@@ -513,7 +519,7 @@ export default function PublicPortal({
         matchedFsmTours = fsmTours.filter((mt: any) => {
           if (!isMemberOfEnv) return false;
           const isTechAssigned = activeTechName && mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
-          const isStatusTodo = mt.status === 'À faire';
+          const isStatusTodo = mt.status === 'À faire' || mt.status === 'En cours';
           return isTechAssigned && isStatusTodo;
         });
       } else {
@@ -524,7 +530,7 @@ export default function PublicPortal({
             matchedFsmTours = mainTours.filter((mt: any) => {
               if (!activeTechName) return true;
               const isTechAssigned = mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
-              const isStatusTodo = mt.status === 'À faire';
+              const isStatusTodo = mt.status === 'À faire' || mt.status === 'En cours';
               return isTechAssigned && isStatusTodo;
             });
           }

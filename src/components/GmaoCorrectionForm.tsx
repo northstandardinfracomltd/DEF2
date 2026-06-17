@@ -824,7 +824,7 @@ export default function GmaoCorrectionForm({
 
             {/* If New mode, represent lookup select input first */}
             {isNew && (
-              <div className="space-y-1 pb-3 border-b border-slate-100">
+              <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
                   Sélectionner un équipement.
                 </label>
@@ -836,7 +836,7 @@ export default function GmaoCorrectionForm({
                   <option value="">-- Choisir un DAE ou Saisir Libre --</option>
                   {defibrillateurs.map(df => (
                     <option key={df.id} value={df.id}>
-                      {df.identifiant} - {df.numeroSerie} ({df.nomPrenomSite || 'Sans site'})
+                      {df.identifiant} - {df.numeroSerie}
                     </option>
                   ))}
                 </select>
@@ -1325,13 +1325,13 @@ export default function GmaoCorrectionForm({
                               const label = variable ? `${variable.nom} (${variable.marque})` : 'Service Inconnu';
                               return (
                                 <option key={st.id} value={st.id}>
-                                  [Stock] {label} — {st.prixVenteHt} € HT (Quantité: {st.quantite})
+                                  {label} — {st.prixVenteHt} € HT
                                 </option>
                               );
                             })}
                             {serviceVariablesOnly.map(v => (
                               <option key={v.id} value={v.id}>
-                                [Service] {v.nom} ({v.marque}) — 150 € HT (Virtuel)
+                                {v.nom} ({v.marque}) — 150 € HT (Virtuel)
                               </option>
                             ))}
                           </>
@@ -1347,7 +1347,7 @@ export default function GmaoCorrectionForm({
 
                       return fallbacks.map(fb => (
                         <option key={fb.id} value={fb.id}>
-                          {fb.label} — {fb.price} € HT (Stock: Illimité)
+                          {fb.label} — {fb.price} € HT
                         </option>
                       ));
                     })()}
@@ -1838,7 +1838,7 @@ export default function GmaoCorrectionForm({
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
                     return (
                       <option key={st.id} value={st.id}>
                         {label}
@@ -2003,7 +2003,7 @@ export default function GmaoCorrectionForm({
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
                     return (
                       <option key={st.id} value={st.id}>
                         {label}
@@ -2174,7 +2174,7 @@ export default function GmaoCorrectionForm({
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
                     return (
                       <option key={st.id} value={st.id}>
                         {label}
@@ -2407,7 +2407,7 @@ export default function GmaoCorrectionForm({
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
                     return (
                       <option key={st.id} value={st.id}>
                         {label}

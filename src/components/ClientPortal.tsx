@@ -40,35 +40,172 @@ export default function ClientPortal({
 
   // Downloader for Devis et Factures
   const handleDownloadDoc = (doc: CommercialDoc) => {
-    const itemsList = doc.items.map(it => `- ${it.nomPiece} (Qté: ${it.quantite}) : ${it.prixVenteHt.toFixed(2)} € HT`).join('\r\n');
-    const content = `===========================================
-${doc.type.toUpperCase()} : ${doc.ref}
-===========================================
-Type de document  : ${doc.type}
-Référence         : ${doc.ref}
-Situation / État  : ${doc.status}
-Date d'émission   : ${doc.dateStr}
-Client            : ${doc.clientDenomination}
-
-Détails des prestations / articles :
-${itemsList}
-
--------------------------------------------
-Total HT          : ${doc.totalHt.toFixed(2)} €
-===========================================
-Merci pour votre confiance.
-Document généré et certifié conforme.
-`;
+    const totalTva = doc.totalHt * 0.20;
+    const totalTtc = doc.totalHt * 1.20;
     
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
+    const formatDateStr = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+      const parts = dateStr.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+
+    const itemsHtml = doc.items.map((item, idx) => {
+      const isLast = idx === doc.items.length - 1;
+      return `
+        <tr style="${isLast ? '' : 'border-bottom: 1px solid #dcdcdc;'}">
+          <td style="padding: 12px 8px;">${item.nomPiece}</td>
+          <td style="padding: 12px 8px; text-align: right;">${item.prixVenteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+          <td style="padding: 12px 8px; text-align: center;">${item.quantite}</td>
+          <td style="padding: 12px 8px; text-align: right;">${(item.prixVenteHt * item.quantite).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+        </tr>
+      `;
+    }).join('');
+
+    const clientObj = clients.find(c => c.id === doc.clientId) || clients.find(c => c.denomination === doc.clientDenomination);
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>${doc.type} ${doc.ref}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @font-face {
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: "Civilprom";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+          
+          body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
+            font-family: "Civilprom", sans-serif !important;
+            font-weight: 100 !important;
+            color: #000000 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            font-size: 16px !important;
+          }
+          
+          .text-large {
+            font-size: 18px !important;
+          }
+          
+          h1.doc-title {
+            font-family: "Gochi" !important;
+            font-size: 55px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+          }
+          
+          .blue-link {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+            font-weight: 100 !important;
+          }
+          
+          @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; }
+            .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+          }
+        </style>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </head>
+      <body class="bg-white text-black p-8">
+        <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
+          
+          <!-- HAUT DE PAGE / COORDONNEES -->
+          <div class="flex justify-between items-start pb-4">
+            <div>
+              ${companyInfo.logo ? `<img src="${companyInfo.logo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">${companyInfo.name}</span>
+              <div>${companyInfo.email}</div>
+              <div>${companyInfo.phone}</div>
+              <div style="margin-top: 2px;"><a href="https://${companyInfo.website}" target="_blank" class="blue-link">${companyInfo.website}</a></div>
+            </div>
+            <div style="text-align: right;">
+              <div>${formatDateStr(doc.dateStr)}</div>
+            </div>
+          </div>
+
+          <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
+          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+            <div>
+              <h1 class="doc-title">${doc.type === 'Devis' ? 'DEVIS' : 'FACTURE'}</h1>
+              <p style="margin: 4px 0 0 0;">Référence : ${doc.ref}</p>
+              <p style="margin: 4px 0 0 0;">Commentaire : ${doc.commentaire || ''}</p>
+            </div>
+            <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
+              <div style="margin-bottom: 6px;">Client.</div>
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">${clientObj ? clientObj.denomination : doc.clientDenomination}</div>
+              ${clientObj ? `
+                ${clientObj.nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact. ${clientObj.nomPrenomSite}</div>` : ''}
+                ${clientObj.siret ? `<div style="margin-bottom: 2px;">Numéro fiscal. ${clientObj.siret}</div>` : ''}
+                ${clientObj.email ? `<div style="margin-bottom: 2px;">Email. ${clientObj.email}</div>` : ''}
+                ${clientObj.phone ? `<div style="margin-bottom: 2px;">Téléphone. ${clientObj.phone}</div>` : ''}
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- TABLEAU DES PRESTATIONS / PIECES -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid #dcdcdc;">
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">Description.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Prix unitaire.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: center;">Volume.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Total ligne.</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SECTION DE COMMODITES DES CALCULS (TOTALS) -->
+          <div style="display: flex; justify-content: flex-end; padding-top: 16px;">
+            <div style="width: 256px; border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total HT.</span>
+                <span>${doc.totalHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total TVA (20%).</span>
+                <span>${totalTva.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;" class="text-large">
+                <span>Total TTC.</span>
+                <span>${totalTtc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${doc.type.toLowerCase()}_${doc.ref}.txt`);
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(url, '_blank');
   };
 
   // Downloader for Reports

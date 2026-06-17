@@ -751,6 +751,21 @@ export default function PublicPortal({
       return `${variableItem.nom} (${variableItem.marque})`;
     };
 
+    // Helper to resolve service label
+    const getServiceLabel = (serviceId: string) => {
+      if (!serviceId) return '';
+      const stockItem = stocks.find((s: any) => s.id === serviceId);
+      if (stockItem) {
+        const variable = variables.find((v: any) => v.id === stockItem.denominationPieceId);
+        return variable ? `${variable.nom} (${variable.marque})` : 'Service';
+      }
+      const variable = variables.find((v: any) => v.id === serviceId);
+      if (variable) {
+        return `${variable.nom} (${variable.marque})`;
+      }
+      return serviceId;
+    };
+
     const selElectrodeA = getStockPieceLabel(report.selectionElectrodeARemplacee);
     const selElectrodeP = getStockPieceLabel(report.selectionElectrodePRemplacee);
     const selBatterie = getStockPieceLabel(report.selectionBatterieRemplacee);
@@ -763,7 +778,6 @@ export default function PublicPortal({
         <meta charset="UTF-8">
         <title>Rapport - ${snapshot.identifiant || report.defibIdentifiant || '-'}</title>
         <script src="https://cdn.tailwindcss.com"></script>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
         <style>
           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
@@ -776,25 +790,17 @@ export default function PublicPortal({
           }
 
           @font-face {
-            font-family: "DefibeoMain";
-            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
-            font-weight: 100 900;
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
             font-style: normal;
             font-display: swap;
           }
 
           * {
             box-sizing: border-box;
-          }
-
-          body {
-            font-family: "DefibeoMain", "Civilprom", "Inter", sans-serif !important;
-            background-color: #f1f5f9;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            font-family: "Civilprom", "Inter", sans-serif !important;
+            font-weight: 100 !important;
           }
 
           @page {
@@ -802,50 +808,62 @@ export default function PublicPortal({
             margin: 0;
           }
 
-          @media print {
-            body {
-              background-color: #ffffff !important;
-              padding: 8mm !important;
-              margin: 0 !important;
-              width: 210mm;
-              height: 297mm;
-            }
-            .no-print {
-              display: none !important;
-            }
-            #print-container {
-              box-shadow: none !important;
-              border: none !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              width: 100% !important;
-              height: 100% !important;
-              min-height: auto !important;
-            }
+          body {
+            font-family: "Civilprom", "Inter", sans-serif !important;
+            background-color: #ffffff;
+            margin: 0;
+            padding: 0;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
 
           #print-container {
-            width: 194mm;
-            min-height: 275mm;
+            width: 210mm;
+            margin: 0 auto;
             background-color: #ffffff;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-            border-radius: 16px;
-            padding: 10px;
+          }
+
+          .pdf-page {
+            position: relative;
+            width: 210mm;
+            height: 297mm;
+            padding: 20mm 15mm;
+            box-sizing: border-box;
+            background-color: #ffffff;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
+            gap: 15px;
+            page-break-after: always;
+            break-after: page;
+          }
+
+          .pdf-page:last-child {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+
+          .pdf-header {
+            font-family: "Gochi", cursive !important;
+            font-size: 32px;
+            font-weight: normal !important;
+            text-align: center;
+            color: #000000;
+            margin-top: -10px;
+            margin-bottom: 4px;
+            padding: 0;
+            border: none;
           }
 
           .pdf-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-template-rows: repeat(3, 1fr);
-            gap: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             width: 100%;
           }
 
           .pdf-card {
-            border: 2px solid oklch(0.44 0.16 324.65);
+            border: 1px solid rgb(201, 190, 205);
             border-radius: 14px;
             background-color: #ffffff;
             display: flex;
@@ -856,210 +874,277 @@ export default function PublicPortal({
           }
 
           .pdf-card-header {
-            background-color: oklch(0.44 0.16 324.65);
-            color: #ffffff;
+            background-color: transparent;
+            color: #000000;
+            border-bottom: none;
             font-size: 18px;
-            font-weight: 800;
-            text-align: center;
-            padding: 9px 6px;
-            text-transform: uppercase;
-            letter-spacing: -0.01em;
-            font-family: "DefibeoMain", "Civilprom", "Inter", sans-serif !important;
+            font-weight: 100 !important;
+            text-align: left;
+            padding: 10px 14px 2px 14px;
+            font-family: "Civilprom", sans-serif !important;
           }
 
           .pdf-card-body {
-            padding: 12px;
+            padding: 8px 14px 12px 14px;
             font-size: 16px;
-            font-family: "DefibeoMain", "Civilprom", "Inter", sans-serif !important;
+            font-family: "Civilprom", sans-serif !important;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
-            gap: 6px;
-            flex: 1;
-            color: #0f172a;
+            gap: 4px;
+            color: #000000;
           }
 
           .pdf-line {
-            color: #0f172a;
+            color: #000000;
             line-height: 1.35;
             font-size: 16px;
             text-align: left;
+            font-family: "Civilprom", sans-serif !important;
+          }
+
+          .pdf-label {
+            color: rgb(138, 138, 138);
+            font-family: "Civilprom", sans-serif !important;
           }
 
           .pdf-bold {
-            font-weight: bold;
+            font-weight: 100 !important;
             color: #000000;
+            font-family: "Civilprom", sans-serif !important;
+          }
+
+          .pdf-footer {
+            position: absolute;
+            bottom: 15mm;
+            right: 15mm;
+            font-size: 11px;
+            color: #000000;
+            font-family: "Civilprom", sans-serif;
+            font-weight: 100 !important;
           }
         </style>
       </head>
       <body class="bg-white">
         
         <div id="print-container">
-          <!-- Big Entête with background color and text Titre du document -->
-          <div style="background-color: oklch(0.44 0.16 324.65); padding: 14px; border-radius: 12px; margin-bottom: 12px; text-align: center; color: #ffffff; font-family: 'DefibeoMain', 'Civilprom', 'Inter', sans-serif; font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.01em;">
-            ${report.title || 'RAPPORT D’INTERVENTION GMAO'}
+
+          <!-- PAGE 1 -->
+          <div class="pdf-page">
+            <div class="pdf-header">
+              ${report.title ? report.title : 'Rapport d’intervention GMAO'}
+            </div>
+
+            <div style="font-family: 'Civilprom', sans-serif !important; font-size: 18px; text-align: center; color: #000000; margin-bottom: 8px; line-height: 1.4;">
+              Utilisez ce lien pour vous connecter à l’accès client, envoyer une demande ou signaler un problème&nbsp;: 
+              <a href="https://defibeo.deroesch.com/" target="_blank" style="color: #2563eb; text-decoration: underline;">https://defibeo.deroesch.com/</a>
+              <br />
+              Nous vous recommandons de conserver et archiver le présent document.
+            </div>
+
+            <div class="pdf-grid">
+              <!-- SECTION 1 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
+                <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
+                  ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
+                  <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName}</div>
+                  <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ''}</span></div>
+                  <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
+                </div>
+              </div>
+
+              <!-- SECTION 2 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">2 — Infos défibrillateur.</div>
+                <div class="pdf-card-body">
+                  <div class="pdf-line"><span class="pdf-label">Client :</span> <span class="pdf-bold">${clientName || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Contact :</span> <span class="pdf-bold">${snapshot.nomPrenomSite || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Téléphone du contact :</span> <span class="pdf-bold">${snapshot.telephoneSite || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Email du contact :</span> <span class="pdf-bold">${snapshot.emailSite || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Identifiant :</span> <span class="pdf-bold">${snapshot.identifiant || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Série :</span> <span class="pdf-bold">${snapshot.numeroSerie || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Modèle :</span> <span class="pdf-bold">${snapshot.modeleId ? defibModelName : ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Contrat :</span> <span class="pdf-bold">${snapshot.contrat || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Référence du contrat :</span> <span class="pdf-bold">${snapshot.referenceContrat || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Catégorie du contrat :</span> <span class="pdf-bold">${snapshot.nomContrat || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Facture :</span> <span class="pdf-bold">${report.emettreFactureBrouillon || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Service facturé :</span> <span class="pdf-bold">${report.serviceEmettreId ? getServiceLabel(report.serviceEmettreId) : ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Voie :</span> <span class="pdf-bold">${snapshot.numVoie || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Ville :</span> <span class="pdf-bold">${snapshot.ville || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Code Postal :</span> <span class="pdf-bold">${snapshot.cp || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Région :</span> <span class="pdf-bold">${snapshot.region || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Pays :</span> <span class="pdf-bold">${snapshot.pays || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Latitude GPS :</span> <span class="pdf-bold">${snapshot.latitude || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Longitude GPS :</span> <span class="pdf-bold">${snapshot.longitude || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Fabrication :</span> <span class="pdf-bold">${snapshot.fabrication || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Mise en service :</span> <span class="pdf-bold">${snapshot.miseEnService || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Fin de garantie :</span> <span class="pdf-bold">${snapshot.finGarantie || ''}</span></div>
+                </div>
+              </div>
+
+              <!-- SECTION 3 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">3 — Coffret ou armoire.</div>
+                <div class="pdf-card-body">
+                  <div class="pdf-line"><span class="pdf-label">Modèle de boîtier :</span> <span class="pdf-bold">${coffretModelName || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot de boîtier :</span> <span class="pdf-bold">${snapshot.numeroLotCoffret || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Alarme fonctionnelle :</span> <span class="pdf-bold">${report.alarme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Dispositif d’armoire connectée :</span> <span class="pdf-bold">${report.armoireConnectee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Dispositif handicap :</span> <span class="pdf-bold">${report.dispositifHandicap || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Signalétique conforme :</span> <span class="pdf-bold">${report.signaletiqueConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire concernant le boîtier :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireCoffret || ''}</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="pdf-footer">Page 1 / 3</div>
           </div>
 
-          <!-- The exactly 3 columns 3 rows grid -->
-          <div class="pdf-grid">
-            
-            <!-- SECTION 1 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">1 — COORDONNÉES DU MAINTENEUR</div>
-              <div class="pdf-card-body" style="align-items: center; justify-content: center; text-align: center; gap: 4px;">
-                ${compLogo ? `<img src="${compLogo}" style="max-height: 52px; max-width: 100%; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
-                <div class="pdf-line pdf-bold" style="font-size: 17px; margin-bottom: 4px; text-transform: uppercase;">${compName}</div>
-                <div class="pdf-line" style="font-size: 14px;">Email : <span class="pdf-bold">${compEmail}</span></div>
-                <div class="pdf-line" style="font-size: 14px;">Tél : <span class="pdf-bold">${compPhone}</span></div>
-                <div class="pdf-line" style="font-size: 14px; margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #4f46e5; text-decoration: underline; font-weight: bold;">${compWebsite}</a></div>
+          <!-- PAGE 2 -->
+          <div class="pdf-page">
+            <div class="pdf-grid">
+              <!-- SECTION 4 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">4 — Vérifications techniques.</div>
+                <div class="pdf-card-body" style="gap: 3px;">
+                  <div class="pdf-line"><span class="pdf-label">Voyant conforme :</span> <span class="pdf-bold">${report.techVoyantConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Message numérique conforme :</span> <span class="pdf-bold">${report.techMessageNumeroConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Guides vocaux conformes :</span> <span class="pdf-bold">${report.techGuidesVocauxConformes || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Branchement conforme des électrodes :</span> <span class="pdf-bold">${report.techBranchementElectrodesConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Délivrance du choc conforme :</span> <span class="pdf-bold">${report.techDelivranceChocConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode A :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA ? report.techResultatJoulesElectrodeA + ' J' : ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode P :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA2 ? report.techResultatJoulesElectrodeA2 + ' J' : ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Accessibilité conforme :</span> <span class="pdf-bold">${report.techAccessibiliteConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">État fonctionnel conforme :</span> <span class="pdf-bold">${report.techEtatFonctionnelConforme || ''}</span></div>
+                </div>
               </div>
-            </div>
 
-            <!-- SECTION 2 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">2 — INFOS DÉFIBRILLATEUR</div>
-              <div class="pdf-card-body">
-                <div class="pdf-line">Client : <span class="pdf-bold">${clientName}</span></div>
-                <div class="pdf-line">Contact : <span class="pdf-bold">${snapshot.nomPrenomSite || '-'}</span></div>
-                <div class="pdf-line">Téléphone du contact : <span class="pdf-bold">${snapshot.telephoneSite || '-'}</span></div>
-                <div class="pdf-line">Email du contact : <span class="pdf-bold">${snapshot.emailSite || '-'}</span></div>
-                <div class="pdf-line">Contrat : <span class="pdf-bold">${snapshot.contrat || 'Non'}</span></div>
-                ${snapshot.contrat === 'Oui' ? `<div class="pdf-line">Catégorie de contrat : <span class="pdf-bold">${snapshot.nomContrat || '-'}</span></div>` : ''}
+              <!-- SECTION 5 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">5 — Électrode adulte (A).</div>
+                <div class="pdf-card-body">
+                  <div class="pdf-line"><span class="pdf-label">Modèle d'électrode A :</span> <span class="pdf-bold">${electrodeAModelName || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot A :</span> <span class="pdf-bold">${snapshot.lotElectrodeA || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Insertion :</span> <span class="pdf-bold">${snapshot.insertionElectrodeA || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeA || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode A :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeA || ''}</span></div>
+                </div>
               </div>
-            </div>
 
-            <!-- SECTION 3 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">3 — COFFRET OU ARMOIRE</div>
-              <div class="pdf-card-body">
-                <div class="pdf-line">Modèle : <span class="pdf-bold">${coffretModelName}</span></div>
-                <div class="pdf-line">N° Lot : <span class="pdf-bold">${snapshot.numeroLotCoffret || '-'}</span></div>
-                <div class="pdf-line">Signalétique : <span class="pdf-bold" style="color: ${report.signaletiqueConforme === 'Oui' ? '#059669' : '#dc2626'};">${report.signaletiqueConforme || 'Non'}</span></div>
-                <div class="pdf-line">Alarme : <span class="pdf-bold">${report.alarme || 'Non'}</span></div>
-                <div class="pdf-line">Connectée : <span class="pdf-bold">${report.armoireConnectee || 'Non'}</span></div>
-                <div class="pdf-line">Handicap : <span class="pdf-bold">${report.dispositifHandicap || 'Non'}</span></div>
-              </div>
-            </div>
-
-            <!-- SECTION 4 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">4 — VÉRIFICATIONS USAGE</div>
-              <div class="pdf-card-body" style="gap: 3px; font-size: 15px;">
-                <div class="pdf-line" style="font-size: 15px;">Accessibilité Usagers : <span class="pdf-bold">${report.techAccessibiliteConforme === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Poignée & État Touches : <span class="pdf-bold">${report.techEtatFonctionnelConforme === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Voyant : <span class="pdf-bold" style="color: ${report.techVoyantConforme === 'Oui' ? '#059669' : '#dc2626'};">${report.techVoyantConforme === 'Oui' ? 'Vert' : 'Rouge'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Message Numérique : <span class="pdf-bold">${report.techMessageNumeroConforme === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Guides Vocaux : <span class="pdf-bold">${report.techGuidesVocauxConformes === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Nettoyage : <span class="pdf-bold">${report.techNettoyage === 'Oui' ? 'Effectué' : 'Non effectué'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Branchement Électrodes : <span class="pdf-bold">${report.techBranchementElectrodesConforme === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Délivrance Choc : <span class="pdf-bold">${report.techDelivranceChocConforme === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Test Valeur Énergie Joules (A) : <span class="pdf-bold">${report.techResultatJoulesElectrodeA ? report.techResultatJoulesElectrodeA + ' J' : '-'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Test Valeur Énergie Joules (P) : <span class="pdf-bold">${report.techResultatJoulesElectrodeA2 ? report.techResultatJoulesElectrodeA2 + ' J' : '-'}</span></div>
-              </div>
-            </div>
-
-            <!-- SECTION 5 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">5 — ÉLECTRODES ADULTES</div>
-              <div class="pdf-card-body">
-                <div class="pdf-line">Modèle : <span class="pdf-bold">${electrodeAModelName}</span></div>
-                <div class="pdf-line">N° Lot / Série : <span class="pdf-bold">${snapshot.lotElectrodeA || '-'}</span></div>
-                <div class="pdf-line">Date Péremption : <span class="pdf-bold" style="color: ${snapshot.situationElectrodeA === 'Rouge' ? '#dc2626' : 'inherit'};">${snapshot.peremptionElectrodeA || '-'}</span></div>
-                <div class="pdf-line">Secours (Pér.) : <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || '-'}</span></div>
-                <div class="pdf-line">État / Santé : <span class="pdf-bold" style="color: ${report.electrodeAConformeSante === 'Oui' ? '#059669' : '#dc2626'};">${report.electrodeAConformeSante === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="border-top: 1px dashed #cbd5e1; padding-top: 5px; margin-top: 4px; font-size: 15px;">
-                  Électrode remplacée (Adulte A). : <br/><span class="pdf-bold" style="color: #4f46e5;">${selElectrodeA}</span>
+              <!-- SECTION 6 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">6 — Électrode pédiatrique (P).</div>
+                <div class="pdf-card-body">
+                  <div class="pdf-line"><span class="pdf-label">Modèle d'électrode P :</span> <span class="pdf-bold">${electrodePModelName || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot P :</span> <span class="pdf-bold">${snapshot.lotElectrodeP || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeP || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode P :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeP || ''}</span></div>
                 </div>
               </div>
             </div>
 
-            <!-- SECTION 6 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">6 — ÉLECTRODES PÉDIATRIQUES</div>
-              <div class="pdf-card-body">
-                <div class="pdf-line">Modèle : <span class="pdf-bold">${electrodePModelName}</span></div>
-                <div class="pdf-line">N° Lot / Série : <span class="pdf-bold">${snapshot.lotElectrodeP || '-'}</span></div>
-                <div class="pdf-line">Date Péremption : <span class="pdf-bold" style="color: ${snapshot.situationElectrodeP === 'Rouge' ? '#dc2626' : 'inherit'};">${snapshot.peremptionElectrodeP || '-'}</span></div>
-                <div class="pdf-line">Secours (Pér.) : <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || '-'}</span></div>
-                <div class="pdf-line">État / Santé : <span class="pdf-bold" style="color: ${report.electrodePConformeSante === 'Oui' ? '#059669' : '#dc2626'};">${report.electrodePConformeSante === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="border-top: 1px dashed #cbd5e1; padding-top: 5px; margin-top: 4px; font-size: 15px;">
-                  Électrode remplacée (Pédiatrique P). : <br/><span class="pdf-bold" style="color: #4f46e5;">${selElectrodeP}</span>
+            <div class="pdf-footer">Page 2 / 3</div>
+          </div>
+
+          <!-- PAGE 3 -->
+          <div class="pdf-page">
+            <div class="pdf-grid">
+              <!-- SECTION 7 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">7 — Batterie (B).</div>
+                <div class="pdf-card-body">
+                  <div class="pdf-line"><span class="pdf-label">Modèle de batterie :</span> <span class="pdf-bold">${batterieModelName || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Pourcentage de charge :</span> <span class="pdf-bold">${snapshot.pourcentageBatterie ? snapshot.pourcentageBatterie + '%' : ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot B :</span> <span class="pdf-bold">${snapshot.lotBatterie || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionBatterie || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Batterie remplacée :</span> <span class="pdf-bold">${report.batterieRemplacee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Batterie conforme et fonctionnelle :</span> <span class="pdf-bold">${report.batterieConformeSante || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de la batterie :</span> <span class="pdf-bold">${selBatterie || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire concernant la batterie :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireBatterie || ''}</span></div>
                 </div>
               </div>
-            </div>
 
-            <!-- SECTION 7 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">7 — BATTERIE B</div>
-              <div class="pdf-card-body">
-                <div class="pdf-line">Modèle : <span class="pdf-bold">${batterieModelName}</span></div>
-                <div class="pdf-line">N° Lot / Série : <span class="pdf-bold">${snapshot.lotBatterie || '-'}</span></div>
-                <div class="pdf-line">Date Péremption : <span class="pdf-bold" style="color: ${snapshot.situationBatterie === 'Rouge' ? '#dc2626' : 'inherit'};">${snapshot.peremptionBatterie || '-'}</span></div>
-                <div class="pdf-line">Capacité Restante : <span class="pdf-bold" style="color: ${parseInt(snapshot.pourcentageBatterie) < 20 ? '#dc2626' : '#059669'};">${snapshot.pourcentageBatterie ? snapshot.pourcentageBatterie + '%' : '-'}</span></div>
-                <div class="pdf-line">État / Santé : <span class="pdf-bold" style="color: ${report.batterieConformeSante === 'Oui' ? '#059669' : '#dc2626'};">${report.batterieConformeSante === 'Oui' ? 'Conforme' : 'Non conforme'}</span></div>
-                <div class="pdf-line" style="border-top: 1px dashed #cbd5e1; padding-top: 5px; margin-top: 4px; font-size: 15px;">
-                  Batterie remplacée. : <br/><span class="pdf-bold" style="color: #4f46e5;">${selBatterie}</span>
+              <!-- SECTION 8 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">8 — Vérifications du kit de secours.</div>
+                <div class="pdf-card-body" style="gap: 3px;">
+                  <div class="pdf-line"><span class="pdf-label">Trousse de secours présente :</span> <span class="pdf-bold">${report.kitTrousseSecoursPresent || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Kit de secours remplacé ou ajouté :</span> <span class="pdf-bold">${report.kitSecoursRemplaceOuAjoute || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection d’un kit de secours :</span> <span class="pdf-bold">${selKitSecours || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Ciseaux présents :</span> <span class="pdf-bold">${report.kitCiseauxPresents || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Masque présent :</span> <span class="pdf-bold">${report.kitMasquePresent || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Serviettes présentes :</span> <span class="pdf-bold">${report.kitServiettesPresentes || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Paires de gants présents :</span> <span class="pdf-bold">${report.kitGantsPresents || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Rasoir :</span> <span class="pdf-bold">${report.kitRasoirPresent || ''}</span></div>
                 </div>
               </div>
-            </div>
 
-            <!-- SECTION 8 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">8 — KIT DE SECOURS</div>
-              <div class="pdf-card-body" style="gap: 3px; font-size: 15px;">
-                <div class="pdf-line" style="font-size: 15px;">Trousse de secours : <span class="pdf-bold" style="color: ${report.kitTrousseSecoursPresent === 'Oui' ? '#059669' : '#dc2626'};">${report.kitTrousseSecoursPresent === 'Oui' ? 'Présente' : 'Absente'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Ciseaux présents : <span class="pdf-bold">${report.kitCiseauxPresents === 'Oui' ? 'Oui' : 'Non'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Masque présent : <span class="pdf-bold">${report.kitMasquePresent === 'Oui' ? 'Oui' : 'Non'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Serviettes présentes : <span class="pdf-bold">${report.kitServiettesPresentes === 'Oui' ? 'Oui' : 'Non'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Paires de gants présents : <span class="pdf-bold">${report.kitGantsPresents === 'Oui' ? 'Oui' : 'Non'}</span></div>
-                <div class="pdf-line" style="font-size: 15px;">Rasoir : <span class="pdf-bold">${report.kitRasoirPresent === 'Oui' ? 'Oui' : 'Non'}</span></div>
-                <div class="pdf-line" style="border-top: 1px dashed #cbd5e1; padding-top: 5px; margin-top: 4px; font-size: 15px;">
-                  Kit de secours remplacé. : <br/><span class="pdf-bold" style="color: #4f46e5;">${selKitSecours}</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- SECTION 9 -->
-            <div class="pdf-card">
-              <div class="pdf-card-header">9 — DIAGNOSTIC & CLÔTURE</div>
-              <div class="pdf-card-body" style="justify-content: space-between; gap: 4px;">
-                <div>
+              <!-- SECTION 9 -->
+              <div class="pdf-card">
+                <div class="pdf-card-header">9 — Diagnostic et clôture.</div>
+                <div class="pdf-card-body" style="display: flex; flex-direction: column; gap: 6px;">
                   <div class="pdf-line">
-                    Conformité Globale : <span class="pdf-bold" style="color: ${snapshot.conforme === 'Oui' || report.conforme === 'Oui' ? '#059669' : '#dc2626'}; font-size: 17px;">${snapshot.conforme === 'Oui' || report.conforme === 'Oui' ? 'CONFORME' : 'NON CONFORME'}</span>
+                    <span class="pdf-label">Défibrillateur conforme et prêt à l’usage :</span> <span class="pdf-bold">${snapshot.conforme === 'Oui' || report.conforme === 'Oui' ? 'Oui' : 'Non'}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Technicien :</span> <span class="pdf-bold">${report.techName || '-'}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ''}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Horodatage début d’intervention :</span> <span class="pdf-bold">${report.date || '-'}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Horodatage fin d’intervention :</span> <span class="pdf-bold">${report.endTimeStamp || '-'}</span>
+                  </div>
+                  <div class="pdf-line" style="margin-bottom: 4px;">
+                    <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || '-'}</span>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
+                    <!-- Photography -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                      <div class="pdf-line" style="font-size: 16px;">Photographie du défibrillateur.</div>
+                      ${report.photoUrl ? `
+                        <div style="border: 1px solid #000000; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
+                          <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Preuve" referrerPolicy="no-referrer" />
+                        </div>
+                      ` : ''}
+                    </div>
+
+                    <!-- Signature -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                      <div class="pdf-line" style="font-size: 16px;">Signature du technicien.</div>
+                      ${report.techSignature ? `
+                        <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
+                          <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
+                        </div>
+                      ` : `
+                        <div style="font-size: 16px; color: #000000; font-style: italic;">
+                          Non signée
+                        </div>
+                      `}
+                    </div>
                   </div>
                 </div>
-                
-                <!-- Photography -->
-                <div style="display: flex; flex-direction: column; justify-content: flex-start; gap: 3px;">
-                  <div style="font-size: 11px; font-weight: bold; color: #4b5563; text-transform: uppercase;">PHOTO DE PHOTOGRAPHIE :</div>
-                  ${report.photoUrl ? `
-                    <div style="border: 1.5px solid #dadada; border-radius: 8px; overflow: hidden; background: #fafafa; display: flex; justify-content: center; align-items: center; max-height: 80px;">
-                      <img src="${report.photoUrl}" style="max-height: 80px; max-width: 100%; object-fit: contain;" alt="Preuve" referrerPolicy="no-referrer" />
-                    </div>
-                  ` : `
-                    <div style="border: 1.5px dashed #cbd5e1; border-radius: 8px; font-size: 12px; color: #94a3b8; font-style: italic; display: flex; justify-content: center; align-items: center; min-height: 35px; background: #fafafa; text-align: center;">
-                      Aucune photo
-                    </div>
-                  `}
-                </div>
-
-                <!-- Signature -->
-                <div style="display: flex; flex-direction: column; justify-content: flex-start; gap: 3px;">
-                  <div style="font-size: 11px; font-weight: bold; color: #4b5563; text-transform: uppercase;">SIGNATURE TECHNICIEN :</div>
-                  ${report.techSignature ? `
-                    <div style="border: 1.5px solid #dadada; border-radius: 8px; padding: 2px; background: #ffffff; text-align: center; display: flex; justify-content: center; align-items: center; max-height: 60px;">
-                      <img src="${report.techSignature}" style="max-height: 55px; max-width: 100%; object-fit: contain;" alt="Signature" />
-                    </div>
-                  ` : `
-                    <div style="border: 1.5px dashed #cbd5e1; border-radius: 8px; font-size: 12px; color: #94a3b8; font-style: italic; display: flex; justify-content: center; align-items: center; min-height: 35px; background: #fafafa;">
-                      Non signée
-                    </div>
-                  `}
-                </div>
               </div>
             </div>
 
+            <div class="pdf-footer">Page 3 / 3</div>
           </div>
+
         </div>
 
         <script>
@@ -1079,7 +1164,8 @@ export default function PublicPortal({
 
   // TIME WORK tracking state variables
   const [pointages, setPointages] = useState<PointageLog[]>(() => {
-    const saved = localStorage.getItem('defib_pointages_history');
+    const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+    const saved = localStorage.getItem(`defib_${envId}_pointages_history`);
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -1105,7 +1191,8 @@ export default function PublicPortal({
 
   const savePointages = (updated: PointageLog[]) => {
     setPointages(updated);
-    localStorage.setItem('defib_pointages_history', JSON.stringify(updated));
+    const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+    localStorage.setItem(`defib_${envId}_pointages_history`, JSON.stringify(updated));
     if (onUpdatePointages) {
       onUpdatePointages(updated);
     }
@@ -1118,10 +1205,51 @@ export default function PublicPortal({
     let interval: NodeJS.Timeout;
     const activePointage = pointages.find(p => p.isOngoing && p.techName === authenticatedUser?.name);
     if (activePointage) {
-      // Calculate parsed start time difference
-      interval = setInterval(() => {
-        setOngoingSeconds(prev => prev + 1);
-      }, 1000);
+      const getStartDateTime = (startDateStr: string, startTimeStr: string): Date => {
+        const parts = startDateStr.split(/[-/]/);
+        const tParts = startTimeStr.split(':');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          const date = new Date(year, month, day);
+          date.setHours(parseInt(tParts[0], 10), parseInt(tParts[1], 10), 0, 0);
+          return date;
+        }
+        const fallback = new Date();
+        fallback.setHours(parseInt(tParts[0], 10), parseInt(tParts[1], 10), 0, 0);
+        return fallback;
+      };
+
+      const startObj = getStartDateTime(activePointage.startDate, activePointage.startTime);
+      
+      const checkAndTick = () => {
+        const now = new Date();
+        const diffSeconds = Math.max(0, Math.round((now.getTime() - startObj.getTime()) / 1000));
+        
+        if (diffSeconds >= 10 * 3600) {
+          const tenHoursLater = new Date(startObj.getTime() + 10 * 3600 * 1000);
+          const activeIdx = pointages.findIndex(p => p.id === activePointage.id);
+          if (activeIdx !== -1) {
+            const updated = [...pointages];
+            updated[activeIdx] = {
+              ...activePointage,
+              endDate: tenHoursLater.toLocaleDateString('fr-FR'),
+              endTime: String(tenHoursLater.getHours()).padStart(2, '0') + ':' + String(tenHoursLater.getMinutes()).padStart(2, '0'),
+              durationSeconds: 10 * 3600,
+              comment: (activePointage.comment && activePointage.comment.trim()) ? activePointage.comment.trim() : "Nouvelle période sans titre.",
+              isOngoing: false
+            };
+            savePointages(updated);
+            alert("Pointage arrêté automatiquement : durée maximum de 10 heures atteinte.");
+          }
+        } else {
+          setOngoingSeconds(diffSeconds);
+        }
+      };
+
+      checkAndTick();
+      interval = setInterval(checkAndTick, 1000);
     } else {
       setOngoingSeconds(0);
     }
@@ -1130,7 +1258,8 @@ export default function PublicPortal({
 
   // Expenses state variables
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem('defib_expenses');
+    const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+    const saved = localStorage.getItem(`defib_${envId}_expenses`);
     if (saved) {
       try { return JSON.parse(saved); } catch {}
     }
@@ -1156,7 +1285,12 @@ export default function PublicPortal({
 
   const saveExpenses = (updated: Expense[]) => {
     setExpenses(updated);
-    localStorage.setItem('defib_expenses', JSON.stringify(updated));
+    const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+    try {
+      localStorage.setItem(`defib_${envId}_expenses`, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Storage quota exceeded for expenses in PublicPortal:', e);
+    }
     if (onUpdateExpenses) {
       onUpdateExpenses(updated);
     }
@@ -1244,13 +1378,49 @@ export default function PublicPortal({
     }
   };
 
-  // File Picker Base64 helper
+  // File Picker Base64 helper with auto-resize and compression (avoids Storage quota exceeded)
   const triggerPhotoRead = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setter(reader.result as string);
+        const rawBase64 = reader.result as string;
+        // Check if image format can be loaded into an Image object
+        const img = new Image();
+        img.onload = () => {
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // 60% quality is perfect & extremely light
+            setter(compressedBase64);
+          } else {
+            setter(rawBase64);
+          }
+        };
+        img.onerror = () => {
+          setter(rawBase64);
+        };
+        img.src = rawBase64;
       };
       reader.readAsDataURL(file);
     }
@@ -1474,18 +1644,42 @@ export default function PublicPortal({
       // Ending ongoingPointage
       const activePointage = pointages[activeIdx];
       
-      const parts = activePointage.startTime.split(':');
-      const startObj = new Date();
-      startObj.setHours(parseInt(parts[0]), parseInt(parts[1]), 0);
-      
+      const getStartDateTime = (startDateStr: string, startTimeStr: string): Date => {
+        const parts = startDateStr.split(/[-/]/);
+        const tParts = startTimeStr.split(':');
+        if (parts.length === 3) {
+          const day = parseInt(parts[0], 10);
+          const month = parseInt(parts[1], 10) - 1;
+          const year = parseInt(parts[2], 10);
+          const date = new Date(year, month, day);
+          date.setHours(parseInt(tParts[0], 10), parseInt(tParts[1], 10), 0, 0);
+          return date;
+        }
+        const fallback = new Date();
+        fallback.setHours(parseInt(tParts[0], 10), parseInt(tParts[1], 10), 0, 0);
+        return fallback;
+      };
+
+      const startObj = getStartDateTime(activePointage.startDate || now.toLocaleDateString('fr-FR'), activePointage.startTime);
       const diffSeconds = Math.max(1, Math.round((now.getTime() - startObj.getTime()) / 1000));
+      const finalDurationSeconds = Math.min(10 * 3600, diffSeconds);
+
+      // If duration exceeded 10 hours, adjust the end date and time to be exactly 10 hours after starting
+      let finalEndDate = now.toLocaleDateString('fr-FR');
+      let finalEndTime = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+      if (diffSeconds > 10 * 3600) {
+        const tenHoursLater = new Date(startObj.getTime() + 10 * 3600 * 1000);
+        finalEndDate = tenHoursLater.toLocaleDateString('fr-FR');
+        finalEndTime = String(tenHoursLater.getHours()).padStart(2, '0') + ':' + String(tenHoursLater.getMinutes()).padStart(2, '0');
+      }
 
       const updated = [...pointages];
       updated[activeIdx] = {
         ...activePointage,
-        endDate: now.toLocaleDateString('fr-FR'),
-        endTime: String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0'),
-        durationSeconds: diffSeconds,
+        endDate: finalEndDate,
+        endTime: finalEndTime,
+        durationSeconds: finalDurationSeconds,
+        comment: (activePointage.comment && activePointage.comment.trim()) ? activePointage.comment.trim() : "Nouvelle période sans titre.",
         isOngoing: false
       };
       
@@ -1670,15 +1864,15 @@ export default function PublicPortal({
                       toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
                     }
                     if (updatedReport.emettreFactureBrouillon === 'Oui' && updatedReport.serviceEmettreId) {
-                      const existsInStock = stocks.some(s => s.id === updatedReport.serviceEmettreId);
-                      if (existsInStock) {
-                        toDecrementIds.push(updatedReport.serviceEmettreId);
+                      const matchedStock = stocks.find(s => s.id === updatedReport.serviceEmettreId || s.denominationPieceId === updatedReport.serviceEmettreId);
+                      if (matchedStock) {
+                        toDecrementIds.push(matchedStock.id);
                       }
                     }
 
                     let stocksMutated = false;
                     toDecrementIds.forEach(id => {
-                      const stockIndex = updatedStocks.findIndex(s => s.id === id);
+                      const stockIndex = updatedStocks.findIndex(s => s.id === id || s.denominationPieceId === id);
                       if (stockIndex !== -1) {
                         const stObj = updatedStocks[stockIndex];
                         updatedStocks[stockIndex] = {
@@ -1886,7 +2080,7 @@ export default function PublicPortal({
                       <option value="">-- Choisir un DAE ou Saisir Libre --</option>
                       {defibrillateurs.map(df => (
                         <option key={df.id} value={df.id}>
-                          {df.identifiant} - {df.numeroSerie} ({df.nomPrenomSite || 'Sans site'})
+                          {df.identifiant} - {df.numeroSerie}
                         </option>
                       ))}
                     </select>
@@ -3575,21 +3769,19 @@ export default function PublicPortal({
 
                     <button
                       type="submit"
-                      disabled={!expensePhotoUrl}
                       style={{
-                        backgroundColor: expensePhotoUrl ? '#3556ec' : '#94a3b8',
+                        backgroundColor: '#3556ec',
                         color: '#fff',
                         fontSize: '18px',
                         fontWeight: 'bold',
                         borderRadius: '12px',
                         padding: '14px 20px',
                         border: 'none',
-                        boxShadow: expensePhotoUrl ? 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f' : 'none',
-                        cursor: expensePhotoUrl ? 'pointer' : 'not-allowed',
+                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                        cursor: 'pointer',
                         width: '100%',
-                        opacity: expensePhotoUrl ? 1 : 0.6
                       }}
-                      className={`${expensePhotoUrl ? 'hover:opacity-90 active:scale-[0.99]' : ''} transition-all flex items-center justify-center font-bold`}
+                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
                     >
                       <span>Enregistrer</span>
                     </button>

@@ -3236,7 +3236,7 @@ export default function PublicPortal({
                                 <button
                                   type="button"
                                   disabled={isCompleted}
-                                  onClick={() => alert(`Lancement du GPS vers local : ${p.address}`)}
+                                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`, '_blank')}
                                   style={{
                                     backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
                                     color: isCompleted ? '#94a3b8' : '#fff',

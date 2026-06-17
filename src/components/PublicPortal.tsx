@@ -39,7 +39,7 @@ import {
   Calendar,
   Printer
 } from 'lucide-react';
-import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, PointageLog, StockRecord } from '../types';
+import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, PointageLog, StockRecord, CommercialDoc, CommercialDocItem } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import GmaoCorrectionForm from './GmaoCorrectionForm';
 import { triggerEmail6RapportIntervention } from '../utils/emailService';
@@ -94,6 +94,17 @@ interface PublicPortalProps {
   onClose: () => void;
   onOpenClientPortal?: (client: Client) => void;
   stocks?: StockRecord[];
+  onUpdateStocks?: (updatedStocks: StockRecord[]) => void;
+  commercialDocs?: CommercialDoc[];
+  onUpdateCommercialDocs?: (updatedDocs: CommercialDoc[]) => void;
+  fsmTours?: any[];
+  onUpdateFsmTours?: (updated: any[]) => void;
+  generatedReports?: GeneratedReport[];
+  onUpdateGeneratedReports?: (updated: GeneratedReport[]) => void;
+  pointages?: PointageLog[];
+  onUpdatePointages?: (updated: PointageLog[]) => void;
+  expenses?: Expense[];
+  onUpdateExpenses?: (updated: Expense[]) => void;
 }
 
 // Receipt expense type
@@ -132,8 +143,39 @@ export default function PublicPortal({
   onAddTicket,
   onClose,
   onOpenClientPortal,
-  stocks = []
+  stocks = [],
+  onUpdateStocks,
+  commercialDocs = [],
+  onUpdateCommercialDocs,
+  fsmTours,
+  onUpdateFsmTours,
+  generatedReports: propGeneratedReports,
+  onUpdateGeneratedReports,
+  pointages: propPointages,
+  onUpdatePointages,
+  expenses: propExpenses,
+  onUpdateExpenses
 }: PublicPortalProps) {
+  const getNextDocRef = (type: 'Devis' | 'Facture' | 'Proforma', docs: CommercialDoc[]): string => {
+    const prefix = type === 'Devis' ? 'DEV' : type === 'Facture' ? 'FACT' : 'PRO';
+    const year = '2026';
+    const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+    let maxNum = 0;
+    for (const doc of docs) {
+      if (doc.type === type && doc.ref) {
+        const match = doc.ref.match(pattern);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+    }
+    const nextNum = maxNum + 1;
+    return `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
+  };
+
   // Screens: 'landing' | 'signalement' | 'mainteneur' | 'success-ticket'
   const [currentScreen, setCurrentScreen] = useState<'landing' | 'signalement' | 'mainteneur' | 'success-ticket'>('landing');
 
@@ -374,39 +416,62 @@ export default function PublicPortal({
     setTours(updated);
     localStorage.setItem('defib_mobile_tours2', JSON.stringify(updated));
 
-    // Also sync back to defib_fsm_tours
-    try {
-      const mainToursRaw = localStorage.getItem('defib_fsm_tours');
-      if (mainToursRaw) {
-        const mainTours = JSON.parse(mainToursRaw);
-        const updatedMainTours = mainTours.map((mt: any) => {
-          // Find if there is a matching tour in updated mobile tours
-          const matchedMobileTour = updated.find(t => t.id === mt.id || t.title === mt.title);
-          if (matchedMobileTour) {
-            // Update the status of each mission
-            const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
-              const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
-              if (matchedPassage) {
-                return { ...m, status: matchedPassage.status };
-              }
-              return m;
-            });
-            // Check if any mission is still to be done to update overall status
-            const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
-            const newStatus = hasTodo ? 'En cours' : 'Terminé';
+    // Also sync back to prop callback if present
+    if (onUpdateFsmTours && fsmTours) {
+      const updatedMainTours = fsmTours.map((mt: any) => {
+        const matchedMobileTour = updated.find(t => t.id === mt.id || t.title === mt.title);
+        if (matchedMobileTour) {
+          const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
+            const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
+            if (matchedPassage) {
+              return { ...m, status: matchedPassage.status };
+            }
+            return m;
+          });
+          const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
+          const newStatus = hasTodo ? 'En cours' : 'Terminé';
 
-            return {
-              ...mt,
-              status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
-              missions: updatedMissions
-            };
-          }
-          return mt;
-        });
-        localStorage.setItem('defib_fsm_tours', JSON.stringify(updatedMainTours));
+          return {
+            ...mt,
+            status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
+            missions: updatedMissions
+          };
+        }
+        return mt;
+      });
+      onUpdateFsmTours(updatedMainTours);
+    } else {
+      // Fallback
+      try {
+        const mainToursRaw = localStorage.getItem('defib_fsm_tours');
+        if (mainToursRaw) {
+          const mainTours = JSON.parse(mainToursRaw);
+          const updatedMainTours = mainTours.map((mt: any) => {
+            const matchedMobileTour = updated.find(t => t.id === mt.id || t.title === mt.title);
+            if (matchedMobileTour) {
+              const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
+                const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
+                if (matchedPassage) {
+                  return { ...m, status: matchedPassage.status };
+                }
+                return m;
+              });
+              const hasTodo = updatedMissions.some((m: any) => m.status === 'À faire' || m.status === 'En cours');
+              const newStatus = hasTodo ? 'En cours' : 'Terminé';
+
+              return {
+                ...mt,
+                status: matchedMobileTour.status === 'Terminé' ? 'Terminé' : newStatus,
+                missions: updatedMissions
+              };
+            }
+            return mt;
+          });
+          localStorage.setItem('defib_fsm_tours', JSON.stringify(updatedMainTours));
+        }
+      } catch (e) {
+        console.error('Error syncing back to defib_fsm_tours:', e);
       }
-    } catch (e) {
-      console.error('Error syncing back to defib_fsm_tours:', e);
     }
   };
 
@@ -436,77 +501,93 @@ export default function PublicPortal({
   // Dynamic sync of tours from main defib_fsm_tours on login, defibrillateurs change or mount
   useEffect(() => {
     try {
-      const mainToursRaw = localStorage.getItem('defib_fsm_tours');
       const activeTechName = authenticatedUser ? authenticatedUser.name : '';
+      const isMemberOfEnv = authenticatedUser ? members.some(m => 
+        (m.name && m.name.toLowerCase().trim() === authenticatedUser.name.toLowerCase().trim()) ||
+        (m.email && m.email.toLowerCase().trim() === authenticatedUser.email?.toLowerCase().trim())
+      ) : false;
 
-      if (mainToursRaw) {
-        const mainTours = JSON.parse(mainToursRaw);
-        if (Array.isArray(mainTours)) {
-          // Filter by active technician if logged in
-          const matchedFsmTours = mainTours.filter((mt: any) => {
-            if (!activeTechName) return true;
-            return mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
-          });
+      let matchedFsmTours: any[] = [];
 
-          if (matchedFsmTours.length > 0) {
-            const mapped = matchedFsmTours.map((mt: any, index: number) => {
-              const tryFormatDateToFrench = (dateStr: string) => {
-                if (!dateStr) return "";
-                const parts = dateStr.split('-');
-                if (parts.length === 3 && parts[0].length === 4) {
-                  return `${parts[2]}-${parts[1]}-${parts[0]}`;
-                }
-                return dateStr;
-              };
-
-              return {
-                id: mt.id || `fsm-tour-${index}`,
-                title: mt.title || 'Tournée',
-                startDate: tryFormatDateToFrench(mt.startDate),
-                status: mt.status || 'À faire',
-                techName: mt.techName || '',
-                passages: (mt.missions || []).map((m: any, idx: number) => {
-                  const defib = defibrillateurs.find((d: any) => 
-                    d.identifiant === m.defibIdentifiant || 
-                    d.id === m.defibIdentifiant ||
-                    (m.clientName && m.clientName.includes(d.identifiant))
-                  );
-                  let model = 'Défibrillateur standard';
-                  let address = m.clientName || 'Adresse non spécifiée';
-                  if (defib) {
-                    const modelVar = variables.find((v: any) => v.id === defib.modeleId);
-                    if (modelVar) {
-                      model = modelVar.marque ? `${modelVar.marque} ${modelVar.nom}` : modelVar.nom;
-                    }
-                    const addrParts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
-                    if (addrParts.length > 0) {
-                      address = addrParts.join(', ');
-                    }
-                  }
-                  return {
-                    num: idx + 1,
-                    id: m.id || `df-p-${idx}`,
-                    identifiant: m.defibIdentifiant || defib?.identifiant || '',
-                    model,
-                    address,
-                    status: m.status || 'À faire',
-                    reason: m.reason || 'Visite technique',
-                    requiredParts: m.requiredParts || []
-                  };
-                })
-              };
+      if (fsmTours) {
+        matchedFsmTours = fsmTours.filter((mt: any) => {
+          if (!isMemberOfEnv) return false;
+          const isTechAssigned = activeTechName && mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
+          const isStatusTodo = mt.status === 'À faire';
+          return isTechAssigned && isStatusTodo;
+        });
+      } else {
+        const mainToursRaw = localStorage.getItem('defib_fsm_tours');
+        if (mainToursRaw) {
+          const mainTours = JSON.parse(mainToursRaw);
+          if (Array.isArray(mainTours)) {
+            matchedFsmTours = mainTours.filter((mt: any) => {
+              if (!activeTechName) return true;
+              const isTechAssigned = mt.techName && mt.techName.toLowerCase().trim() === activeTechName.toLowerCase().trim();
+              const isStatusTodo = mt.status === 'À faire';
+              return isTechAssigned && isStatusTodo;
             });
-
-            setTours(mapped);
-          } else {
-            setTours([]);
           }
         }
+      }
+
+      if (matchedFsmTours.length > 0) {
+        const mapped = matchedFsmTours.map((mt: any, index: number) => {
+          const tryFormatDateToFrench = (dateStr: string) => {
+            if (!dateStr) return "";
+            const parts = dateStr.split('-');
+            if (parts.length === 3 && parts[0].length === 4) {
+              return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return dateStr;
+          };
+
+          return {
+            id: mt.id || `fsm-tour-${index}`,
+            title: mt.title || 'Tournée',
+            startDate: tryFormatDateToFrench(mt.startDate),
+            status: mt.status || 'À faire',
+            techName: mt.techName || '',
+            passages: (mt.missions || []).map((m: any, idx: number) => {
+              const defib = defibrillateurs.find((d: any) => 
+                d.identifiant === m.defibIdentifiant || 
+                d.id === m.defibIdentifiant ||
+                (m.clientName && m.clientName.includes(d.identifiant))
+              );
+              let model = 'Défibrillateur standard';
+              let address = m.clientName || 'Adresse non spécifiée';
+              if (defib) {
+                const modelVar = variables.find((v: any) => v.id === defib.modeleId);
+                if (modelVar) {
+                  model = modelVar.marque ? `${modelVar.marque} ${modelVar.nom}` : modelVar.nom;
+                }
+                const addrParts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
+                if (addrParts.length > 0) {
+                  address = addrParts.join(', ');
+                }
+              }
+              return {
+                num: idx + 1,
+                id: m.id || `df-p-${idx}`,
+                identifiant: m.defibIdentifiant || defib?.identifiant || '',
+                model,
+                address,
+                status: m.status || 'À faire',
+                reason: m.reason || 'Visite technique',
+                requiredParts: m.requiredParts || []
+              };
+            })
+          };
+        });
+
+        setTours(mapped);
+      } else {
+        setTours([]);
       }
     } catch (e) {
       console.error('Error syncing FSM tours inside useEffect:', e);
     }
-  }, [authenticatedUser, defibrillateurs]);
+  }, [authenticatedUser, defibrillateurs, fsmTours, members, variables]);
 
   // Switch/Toggle status of a passage
   const togglePassageStatus = (tourId: string, passageNum: number) => {
@@ -564,10 +645,59 @@ export default function PublicPortal({
     ];
   });
 
+  useEffect(() => {
+    if (propGeneratedReports) {
+      setGeneratedReports(propGeneratedReports);
+    }
+  }, [propGeneratedReports]);
+
   const saveReports = (updated: GeneratedReport[]) => {
     setGeneratedReports(updated);
     localStorage.setItem('defib_generated_reports', JSON.stringify(updated));
+    if (onUpdateGeneratedReports) {
+      onUpdateGeneratedReports(updated);
+    }
   };
+
+  const parseReportDate = (dateStr: string) => {
+    if (!dateStr) return 0;
+    // Handle formats like "DD-MM-YYYY HH:mm" or "DD/MM/YYYY HH:mm" or ISO
+    const clean = dateStr.replace(/\s+/g, ' ').replace(/\//g, '-').trim();
+    if (clean.includes('T') || clean.match(/^\d{4}-\d{2}-\d{2}/)) {
+      return new Date(clean).getTime();
+    }
+    const spaceParts = clean.split(' ');
+    const datePart = spaceParts[0];
+    const timePart = spaceParts[1] || '00:00';
+    
+    const dateParts = datePart.split('-');
+    const timeParts = timePart.split(':');
+    
+    if (dateParts.length === 3) {
+      let day = parseInt(dateParts[0], 10);
+      let month = parseInt(dateParts[1], 10) - 1;
+      let year = parseInt(dateParts[2], 10);
+      if (dateParts[0].length === 4) {
+        year = parseInt(dateParts[0], 10);
+        month = parseInt(dateParts[1], 10) - 1;
+        day = parseInt(dateParts[2], 10);
+      }
+      
+      const hour = timeParts[0] ? parseInt(timeParts[0], 10) : 0;
+      const min = timeParts[1] ? parseInt(timeParts[1], 10) : 0;
+      
+      return new Date(year, month, day, hour, min).getTime();
+    }
+    return 0;
+  };
+
+  const sortedAndLimitedReports = [...generatedReports]
+    .sort((a, b) => {
+      const timeA = parseReportDate(a.date);
+      const timeB = parseReportDate(b.date);
+      return timeB - timeA;
+    })
+    .slice(0, 50);
 
   const [printingReport, setPrintingReport] = useState<GeneratedReport | null>(null);
 
@@ -957,9 +1087,18 @@ export default function PublicPortal({
     ];
   });
 
+  useEffect(() => {
+    if (propPointages) {
+      setPointages(propPointages);
+    }
+  }, [propPointages]);
+
   const savePointages = (updated: PointageLog[]) => {
     setPointages(updated);
     localStorage.setItem('defib_pointages_history', JSON.stringify(updated));
+    if (onUpdatePointages) {
+      onUpdatePointages(updated);
+    }
   };
 
   // Track ticker in seconds for active stopwatch
@@ -999,9 +1138,18 @@ export default function PublicPortal({
     ];
   });
 
+  useEffect(() => {
+    if (propExpenses) {
+      setExpenses(propExpenses);
+    }
+  }, [propExpenses]);
+
   const saveExpenses = (updated: Expense[]) => {
     setExpenses(updated);
     localStorage.setItem('defib_expenses', JSON.stringify(updated));
+    if (onUpdateExpenses) {
+      onUpdateExpenses(updated);
+    }
   };
 
   // New expense form state
@@ -1027,8 +1175,9 @@ export default function PublicPortal({
       }
       
       // Load stored starting address if any
-      const savedStart = localStorage.getItem(`defib_tech_start_address_${authenticatedUser.name}`);
-      const savedOpt = localStorage.getItem(`defib_tech_optimization_${authenticatedUser.name}`);
+      const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+      const savedStart = localStorage.getItem(`defib_${envId}_tech_start_address_${authenticatedUser.name}`);
+      const savedOpt = localStorage.getItem(`defib_${envId}_tech_optimization_${authenticatedUser.name}`);
       if (savedStart) setTechStartAddress(savedStart);
       if (savedOpt) setRouteOptimization(savedOpt);
     }
@@ -1253,8 +1402,15 @@ export default function PublicPortal({
       return;
     }
 
+    // Update with today's date (or horodate input date) as the derniereMaintenance date!
+    const todayStr = new Date().toISOString().split('T')[0];
+    const updatedDefib = {
+      ...selectedDefibData,
+      derniereMaintenance: todayStr
+    };
+
     // 1. Durably update main defibrillator record inside global state
-    onUpdateDefib(selectedDefibData);
+    onUpdateDefib(updatedDefib);
 
     // 2. Generate a neat printed report block record
     const rId = 'REP-' + Date.now();
@@ -1262,12 +1418,12 @@ export default function PublicPortal({
       id: rId,
       date: horodateInput || new Date().toLocaleString('fr-FR'),
       techName: authenticatedUser?.name || 'Technicien connecté',
-      defibId: selectedDefibData.id,
-      defibIdentifiant: selectedDefibData.identifiant,
+      defibId: updatedDefib.id,
+      defibIdentifiant: updatedDefib.identifiant,
       title: receiptTitle,
       siteMission: missionSite,
       photoUrl: techPhotoUrl || undefined,
-      defibSnapshot: { ...selectedDefibData }
+      defibSnapshot: { ...updatedDefib }
     };
 
     saveReports([newReportRecord, ...generatedReports]);
@@ -1419,8 +1575,9 @@ export default function PublicPortal({
     onUpdateMembers(updatedMembers);
 
     // 2. Persist starting address & optimized route to local storage
-    localStorage.setItem(`defib_tech_start_address_${authenticatedUser.name}`, techStartAddress);
-    localStorage.setItem(`defib_tech_optimization_${authenticatedUser.name}`, routeOptimization);
+    const envId = localStorage.getItem('defib_tenant_id') || 'demo';
+    localStorage.setItem(`defib_${envId}_tech_start_address_${authenticatedUser.name}`, techStartAddress);
+    localStorage.setItem(`defib_${envId}_tech_optimization_${authenticatedUser.name}`, routeOptimization);
 
     alert(`Vos préférences géographiques ont été enregistrées avec succès et le lien de live tracking a été envoyé vers le pupitre principal d'administration !`);
   };
@@ -1463,6 +1620,140 @@ export default function PublicPortal({
                     
                     saveReports([submission, ...generatedReports]);
                     onUpdateDefib(updatedReport.defibSnapshot);
+
+                    // 1. Decrement Stock for selected/replaced products
+                    const updatedStocks = [...stocks];
+                    const toDecrementIds: string[] = [];
+
+                    if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
+                      toDecrementIds.push(updatedReport.selectionKitSecoursRemplace);
+                    }
+                    if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
+                      toDecrementIds.push(updatedReport.selectionBatterieRemplacee);
+                    }
+                    if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
+                      toDecrementIds.push(updatedReport.selectionElectrodePRemplacee);
+                    }
+                    if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
+                      toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
+                    }
+
+                    let stocksMutated = false;
+                    toDecrementIds.forEach(id => {
+                      const stockIndex = updatedStocks.findIndex(s => s.id === id);
+                      if (stockIndex !== -1) {
+                        const stObj = updatedStocks[stockIndex];
+                        updatedStocks[stockIndex] = {
+                          ...stObj,
+                          quantite: Math.max(-9999, (stObj.quantite ?? 0) - 1),
+                          quantiteReservee: (stObj.quantiteReservee ?? 0) - 1
+                        };
+                        stocksMutated = true;
+                      }
+                    });
+
+                    if (stocksMutated && onUpdateStocks) {
+                      onUpdateStocks(updatedStocks);
+                    }
+
+                    // 2. Draft Invoice Creation
+                    if (updatedReport.emettreFactureBrouillon === 'Oui' && onUpdateCommercialDocs) {
+                      const invoiceItems: CommercialDocItem[] = [];
+
+                      // Add service if selected
+                      if (updatedReport.serviceEmettreId) {
+                        const st = stocks.find((s: any) => s.id === updatedReport.serviceEmettreId);
+                        if (st) {
+                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                          invoiceItems.push({
+                            variableId: st.denominationPieceId,
+                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Service',
+                            prixVenteHt: st.prixVenteHt,
+                            quantite: 1
+                          });
+                        }
+                      }
+
+                      // Add kit if replaced & selected
+                      if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
+                        const st = stocks.find((s: any) => s.id === updatedReport.selectionKitSecoursRemplace);
+                        if (st) {
+                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                          invoiceItems.push({
+                            variableId: st.denominationPieceId,
+                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Kit de secours',
+                            prixVenteHt: st.prixVenteHt,
+                            quantite: 1
+                          });
+                        }
+                      }
+
+                      // Add battery if replaced & selected
+                      if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
+                        const st = stocks.find((s: any) => s.id === updatedReport.selectionBatterieRemplacee);
+                        if (st) {
+                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                          invoiceItems.push({
+                            variableId: st.denominationPieceId,
+                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Batterie',
+                            prixVenteHt: st.prixVenteHt,
+                            quantite: 1
+                          });
+                        }
+                      }
+
+                      // Add electrode P if replaced & selected
+                      if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
+                        const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodePRemplacee);
+                        if (st) {
+                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                          invoiceItems.push({
+                            variableId: st.denominationPieceId,
+                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode P',
+                            prixVenteHt: st.prixVenteHt,
+                            quantite: 1
+                          });
+                        }
+                      }
+
+                      // Add electrode A if replaced & selected
+                      if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
+                        const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodeARemplacee);
+                        if (st) {
+                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                          invoiceItems.push({
+                            variableId: st.denominationPieceId,
+                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode A',
+                            prixVenteHt: st.prixVenteHt,
+                            quantite: 1
+                          });
+                        }
+                      }
+
+                      if (invoiceItems.length > 0) {
+                        const clientId = updatedReport.defibSnapshot?.clientId || '';
+                        const matchedClient = clients.find((c: any) => c.id === clientId);
+                        const clientDenomination = matchedClient ? matchedClient.denomination : (updatedReport.defibSnapshot?.nomPrenomSite || 'Client inconnu');
+
+                        const totalHtSum = invoiceItems.reduce((sum, item) => sum + item.prixVenteHt * item.quantite, 0);
+
+                        const generatedRef = getNextDocRef('Facture', commercialDocs);
+                        const newInvoice: CommercialDoc = {
+                          id: 'doc-' + Date.now(),
+                          ref: generatedRef,
+                          type: 'Facture',
+                          clientId: clientId,
+                          clientDenomination: clientDenomination,
+                          items: invoiceItems,
+                          totalHt: totalHtSum,
+                          status: 'Brouillon',
+                          dateStr: new Date().toISOString().split('T')[0],
+                          commentaire: "Générée suite à une intervention."
+                        };
+
+                        onUpdateCommercialDocs([newInvoice, ...commercialDocs]);
+                      }
+                    }
                     
                     // Automatically transition corresponding passage status to "Effectué"
                     if (reportActiveTourId && reportActivePassageNum !== null) {
@@ -2810,7 +3101,7 @@ export default function PublicPortal({
                 <div className="space-y-4 pb-16 animate-fadeIn" id="tab-rapports-screen">
 
                   <div className="space-y-4">
-                    {generatedReports.map(rep => {
+                    {sortedAndLimitedReports.map(rep => {
                       const snapshot = rep.defibSnapshot || defibrillateurs.find(d => d.id === rep.defibId || d.identifiant === rep.defibIdentifiant) || {};
                       const clientFound = clients.find(c => c.id === snapshot.clientId);
                       const clientName = clientFound ? clientFound.denomination : (snapshot.nomPrenomSite || 'Non rattaché');

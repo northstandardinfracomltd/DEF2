@@ -286,6 +286,10 @@ export default function GmaoCorrectionForm({
   // S11 add-on
   const [fichierDonneesRecupere, setFichierDonneesRecupere] = useState<'Oui' | 'Non'>(report?.fichierDonneesRecupere || 'Non');
   
+  const [emettreFactureBrouillon, setEmettreFactureBrouillon] = useState<'Oui' | 'Non'>(report?.emettreFactureBrouillon || 'Non');
+  const [serviceEmettreId, setServiceEmettreId] = useState<string>(report?.serviceEmettreId || '');
+  const [isSaving, setIsSaving] = useState(false);
+  
   const [isLotScannerOpen, setIsLotScannerOpen] = useState(false);
   const [isSerieScannerOpen, setIsSerieScannerOpen] = useState(false);
   const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
@@ -449,12 +453,48 @@ export default function GmaoCorrectionForm({
       return;
     }
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    const maintDate = interventionDate || todayStr;
+
     const finalSnapshot = {
       ...snapshot,
+      derniereMaintenance: maintDate,
       situationBatterie: (batterieConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge',
       situationElectrodeA: (electrodeAConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge',
       situationElectrodeP: (electrodePConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge'
     };
+
+    // Auto-update replacement parts details in the defibrillator snap on submit
+    if (electrodeARemplacee === 'Oui' && selectionElectrodeARemplacee) {
+      const st = stocks?.find(s => s.id === selectionElectrodeARemplacee);
+      if (st) {
+        finalSnapshot.modeleElectrodeAId = st.denominationPieceId;
+        finalSnapshot.lotElectrodeA = st.id;
+        finalSnapshot.insertionElectrodeA = maintDate;
+        finalSnapshot.situationElectrodeA = 'Vert';
+      }
+    }
+
+    if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee) {
+      const st = stocks?.find(s => s.id === selectionElectrodePRemplacee);
+      if (st) {
+        finalSnapshot.modeleElectrodePId = st.denominationPieceId;
+        finalSnapshot.lotElectrodeP = st.id;
+        finalSnapshot.insertionElectrodeP = maintDate;
+        finalSnapshot.situationElectrodeP = 'Vert';
+      }
+    }
+
+    if (batterieRemplacee === 'Oui' && selectionBatterieRemplacee) {
+      const st = stocks?.find(s => s.id === selectionBatterieRemplacee);
+      if (st) {
+        finalSnapshot.modeleBatterieId = st.denominationPieceId;
+        finalSnapshot.lotBatterie = st.id;
+        finalSnapshot.insertionBatterie = maintDate;
+        finalSnapshot.pourcentageBatterie = '100';
+        finalSnapshot.situationBatterie = 'Vert';
+      }
+    }
 
     const savedReportPayload = {
       ...report,
@@ -513,10 +553,18 @@ export default function GmaoCorrectionForm({
       selectionKitSecoursRemplace,
 
       // Section 11 additions
-      fichierDonneesRecupere
+      fichierDonneesRecupere,
+      
+      // Draft invoice integration
+      emettreFactureBrouillon,
+      serviceEmettreId
     };
 
-    onSave(savedReportPayload);
+    setIsSaving(true);
+    setTimeout(() => {
+      onSave(savedReportPayload);
+      setIsSaving(false);
+    }, 3000);
   };
 
   return (
@@ -546,12 +594,13 @@ export default function GmaoCorrectionForm({
 
           <button
             type="submit"
+            disabled={isSaving}
             form="gmao-correction-form"
             id="btn-submit-gmao-form"
-            style={registerButtonStyle}
+            style={{ ...registerButtonStyle, opacity: isSaving ? 0.7 : 1 }}
             className="transition-colors cursor-pointer font-sans"
           >
-            Enregistrer
+            {isSaving ? 'Enregistrement de l\'intervention...' : 'Enregistrer'}
           </button>
         </div>
       </div>
@@ -1168,6 +1217,73 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 cursor-not-allowed"
                 />
               </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 mt-2 space-y-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Émettre une facture brouillon.
+                </label>
+                <div className="flex items-center gap-4 text-xs mt-1">
+                  <label className="inline-flex items-center cursor-pointer gap-2">
+                    <input
+                      type="radio"
+                      name="emettreFactureBrouillon"
+                      value="Oui"
+                      checked={emettreFactureBrouillon === 'Oui'}
+                      onChange={() => setEmettreFactureBrouillon('Oui')}
+                      className="accent-indigo-600 scale-105"
+                    />
+                    <span>Oui</span>
+                  </label>
+                  <label className="inline-flex items-center cursor-pointer gap-2">
+                    <input
+                      type="radio"
+                      name="emettreFactureBrouillon"
+                      value="Non"
+                      checked={emettreFactureBrouillon === 'Non'}
+                      onChange={() => {
+                        setEmettreFactureBrouillon('Non');
+                        setServiceEmettreId('');
+                      }}
+                      className="accent-indigo-600 scale-105"
+                    />
+                    <span>Non</span>
+                  </label>
+                </div>
+              </div>
+
+              {emettreFactureBrouillon === 'Oui' && (
+                <div className="space-y-1 animate-fadeIn">
+                  <label htmlFor="serviceEmettreId" className="block text-[11px] font-bold text-black uppercase">
+                    Sélection d’un service.
+                  </label>
+                  <select
+                    id="serviceEmettreId"
+                    value={serviceEmettreId}
+                    onChange={(e) => setServiceEmettreId(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                    required={emettreFactureBrouillon === 'Oui'}
+                  >
+                    <option value="">Sélectionner un service...</option>
+                    {(stocks || [])
+                      .filter(st => {
+                        const variable = variables.find(v => v.id === st.denominationPieceId);
+                        return variable && variable.category === 'Modèle Service';
+                      })
+                      .map(st => {
+                        const variable = variables.find(v => v.id === st.denominationPieceId);
+                        const label = variable ? `${variable.nom} (${variable.marque})` : 'Service Inconnu';
+                        return (
+                          <option key={st.id} value={st.id}>
+                            {label} — {st.prixVenteHt} € HT (Stock: {st.quantite})
+                          </option>
+                        );
+                      })
+                    }
+                  </select>
+                </div>
+              )}
             </div>
           </div>
 

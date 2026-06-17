@@ -29,6 +29,7 @@ import LocalisationsTab from './components/LocalisationsTab';
 import SatisfactionTab from './components/SatisfactionTab';
 import GmaoCorrectionForm from './components/GmaoCorrectionForm';
 import ImportExportTab from './components/ImportExportTab';
+import SatisfactionFormPage from './components/SatisfactionFormPage';
 
 import {
   Heart,
@@ -120,6 +121,15 @@ export default function App() {
   }, [tenantId]);
 
   const loadedTenantIdRef = useRef<string>('');
+
+  const [isSatisfactionFormPage] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      return path.includes('/satisfaction') || hash.includes('/satisfaction') || hash.includes('#satisfaction');
+    }
+    return false;
+  });
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => localStorage.getItem('defib_admin_logged_in') === 'true');
   const [loggedUser, setLoggedUser] = useState<{ email: string; name: string } | null>(() => {
@@ -417,6 +427,7 @@ export default function App() {
   const [members, setMembers] = useState<Member[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [savedMemosMap, setSavedMemosMap] = useState<Record<string, boolean>>({});
   const [activeUser, setActiveUser] = useState<Member | null>(null);
   const [pointages, setPointages] = useState<PointageLog[]>([]);
   const [commercialDocs, setCommercialDocs] = useState<CommercialDoc[]>([]);
@@ -1315,9 +1326,14 @@ export default function App() {
     saveReports(updated);
   };
 
+  const saveExpenses = (updated: any[]) => {
+    setExpenses(updated);
+    localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(updated));
+  };
+
   const savePointages = (updated: PointageLog[]) => {
     setPointages(updated);
-    localStorage.setItem('defib_pointages_history', JSON.stringify(updated));
+    localStorage.setItem(`defib_${tenantId}_pointages_history`, JSON.stringify(updated));
   };
 
   const handleDeletePointage = (id: string) => {
@@ -1770,9 +1786,23 @@ export default function App() {
 
   useEffect(() => {
     if (!editingDocId && isDocFormOpen) {
-      const prefix = docType === 'Devis' ? 'DEV' : docType === 'Facture' ? 'FAC' : 'PRO';
-      const randNum = Math.floor(100 + Math.random() * 900);
-      const generatedRef = `${prefix}-2026-${String(commercialDocs.filter(d => d.type === docType).length + 1).padStart(2, '0')}${randNum}`;
+      const prefix = docType === 'Devis' ? 'DEV' : docType === 'Facture' ? 'FACT' : 'PRO';
+      const year = '2026';
+      const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+      let maxNum = 0;
+      for (const doc of commercialDocs) {
+        if (doc.type === docType && doc.ref) {
+          const match = doc.ref.match(pattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) {
+              maxNum = num;
+            }
+          }
+        }
+      }
+      const nextNum = maxNum + 1;
+      const generatedRef = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
       setDocRef(generatedRef);
     }
   }, [docType, isDocFormOpen, editingDocId, commercialDocs]);
@@ -2218,7 +2248,22 @@ export default function App() {
   };
 
   const handleUpdateDefib = (updated: Defibrillateur) => {
-    saveDefibs(defibrillateurs.map((df) => (df.id === updated.id ? updated : df)));
+    const exists = defibrillateurs.some((df) => {
+      const idMatch = !!(df.id && updated.id && df.id === updated.id);
+      const identifiantMatch = !!(df.identifiant && updated.identifiant && df.identifiant.toUpperCase() === updated.identifiant.toUpperCase());
+      return idMatch || identifiantMatch;
+    });
+
+    if (exists) {
+      saveDefibs(defibrillateurs.map((df) => {
+        const isMatch = !!((df.id && updated.id && df.id === updated.id) ||
+                        (df.identifiant && updated.identifiant && df.identifiant.toUpperCase() === updated.identifiant.toUpperCase()));
+        return isMatch ? { ...df, ...updated, id: df.id } : df;
+      }));
+    } else {
+      const newDefib = { ...updated, id: updated.id || 'df_' + Date.now() };
+      saveDefibs([...defibrillateurs, newDefib]);
+    }
   };
 
   const handleDeleteDefib = (id: string) => {
@@ -2250,6 +2295,14 @@ export default function App() {
         variables={variables}
         clients={clients}
         stocks={stocks}
+        fsmTours={fsmTours}
+        onUpdateFsmTours={saveFsmTours}
+        generatedReports={generatedReports}
+        onUpdateGeneratedReports={saveReports}
+        pointages={pointages}
+        onUpdatePointages={savePointages}
+        expenses={expenses}
+        onUpdateExpenses={saveExpenses}
         onAddTicket={handleAddTicket}
         onClose={handleLogout}
         onOpenClientPortal={(client) => {
@@ -2275,6 +2328,10 @@ export default function App() {
         generatedReports={generatedReports}
       />
     );
+  }
+
+  if (isSatisfactionFormPage) {
+    return <SatisfactionFormPage />;
   }
 
   if (isClientPortalOpen) {
@@ -2312,6 +2369,17 @@ export default function App() {
         variables={variables}
         clients={clients}
         stocks={stocks}
+        onUpdateStocks={saveStocks}
+        fsmTours={fsmTours}
+        onUpdateFsmTours={saveFsmTours}
+        generatedReports={generatedReports}
+        onUpdateGeneratedReports={saveReports}
+        pointages={pointages}
+        onUpdatePointages={savePointages}
+        expenses={expenses}
+        onUpdateExpenses={saveExpenses}
+        commercialDocs={commercialDocs}
+        onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
         onClose={() => {
           const role = localStorage.getItem('defib_logged_user_role');
@@ -3872,7 +3940,8 @@ export default function App() {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => {
-                            if (memos.length >= 15) {
+                            const hasEmptyMemo = memos.some(m => !m.text || m.text.trim() === '');
+                            if (memos.length >= 15 || hasEmptyMemo) {
                               return;
                             }
                             const newMemo: Memo = {
@@ -3882,17 +3951,17 @@ export default function App() {
                             };
                             setMemos([newMemo, ...memos]);
                           }}
-                          disabled={memos.length >= 15}
+                          disabled={memos.length >= 15 || memos.some(m => !m.text || m.text.trim() === '')}
                           id="btn-new-memo"
                           style={{
                             ...customButtonStyle,
-                            backgroundColor: memos.length >= 15 ? '#cbd5e1' : '#2563eb',
+                            backgroundColor: (memos.length >= 15 || memos.some(m => !m.text || m.text.trim() === '')) ? '#cbd5e1' : '#2563eb',
                             color: '#ffffff',
-                            cursor: memos.length >= 15 ? 'not-allowed' : 'pointer',
-                            opacity: memos.length >= 15 ? 0.75 : 1
+                            cursor: (memos.length >= 15 || memos.some(m => !m.text || m.text.trim() === '')) ? 'not-allowed' : 'pointer',
+                            opacity: (memos.length >= 15 || memos.some(m => !m.text || m.text.trim() === '')) ? 0.75 : 1
                           }}
                         >
-                          {memos.length >= 15 ? 'Mémos max (15)' : 'Nouveau mémo'}
+                          {memos.length >= 15 ? 'Mémos max (15)' : memos.some(m => !m.text || m.text.trim() === '') ? 'Mémo vide existant' : 'Nouveau mémo'}
                         </button>
                       </div>
                     </div>
@@ -3903,8 +3972,16 @@ export default function App() {
                 <div className="px-4 pt-5 pb-2 max-w-[98%] mx-auto" id="crm-memos-section">
                   <div className="flex flex-row overflow-x-auto gap-4 pb-4 select-none scroll-smooth" style={{ scrollbarWidth: 'thin' }}>
                     {memos.length === 0 ? (
-                      <div className="w-full h-[120px] flex flex-col items-center justify-center border border-dashed border-slate-200 rounded-[18px] bg-slate-50/50 text-slate-400 text-sm">
-                        <p className="font-sans font-light">Aucun mémo. Cliquez sur "Nouveau mémo" ci-dessus pour ajouter un post-it.</p>
+                      <div 
+                        className="w-full h-[120px] flex flex-col items-center justify-center border border-dashed rounded-[18px]"
+                        style={{
+                          borderColor: '#dadada',
+                          backgroundColor: 'transparent'
+                        }}
+                      >
+                        <p className="font-sans font-light" style={{ color: '#000000', fontSize: '18px' }}>
+                          Aucun mémo.
+                        </p>
                       </div>
                     ) : (
                       memos.map((memo) => (
@@ -3914,22 +3991,22 @@ export default function App() {
                             width: '300px',
                             height: '300px',
                             minWidth: '300px',
-                            backgroundColor: '#fffbeb',
-                            border: '1px solid #fde047',
+                            backgroundColor: 'rgb(255 255 255)',
+                            border: '1px solid rgb(218 218 218)',
                             borderRadius: '16px',
                             boxShadow: 'none',
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'space-between',
-                            padding: '20px',
+                            padding: '10px',
                           }}
-                          className="transition-transform duration-200 hover:scale-[1.01]"
+                          className="transition-transform duration-200"
                         >
                           <div className="flex-1 flex flex-col pt-1">
                             <textarea
                               value={memo.text}
                               onChange={(e) => handleUpdateMemoText(memo.id, e.target.value.slice(0, 220))}
-                              placeholder="Saisissez votre mémo ici (max 220 caractères)..."
+                              placeholder="Entrez un mémo."
                               maxLength={220}
                               style={{
                                 width: '100%',
@@ -3940,34 +4017,61 @@ export default function App() {
                                 resize: 'none',
                                 fontSize: '16px',
                                 fontWeight: 'normal',
-                                color: '#451a03',
+                                color: '#0f172a',
                                 fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
                                 lineHeight: '1.5',
                               }}
-                              className="placeholder-amber-800/30"
+                              className="placeholder-slate-400"
                             />
                           </div>
 
-                          <button
-                            onClick={() => handleDeleteMemo(memo.id)}
-                            style={{
-                              width: '100%',
-                              backgroundColor: '#dc2626',
-                              color: '#ffffff',
-                              borderRadius: '10px',
-                              padding: '10px 14px',
-                              fontSize: '14px',
-                              fontWeight: 'normal',
-                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                              border: 'none',
-                              cursor: 'pointer',
-                              textAlign: 'center',
-                              marginTop: '12px'
-                            }}
-                            className="hover:bg-red-700 transition-colors"
-                          >
-                            Supprimer
-                          </button>
+                          <div className="flex gap-2" style={{ marginTop: '12px', width: '100%' }}>
+                            <button
+                              onClick={() => {
+                                setSavedMemosMap(prev => ({ ...prev, [memo.id]: true }));
+                                setTimeout(() => {
+                                  setSavedMemosMap(prev => ({ ...prev, [memo.id]: false }));
+                                }, 3000);
+                              }}
+                              disabled={!!savedMemosMap[memo.id]}
+                              style={{
+                                flex: 1,
+                                backgroundColor: '#000000',
+                                color: '#ffffff',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
+                                fontSize: '18px',
+                                fontWeight: 'normal',
+                                fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                border: 'none',
+                                cursor: savedMemosMap[memo.id] ? 'not-allowed' : 'pointer',
+                                textAlign: 'center',
+                                opacity: savedMemosMap[memo.id] ? 0.7 : 1,
+                              }}
+                              className={savedMemosMap[memo.id] ? "" : "hover:bg-zinc-800 transition-colors"}
+                            >
+                              {savedMemosMap[memo.id] ? 'Enregistré' : 'Enregistrer'}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteMemo(memo.id)}
+                              style={{
+                                flex: 1,
+                                backgroundColor: '#dc2626',
+                                color: '#ffffff',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
+                                fontSize: '18px',
+                                fontWeight: 'normal',
+                                fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                border: 'none',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                              }}
+                              className="hover:bg-red-700 transition-colors"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
                         </div>
                       ))
                     )}
@@ -4710,7 +4814,7 @@ export default function App() {
                           
                           {/* Lookup Piece */}
                           <div className="flex flex-col gap-1 bg-transparent md:col-span-5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">Pièce.</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">Pièce ou service.</label>
                             <select
                               value={selectedDocPieceId}
                               onChange={(e) => {
@@ -4721,7 +4825,7 @@ export default function App() {
                               }}
                               className="focus:outline-none w-full"
                             >
-                              <option value="">Sélection d'une pièce.</option>
+                              <option value="">Sélection d'une pièce ou service.</option>
                               {variables.map(v => (
                                 <option key={v.id} value={v.id}>
                                   [{v.category}] {v.nom} ({v.marque})

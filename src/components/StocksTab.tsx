@@ -380,7 +380,7 @@ export default function StocksTab({
               <table className="w-full text-left font-sans border-collapse text-xs" id="stocks-record-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
                 <thead>
                   <tr className="bg-transparent">
-                    <th className="px-4 py-3.5" style={thStyle}>Pièce.</th>
+                    <th className="px-4 py-3.5" style={thStyle}>Pièce ou service.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté disponible.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté réservée.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté totale.</th>
@@ -562,14 +562,14 @@ export default function StocksTab({
               
               {/* Lookup Dénomination variable - Full Width on 1st Row */}
               <div className="flex flex-col gap-1 bg-white md:col-span-4">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce ou service.</label>
                 <select
                   value={newDenomStr}
                   onChange={(e) => setNewDenomStr(e.target.value)}
                   className="focus:outline-none w-full cursor-pointer font-sans"
                   required
                 >
-                  <option value="" disabled hidden>Sélectionnez une pièce.</option>
+                  <option value="" disabled hidden>Sélectionnez une pièce ou service.</option>
                   {variables.map(v => (
                     <option key={v.id} value={v.id}>
                       {v.marque} - {v.nom} ({v.category})

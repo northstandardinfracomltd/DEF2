@@ -35,6 +35,7 @@ const CATEGORIES: VariableCategory[] = [
   'Modèle Électrode',
   'Modèle Batterie',
   'Modèle Contrat',
+  'Modèle Service',
 ];
 
 export default function VariableTab({

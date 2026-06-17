@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ThumbsUp, CheckCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { findTenantAndDefibGlobally, fetchRawCollectionFromFirestore, db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
@@ -16,7 +16,7 @@ export default function SatisfactionFormPage() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Live lookup check of defibrillator identifier against main software's registry, same as Login.tsx
+  // Live lookup check of defibrillator identifier against main software's registry
   useEffect(() => {
     const trimmed = defibId.trim();
     if (!trimmed) {
@@ -109,10 +109,10 @@ export default function SatisfactionFormPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans relative" id="satisfaction-viewport-wrapper">
+    <div className="min-h-screen bg-white flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-sans relative" id="satisfaction-viewport-wrapper">
       <style>{`
         body {
-          background: radial-gradient(#7e2e86, #36093a) !important;
+          background: #ffffff !important;
         }
 
         #satisfaction-card input, #satisfaction-card select, #satisfaction-card textarea {
@@ -124,206 +124,185 @@ export default function SatisfactionFormPage() {
           color: #000000 !important;
           background-color: #ffffff !important;
           outline: none !important;
-          transition: all 0.15s ease-in-out !important;
+          transition: 0s !important;
           font-family: 'DefibeoMain', 'Civilprom', sans-serif !important;
         }
 
-        #satisfaction-card input:focus, #satisfaction-card select:focus, #satisfaction-card textarea:focus {
+        #satisfaction-card button {
+          transition: 0s !important;
+        }
+
+        #satisfaction-card input:focus, #satisfaction-card select:focus, #satisfaction-card textarea:focus, #satisfaction-card button[type="submit"]:focus,
+        #satisfaction-card input:hover, #satisfaction-card select:hover, #satisfaction-card textarea:hover, #satisfaction-card button[type="submit"]:hover {
           outline: 2.5px solid #fa53d5 !important;
-          outline-offset: 2px !important;
-          border-color: transparent !important;
-        }
-
-        #satisfaction-card input::placeholder, #satisfaction-card textarea::placeholder {
-          font-weight: 100 !important;
-          color: #a0a0a0 !important;
-          font-size: 16px !important;
-          font-family: 'DefibeoMain', 'Civilprom', sans-serif !important;
+          outline-offset: 3px !important;
         }
       `}</style>
 
       <div className="sm:mx-auto w-full max-w-md">
-        {/* Simple Brand Header similar to Login.tsx */}
-        <div className="text-center mb-8">
-          <div className="mx-auto h-16 w-16 bg-white/10 rounded-2xl flex items-center justify-center border border-white/20 shadow-lg">
-            <ThumbsUp className="h-8 w-8 text-neutral-100" />
-          </div>
-          <h2 className="mt-4 text-3xl font-extrabold text-white tracking-tight" style={{ fontFamily: "DefibeoMain, Civilprom, sans-serif" }}>
-            Défibeo
-          </h2>
-          <p className="mt-2 text-sm text-neutral-300 font-sans">
-            Évaluation de la satisfaction de nos prestations
-          </p>
-        </div>
-
-        {/* Outer White Card following same aesthetic */}
-        <div className="bg-white rounded-[24px] shadow-2xl p-8 border border-white/10 relative overflow-hidden" id="satisfaction-card">
+        {/* Outer Container with white background, without box-shadow/border as requested */}
+        <div className="bg-white p-2 sm:p-4 relative overflow-hidden" id="satisfaction-card">
           
-          {isSubmitted ? (
-            <div className="text-center py-6 animate-fadeIn">
-              <div className="mx-auto h-12 w-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-                <CheckCircle className="h-7 w-7" />
+          <form onSubmit={handleSubmit} className="space-y-5">
+            
+            {errorMessage && (
+              <div className="p-4 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-sans">
+                {errorMessage}
               </div>
-              <h3 className="text-xl font-bold text-slate-800 font-sans">
-                Évaluation enregistrée avec succès.
-              </h3>
-              <p className="mt-3 text-sm text-slate-500 font-sans">
-                Merci énormément pour votre temps précieux et votre confiance. Vos retours nous aident à améliorer continuellement la qualité de nos interventions de maintenance.
-              </p>
+            )}
+
+            {/* ID DEFIB FIELD */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="defib_id" className="text-sm font-bold text-slate-700 font-sans">
+                Identifiant du défibrillateur.
+              </label>
+              <input
+                id="defib_id"
+                type="text"
+                required
+                placeholder="Ex: ABC-D00-123."
+                value={defibId}
+                onChange={(e) => setDefibId(e.target.value)}
+                className="w-full text-black"
+              />
               
-              <button
-                type="button"
-                onClick={() => setIsSubmitted(false)}
-                className="mt-8 inline-flex items-center gap-2 px-6 py-3 bg-fuchsia-600 text-white font-bold text-sm rounded-xl hover:bg-fuchsia-700 transition-all shadow-md hover:shadow-lg cursor-pointer"
-                style={{ fontFamily: 'DefibeoMain, Civilprom, sans-serif' }}
-              >
-                Déposer un autre avis
-              </button>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {errorMessage && (
-                <div className="p-4 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-sans">
-                  {errorMessage}
-                </div>
+              {isCheckingId && (
+                <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
+                  Vérification de l'identifiant...
+                </p>
               )}
+              {!isCheckingId && isIdValid === true && (
+                <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
+                  Identifiant défibrillateur valide.
+                </p>
+              )}
+              {!isCheckingId && isIdValid === false && (
+                <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
+                  Identifiant défibrillateur invalide.
+                </p>
+              )}
+            </div>
 
-              {/* ID DEFIB FIELD */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="defib_id" className="text-sm font-bold text-slate-700 uppercase tracking-wider font-sans">
-                  Identifiant du Défibrillateur *
-                </label>
-                <input
-                  id="defib_id"
-                  type="text"
-                  required
-                  placeholder="Ex : PAR-101"
-                  value={defibId}
-                  onChange={(e) => setDefibId(e.target.value)}
-                  className="w-full text-black"
-                />
-                
-                {isCheckingId && (
-                  <p className="text-xs text-slate-500 font-medium font-sans mt-0.5 flex items-center gap-1.5">
-                    <Loader2 className="h-3 w-3 animate-spin text-fuchsia-500" />
-                    Vérification de l'identifiant...
-                  </p>
-                )}
-                {!isCheckingId && isIdValid === true && (
-                  <p className="text-xs text-emerald-600 font-bold font-sans mt-0.5">
-                    ✓ Identifiant de défibrillateur valide
-                  </p>
-                )}
-                {!isCheckingId && isIdValid === false && (
-                  <p className="text-xs text-rose-600 font-bold font-sans mt-0.5">
-                    ✗ Identifiant introuvable ou invalide
-                  </p>
-                )}
+            {/* NOM PRENOM */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="nom_prenom" className="text-sm font-bold text-slate-700 font-sans">
+                Votre nom et prénom.
+              </label>
+              <input
+                id="nom_prenom"
+                type="text"
+                required
+                placeholder="Ex: Jean Dupont."
+                value={nomPrenom}
+                onChange={(e) => setNomPrenom(e.target.value)}
+                className="w-full text-black"
+              />
+            </div>
+
+            {/* MENTION (RATING) EMOTIONS BUTTON PILLS */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-slate-700 font-sans">
+                Sélectionnez une mention.
+              </label>
+              <div className="grid grid-cols-2 gap-2 text-center">
+                {(['Excellent', 'Parfait', 'Moyen', 'Décevant', 'Médiocre'] as const).map((opt) => {
+                  const isSelected = mention === opt;
+                  
+                  // Blue theme colors and shadows for selection
+                  const btnStyle: React.CSSProperties = isSelected
+                    ? {
+                        backgroundColor: 'rgb(53, 86, 236)',
+                        color: '#ffffff',
+                        boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+                        border: 'none',
+                        borderRadius: '12px',
+                        fontSize: '18px',
+                        padding: '12px 14px',
+                        fontWeight: '100',
+                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                        cursor: 'pointer',
+                        transition: '0s',
+                      }
+                    : {
+                        backgroundColor: '#f1f5f9', // grey
+                        color: '#475569', // grey text
+                        border: '1px solid #cbd5e1', // grey border
+                        borderRadius: '12px',
+                        fontSize: '18px',
+                        padding: '12px 14px',
+                        fontWeight: '100',
+                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                        cursor: 'pointer',
+                        transition: '0s',
+                      };
+
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => setMention(opt)}
+                      style={btnStyle}
+                      className="active:scale-98"
+                    >
+                      {opt}
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              {/* NOM PRENOM */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="nom_prenom" className="text-sm font-bold text-slate-700 uppercase tracking-wider font-sans">
-                  Nom Prénom *
-                </label>
-                <input
-                  id="nom_prenom"
-                  type="text"
-                  required
-                  placeholder="Ex : Jean-Marc DUPONT"
-                  value={nomPrenom}
-                  onChange={(e) => setNomPrenom(e.target.value)}
-                  className="w-full text-black"
-                />
-              </div>
+            {/* COMMENTAIRE */}
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="commentaire" className="text-sm font-bold text-slate-700 font-sans">
+                Commentaire.
+              </label>
+              <textarea
+                id="commentaire"
+                required
+                rows={4}
+                placeholder="Entrez votre commentaire."
+                value={commentaire}
+                onChange={(e) => setCommentaire(e.target.value)}
+                className="w-full text-black"
+              />
+            </div>
 
-              {/* MENTION (RATING) EMOTIONS BUTTON PILLS */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-wider font-sans">
-                  Mention *
-                </label>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 text-center">
-                  {(['Excellent', 'Parfait', 'Moyen', 'Décevant', 'Médiocre'] as const).map((opt) => {
-                    const isSelected = mention === opt;
-                    let activeBg = 'bg-fuchsia-600 text-white border-fuchsia-600';
-                    if (opt === 'Médiocre' || opt === 'Décevant') {
-                      activeBg = 'bg-rose-600 text-white border-rose-600';
-                    } else if (opt === 'Moyen') {
-                      activeBg = 'bg-amber-500 text-white border-amber-500';
-                    } else if (opt === 'Excellent' || opt === 'Parfait') {
-                      activeBg = 'bg-emerald-600 text-white border-emerald-600';
-                    }
+            {/* SUBMIT BUTTON */}
+            <button
+              type="submit"
+              disabled={!isFormValid || isSubmitting}
+              style={{
+                backgroundColor: isFormValid && !isSubmitting ? 'rgb(53, 86, 236)' : '#cbd5e1',
+                color: isFormValid && !isSubmitting ? '#ffffff' : '#64748b',
+                boxShadow: isFormValid && !isSubmitting 
+                  ? 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
+                  : 'none',
+                borderRadius: '12px',
+                fontSize: '18px',
+                padding: '14px 20px',
+                fontWeight: '100',
+                fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                transition: '0s',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                cursor: isFormValid && !isSubmitting ? 'pointer' : 'not-allowed',
+                border: 'none',
+                width: '100%',
+              }}
+            >
+              {isSubmitting ? 'Enregistrement...' : 'Valider'}
+            </button>
 
-                    return (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => setMention(opt)}
-                        className={`text-xs font-bold py-2.5 px-1.5 rounded-xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? `${activeBg} shadow-sm scale-102`
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
-                        style={{ fontFamily: 'DefibeoMain, Civilprom, sans-serif' }}
-                      >
-                        {opt}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+            {/* Form submission success feedback directly below validation button */}
+            {isSubmitted && (
+              <p className="mt-4 text-center text-[16px] font-semibold text-red-600 font-sans">
+                Évaluation enregistrée avec succès, vous pouvez fermer la page.
+              </p>
+            )}
+          </form>
 
-              {/* COMMENTAIRE */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="commentaire" className="text-sm font-bold text-slate-700 uppercase tracking-wider font-sans">
-                  Commentaire *
-                </label>
-                <textarea
-                  id="commentaire"
-                  required
-                  rows={4}
-                  placeholder="Partagez votre expérience d'intervention..."
-                  value={commentaire}
-                  onChange={(e) => setCommentaire(e.target.value)}
-                  className="w-full text-black"
-                />
-              </div>
-
-              {/* SUBMIT BUTTON */}
-              <button
-                type="submit"
-                disabled={!isFormValid || isSubmitting}
-                className={`w-full py-4 px-4 text-white font-bold text-sm rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                  isFormValid && !isSubmitting
-                    ? 'bg-fuchsia-600 hover:bg-fuchsia-700 hover:shadow-lg shadow-md'
-                    : 'bg-slate-300 cursor-not-allowed text-slate-500'
-                }`}
-                style={{ fontFamily: 'DefibeoMain, Civilprom, sans-serif' }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Enregistrement...
-                  </>
-                ) : (
-                  'Valider'
-                )}
-              </button>
-            </form>
-          )}
-
-        </div>
-        
-        {/* Under feedback direct button redirecting home */}
-        <div className="text-center mt-6">
-          <a
-            href="/"
-            className="inline-flex items-center gap-1.5 text-xs text-white/70 hover:text-white transition-all"
-          >
-            <ArrowLeft className="h-3 w-3" />
-            Retour à l'accueil
-          </a>
         </div>
       </div>
     </div>

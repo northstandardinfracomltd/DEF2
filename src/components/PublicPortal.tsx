@@ -1631,6 +1631,28 @@ export default function PublicPortal({
                     saveReports([submission, ...generatedReports]);
                     onUpdateDefib(updatedReport.defibSnapshot);
 
+                    // Email 6: RAPPORT SUITE À UNE INTERVENTION AU CLIENT (Nouveau Rapport form)
+                    try {
+                      const snap = updatedReport.defibSnapshot;
+                      if (snap) {
+                        const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
+                        const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
+                        if (clientEmail && clientEmail.trim()) {
+                          triggerEmail6RapportIntervention(
+                            clientEmail.trim(),
+                            snap.identifiant || '',
+                            submission.date,
+                            companyInfo.name || 'Défibeo Suite',
+                            companyInfo.email || ''
+                          ).catch(e => console.error("Error triggering Email 6 for new report:", e));
+                        } else {
+                          console.warn(`[Email 6] Client email not found/blank for defibrillator ${snap.identifiant}`);
+                        }
+                      }
+                    } catch (err6) {
+                      console.error("Error triggering Email 6 workflow for new report:", err6);
+                    }
+
                     // 1. Decrement Stock for selected/replaced products
                     const updatedStocks = [...stocks];
                     const toDecrementIds: string[] = [];
@@ -1646,6 +1668,12 @@ export default function PublicPortal({
                     }
                     if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
                       toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
+                    }
+                    if (updatedReport.emettreFactureBrouillon === 'Oui' && updatedReport.serviceEmettreId) {
+                      const existsInStock = stocks.some(s => s.id === updatedReport.serviceEmettreId);
+                      if (existsInStock) {
+                        toDecrementIds.push(updatedReport.serviceEmettreId);
+                      }
                     }
 
                     let stocksMutated = false;

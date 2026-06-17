@@ -218,7 +218,7 @@ export async function triggerEmail6RapportIntervention(
   companyEmail: string
 ): Promise<boolean> {
   const subject = `${companyName} : Document relatif à votre défibrillateur.`;
-  const body = `Un document a été généré pour l’intervention effectuée sur votre défibrillateur ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client pour le télécharger. Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/`;
+  const body = `Un document a été généré pour l’intervention effectuée sur votre défibrillateur ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client https://defibeo.deroesch.com/ pour le télécharger. Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/`;
   
   return sendScriptEmail({
     to: `support@defibeo.com, ${clientEmail}`,

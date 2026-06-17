@@ -436,7 +436,7 @@ export default function PublicPortal({
 
           return {
             ...mt,
-            status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? mt.status : newStatus,
+            status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? 'Effectué' : newStatus,
             missions: updatedMissions
           };
         }
@@ -467,7 +467,7 @@ export default function PublicPortal({
 
               return {
                 ...mt,
-                status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? mt.status : newStatus,
+                status: matchedMobileTour.status === 'Terminé' || matchedMobileTour.status === 'Effectué' ? 'Effectué' : newStatus,
                 missions: updatedMissions
               };
             }
@@ -659,7 +659,11 @@ export default function PublicPortal({
 
   const saveReports = (updated: GeneratedReport[]) => {
     setGeneratedReports(updated);
-    localStorage.setItem('defib_generated_reports', JSON.stringify(updated));
+    try {
+      localStorage.setItem('defib_generated_reports', JSON.stringify(updated));
+    } catch (e) {
+      console.warn('LocalStorage Quota Exceeded while saving generated reports locally:', e);
+    }
     if (onUpdateGeneratedReports) {
       onUpdateGeneratedReports(updated);
     }
@@ -1651,8 +1655,8 @@ export default function PublicPortal({
                         const stObj = updatedStocks[stockIndex];
                         updatedStocks[stockIndex] = {
                           ...stObj,
-                          quantite: Math.max(-9999, (stObj.quantite ?? 0) - 1),
-                          quantiteReservee: (stObj.quantiteReservee ?? 0) - 1
+                          quantite: Math.max(0, (stObj.quantite ?? 1) - 1),
+                          quantiteReservee: Math.max(0, (stObj.quantiteReservee ?? 0) - 1)
                         };
                         stocksMutated = true;
                       }
@@ -1677,6 +1681,31 @@ export default function PublicPortal({
                             prixVenteHt: st.prixVenteHt,
                             quantite: 1
                           });
+                        } else {
+                          const matchedVar = variables.find((v: any) => v.id === updatedReport.serviceEmettreId);
+                          if (matchedVar) {
+                            invoiceItems.push({
+                              variableId: matchedVar.id,
+                              nomPiece: `${matchedVar.nom} (${matchedVar.marque})`,
+                              prixVenteHt: 150,
+                              quantite: 1
+                            });
+                          } else if (updatedReport.serviceEmettreId.startsWith('st_fallback_srv_')) {
+                            const fallbacks = [
+                              { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
+                              { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
+                              { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
+                            ];
+                            const matchedFallback = fallbacks.find(fb => fb.id === updatedReport.serviceEmettreId);
+                            if (matchedFallback) {
+                              invoiceItems.push({
+                                variableId: 'v_srv_fallback',
+                                nomPiece: matchedFallback.label,
+                                prixVenteHt: matchedFallback.price,
+                                quantite: 1
+                              });
+                            }
+                          }
                         }
                       }
 
@@ -3055,25 +3084,7 @@ export default function PublicPortal({
                               }
                               return item;
                             });
-                            setTours(updatedTours);
-                            localStorage.setItem('defib_mobile_tours2', JSON.stringify(updatedTours));
-
-                            // Sync status to "Effectué" / "Terminé" in 'defib_fsm_tours'
-                            try {
-                              const mainToursRaw = localStorage.getItem('defib_fsm_tours');
-                              if (mainToursRaw) {
-                                const mainTours = JSON.parse(mainToursRaw);
-                                const updatedMainTours = mainTours.map((mt: any) => {
-                                  if (mt.title === t.title || (mt.title && mt.title && mt.title.toLowerCase().trim() === t.title.toLowerCase().trim())) {
-                                    return { ...mt, status: 'Effectué' };
-                                  }
-                                  return mt;
-                                });
-                                localStorage.setItem('defib_fsm_tours', JSON.stringify(updatedMainTours));
-                              }
-                            } catch (e) {
-                              console.error(e);
-                            }
+                            saveTours(updatedTours);
                             
                             alert("La tournée a bien été marquée comme terminée !");
                           }}

@@ -108,6 +108,9 @@ export const INITIAL_VARIABLES: Variable[] = [
   // Modèles de batteries
   { id: 'v_bat_1', category: 'Modèle Batterie', nom: 'Batterie Lithium-Manganèse FRx', marque: 'Philips', description: 'Durée de vie 4 ans' },
   { id: 'v_bat_2', category: 'Modèle Batterie', nom: 'Piles Lithium CR123A (ZOLL)', marque: 'ZOLL Medical', description: 'Lot de 10 piles lithium' },
+  // Modèles de services
+  { id: 'v_srv_1', category: 'Modèle Service', nom: 'Maintenance Préventive standard', marque: 'Défibeo', description: 'Visite de maintenance preventive annuelle standard' },
+  { id: 'v_srv_2', category: 'Modèle Service', nom: 'Mise en service DAE', marque: 'Défibeo', description: 'Déploiement et mise en service initiale DAE' },
 ];
 
 export const INITIAL_SPARE_PARTS = [

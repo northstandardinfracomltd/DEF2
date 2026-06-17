@@ -369,6 +369,73 @@ export default function DefibTab({
     }
   };
 
+  const handleExportToAtlasanteCSV = () => {
+    const selectedDefibs = defibrillateurs.filter(d => selectedIds.includes(d.id));
+    const clientMap = new Map(clients.map(c => [c.id, c]));
+    const variableMap = new Map(variables.map(v => [v.id, v]));
+
+    const headers = [
+      'nom',
+      'lat_coor1',
+      'long_coor1',
+      'acc',
+      'acc_lib',
+      'disp_j',
+      'disp_h',
+      'tel_1',
+      'etat_fonct',
+      'fab_rais',
+      'modele',
+      'num_serie',
+      'dermnt',
+      'expt_siren',
+      'expt_rais',
+      'expt_tel1',
+      'expt_email'
+    ];
+
+    let csvContent = '\uFEFF' + headers.join(';') + '\n';
+
+    selectedDefibs.forEach(df => {
+      const cl = clientMap.get(df.clientId);
+      const modDef = variableMap.get(df.modeleId);
+
+      const clientDenom = cl ? cl.denomination : '';
+      const identifiantVal = df.identifiant || '';
+      const nomVal = `${identifiantVal} ${clientDenom}`.trim();
+
+      const row = [
+        nomVal,
+        df.latitude || '',
+        df.longitude || '',
+        'Intérieur',
+        'Non',
+        'lundi',
+        'heures ouvrables',
+        cl ? cl.phone : (df.telephoneSite || ''),
+        'En fonctionnement',
+        clientDenom,
+        modDef ? modDef.nom : '',
+        df.numeroSerie || '',
+        df.derniereMaintenance || '',
+        '00000000000000',
+        companyInfo?.name || '',
+        companyInfo?.phone || '',
+        companyInfo?.email || ''
+      ];
+      csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(';') + '\n';
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `export_atlasante_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const executeNouvelleTournee = () => {
     if (!onUpdateFsmTours) return;
     const missions = selectedIds.map((id, index) => {
@@ -1293,14 +1360,6 @@ export default function DefibTab({
                   Plan
                 </a>
                 <button
-                  onClick={handleTriggerVigilanceCampaign}
-                  disabled={isCampaignLoading}
-                  style={customButtonStyle}
-                  className="cursor-pointer"
-                >
-                  {isCampaignLoading ? "Envoi..." : "Rappels"}
-                </button>
-                <button
                   onClick={() => window.location.reload()}
                   id="btn-refresh-page"
                   style={customButtonStyle}
@@ -1464,6 +1523,13 @@ export default function DefibTab({
                     className="cursor-pointer"
                   >
                     CSV
+                  </button>
+                  <button
+                    onClick={handleExportToAtlasanteCSV}
+                    style={rowActionButton18Style}
+                    className="cursor-pointer"
+                  >
+                    CSV Atlasanté
                   </button>
                   <button
                     onClick={handleBulkDeleteAction}

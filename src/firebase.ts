@@ -61,6 +61,46 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string): P
 }
 
 /**
+ * Recursively cleans and removes undefined keys from an object or array to make it Firestore-safe.
+ */
+export function sanitizeUndefined(obj: any): any {
+  if (obj === undefined) {
+    return null;
+  }
+  if (obj === null) {
+    return null;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(item => sanitizeUndefined(item));
+  }
+  if (typeof obj === 'object') {
+    if (obj instanceof Date) {
+      return obj.toISOString();
+    }
+    try {
+      const serialized = JSON.stringify(obj, (key, value) => {
+        if (value === undefined) return null;
+        if (typeof value === 'function') return null;
+        return value;
+      });
+      return JSON.parse(serialized);
+    } catch (e) {
+      const res: any = {};
+      for (const key in obj) {
+        if (Object.prototype.hasOwnProperty.call(obj, key)) {
+          const val = obj[key];
+          if (val !== undefined && typeof val !== 'function') {
+            res[key] = sanitizeUndefined(val);
+          }
+        }
+      }
+      return res;
+    }
+  }
+  return obj;
+}
+
+/**
  * Saves a collection array or object to Firestore.
  */
 export async function saveCollectionToFirestore<T>(collectionName: string, value: T): Promise<void> {
@@ -90,7 +130,8 @@ export async function saveCollectionToFirestore<T>(collectionName: string, value
     }
 
     const docRef = doc(db, 'appData', key);
-    await setDoc(docRef, { value: sanitizedValue });
+    const finalCleanValue = sanitizeUndefined(sanitizedValue);
+    await setDoc(docRef, { value: finalCleanValue });
     console.log(`Successfully synced ${key} to Firestore with hidden environment fields.`);
   } catch (error) {
     console.error(`Error saving collection ${collectionName} to Firestore:`, error);

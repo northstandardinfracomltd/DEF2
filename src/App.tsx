@@ -169,6 +169,7 @@ export default function App() {
 
     const roleToSet = loggedInRole || 'admin';
     localStorage.setItem('defib_logged_user_role', roleToSet);
+    setActiveTab('defibrillateurs');
 
     const emailLower = email.trim().toLowerCase();
     const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === emailLower);
@@ -177,8 +178,10 @@ export default function App() {
     if (emailLower !== 'tech.ouest@defibeo.com' && roleToSet !== 'technicien' && !matchedClient && emailLower !== 'client@demo.com') {
       setShowEnvLoading(true);
       setTimeout(() => {
-        setShowEnvLoading(false);
-      }, 5000);
+        // Force an auto-reload to guarantee complete clean memory state and avoid loading dummy data
+        window.location.reload();
+      }, 1500);
+      return;
     }
 
     if (emailLower === 'tech.ouest@defibeo.com' || roleToSet === 'technicien') {
@@ -404,6 +407,28 @@ export default function App() {
           marge: 450.00,
           prixVenteHt: 1650.50,
           stockage: 'Entrepôt A'
+        },
+        {
+          id: 'st_srv_1',
+          denominationPieceId: 'v_srv_1',
+          quantite: 9991, // Virtual large quantity for services
+          livraisonDate: '2026-01-01',
+          reapprovisionnementDate: '2026-06-01',
+          valeurAchat: 0,
+          marge: 150.00,
+          prixVenteHt: 150.00,
+          stockage: 'Siège'
+        },
+        {
+          id: 'st_srv_2',
+          denominationPieceId: 'v_srv_2',
+          quantite: 9992,
+          livraisonDate: '2026-01-01',
+          reapprovisionnementDate: '2026-06-01',
+          valeurAchat: 0,
+          marge: 120.00,
+          prixVenteHt: 120.00,
+          stockage: 'Siège'
         }
       ] : [];
       setStocks(defaultStocks);
@@ -414,6 +439,9 @@ export default function App() {
   const saveStocks = (updated: StockRecord[]) => {
     setStocks(updated);
     localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('stocks', updated);
+    }
   };
   
   // Custom states added for Public Portal & CRM Incident Ticketing
@@ -617,7 +645,14 @@ export default function App() {
 
   const saveReports = (updated: any[]) => {
     setGeneratedReports(updated);
-    localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(updated));
+    try {
+      localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Storage quota exceeded in saveReports:", e);
+    }
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('generatedReports', updated);
+    }
   };
 
   const [fsmTours, setFsmTours] = useState<any[]>([]);
@@ -1329,11 +1364,17 @@ export default function App() {
   const saveExpenses = (updated: any[]) => {
     setExpenses(updated);
     localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('expenses', updated);
+    }
   };
 
   const savePointages = (updated: PointageLog[]) => {
     setPointages(updated);
     localStorage.setItem(`defib_${tenantId}_pointages_history`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('pointages', updated);
+    }
   };
 
   const handleDeletePointage = (id: string) => {
@@ -1427,7 +1468,7 @@ export default function App() {
         if (fVariables !== null) {
           // If this is a custom tenant and they have exactly the template's custom list initialized previously,
           // instantly clean it up to keep their private workspace clean of seed choices
-          if (tenantId !== 'demo' && fVariables.length === INITIAL_VARIABLES.length && fVariables[0]?.id === 'v_def_1') {
+          if (tenantId !== 'demo' && (fVariables.length === 11 || fVariables.length === 13 || fVariables.length === INITIAL_VARIABLES.length) && fVariables[0]?.id === 'v_def_1') {
             setVariables([]);
             await saveCollectionToFirestore('variables', []);
             localStorage.setItem(`defib_${tenantId}_variables`, JSON.stringify([]));
@@ -1532,7 +1573,9 @@ export default function App() {
             { id: 'st_1', denominationPieceId: 'v_el_1', quantite: 45, livraisonDate: '2026-04-12', reapprovisionnementDate: '2026-06-15', valeurAchat: 45, marge: 44, prixVenteHt: 89, stockage: 'Entrepôt A' },
             { id: 'st_2', denominationPieceId: 'v_bat_1', quantite: 28, livraisonDate: '2026-05-18', reapprovisionnementDate: '2026-06-30', valeurAchat: 95, marge: 104, prixVenteHt: 199, stockage: 'Entrepôt A' },
             { id: 'st_3', denominationPieceId: 'v_cof_1', quantite: 12, livraisonDate: '2026-05-20', reapprovisionnementDate: '2026-07-05', valeurAchat: 140, marge: 145, prixVenteHt: 285, stockage: 'Entrepôt B' },
-            { id: 'st_4', denominationPieceId: 'v_cof_2', quantite: 8, livraisonDate: '2026-05-22', reapprovisionnementDate: '2026-07-10', valeurAchat: 310, marge: 330, prixVenteHt: 640, stockage: 'Entrepôt B' }
+            { id: 'st_4', denominationPieceId: 'v_cof_2', quantite: 8, livraisonDate: '2026-05-22', reapprovisionnementDate: '2026-07-10', valeurAchat: 310, marge: 330, prixVenteHt: 640, stockage: 'Entrepôt B' },
+            { id: 'st_srv_1', denominationPieceId: 'v_srv_1', quantite: 9991, livraisonDate: '2026-01-01', reapprovisionnementDate: '2026-06-01', valeurAchat: 0, marge: 150, prixVenteHt: 150, stockage: 'Siège' },
+            { id: 'st_srv_2', denominationPieceId: 'v_srv_2', quantite: 9992, livraisonDate: '2026-01-01', reapprovisionnementDate: '2026-06-01', valeurAchat: 0, marge: 120, prixVenteHt: 120, stockage: 'Siège' }
           ] : [];
           setStocks(defaultStocks);
           await saveCollectionToFirestore('stocks', defaultStocks);
@@ -1655,6 +1698,21 @@ export default function App() {
         const savedGedDocs = localStorage.getItem(`defib_${tenantId}_ged_docs`);
         if (savedGedDocs) setGedDocs(JSON.parse(savedGedDocs));
 
+        const savedStocks = localStorage.getItem(`defib_${tenantId}_stocks`);
+        if (savedStocks) setStocks(JSON.parse(savedStocks));
+
+        const savedReports = localStorage.getItem(`defib_${tenantId}_generated_reports`);
+        if (savedReports) setGeneratedReports(JSON.parse(savedReports));
+
+        const savedFsmTours = localStorage.getItem(`defib_${tenantId}_fsm_tours`);
+        if (savedFsmTours) setFsmTours(JSON.parse(savedFsmTours));
+
+        const savedExpenses = localStorage.getItem(`defib_${tenantId}_expenses`);
+        if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
+
+        const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
+        if (savedPointagesHistory) setPointages(JSON.parse(savedPointagesHistory));
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       }
@@ -1736,47 +1794,73 @@ export default function App() {
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
       saveCollectionToFirestore('gedDocs', gedDocs);
-      localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(gedDocs));
+      try {
+        localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(gedDocs));
+      } catch (e) {
+        console.warn('Storage quota exceeded for gedDocs:', e);
+      }
     }
   }, [gedDocs, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
       saveCollectionToFirestore('expenses', expenses);
-      localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(expenses));
+      try {
+        localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(expenses));
+      } catch (e) {
+        console.warn('Storage quota exceeded for expenses:', e);
+      }
     }
   }, [expenses, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
       saveCollectionToFirestore('generatedReports', generatedReports);
-      localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(generatedReports));
+      try {
+        localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(generatedReports));
+      } catch (e) {
+        console.warn('Storage quota exceeded for generatedReports:', e);
+      }
     }
   }, [generatedReports, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
       saveCollectionToFirestore('fsmTours', fsmTours);
-      localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(fsmTours));
+      try {
+        localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(fsmTours));
+      } catch (e) {
+        console.warn('Storage quota exceeded for fsmTours:', e);
+      }
     }
   }, [fsmTours, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
       saveCollectionToFirestore('memos', memos);
-      localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(memos));
+      try {
+        localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(memos));
+      } catch (e) {
+        console.warn('Storage quota exceeded for memos:', e);
+      }
     }
   }, [memos, isFirebaseLoaded, tenantId]);
 
   const saveGedDocs = (newGed: GedDocument[]) => {
     setGedDocs(newGed);
     localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(newGed));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('gedDocs', newGed);
+    }
   };
 
 
   const saveCommercialDocs = (newDocs: CommercialDoc[]) => {
     setCommercialDocs(newDocs);
     localStorage.setItem(`defib_${tenantId}_commercial_docs`, JSON.stringify(newDocs));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('commercialDocs', newDocs);
+    }
   };
 
   const getSellingPriceForVariable = (varId: string): number => {
@@ -2069,8 +2153,7 @@ export default function App() {
   const handleDeleteExpense = (id: string) => {
     if (confirm('Voulez-vous vraiment supprimer ce ticket de caisse ?')) {
       const updated = expenses.filter(e => e.id !== id);
-      setExpenses(updated);
-      localStorage.setItem('defib_expenses', JSON.stringify(updated));
+      saveExpenses(updated);
     }
   };
 
@@ -2284,7 +2367,7 @@ export default function App() {
     saveDefibs(updatedList);
   };
 
-  if (isLoggedIn && loggedUser?.email === 'tech.ouest@defibeo.com') {
+  if (isLoggedIn && (loggedUser?.email === 'tech.ouest@defibeo.com' || localStorage.getItem('defib_logged_user_role') === 'technicien')) {
     return (
       <PublicPortal
         companyInfo={companyInfo}
@@ -2295,6 +2378,7 @@ export default function App() {
         variables={variables}
         clients={clients}
         stocks={stocks}
+        onUpdateStocks={saveStocks}
         fsmTours={fsmTours}
         onUpdateFsmTours={saveFsmTours}
         generatedReports={generatedReports}
@@ -2303,6 +2387,8 @@ export default function App() {
         onUpdatePointages={savePointages}
         expenses={expenses}
         onUpdateExpenses={saveExpenses}
+        commercialDocs={commercialDocs}
+        onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
         onClose={handleLogout}
         onOpenClientPortal={(client) => {
@@ -2423,9 +2509,9 @@ export default function App() {
 
   return (
     <div className="flex min-h-screen bg-slate-50 font-sans" id="app-root-container">
-      {showEnvLoading && (
+      {(showEnvLoading || !isFirebaseLoaded) && (
         <div 
-          className="fixed inset-0 z-[99999] flex items-center justify-center text-center font-sans" 
+          className="fixed inset-0 z-[99999] flex flex-col items-center justify-center text-center font-sans gap-4" 
           style={{ 
             background: 'radial-gradient(#7e2e86, #36093a)',
             fontSize: '18px',
@@ -2433,7 +2519,7 @@ export default function App() {
           }}
           id="env-loading-overlay"
         >
-          <span className="text-white text-[18px] font-sans text-center">Chargement de votre environnement.</span>
+          <span className="text-white text-[18px] font-sans text-center">Chargement de votre environnement...</span>
         </div>
       )}
       {/* LEFT SIDE BAR PANE */}
@@ -2519,9 +2605,11 @@ export default function App() {
           <button
             onClick={() => setActiveTab('parametres')}
             id="sidebar-btn-settings"
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border-0 shadow-3xs cursor-pointer text-white"
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border-0 cursor-pointer text-white hover:brightness-110 active:scale-[0.98]"
             style={{
-              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
+              boxShadow: activeTab === 'parametres'
+                ? 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 10px 15px -3px rgba(53, 86, 236, 0.4), inset 0 6px 12px #ffffff1f'
+                : 'inset 0 1px 1px #fff3, 0 1px 2px #08080822, 0 2px 4px #0808080a',
               background: '#3556ec',
               fontSize: '18px',
               textTransform: 'none',
@@ -4930,7 +5018,7 @@ export default function App() {
                                 </span>
                               </div>
                               <div className="flex justify-between items-center bg-white">
-                                <span style={itemValueStyle}>Total TVA.</span>
+                                <span style={itemValueStyle}>Total TVA. (€)</span>
                                 <span style={itemValueStyle}>
                                   {(docItems.reduce((acc, it) => acc + (it.prixVenteHt * it.quantite), 0) * 0.2).toFixed(2)}€
                                 </span>
@@ -4987,10 +5075,7 @@ export default function App() {
             <TicketsCaisseTab
               expenses={expenses}
               members={members}
-              onUpdateExpenses={(updated) => {
-                setExpenses(updated);
-                localStorage.setItem('defib_expenses', JSON.stringify(updated));
-              }}
+              onUpdateExpenses={saveExpenses}
             />
           )}
 

@@ -36,7 +36,7 @@ export default function StocksTab({
 
   // Search & Filter State
   const [stockSearchQuery, setStockSearchQuery] = useState('');
-  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'Entrepôt A' | 'Entrepôt B' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C'>('Tous');
+  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'Entrepôt A' | 'Entrepôt B' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Non approprié'>('Tous');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -74,6 +74,9 @@ export default function StocksTab({
     e.preventDefault();
     if (!newDenomStr) return;
 
+    const finalLivDate = newStorage === 'Non approprié' ? '' : newLivDate;
+    const finalReapDate = newStorage === 'Non approprié' ? '' : newReapDate;
+
     if (editingStockId) {
       const updated = stocks.map(st => {
         if (st.id === editingStockId) {
@@ -82,8 +85,8 @@ export default function StocksTab({
             denominationPieceId: newDenomStr,
             quantite: Number(newQty),
             quantiteReservee: Number(newQtyReservee),
-            livraisonDate: newLivDate,
-            reapprovisionnementDate: newReapDate,
+            livraisonDate: finalLivDate,
+            reapprovisionnementDate: finalReapDate,
             valeurAchat: Number(newValAchat) || 0,
             marge: Number(newMarge) || 0,
             prixVenteHt: Number(newPrixHt) || 0,
@@ -100,8 +103,8 @@ export default function StocksTab({
         denominationPieceId: newDenomStr,
         quantite: Number(newQty),
         quantiteReservee: Number(newQtyReservee),
-        livraisonDate: newLivDate,
-        reapprovisionnementDate: newReapDate,
+        livraisonDate: finalLivDate,
+        reapprovisionnementDate: finalReapDate,
         valeurAchat: Number(newValAchat) || 0,
         marge: Number(newMarge) || 0,
         prixVenteHt: Number(newPrixHt) || 0,
@@ -340,7 +343,7 @@ export default function StocksTab({
 
           {/* Filters Pills Row */}
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-storage-pills">
-            {(['Tous', 'Entrepôt A', 'Entrepôt B', 'Véhicule A', 'Véhicule B', 'Véhicule C'] as const).map((filterOpt) => {
+            {(['Tous', 'Entrepôt A', 'Entrepôt B', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Non approprié'] as const).map((filterOpt) => {
               let count = 0;
               if (filterOpt === 'Tous') {
                 count = stocks.length;
@@ -572,7 +575,7 @@ export default function StocksTab({
                   <option value="" disabled hidden>Sélectionnez une pièce ou service.</option>
                   {variables.map(v => (
                     <option key={v.id} value={v.id}>
-                      {v.marque} - {v.nom} ({v.category})
+                      {v.nom} ({v.category})
                     </option>
                   ))}
                 </select>
@@ -626,7 +629,14 @@ export default function StocksTab({
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Stockage.</label>
                   <select
                     value={newStorage}
-                    onChange={(e) => setNewStorage(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setNewStorage(val);
+                      if (val === 'Non approprié') {
+                        setNewLivDate('');
+                        setNewReapDate('');
+                      }
+                    }}
                     className="focus:outline-none w-full cursor-pointer font-sans"
                     required
                   >
@@ -636,6 +646,7 @@ export default function StocksTab({
                     <option value="Véhicule A">Véhicule A</option>
                     <option value="Véhicule B">Véhicule B</option>
                     <option value="Véhicule C">Véhicule C</option>
+                    <option value="Non approprié">Non approprié</option>
                   </select>
                 </div>
 
@@ -646,7 +657,8 @@ export default function StocksTab({
                     type="date"
                     value={newLivDate}
                     onChange={(e) => setNewLivDate(e.target.value)}
-                    className="focus:outline-none w-full font-sans"
+                    disabled={newStorage === 'Non approprié'}
+                    className={`focus:outline-none w-full font-sans ${newStorage === 'Non approprié' ? 'bg-slate-100 cursor-not-allowed opacity-60' : ''}`}
                     placeholder="jj/mm.aaaa"
                   />
                 </div>
@@ -658,7 +670,8 @@ export default function StocksTab({
                     type="date"
                     value={newReapDate}
                     onChange={(e) => setNewReapDate(e.target.value)}
-                    className="focus:outline-none w-full font-sans"
+                    disabled={newStorage === 'Non approprié'}
+                    className={`focus:outline-none w-full font-sans ${newStorage === 'Non approprié' ? 'bg-slate-100 cursor-not-allowed opacity-60' : ''}`}
                     placeholder="jj/mm.aaaa"
                   />
                 </div>

@@ -519,7 +519,7 @@ export default function ImportExportTab({ tenantId }: { tenantId: string }) {
                 >
                   <thead>
                     <tr className="bg-transparent">
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Horodatage</th>
+                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Horodatage.</th>
                       <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Circulation.</th>
                       <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Compartiment.</th>
                       <th className="px-4 py-3.5 w-[15%]" style={thStyle}>Format.</th>

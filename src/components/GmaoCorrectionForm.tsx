@@ -430,7 +430,39 @@ export default function GmaoCorrectionForm({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setPhotoUrl(reader.result as string);
+        const base64Str = reader.result as string;
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 500; // max width/height
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+          canvas.width = Math.round(width);
+          canvas.height = Math.round(height);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6); // 60% quality is perfect and very small
+            setPhotoUrl(compressedBase64);
+          } else {
+            setPhotoUrl(base64Str);
+          }
+        };
+        img.onerror = () => {
+          setPhotoUrl(base64Str);
+        };
       };
       reader.readAsDataURL(file);
     }
@@ -1219,7 +1251,7 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-200 mt-2 space-y-3">
+            <div className="pt-3 mt-2 space-y-3">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Émettre une facture brouillon.
@@ -1266,21 +1298,59 @@ export default function GmaoCorrectionForm({
                     required={emettreFactureBrouillon === 'Oui'}
                   >
                     <option value="">Sélectionner un service...</option>
-                    {(stocks || [])
-                      .filter(st => {
+                     {(() => {
+                      const serviceStocks = (stocks || []).filter(st => {
                         const variable = variables.find(v => v.id === st.denominationPieceId);
-                        return variable && variable.category === 'Modèle Service';
-                      })
-                      .map(st => {
-                        const variable = variables.find(v => v.id === st.denominationPieceId);
-                        const label = variable ? `${variable.nom} (${variable.marque})` : 'Service Inconnu';
+                        if (!variable) return false;
+                        const cat = (variable.category || '').toLowerCase();
+                        const nom = (variable.nom || '').toLowerCase();
+                        return cat.includes('service') || nom.includes('service');
+                      });
+
+                      const serviceVariablesOnly = (variables || []).filter(v => {
+                        const cat = (v.category || '').toLowerCase();
+                        const nom = (v.nom || '').toLowerCase();
+                        const isService = cat.includes('service') || nom.includes('service');
+                        if (!isService) return false;
+                        return !serviceStocks.some(st => st.denominationPieceId === v.id);
+                      });
+
+                      const hasAny = serviceStocks.length > 0 || serviceVariablesOnly.length > 0;
+                      
+                      if (hasAny) {
                         return (
-                          <option key={st.id} value={st.id}>
-                            {label} — {st.prixVenteHt} € HT (Stock: {st.quantite})
-                          </option>
+                          <>
+                            {serviceStocks.map(st => {
+                              const variable = variables.find(v => v.id === st.denominationPieceId);
+                              const label = variable ? `${variable.nom} (${variable.marque})` : 'Service Inconnu';
+                              return (
+                                <option key={st.id} value={st.id}>
+                                  [Stock] {label} — {st.prixVenteHt} € HT (Quantité: {st.quantite})
+                                </option>
+                              );
+                            })}
+                            {serviceVariablesOnly.map(v => (
+                              <option key={v.id} value={v.id}>
+                                [Service] {v.nom} ({v.marque}) — 150 € HT (Virtuel)
+                              </option>
+                            ))}
+                          </>
                         );
-                      })
-                    }
+                      }
+
+                      // Fallback options when tenant has empty variables/stocks
+                      const fallbacks = [
+                        { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
+                        { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
+                        { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
+                      ];
+
+                      return fallbacks.map(fb => (
+                        <option key={fb.id} value={fb.id}>
+                          {fb.label} — {fb.price} € HT (Stock: Illimité)
+                        </option>
+                      ));
+                    })()}
                   </select>
                 </div>
               )}
@@ -1764,8 +1834,8 @@ export default function GmaoCorrectionForm({
                   onChange={(e) => setSelectionElectrodeARemplacee(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
-                  <option value="">Sélectionner l'électrode stockée dans le véhicule...</option>
-                  {stocks.filter(st => st.stockage.toLowerCase().includes('véhicule')).map(st => {
+                  <option value="">Sélectionner l'électrode stockée...</option>
+                  {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
                     const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
@@ -1929,8 +1999,8 @@ export default function GmaoCorrectionForm({
                   onChange={(e) => setSelectionElectrodePRemplacee(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
-                  <option value="">Sélectionner l'électrode stockée dans le véhicule...</option>
-                  {stocks.filter(st => st.stockage.toLowerCase().includes('véhicule')).map(st => {
+                  <option value="">Sélectionner l'électrode stockée...</option>
+                  {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
                     const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
@@ -2100,8 +2170,8 @@ export default function GmaoCorrectionForm({
                   onChange={(e) => setSelectionBatterieRemplacee(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
-                  <option value="">Sélectionner la batterie stockée dans le véhicule...</option>
-                  {stocks.filter(st => st.stockage.toLowerCase().includes('véhicule')).map(st => {
+                  <option value="">Sélectionner la batterie stockée...</option>
+                  {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
                     const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;
@@ -2333,8 +2403,8 @@ export default function GmaoCorrectionForm({
                   onChange={(e) => setSelectionKitSecoursRemplace(e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
-                  <option value="">Sélectionner le kit de secours stocké dans le véhicule...</option>
-                  {stocks.filter(st => st.stockage.toLowerCase().includes('véhicule')).map(st => {
+                  <option value="">Sélectionner le kit de secours stocké...</option>
+                  {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
                     const label = `${denom}, x1, ${st.prixVenteHt} € ht (${st.stockage})`;

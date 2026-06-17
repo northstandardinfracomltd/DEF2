@@ -1350,15 +1350,13 @@ export default function DefibTab({
                     ) : null;
                   })()}
                 </button>
-                <a
-                  href="https://www.google.com/maps"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  onClick={() => setIsMapOpen(true)}
                   id="btn-open-map"
                   style={customButtonStyle}
                 >
                   Plan
-                </a>
+                </button>
                 <button
                   onClick={() => window.location.reload()}
                   id="btn-refresh-page"

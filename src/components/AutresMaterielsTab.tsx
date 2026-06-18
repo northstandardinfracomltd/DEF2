@@ -896,7 +896,7 @@ export default function AutresMaterielsTab({
                             {item.identifiant || '—'}
                           </td>
                           <td className="px-5 py-4 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                            {clientData ? clientData.denomination : 'Client inconnu'}
+                            {clientData ? clientData.denomination : ''}
                           </td>
                           <td className="px-5 py-4 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
                             {item.ville}{item.codePostal ? ` (${item.codePostal})` : ''}

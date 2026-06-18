@@ -1632,12 +1632,12 @@ export default function DefibTab({
 
                       {/* Miniature thumbnail column */}
                       <td className="px-4 py-3.5">
-                        <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center p-1.5" style={{ backgroundColor: '#ffffff' }}>
                           {linkedModel?.imageUrl ? (
                             <img
                               src={linkedModel.imageUrl}
                               alt=""
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                               referrerPolicy="no-referrer"
                             />
                           ) : null}
@@ -1678,7 +1678,7 @@ export default function DefibTab({
 
                       {/* Client */}
                       <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }} title={linkedClient?.denomination}>
-                        {linkedClient?.denomination || 'Client Inconnu'}
+                        {linkedClient?.denomination || ''}
                       </td>
 
                       {/* Contrat Yes/No */}
@@ -2123,7 +2123,7 @@ export default function DefibTab({
                           <option value="">-- Sélectionner Modèle --</option>
                           {modelesDefib.map(v => (
                             <option key={v.id} value={v.id}>
-                              {v.marque} - {v.nom}
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
                             </option>
                           ))}
                         </select>
@@ -2390,7 +2390,7 @@ export default function DefibTab({
                           <option value="">-- Sans coffret --</option>
                           {modelesCoffret.map(v => (
                             <option key={v.id} value={v.id}>
-                              {v.marque} - {v.nom}
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
                             </option>
                           ))}
                         </select>
@@ -2837,7 +2837,9 @@ export default function DefibTab({
                         >
                           <option value="">-- Sélectionner Électrode --</option>
                           {modelesElectrode.map(v => (
-                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                            <option key={v.id} value={v.id}>
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -2985,7 +2987,9 @@ export default function DefibTab({
                         >
                           <option value="">-- Sélectionner Électrode --</option>
                           {modelesElectrode.map(v => (
-                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                            <option key={v.id} value={v.id}>
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                            </option>
                           ))}
                         </select>
                       </div>
@@ -3133,7 +3137,9 @@ export default function DefibTab({
                         >
                           <option value="">-- Sélectionner Batterie --</option>
                           {modelesBatterie.map(v => (
-                            <option key={v.id} value={v.id}>{v.marque} - {v.nom}</option>
+                            <option key={v.id} value={v.id}>
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                            </option>
                           ))}
                         </select>
                       </div>

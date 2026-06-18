@@ -322,7 +322,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   const rowActionButton18Style: React.CSSProperties = {
     fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
     fontWeight: 100,
-    fontSize: '16px',
+    fontSize: '18px',
     padding: '11px 20px',
     borderRadius: '13px',
     border: '1px solid rgb(218, 218, 218)',

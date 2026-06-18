@@ -346,7 +346,7 @@ export default function MapModal({
 
             const isSelected = df.id === selectedDefibId;
             const statusColor = getSafetyStatusColor(df);
-            const clientDenomination = clientMap.get(df.clientId)?.denomination || 'Client Inconnu';
+            const clientDenomination = clientMap.get(df.clientId)?.denomination || '';
 
             return (
               <Marker

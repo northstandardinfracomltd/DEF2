@@ -2697,14 +2697,20 @@ export default function App() {
       >
         {/* Brand Header */}
         <div 
-          className="p-4" 
+          className="py-1 px-4" 
           style={{ 
             background: 'rgb(255 255 255 / 5%)', 
             borderBottom: '1px solid rgba(255, 255, 255, 0.15)' 
           }}
         >
-          <div className="text-center">
-            <h1 className="text-white font-sans font-bold text-center" style={{ fontSize: '18px', cursor: 'default' }}>Logiciel Défibeo</h1>
+          <div className="flex justify-center items-center">
+            <img 
+              src="https://datacenter64000pau.s3.eu-north-1.amazonaws.com/Defibeo_2026_Logo2.svg" 
+              alt="Défibeo Logo" 
+              style={{ width: '155px' }}
+              className="h-auto object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
         </div>
 

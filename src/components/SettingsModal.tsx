@@ -86,6 +86,9 @@ export default function SettingsModal({
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(() => {
+    return localStorage.getItem('defib_enable_other_equipments') || 'Non';
+  });
 
   // Synchronise if parent prop changes upon load or reset
   const hasLoadedRef = React.useRef(false);
@@ -603,6 +606,66 @@ export default function SettingsModal({
                   <option value="English, Portugal">English, Portugal</option>
                 </select>
               </div>
+            </div>
+          </div>
+          
+          {/* SECTION: OTHER EQUIPMENTS INTEGRATION */}
+          <div className="space-y-2 mt-4">
+            <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+              Activer l'infogérance et la maintenance de d'autres types d'équipements.
+            </label>
+            <div className="flex items-center space-x-6 py-1 font-sans">
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableOtherEquipments("Oui");
+                  localStorage.setItem('defib_enable_other_equipments', 'Oui');
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableOtherEquipments === "Oui" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableOtherEquipments === "Oui" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">Oui</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableOtherEquipments("Non");
+                  localStorage.setItem('defib_enable_other_equipments', 'Non');
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableOtherEquipments === "Non" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableOtherEquipments === "Non" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">Non</span>
+              </button>
             </div>
           </div>
           

@@ -27,7 +27,7 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
     color: '#fff',
     boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
     borderRadius: '10px',
-    fontSize: '16px',
+    fontSize: '18px',
     padding: '11px 22px',
     fontWeight: '100',
     transition: 'all 0s ease-in-out',
@@ -172,10 +172,9 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
                             target="_blank"
                             rel="noopener noreferrer"
                             style={linkButtonStyle}
-                            className="transition-all"
+                            className="transition-all text-[18px]"
                           >
-                            <MapPin className="w-4 h-4 text-pink-400 animate-bounce bg-transparent" />
-                            <span className="bg-transparent">Suivre sur Google Maps</span>
+                            <span className="bg-transparent">Ouvrir</span>
                           </a>
                         ) : null}
                       </td>

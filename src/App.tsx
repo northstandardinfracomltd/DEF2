@@ -1397,7 +1397,7 @@ export default function App() {
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                       <div class="pdf-line" style="font-size: 16px;">Photographie du défibrillateur.</div>
                       ${report.photoUrl ? `
-                        <div style="border: 1px solid #000000; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
+                        <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
                           <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Preuve" referrerPolicy="no-referrer" />
                         </div>
                       ` : ''}
@@ -1648,10 +1648,10 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(fGed));
         } else {
           const defaultGed = tenantId === 'demo' ? [
-            { id: 'ged-1', title: 'Notice d\'utilisation Lifeline AED', category: 'Manuel de conformité', fileName: 'Notice_Utilisation_Lifeline_AED.pdf', fileSize: '4.2 Mo', dateStr: '2026-02-12' },
-            { id: 'ged-2', title: 'Réglementation Nationale Code de la Santé', category: 'Manuel de conformité', fileName: 'Reglementation_Nationale_Code_Sante.pdf', fileSize: '1.1 Mo', dateStr: '2026-01-01' },
-            { id: 'ged-3', title: 'PV Maintenance Bordeaux - EVB-411', category: "Fiche de visite d'audit", fileName: 'PV_Maintenance_Bordeaux_EVB-411.pdf', fileSize: '890 Ko', dateStr: '2026-06-06' },
-            { id: 'ged-4', title: 'Fiche Technique Mise en Service Nantes', category: "Fiche de visite d'audit", fileName: 'Fiche_Technique_Mise_Service_Nantes.pdf', fileSize: '3.1 Mo', dateStr: '2026-06-04' }
+            { id: 'ged-1', title: 'Notice d\'utilisation Lifeline AED', category: 'Manuel de conformité', fileName: 'Notice_Utilisation_Lifeline_AED.pdf', fileSize: '4.2 Mo', dateStr: '2026-02-12', fileUrl: 'https://v6.defibtech.com/sites/default/files/2021-02/Lifeline_AED_User_Manual_French_0.pdf' },
+            { id: 'ged-2', title: 'Réglementation Nationale Code de la Santé', category: 'Manuel de conformité', fileName: 'Reglementation_Nationale_Code_Sante.pdf', fileSize: '1.1 Mo', dateStr: '2026-01-01', fileUrl: 'https://www.legifrance.gouv.fr/' },
+            { id: 'ged-3', title: 'PV Maintenance Bordeaux - EVB-411', category: "Fiche de visite d'audit", fileName: 'PV_Maintenance_Bordeaux_EVB-411.pdf', fileSize: '890 Ko', dateStr: '2026-06-06', fileUrl: 'https://www.defibtech.com/' },
+            { id: 'ged-4', title: 'Fiche Technique Mise en Service Nantes', category: "Fiche de visite d'audit", fileName: 'Fiche_Technique_Mise_Service_Nantes.pdf', fileSize: '3.1 Mo', dateStr: '2026-06-04', fileUrl: 'https://www.defibtech.com/' }
           ] : [];
           setGedDocs(defaultGed);
           await saveCollectionToFirestore('gedDocs', defaultGed);
@@ -2300,7 +2300,18 @@ export default function App() {
   };
 
   const handleConsultGed = (doc: GedDocument) => {
-    window.open('https://amazon.com/s3doc1', '_blank');
+    if (doc.fileContent) {
+      const link = document.createElement('a');
+      link.href = doc.fileContent;
+      link.download = doc.fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } else if (doc.fileUrl) {
+      window.open(doc.fileUrl, '_blank');
+    } else {
+      window.open('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf', '_blank');
+    }
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -3574,17 +3585,22 @@ export default function App() {
 
                                   {/* Lookup field for required components with stock items selector */}
                                   {(() => {
-                                    const stockItems = stocks.map(st => {
-                                      const vObj = variables.find(v => v.id === st.denominationPieceId);
-                                      const name = vObj ? vObj.nom : `Pièce indéfinie (${st.id})`;
-                                      return {
-                                        id: st.id,
-                                        name: name,
-                                        stockage: st.stockage,
-                                        quantite: st.quantite,
-                                        label: `${name} (${st.stockage} - Qté: ${st.quantite})`
-                                      };
-                                    });
+                                    const stockItems = stocks
+                                      .filter(st => {
+                                        const vObj = variables.find(v => v.id === st.denominationPieceId);
+                                        return vObj ? vObj.category !== 'Modèle Service' : true;
+                                      })
+                                      .map(st => {
+                                        const vObj = variables.find(v => v.id === st.denominationPieceId);
+                                        const name = vObj ? vObj.nom : `Pièce indéfinie (${st.id})`;
+                                        return {
+                                          id: st.id,
+                                          name: name,
+                                          stockage: st.stockage,
+                                          quantite: st.quantite,
+                                          label: `${name} (${st.stockage} - Qté: ${st.quantite})`
+                                        };
+                                      });
 
                                     return (
                                       <div className="pt-2 space-y-2.5 relative font-sans w-full bg-white">
@@ -5292,7 +5308,18 @@ export default function App() {
           )}
 
           {activeTab === 'import-export' && (
-            <ImportExportTab tenantId={tenantId} />
+            <ImportExportTab 
+              tenantId={tenantId}
+              isFirebaseLoaded={isFirebaseLoaded}
+              defibrillateurs={defibrillateurs}
+              clients={clients}
+              stocks={stocks}
+              pointages={pointages}
+              variables={variables}
+              saveDefibs={saveDefibs}
+              saveClients={saveClients}
+              saveStocks={saveStocks}
+            />
           )}
 
         </section>

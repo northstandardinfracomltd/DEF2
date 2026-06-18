@@ -1118,7 +1118,7 @@ export default function PublicPortal({
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                       <div class="pdf-line" style="font-size: 16px;">Photographie du défibrillateur.</div>
                       ${report.photoUrl ? `
-                        <div style="border: 1px solid #000000; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
+                        <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
                           <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Preuve" referrerPolicy="no-referrer" />
                         </div>
                       ` : ''}
@@ -2254,7 +2254,7 @@ export default function PublicPortal({
                                       Scan
                                     </button>
                                   </div>
-                                  {isSerieScannerOpen && (
+                                                                  {isSerieScannerOpen && (
                                     <BarcodeScannerModal
                                       isOpen={isSerieScannerOpen}
                                       onClose={() => setIsSerieScannerOpen(false)}
@@ -2262,6 +2262,7 @@ export default function PublicPortal({
                                         if (selectedDefibData) {
                                           setSelectedDefibData({ ...selectedDefibData, numeroSerie: scannedText });
                                         }
+                                        setIsSerieScannerOpen(false);
                                       }}
                                     />
                                   )}
@@ -2446,6 +2447,7 @@ export default function PublicPortal({
                                       if (selectedDefibData) {
                                         setSelectedDefibData({ ...selectedDefibData, numeroLotCoffret: scannedText });
                                       }
+                                      setIsLotScannerOpen(false);
                                     }}
                                   />
                                 )}
@@ -2644,6 +2646,7 @@ export default function PublicPortal({
                                         if (selectedDefibData) {
                                           setSelectedDefibData({ ...selectedDefibData, lotElectrodeA: scannedText });
                                         }
+                                        setIsLotAScannerOpen(false);
                                       }}
                                     />
                                   )}
@@ -2742,6 +2745,7 @@ export default function PublicPortal({
                                         if (selectedDefibData) {
                                           setSelectedDefibData({ ...selectedDefibData, lotElectrodeP: scannedText });
                                         }
+                                        setIsLotPScannerOpen(false);
                                       }}
                                     />
                                   )}
@@ -2828,6 +2832,7 @@ export default function PublicPortal({
                                         if (selectedDefibData) {
                                           setSelectedDefibData({ ...selectedDefibData, lotBatterie: scannedText });
                                         }
+                                        setIsLotBatScannerOpen(false);
                                       }}
                                     />
                                   )}

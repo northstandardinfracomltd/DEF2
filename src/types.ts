@@ -201,6 +201,8 @@ export interface GedDocument {
   fileName: string;
   fileSize: string;
   dateStr: string;
+  fileContent?: string;
+  fileUrl?: string;
 }
 
 export interface Memo {

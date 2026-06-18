@@ -49,7 +49,7 @@ export default function StatsModal({
 
   // Fallbacks to localStorage
   const resolvedStocks = useMemo(() => {
-    if (stocks && stocks.length > 0) return stocks;
+    if (stocks !== undefined) return stocks;
     try {
       const saved = localStorage.getItem('defib_stocks');
       return saved ? JSON.parse(saved) : [];
@@ -59,7 +59,7 @@ export default function StatsModal({
   }, [stocks]);
 
   const resolvedPointages = useMemo(() => {
-    if (pointages && pointages.length > 0) return pointages;
+    if (pointages !== undefined) return pointages;
     try {
       const saved = localStorage.getItem('defib_pointages_history');
       return saved ? JSON.parse(saved) : [];
@@ -69,7 +69,7 @@ export default function StatsModal({
   }, [pointages]);
 
   const resolvedReviews = useMemo(() => {
-    if (customerReviews && customerReviews.length > 0) return customerReviews;
+    if (customerReviews !== undefined) return customerReviews;
     try {
       const saved = localStorage.getItem('defib_customer_reviews');
       return saved ? JSON.parse(saved) : [];
@@ -79,7 +79,7 @@ export default function StatsModal({
   }, [customerReviews]);
 
   const resolvedFsmTours = useMemo(() => {
-    if (fsmTours && fsmTours.length > 0) return fsmTours;
+    if (fsmTours !== undefined) return fsmTours;
     try {
       const saved = localStorage.getItem('defib_fsm_tours');
       return saved ? JSON.parse(saved) : [];

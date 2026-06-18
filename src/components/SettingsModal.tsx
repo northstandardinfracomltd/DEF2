@@ -917,13 +917,25 @@ export default function SettingsModal({
                 </div>
               </div>
               
-              <a
-                href="mailto:support@defibeo.com"
-                style={{ ...rowActionButtonStyle, fontSize: '18px', backgroundColor: '#000', color: '#fff' }}
-                className="mt-4 text-center"
-              >
-                Envoyer un message
-              </a>
+              <div className="flex flex-col space-y-3 mt-4">
+                <a
+                  href="https://defibeo.com/school/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: 'rgb(53, 86, 236)', color: '#fff' }}
+                  className="text-center cursor-pointer"
+                >
+                  Centre de connaissances
+                </a>
+
+                <a
+                  href="mailto:support@defibeo.com"
+                  style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: '#000', color: '#fff' }}
+                  className="text-center cursor-pointer"
+                >
+                  Envoyer un message
+                </a>
+              </div>
             </div>
 
           </div>

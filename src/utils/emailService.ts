@@ -104,10 +104,11 @@ export async function sendScriptEmail(payload: {
  * Scheduled for 15 minutes in the future.
  */
 export function triggerEmail1Inscription(emailEntreprise: string, passwordHexOrPlain: string) {
-  // 15 minutes in milliseconds = 900,000 ms
-  const delayMs = 15 * 60 * 1000;
+  // Sending immediately (1 second delay) as clients/users close current page/tab or log in,
+  // which would cancel any long in-memory front-end timeout.
+  const delayMs = 1000;
   
-  console.log(`[Email 1] Scheduling welcome/inscription email to ${emailEntreprise} list in 15 minutes.`);
+  console.log(`[Email 1] Sending welcome/inscription email to ${emailEntreprise} immediately.`);
   
   setTimeout(async () => {
     const subject = "Défibeo : Confirmation pour l’ouverture de votre environnement.";

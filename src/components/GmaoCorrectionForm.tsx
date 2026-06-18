@@ -231,7 +231,16 @@ export default function GmaoCorrectionForm({
     } catch (e) {}
     return 'Technicien connecté';
   });
-  const [interventionDate, setInterventionDate] = useState(report?.date || '');
+  const [interventionDate, setInterventionDate] = useState(() => {
+    if (report?.date) return report.date;
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
+  });
   const [missionSite, setMissionSite] = useState<'DÉPLACEMENT' | 'ATELIER SAV'>(
     report?.siteMission === 'ATELIER SAV' ? 'ATELIER SAV' : 'DÉPLACEMENT'
   );
@@ -897,11 +906,10 @@ export default function GmaoCorrectionForm({
                 <input
                   type="text"
                   id="input-interv-date"
-                  disabled
                   value={interventionDate}
                   onChange={(e) => setInterventionDate(e.target.value)}
                   placeholder="Ex: 02-06-2026 14:15"
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-500 cursor-not-allowed"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
                 />
               </div>
             </div>
@@ -1077,6 +1085,7 @@ export default function GmaoCorrectionForm({
                     onClose={() => setIsSerieScannerOpen(false)}
                     onScanSuccess={(scannedText) => {
                       handleSnapshotChange('numeroSerie', scannedText);
+                      setIsSerieScannerOpen(false);
                     }}
                   />
                 )}
@@ -1426,6 +1435,7 @@ export default function GmaoCorrectionForm({
                     onClose={() => setIsLotScannerOpen(false)}
                     onScanSuccess={(scannedText) => {
                       handleSnapshotChange('numeroLotCoffret', scannedText);
+                      setIsLotScannerOpen(false);
                     }}
                   />
                 )}
@@ -1756,6 +1766,7 @@ export default function GmaoCorrectionForm({
                   onClose={() => setIsLotAScannerOpen(false)}
                   onScanSuccess={(scannedText) => {
                     handleSnapshotChange('lotElectrodeA', scannedText);
+                    setIsLotAScannerOpen(false);
                   }}
                 />
               )}
@@ -1933,6 +1944,7 @@ export default function GmaoCorrectionForm({
                     onClose={() => setIsLotPScannerOpen(false)}
                     onScanSuccess={(scannedText) => {
                       handleSnapshotChange('lotElectrodeP', scannedText);
+                      setIsLotPScannerOpen(false);
                     }}
                   />
                 )}
@@ -2115,6 +2127,7 @@ export default function GmaoCorrectionForm({
                     onClose={() => setIsLotBatScannerOpen(false)}
                     onScanSuccess={(scannedText) => {
                       handleSnapshotChange('lotBatterie', scannedText);
+                      setIsLotBatScannerOpen(false);
                     }}
                   />
                 )}

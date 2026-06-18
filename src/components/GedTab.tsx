@@ -42,6 +42,27 @@ export default function GedTab({
     }
 
     let finalSize = '0 Mo';
+    let finalFileName = gedFileName.trim();
+    if (!finalFileName) {
+      finalFileName = gedTitle.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
+    }
+
+    const onComplete = (fileContent?: string) => {
+      const newDoc: GedDocument = {
+        id: 'ged-' + Date.now(),
+        title: gedTitle,
+        category: gedCategory,
+        fileName: finalFileName,
+        fileSize: finalSize,
+        dateStr: new Date().toLocaleDateString('fr-FR'),
+        fileContent: fileContent,
+      };
+
+      saveGedDocs([newDoc, ...gedDocs]);
+      setIsGedFormOpen(false);
+      setSelectedGedFile(null);
+    };
+
     if (selectedGedFile) {
       const bytes = selectedGedFile.size;
       const mb = bytes / (1024 * 1024);
@@ -50,28 +71,17 @@ export default function GedTab({
       } else {
         finalSize = mb.toFixed(2) + ' Mo';
       }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onComplete(reader.result as string);
+      };
+      reader.readAsDataURL(selectedGedFile);
     } else {
       // simulate random size if they typed custom name but no real file payload selected
       finalSize = (Math.random() * 4 + 0.5).toFixed(2) + ' Mo';
+      onComplete();
     }
-
-    let finalFileName = gedFileName.trim();
-    if (!finalFileName) {
-      finalFileName = gedTitle.replace(/[^a-zA-Z0-9]/g, '_') + '.pdf';
-    }
-
-    const newDoc: GedDocument = {
-      id: 'ged-' + Date.now(),
-      title: gedTitle,
-      category: gedCategory,
-      fileName: finalFileName,
-      fileSize: finalSize,
-      dateStr: new Date().toLocaleDateString('fr-FR'),
-    };
-
-    saveGedDocs([newDoc, ...gedDocs]);
-    setIsGedFormOpen(false);
-    setSelectedGedFile(null);
   };
 
   const handleDeleteGed = (id: string) => {
@@ -452,9 +462,9 @@ export default function GedTab({
                     e.preventDefault();
                     const file = e.dataTransfer.files?.[0];
                     if (!file) return;
-                    const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+                    const MAX_SIZE_BYTES = 300 * 1024; // 300 Ko
                     if (file.size > MAX_SIZE_BYTES) {
-                      alert(`Le fichier dépasse la limite standard de 10 Mo (poids du fichier sélectionné : ${(file.size / (1024 * 1024)).toFixed(2)} Mo).`);
+                      alert(`Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ${(file.size / 1024).toFixed(0)} Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud.`);
                       return;
                     }
                     setSelectedGedFile(file);
@@ -471,9 +481,9 @@ export default function GedTab({
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
+                      const MAX_SIZE_BYTES = 300 * 1024; // 300 Ko
                       if (file.size > MAX_SIZE_BYTES) {
-                        alert(`Le fichier dépasse la limite standard de 10 Mo (poids du fichier sélectionné : ${(file.size / (1024 * 1024)).toFixed(2)} Mo).`);
+                        alert(`Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ${(file.size / 1024).toFixed(0)} Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud.`);
                         return;
                       }
                       setSelectedGedFile(file);
@@ -484,7 +494,7 @@ export default function GedTab({
                   <div className="font-sans" style={{ fontSize: '16px', color: '#000000' }}>
                     {selectedGedFile ? (
                       <span className="font-bold inline-block" style={{ fontSize: '16px', padding: '9px 16px', backgroundColor: '#501655', border: 'none', color: '#ffffff', borderRadius: '9999px' }}>
-                        Votre fichier téléchargé : {selectedGedFile.name} ({(selectedGedFile.size / (1024 * 1024)).toFixed(2)} Mo)
+                        Votre fichier téléchargé : {selectedGedFile.name} ({(selectedGedFile.size / 1024).toFixed(0)} Ko)
                       </span>
                     ) : (
                       <span style={{ color: '#000000', fontSize: '16px' }}>

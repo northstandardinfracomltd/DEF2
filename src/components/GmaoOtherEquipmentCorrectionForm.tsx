@@ -26,6 +26,29 @@ const CustomPinkRadio = ({ value, currentValue, onChange, label }: { value: stri
   );
 };
 
+const rowActionButtonStyle: React.CSSProperties = {
+  backgroundColor: '#000',
+  color: '#fff',
+  boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+  borderRadius: '10px',
+  fontSize: '16px',
+  padding: '11px 22px',
+  fontWeight: '100',
+  transition: 'all 0s ease-in-out',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: '0.5rem',
+  cursor: 'pointer',
+  border: 'none',
+};
+
+const rowActionButton18Style: React.CSSProperties = {
+  ...rowActionButtonStyle,
+  fontSize: '18px',
+  padding: '9px 19px',
+};
+
 export default function GmaoOtherEquipmentCorrectionForm({
   otherEquipment,
   clients,
@@ -80,12 +103,28 @@ export default function GmaoOtherEquipmentCorrectionForm({
   const [specifiques, setSpecifiques] = useState<Record<string, any>>(otherEquipment?.specifiques || {});
 
   // Photograph & Signature fields
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [techSignature, setTechSignature] = useState('');
+  const [photoUrl, setPhotoUrl] = useState(otherEquipment?.photoUrl || '');
+  const [techSignature, setTechSignature] = useState(otherEquipment?.techSignature || '');
+  const [endTimeStamp, setEndTimeStamp] = useState(otherEquipment?.endTimeStamp || '');
   
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawing = useRef(false);
+
+  // Helper to handle date next maintenance +12m
+  const handleDerniereMaintenanceChange = (val: string) => {
+    setDerniereMaintenance(val);
+    if (val) {
+      const date = new Date(val);
+      if (!isNaN(date.getTime())) {
+        date.setMonth(date.getMonth() + 12);
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        setProchaineMaintenance(`${yyyy}-${mm}-${dd}`);
+      }
+    }
+  };
 
   // Loading signature canvas if available
   useEffect(() => {
@@ -205,6 +244,10 @@ export default function GmaoOtherEquipmentCorrectionForm({
       const canvas = canvasRef.current;
       if (canvas) {
         setTechSignature(canvas.toDataURL());
+        if (!endTimeStamp) {
+          const nowStr = new Date().toLocaleString('fr-FR');
+          setEndTimeStamp(nowStr);
+        }
       }
     }
   };
@@ -216,6 +259,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         setTechSignature('');
+        setEndTimeStamp('');
       }
     }
   };
@@ -257,7 +301,10 @@ export default function GmaoOtherEquipmentCorrectionForm({
       prochaineMaintenance,
       categorie,
       identifiant,
-      specifiques
+      specifiques,
+      endTimeStamp: endTimeStamp || new Date().toLocaleString('fr-FR'),
+      photoUrl: photoUrl || undefined,
+      techSignature: techSignature || undefined
     };
 
     setTimeout(() => {
@@ -266,7 +313,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
         defibSnapshot: snapshotPayload, // store other equipment inside defibSnapshot so existing backoffice table properties resolve automatically
         photoUrl: photoUrl || undefined,
         techSignature: techSignature || undefined,
-        endTimeStamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+        endTimeStamp: endTimeStamp || new Date().toLocaleString('fr-FR')
       });
       setSaving(false);
     }, 1500);
@@ -293,17 +340,21 @@ export default function GmaoOtherEquipmentCorrectionForm({
       >
         <div>
           <h3 className="text-2xl font-bold font-gochi" style={{ color: '#000000', cursor: 'default' }}>
-            Rapport d'intervention : {categorie}
+            RAPPORT AUTRE MATÉRIEL
           </h3>
-          <p className="text-xs text-slate-500 font-sans mt-0.5">ID Matériel : {identifiant}</p>
         </div>
         
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onCancel}
-            style={rowActionButton18Style}
-            className="transition-colors cursor-pointer"
+            style={{
+              ...rowActionButton18Style,
+              backgroundColor: '#000000',
+              color: '#ffffff',
+              border: '1px solid #000000',
+            }}
+            className="transition-colors cursor-pointer font-semibold"
           >
             Fermer
           </button>
@@ -316,10 +367,11 @@ export default function GmaoOtherEquipmentCorrectionForm({
               ...rowActionButton18Style,
               backgroundColor: 'rgb(53, 86, 236)',
               color: '#ffffff',
+              border: '1px solid rgb(53, 86, 236)',
             }}
-            className="transition-all cursor-pointer border-0 font-semibold"
+            className="transition-all cursor-pointer font-semibold"
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer le rapport'}
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
           </button>
         </div>
       </div>
@@ -353,6 +405,10 @@ export default function GmaoOtherEquipmentCorrectionForm({
             color: #000000 !important;
             font-weight: 600 !important;
           }
+          #other-eq-core-form input[type="date"]::-webkit-calendar-picker-indicator {
+            display: none !important;
+            -webkit-appearance: none;
+          }
         `}</style>
         
         <form onSubmit={handleSubmit} id="other-eq-core-form" className="space-y-4">
@@ -361,13 +417,13 @@ export default function GmaoOtherEquipmentCorrectionForm({
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                1 — Information Client
+                1 — Client
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1 relative">
-                <label className="block text-[11px] font-bold text-slate-500 uppercase">Sélectionner le Client *</label>
+                <label className="block text-[11px] font-bold text-slate-500 uppercase">Sélection du client.</label>
                 <input
                   type="text"
                   value={clientSearchText}
@@ -378,9 +434,8 @@ export default function GmaoOtherEquipmentCorrectionForm({
                     if (clientId) setClientId('');
                   }}
                   onBlur={() => setTimeout(() => setIsClientDropdownOpen(false), 250)}
-                  placeholder="Tapez le nom d'un client..."
+                  placeholder="Rechercher un client."
                   className="w-full bg-white border border-slate-200 rounded p-2 text-xs"
-                  required
                 />
                 {isClientDropdownOpen && (
                   <div className="absolute z-50 left-0 right-0 max-h-56 overflow-y-auto bg-white border border-slate-200 rounded-lg mt-1 shadow-lg divide-y divide-slate-100">
@@ -406,47 +461,47 @@ export default function GmaoOtherEquipmentCorrectionForm({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Nom et prénom (Contact)</label>
-                <input type="text" value={nomPrenomSite} onChange={(e) => setNomPrenomSite(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Contact.</label>
+                <input type="text" value={nomPrenomSite} onChange={(e) => setNomPrenomSite(e.target.value)} placeholder="Entrez un nom et prénom." />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Téléphone portable</label>
-                <input type="text" value={telephoneSite} onChange={(e) => setTelephoneSite(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Téléphone du contact.</label>
+                <input type="text" value={telephoneSite} onChange={(e) => setTelephoneSite(e.target.value)} placeholder="Entrez un numéro." />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Email du contact</label>
-                <input type="email" value={emailSite} onChange={(e) => setEmailSite(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Email du contact.</label>
+                <input type="email" value={emailSite} onChange={(e) => setEmailSite(e.target.value)} placeholder="Entrez un email." />
               </div>
             </div>
 
             <div className="flex flex-col md:flex-row gap-4">
               <div className="space-y-1 md:w-1/3">
-                <label className="block text-[11px] font-bold text-slate-500">Contrat en cours</label>
+                <label className="block text-[11px] font-bold text-slate-500">Contrat en cours.</label>
                 <div className="flex items-center space-x-4 py-1">
                   <CustomPinkRadio value="Oui" currentValue={contrat} onChange={(val) => setContrat(val as 'Oui' | 'Non')} label="Oui" />
                   <CustomPinkRadio value="Non" currentValue={contrat} onChange={(val) => setContrat(val as 'Oui' | 'Non')} label="Non" />
                 </div>
               </div>
               <div className="space-y-1 flex-1">
-                <label className="block text-[11px] font-bold text-slate-500">Titre de contrat</label>
-                <input type="text" value={nomContrat} onChange={(e) => setNomContrat(e.target.value)} disabled={contrat === 'Non'} />
+                <label className="block text-[11px] font-bold text-slate-500">Titre du contrat.</label>
+                <input type="text" value={nomContrat} onChange={(e) => setNomContrat(e.target.value)} placeholder="" disabled={contrat === 'Non'} />
               </div>
               <div className="space-y-1 flex-1">
-                <label className="block text-[11px] font-bold text-slate-500">Référence du contrat</label>
-                <input type="text" value={referenceContrat} onChange={(e) => setReferenceContrat(e.target.value)} disabled={contrat === 'Non'} />
+                <label className="block text-[11px] font-bold text-slate-500">Référence du contrat.</label>
+                <input type="text" value={referenceContrat} onChange={(e) => setReferenceContrat(e.target.value)} placeholder="" disabled={contrat === 'Non'} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Début du contrat</label>
+                <label className="block text-[11px] font-bold text-slate-500">Début du contrat.</label>
                 <input type="date" value={debutContrat} onChange={(e) => setDebutContrat(e.target.value)} disabled={contrat === 'Non'} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Expiration du contrat</label>
+                <label className="block text-[11px] font-bold text-slate-500">Expiration du contrat.</label>
                 <input type="date" value={finContrat} onChange={(e) => setFinContrat(e.target.value)} disabled={contrat === 'Non'} />
               </div>
             </div>
@@ -461,62 +516,92 @@ export default function GmaoOtherEquipmentCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Adresse (N° et Voie)</label>
-                <input type="text" value={numeroVoie} onChange={(e) => setNumeroVoie(e.target.value)} />
+              <div className="space-y-1 md:col-span-2">
+                <label className="block text-[11px] font-bold text-slate-500">Numéro et voie.</label>
+                <input type="text" value={numeroVoie} onChange={(e) => setNumeroVoie(e.target.value)} placeholder="Entrez un numéro et une rue." />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Code Postal</label>
-                <input type="text" value={codePostal} onChange={(e) => setCodePostal(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Ville.</label>
+                <input type="text" value={ville} onChange={(e) => setVille(e.target.value)} placeholder="Entrez une ville." />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500">Code postal.</label>
+                <input type="text" value={codePostal} onChange={(e) => setCodePostal(e.target.value)} placeholder="Entrez un code postal." />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Ville</label>
-                <input type="text" value={ville} onChange={(e) => setVille(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Région.</label>
+                <select value={region} onChange={(e) => setRegion(e.target.value)}>
+                  <option value="">Sélectionner une région...</option>
+                  <option value="Île-de-France">Île-de-France</option>
+                  <option value="Provence-Alpes-Côte d'Azur">Provence-Alpes-Côte d'Azur</option>
+                  <option value="Auvergne-Rhône-Alpes">Auvergne-Rhône-Alpes</option>
+                  <option value="Nouvelle-Aquitaine">Nouvelle-Aquitaine</option>
+                  <option value="Occitanie">Occitanie</option>
+                  <option value="Hauts-de-France">Hauts-de-France</option>
+                  <option value="Grand Est">Grand Est</option>
+                  <option value="Pays de la Loire">Pays de la Loire</option>
+                  <option value="Bretagne">Bretagne</option>
+                  <option value="Normandie">Normandie</option>
+                  <option value="Bourgogne-Franche-Comté">Bourgogne-Franche-Comté</option>
+                  <option value="Centre-Val de Loire">Centre-Val de Loire</option>
+                  <option value="Corse">Corse</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500">Pays.</label>
+                <select value={pays} onChange={(e) => setPays(e.target.value)}>
+                  <option value="France">France</option>
+                  <option value="Espagne">Espagne</option>
+                  <option value="Portugal">Portugal</option>
+                  <option value="Suisse">Suisse</option>
+                  <option value="Luxembourg">Luxembourg</option>
+                  <option value="Belgique">Belgique</option>
+                  <option value="Allemagne">Allemagne</option>
+                  <option value="Pays-Bas">Pays-Bas</option>
+                  <option value="Royaume-Uni">Royaume-Uni</option>
+                  <option value="Irlande">Irlande</option>
+                  <option value="Suède">Suède</option>
+                  <option value="Pologne">Pologne</option>
+                  <option value="Tchéquie">Tchéquie</option>
+                  <option value="Autriche">Autriche</option>
+                </select>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Région</label>
-                <input type="text" value={region} onChange={(e) => setRegion(e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Pays</label>
-                <input type="text" value={pays} onChange={(e) => setPays(e.target.value)} />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Latitude</label>
+                <label className="block text-[11px] font-bold text-slate-500">Latitude.</label>
                 <input type="text" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Longitude</label>
+                <label className="block text-[11px] font-bold text-slate-500">Longitude.</label>
                 <input type="text" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="block text-[11px] font-bold text-slate-500">Aide à l'accès</label>
-              <textarea value={aideAcces} onChange={(e) => setAideAcces(e.target.value)} rows={2} style={{ resize: 'none' }} />
+              <label className="block text-[11px] font-bold text-slate-500">Aide d’accès.</label>
+              <textarea value={aideAcces} onChange={(e) => setAideAcces(e.target.value)} rows={2} style={{ resize: 'none' }} placeholder="Entrez un commentaire." />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
               <div className="space-y-1">
-                <label className="block text-[11px] text-slate-500">Accès Permanent</label>
+                <label className="block text-[11px] text-slate-500 uppercase">Accès permanent.</label>
                 <div className="flex gap-4"><CustomPinkRadio value="Oui" currentValue={accesPermanent} onChange={(v) => setAccesPermanent(v as any)} label="Oui" /><CustomPinkRadio value="Non" currentValue={accesPermanent} onChange={(v) => setAccesPermanent(v as any)} label="Non" /></div>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] text-slate-500">Jours Ouvrés</label>
+                <label className="block text-[11px] text-slate-500 uppercase">Accès jours ouvrés.</label>
                 <div className="flex gap-4"><CustomPinkRadio value="Oui" currentValue={accesJoursOuvres} onChange={(v) => setAccesJoursOuvres(v as any)} label="Oui" /><CustomPinkRadio value="Non" currentValue={accesJoursOuvres} onChange={(v) => setAccesJoursOuvres(v as any)} label="Non" /></div>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] text-slate-500">Accès Weekend</label>
+                <label className="block text-[11px] text-slate-500 uppercase">Accès week-end.</label>
                 <div className="flex gap-4"><CustomPinkRadio value="Oui" currentValue={accesWeekend} onChange={(v) => setAccesWeekend(v as any)} label="Oui" /><CustomPinkRadio value="Non" currentValue={accesWeekend} onChange={(v) => setAccesWeekend(v as any)} label="Non" /></div>
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] text-slate-500">Installé Extérieur</label>
+                <label className="block text-[11px] text-slate-500 uppercase">Installé en extérieur.</label>
                 <div className="flex gap-4"><CustomPinkRadio value="Oui" currentValue={installeExterieur} onChange={(v) => setInstalleExterieur(v as any)} label="Oui" /><CustomPinkRadio value="Non" currentValue={installeExterieur} onChange={(v) => setInstalleExterieur(v as any)} label="Non" /></div>
               </div>
             </div>
@@ -526,36 +611,36 @@ export default function GmaoOtherEquipmentCorrectionForm({
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                3 — Suivi de Planification
+                3 — Dates
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Date de Fabrication</label>
+                <label className="block text-[11px] font-bold text-slate-500">Date de fabrication.</label>
                 <input type="date" value={fabrication} onChange={(e) => setFabrication(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Mise en Service</label>
+                <label className="block text-[11px] font-bold text-slate-500">Mise en service.</label>
                 <input type="date" value={miseEnService} onChange={(e) => setMiseEnService(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Expiration Garantie</label>
+                <label className="block text-[11px] font-bold text-slate-500">Expiration de garantie.</label>
                 <input type="date" value={expirationGarantie} onChange={(e) => setExpirationGarantie(e.target.value)} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Sortie Usine</label>
+                <label className="block text-[11px] font-bold text-slate-500">Sortie d'usine.</label>
                 <input type="date" value={sortieUsine} onChange={(e) => setSortieUsine(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Dernière Maintenance</label>
-                <input type="date" value={derniereMaintenance} onChange={(e) => setDerniereMaintenance(e.target.value)} />
+                <label className="block text-[11px] font-bold text-slate-500">Dernière maintenance.</label>
+                <input type="date" value={derniereMaintenance} onChange={(e) => handleDerniereMaintenanceChange(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Prochaine Maintenance Planned</label>
+                <label className="block text-[11px] font-bold text-slate-500">Prochaine maintenance.</label>
                 <input type="date" value={prochaineMaintenance} onChange={(e) => setProchaineMaintenance(e.target.value)} />
               </div>
             </div>
@@ -565,16 +650,16 @@ export default function GmaoOtherEquipmentCorrectionForm({
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                4 — Fiche Catégorie
+                4 — Catégorie et identifiant
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Catégorie</label>
+                <label className="block text-[11px] font-bold text-slate-500">Catégorie.</label>
                 <input type="text" value={categorie} readOnly className="bg-slate-100 cursor-not-allowed" />
               </div>
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Identifiant Unique</label>
+                <label className="block text-[11px] font-bold text-slate-500">Identifiant unique.</label>
                 <input type="text" value={identifiant} readOnly className="bg-slate-100 cursor-not-allowed" />
               </div>
             </div>
@@ -973,92 +1058,123 @@ export default function GmaoOtherEquipmentCorrectionForm({
 
           {/* ADDED INTERACTIVE SECTIONS FOR TECHNICIANS: PHOTO & SIGNATURE */}
           
-          {/* SECTION 6: PHOTOGRAPHIE */}
-          <div className="bg-white p-5 space-y-4" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
-            <div className="mb-2">
-              <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                6 — Preuve Visuelle (Photograph)
-              </span>
-            </div>
+          {/* Photo Cliché */}
+          <div className="bg-white p-5 space-y-4 shadow-sm" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
+            <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold mb-2" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
+              6 — Preuve Visuelle
+            </span>
+            <div className="space-y-1">
+              <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                Photographie du matériel.
+              </label>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={rowActionButton18Style}
+                  className="transition-colors cursor-pointer font-sans"
+                >
+                  Photographier
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
 
-            <div className="border-4 border-dashed border-slate-200 rounded-2xl p-6 text-center hover:bg-slate-50 transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-              />
-
-              {photoUrl ? (
-                <div className="space-y-3">
-                  <img src={photoUrl} alt="Intervention audit" className="mx-auto max-h-48 rounded-lg shadow border" />
-                  <div className="flex justify-center gap-3">
+                {photoUrl && (
+                  <>
                     <button
                       type="button"
                       onClick={() => setPhotoUrl('')}
-                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg text-sm border-0 cursor-pointer"
+                      style={{
+                        ...rowActionButton18Style,
+                        backgroundColor: '#ef4444',
+                      }}
+                      className="transition-colors cursor-pointer font-sans hover:bg-red-600"
                     >
                       Supprimer
                     </button>
                     <button
                       type="button"
-                      onClick={() => { if (photoUrl) window.open(photoUrl, '_blank'); }}
-                      className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-lg text-sm border-0 cursor-pointer"
+                      onClick={() => {
+                        if (photoUrl) window.open(photoUrl, '_blank');
+                      }}
+                      style={{
+                        ...rowActionButton18Style,
+                        backgroundColor: 'rgb(53, 86, 236)',
+                      }}
+                      className="transition-colors cursor-pointer font-sans hover:bg-blue-700"
                     >
-                      Agrandir
+                      Aperçu
                     </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-slate-600 text-sm">Prendre en photo l'équipement inspecté</p>
-                  <button
-                    type="button"
-                    onClick={triggerCameraInput}
-                    className="px-5 py-2.5 bg-black hover:bg-opacity-80 active:scale-95 text-white font-semibold rounded-lg text-sm border-0 cursor-pointer font-sans"
-                  >
-                    Ouvrir l'appareil photo / Choisir un fichier
-                  </button>
+                  </>
+                )}
+              </div>
+              {photoUrl && (
+                <div className="mt-3">
+                  <img src={photoUrl} alt="Intervention audit" className="max-h-48 rounded-lg shadow border" />
                 </div>
               )}
             </div>
           </div>
 
           {/* SECTION 7: SIGNATURE */}
-          <div className="bg-white p-5 space-y-4" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
-            <div className="mb-2">
-              <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                7 — Clôture & Signature
-              </span>
-            </div>
+          <div className="bg-white p-5 space-y-4 shadow-sm" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
+            <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
+              7 — Clôture & Signature
+            </span>
 
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold">Dessiner votre signature ci-dessous *</label>
-              <div className="relative bg-slate-50 border border-slate-300 rounded-xl overflow-hidden max-w-[400px]">
-                <canvas
-                  ref={canvasRef}
-                  width={380}
-                  height={180}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
-                  style={{ touchAction: 'none', display: 'block', margin: 'auto' }}
-                  className="cursor-crosshair bg-slate-50"
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Signature du technicien.
+                </label>
+                <div className="border border-slate-200 rounded-lg p-2 bg-white relative">
+                  <canvas
+                    ref={canvasRef}
+                    width={350}
+                    height={150}
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchMove={draw}
+                    onTouchEnd={stopDrawing}
+                    className="w-full bg-white rounded border border-slate-200 cursor-crosshair touch-none"
+                    style={{ height: '120px' }}
+                  />
+                  <div className="flex justify-between items-center mt-1.5">
+                    <span className="text-[16px] text-black font-semibold font-sans">
+                      Dessiner votre signature ci-dessus
+                    </span>
+                    <button
+                      type="button"
+                      onClick={clearCanvas}
+                      className="text-[16px] text-red-500 font-bold hover:underline cursor-pointer"
+                    >
+                      Effacer
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="end-timestamp" className="block text-[11px] font-bold text-black uppercase">
+                  Horodatage de clôture.
+                </label>
+                <input
+                  type="text"
+                  id="end-timestamp"
+                  value={endTimeStamp}
+                  onChange={(e) => setEndTimeStamp(e.target.value)}
+                  placeholder="Signez pour appliquer l’horodatage."
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
                 />
-                
-                <button
-                  type="button"
-                  onClick={clearCanvas}
-                  className="absolute bottom-2 right-2 px-3 py-1 bg-white hover:bg-slate-100 text-[#000000] border border-slate-300 rounded-lg text-xs cursor-pointer font-sans"
-                >
-                  Effacer
-                </button>
               </div>
             </div>
           </div>

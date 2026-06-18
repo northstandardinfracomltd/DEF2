@@ -1578,19 +1578,19 @@ export default function DefibTab({
                       )}
                     </button>
                   </th>
-                  <th className="px-4 py-3.5 w-14" style={thStyle}>Miniature.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Identifiant.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Série.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Client.</th>
-                  <th className="px-4 py-3.5 text-center" style={thStyle}>Contrat.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Localisation.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Expir. garantie.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Pro. visite.</th>
-                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption A.</th>
-                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption P.</th>
-                  <th className="px-3 py-3.5 text-center" style={thStyle}>Péremption B.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Tournée.</th>
-                  <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions.</th>
+                  <th className="px-4 py-3.5 w-14 whitespace-nowrap" style={thStyle}>Miniature.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Identifiant.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Série.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Client.</th>
+                  <th className="px-4 py-3.5 text-center whitespace-nowrap" style={thStyle}>Contrat.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Localisation.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Expir. garantie.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Pro. visite.</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption A.</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption P.</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption B.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Tournée.</th>
+                  <th className="px-4 py-3.5 text-right w-12 whitespace-nowrap" style={thStyle}>Actions.</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs">

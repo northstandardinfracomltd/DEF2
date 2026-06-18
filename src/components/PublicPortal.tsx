@@ -762,6 +762,266 @@ export default function PublicPortal({
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || defibrillateurs.find(d => d.id === report.defibId || d.identifiant === report.defibIdentifiant) || {};
     
+    if (snapshot.categorie && snapshot.categorie !== 'Défibrillateur') {
+      const clientFound = clients.find(c => c.id === snapshot.clientId);
+      const clientName = clientFound ? clientFound.denomination : (snapshot.nomPrenomSite || 'Non rattaché');
+
+      // Filter out typical top-level keys to get custom equipment properties!
+      const topLevelKeys = [
+        'id', 'clientId', 'nomPrenomSite', 'telephoneSite', 'emailSite', 'contrat', 'nomContrat', 'referenceContrat',
+        'debutContrat', 'finContrat', 'pays', 'codePostal', 'cp', 'ville', 'adresseComplexe', 'identifiant',
+        'codeNfc', 'statutGmao', 'categorie', 'conforme', 'miseEnServiceDate', 'miseEnService', 'commentaireGmao'
+      ];
+      
+      const customProperties = Object.entries(snapshot).filter(([k, v]) => {
+        return !topLevelKeys.includes(k) && v !== undefined && v !== null && v !== '' && typeof v !== 'object';
+      });
+
+      const compLogo = companyInfo.logo || '';
+      const compName = companyInfo.name || 'Défibeo Solutions';
+      const compEmail = companyInfo.email || '';
+      const compPhone = companyInfo.phone || '';
+      const compWebsite = companyInfo.website || '';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8">
+          <title>Rapport - ${snapshot.identifiant || report.defibIdentifiant || '-'}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            @font-face {
+              font-family: "Civilprom";
+              src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+              font-weight: 100 900;
+              font-style: normal;
+              font-display: swap;
+            }
+            @font-face {
+              font-family: "Gochi";
+              src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+              font-weight: normal;
+              font-style: normal;
+              font-display: swap;
+            }
+            * {
+              box-sizing: border-box;
+              font-family: "Civilprom", "Inter", sans-serif !important;
+              font-weight: 100 !important;
+            }
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            body {
+              font-family: "Civilprom", "Inter", sans-serif !important;
+              background-color: #ffffff;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            #print-container {
+              width: 210mm;
+              margin: 0 auto;
+              background-color: #ffffff;
+            }
+            .pdf-page {
+              position: relative;
+              width: 210mm;
+              height: 297mm;
+              padding: 20mm 15mm;
+              box-sizing: border-box;
+              background-color: #ffffff;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              gap: 15px;
+              page-break-after: always;
+              break-after: page;
+            }
+            .pdf-header {
+              font-family: "Gochi", cursive !important;
+              font-size: 32px;
+              font-weight: normal !important;
+              text-align: center;
+              color: #000000;
+              margin-top: -10px;
+              margin-bottom: 4px;
+            }
+            .pdf-grid {
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+              width: 100%;
+            }
+            .pdf-card {
+              border: 1px solid rgb(201, 190, 205);
+              border-radius: 14px;
+              background-color: #ffffff;
+              display: flex;
+              flex-direction: column;
+              overflow: hidden;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .pdf-card-header {
+              padding: 10px 14px 2px 14px;
+              font-size: 18px;
+              color: #000000;
+            }
+            .pdf-card-body {
+              padding: 8px 14px 12px 14px;
+              font-size: 16px;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              color: #000000;
+            }
+            .pdf-line {
+              color: #000000;
+              line-height: 1.35;
+              font-size: 16px;
+            }
+            .pdf-label {
+              color: rgb(138, 138, 138);
+            }
+            .pdf-bold {
+              color: #000000;
+            }
+            .pdf-footer {
+              position: absolute;
+              bottom: 15mm;
+              right: 15mm;
+              font-size: 11px;
+              color: #000000;
+            }
+          </style>
+        </head>
+        <body class="bg-white">
+          <div id="print-container">
+            <div class="pdf-page">
+              <div class="pdf-header">
+                ${report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie}`}
+              </div>
+              
+              <div style="font-family: 'Civilprom', sans-serif !important; font-size: 18px; text-align: center; color: #000000; margin-bottom: 8px; line-height: 1.4;">
+                Conservez et archivez consciencieusement ce certificat technique GMAO pour vos obligations d'entretien.
+              </div>
+
+              <div class="pdf-grid">
+                <!-- SECTION 1 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
+                  <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
+                    ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
+                    <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName}</div>
+                    <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ''}</span></div>
+                    <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
+                  </div>
+                </div>
+
+                <!-- SECTION 2 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">2 — Infos client & contrat.</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Client :</span> <span class="pdf-bold">${clientName || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Contact sur place :</span> <span class="pdf-bold">${snapshot.nomPrenomSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Téléphone du contact :</span> <span class="pdf-bold">${snapshot.telephoneSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Email du contact :</span> <span class="pdf-bold">${snapshot.emailSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Sous contrat :</span> <span class="pdf-bold">${snapshot.contrat || 'Non'}</span></div>
+                    ${snapshot.contrat === 'Oui' ? `
+                      <div class="pdf-line"><span class="pdf-label">Nom du contrat :</span> <span class="pdf-bold">${snapshot.nomContrat || ''}</span></div>
+                      <div class="pdf-line"><span class="pdf-label">Référence contrat :</span> <span class="pdf-bold">${snapshot.referenceContrat || ''}</span></div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- SECTION 3 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">3 — Spécifications du matériel (${snapshot.categorie}).</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Catégorie :</span> <span class="pdf-bold">${snapshot.categorie || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Identifiant unique :</span> <span class="pdf-bold">${snapshot.identifiant || ''}</span></div>
+                    ${snapshot.codeNfc ? `<div class="pdf-line"><span class="pdf-label">Code NFC :</span> <span class="pdf-bold">${snapshot.codeNfc}</span></div>` : ''}
+                    <div class="pdf-line"><span class="pdf-label">Statut GMAO :</span> <span class="pdf-bold">${snapshot.statutGmao || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Mise en service :</span> <span class="pdf-bold">${snapshot.miseEnServiceDate || snapshot.miseEnService || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Conformité générale :</span> <span class="pdf-bold ${snapshot.conforme === 'Non' ? 'text-rose-600 font-bold' : 'text-emerald-600'}">${snapshot.conforme || 'Oui'}</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="pdf-footer">Page 1 / 2</div>
+            </div>
+
+            <!-- PAGE 2 -->
+            <div class="pdf-page">
+              <div class="pdf-grid">
+                <!-- CUSTOM SECTION / CHECKPOINTS -->
+                ${customProperties.length > 0 ? `
+                  <div class="pdf-card">
+                    <div class="pdf-card-header">4 — Paramètres spécifiques & Vérifications.</div>
+                    <div class="pdf-card-body">
+                      ${customProperties.map(([key, val]) => `
+                        <div class="pdf-line"><span class="pdf-label" style="text-transform: capitalize;">${key.replace(/([A-Z])/g, ' $1')}:</span> <span class="pdf-bold">${val}</span></div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- ACTIONS, NOTES & CAPTURE EVIDENCE -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">5 — Clôture de l'intervention.</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Technicien intervenant :</span> <span class="pdf-bold">${report.techName || 'Administrateur'}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Date d’intervention :</span> <span class="pdf-bold">${report.date || '-'}</span></div>
+                    ${report.endTimeStamp ? `<div class="pdf-line"><span class="pdf-label">Heure de fin :</span> <span class="pdf-bold">${report.endTimeStamp}</span></div>` : ''}
+                    <div class="pdf-line" style="margin-bottom: 4px;">
+                      <span class="pdf-label">Commentaire / Remarques :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireGmao || snapshot.commentaire || 'Aucun commentaire.'}</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
+                      <!-- Photo -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Photographie terrain.</div>
+                        ${report.photoUrl ? `
+                          <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
+                            <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Photo" referrerPolicy="no-referrer" />
+                          </div>
+                        ` : '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>'}
+                      </div>
+
+                      <!-- Signature -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature.</div>
+                        ${report.techSignature ? `
+                          <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
+                            <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
+                          </div>
+                        ` : `
+                          <div style="font-size: 15px; color: #a1a1a1; font-style: italic;">
+                            Non signée
+                          </div>
+                        `}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="pdf-footer">Page 2 / 2</div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      return;
+    }
+
     // Resolve CompanyInfo
     const compLogo = companyInfo.logo || '';
     const compName = companyInfo.name || 'Défibeo Solutions';
@@ -3347,17 +3607,8 @@ export default function PublicPortal({
 
                                 {/* Textes de la div en font color black */}
                                 <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
-                                  <p style={{ color: '#000000', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    Matériel : <span style={{
-                                      backgroundColor: 'rgb(77, 21, 83)',
-                                      color: 'rgb(255, 255, 255)',
-                                      borderRadius: '1000px',
-                                      padding: '4px 12px',
-                                      fontSize: '15px',
-                                      fontWeight: 700,
-                                      border: 'none',
-                                      display: 'inline-block'
-                                    }}>{p.equipmentType || 'Défibrillateur'}</span>
+                                  <p style={{ color: '#000000' }}>
+                                    Matériel : <span className="font-semibold" style={{ color: '#000000' }}>{p.equipmentType || 'Défibrillateur'}</span>
                                   </p>
                                   <p style={{ color: '#000000' }}>
                                     Modèle : <span className="font-semibold" style={{ color: '#000000' }}>{p.model}</span>
@@ -3523,7 +3774,8 @@ export default function PublicPortal({
                           
                           <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
                             <p style={{ color: '#000000' }}>Document : <span className="font-semibold" style={{ color: '#000000' }}>{formatToNormalCase(rep.title || 'Rapport de maintenance')}</span></p>
-                            <p style={{ color: '#000000' }}>Défibrillateur : <span className="font-semibold" style={{ color: '#000000' }}>{rep.defibIdentifiant}</span></p>
+                            <p style={{ color: '#000000' }}>Identifiant : <span className="font-semibold" style={{ color: '#000000' }}>{snapshot.identifiant || rep.defibIdentifiant}</span></p>
+                            <p style={{ color: '#000000' }}>Équipement : <span className="font-semibold" style={{ color: '#000000' }}>{snapshot.categorie ? formatToNormalCase(snapshot.categorie) : 'Défibrillateur'}</span></p>
                             <p style={{ color: '#000000' }}>Technicien : <span className="font-semibold" style={{ color: '#000000' }}>{rep.techName}</span></p>
                             <p style={{ color: '#000000' }}>Client : <span className="font-semibold" style={{ color: '#000000' }}>{formatToNormalCase(clientName)}</span></p>
                           </div>

@@ -820,14 +820,14 @@ export default function AutresMaterielsTab({
                         )}
                       </button>
                     </th>
-                    <th className="px-5 py-3.5" style={thStyle}>Catégorie.</th>
-                    <th className="px-5 py-3.5" style={thStyle}>Identifiant.</th>
-                    <th className="px-5 py-3.5" style={thStyle}>Client.</th>
-                    <th className="px-5 py-3.5" style={thStyle}>Localisation.</th>
-                    <th className="px-5 py-3.5" style={thStyle}>Expir. garantie.</th>
-                    <th className="px-5 py-3.5" style={thStyle}>Pro. visite.</th>
-                    <th className="px-5 py-3.5 text-center" style={thStyle}>Tournée.</th>
-                    <th className="px-5 py-3.5 text-right w-32" style={thStyle}>Actions.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Catégorie.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Identifiant.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Client.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Localisation.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Expir. garantie.</th>
+                    <th className="px-5 py-3.5 whitespace-nowrap" style={thStyle}>Pro. visite.</th>
+                    <th className="px-5 py-3.5 text-center whitespace-nowrap" style={thStyle}>Tournée.</th>
+                    <th className="px-5 py-3.5 text-right w-32 whitespace-nowrap" style={thStyle}>Actions.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -1370,7 +1370,11 @@ export default function AutresMaterielsTab({
                   {/* Pays */}
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Pays.</label>
-                    <select value={pays} onChange={(e) => setPays(e.target.value)}>
+                    <select
+                      value={pays}
+                      onChange={(e) => setPays(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 font-semibold"
+                    >
                       <option value="France">France</option>
                       <option value="Espagne">Espagne</option>
                       <option value="Portugal">Portugal</option>

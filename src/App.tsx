@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -14,6 +14,7 @@ import {
 } from './utils/emailService';
 
 import DefibTab from './components/DefibTab';
+import AutresMaterielsTab from './components/AutresMaterielsTab';
 import ClientTab from './components/ClientTab';
 import VariableTab from './components/VariableTab';
 import SettingsModal from './components/SettingsModal';
@@ -77,6 +78,7 @@ import {
 
 export type AppTab = 
   | 'defibrillateurs'
+  | 'autres-materiels'
   | 'clients'
   | 'variables'
   | 'fsm'
@@ -92,6 +94,89 @@ export type AppTab =
   | 'statistiques'
   | 'parametres'
   | 'import-export';
+
+const INITIAL_OTHER_EQUIPMENTS: OtherEquipment[] = [
+  {
+    id: 'oe_1',
+    identifiant: 'EXT-D18-001',
+    clientId: 'c1',
+    nomPrenomSite: 'Jean Dupont',
+    telephoneSite: '06 12 34 56 78',
+    emailSite: 'jean.dupont@secourspro.com',
+    contrat: 'Oui',
+    nomContrat: 'Contrat Maintenance Extincteurs',
+    referenceContrat: 'CTR-EXT-7729',
+    debutContrat: '2026-01-01',
+    finContrat: '2028-12-31',
+    numeroVoie: '12 Rue de la Paix',
+    ville: 'Paris',
+    codePostal: '75001',
+    region: 'Île-de-France',
+    pays: 'France',
+    latitude: '48.869',
+    longitude: '2.332',
+    aideAcces: 'Code digicode 4829',
+    accesPermanent: 'Non',
+    accesJoursOuvres: 'Oui',
+    accesWeekend: 'Non',
+    installeExterieur: 'Non',
+    expirationGarantie: '2029-06-30',
+    fabrication: '2025-10-15',
+    miseEnService: '2026-01-15',
+    derniereMaintenance: '2026-05-15',
+    sortieUsine: '2025-11-01',
+    prochaineMaintenance: '2027-05-15',
+    categorie: 'Extincteur',
+    tournee: 'Nord',
+    specifiques: {
+      agentExtincteur: 'Eau pulvérisée',
+      capacite: '6 Litres',
+      pressionConforme: 'Conforme',
+      plombGoupille: 'Présents / Intacts',
+      commentaire: 'Vérification annuelle effectuée RAS.'
+    }
+  },
+  {
+    id: 'oe_2',
+    identifiant: 'DET-D18-002',
+    clientId: 'c2',
+    nomPrenomSite: 'Pierre Martin',
+    telephoneSite: '07 98 76 54 32',
+    emailSite: 'pierre.martin@clinique-erdre.fr',
+    contrat: 'Oui',
+    nomContrat: 'Contrat Sécurité Incendie',
+    referenceContrat: 'CTR-INC-1220',
+    debutContrat: '2025-06-15',
+    finContrat: '2027-06-14',
+    numeroVoie: '105 Route de Paris',
+    ville: 'Nantes',
+    codePostal: '44000',
+    region: 'Pays de la Loire',
+    pays: 'France',
+    latitude: '47.218',
+    longitude: '-1.553',
+    aideAcces: 'Entrée principale de la clinique',
+    accesPermanent: 'Oui',
+    accesJoursOuvres: 'Oui',
+    accesWeekend: 'Oui',
+    installeExterieur: 'Non',
+    expirationGarantie: '2030-12-31',
+    fabrication: '2024-12-01',
+    miseEnService: '2025-01-10',
+    derniereMaintenance: '2026-01-10',
+    sortieUsine: '2024-12-10',
+    prochaineMaintenance: '2027-01-10',
+    categorie: 'Détecteur de fumée',
+    tournee: 'Ouest',
+    specifiques: {
+      remplacementMax: 'Décembre 2034',
+      declenchementAerosol: 'Positif',
+      testPileFaible: 'Aucun signal',
+      propreteChambre: 'Propre',
+      commentaire: 'Détecteur de fumée autonome en parfait état de marche.'
+    }
+  }
+];
 
 export default function App() {
   // Database States (declared at top of component to be in scope for handlers)
@@ -344,6 +429,10 @@ export default function App() {
   // Database States
   const [variables, setVariables] = useState<Variable[]>([]);
   const [defibrillateurs, setDefibrillateurs] = useState<Defibrillateur[]>([]);
+  const [otherEquipments, setOtherEquipments] = useState<OtherEquipment[]>([]);
+  const [enableOtherEquipments, setEnableOtherEquipments] = useState<string>(() => {
+    return localStorage.getItem('defib_enable_other_equipments') || 'Non';
+  });
   const [stocks, setStocks] = useState<StockRecord[]>([]);
   const [fsmOpenPieceDropdownId, setFsmOpenPieceDropdownId] = useState<string | null>(null);
   const [fsmPieceSearch, setFsmPieceSearch] = useState('');
@@ -992,7 +1081,267 @@ export default function App() {
 
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || {};
-    
+
+    if (snapshot.categorie && snapshot.categorie !== 'Défibrillateur') {
+      const clientFound = clients.find(c => c.id === snapshot.clientId);
+      const clientName = clientFound ? clientFound.denomination : (snapshot.nomPrenomSite || 'Non rattaché');
+
+      // Filter out typical top-level keys to get custom equipment properties!
+      const topLevelKeys = [
+        'id', 'clientId', 'nomPrenomSite', 'telephoneSite', 'emailSite', 'contrat', 'nomContrat', 'referenceContrat',
+        'debutContrat', 'finContrat', 'pays', 'codePostal', 'cp', 'ville', 'adresseComplexe', 'identifiant',
+        'codeNfc', 'statutGmao', 'categorie', 'conforme', 'miseEnServiceDate', 'miseEnService', 'commentaireGmao'
+      ];
+      
+      const customProperties = Object.entries(snapshot).filter(([k, v]) => {
+        return !topLevelKeys.includes(k) && v !== undefined && v !== null && v !== '' && typeof v !== 'object';
+      });
+
+      const compLogo = companyInfo.logo || '';
+      const compName = companyInfo.name || 'Défibeo Solutions';
+      const compEmail = companyInfo.email || '';
+      const compPhone = companyInfo.phone || '';
+      const compWebsite = companyInfo.website || '';
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html lang="fr">
+        <head>
+          <meta charset="UTF-8">
+          <title>Rapport - ${snapshot.identifiant || report.defibIdentifiant || '-'}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+            @font-face {
+              font-family: "Civilprom";
+              src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+              font-weight: 100 900;
+              font-style: normal;
+              font-display: swap;
+            }
+            @font-face {
+              font-family: "Gochi";
+              src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+              font-weight: normal;
+              font-style: normal;
+              font-display: swap;
+            }
+            * {
+              box-sizing: border-box;
+              font-family: "Civilprom", "Inter", sans-serif !important;
+              font-weight: 100 !important;
+            }
+            @page {
+              size: A4 portrait;
+              margin: 0;
+            }
+            body {
+              font-family: "Civilprom", "Inter", sans-serif !important;
+              background-color: #ffffff;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            #print-container {
+              width: 210mm;
+              margin: 0 auto;
+              background-color: #ffffff;
+            }
+            .pdf-page {
+              position: relative;
+              width: 210mm;
+              height: 297mm;
+              padding: 20mm 15mm;
+              box-sizing: border-box;
+              background-color: #ffffff;
+              display: flex;
+              flex-direction: column;
+              justify-content: flex-start;
+              gap: 15px;
+              page-break-after: always;
+              break-after: page;
+            }
+            .pdf-header {
+              font-family: "Gochi", cursive !important;
+              font-size: 32px;
+              font-weight: normal !important;
+              text-align: center;
+              color: #000000;
+              margin-top: -10px;
+              margin-bottom: 4px;
+            }
+            .pdf-grid {
+              display: flex;
+              flex-direction: column;
+              gap: 12px;
+              width: 100%;
+            }
+            .pdf-card {
+              border: 1px solid rgb(201, 190, 205);
+              border-radius: 14px;
+              background-color: #ffffff;
+              display: flex;
+              flex-direction: column;
+              overflow: hidden;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+            .pdf-card-header {
+              padding: 10px 14px 2px 14px;
+              font-size: 18px;
+              color: #000000;
+            }
+            .pdf-card-body {
+              padding: 8px 14px 12px 14px;
+              font-size: 16px;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              color: #000000;
+            }
+            .pdf-line {
+              color: #000000;
+              line-height: 1.35;
+              font-size: 16px;
+            }
+            .pdf-label {
+              color: rgb(138, 138, 138);
+            }
+            .pdf-bold {
+              color: #000000;
+            }
+            .pdf-footer {
+              position: absolute;
+              bottom: 15mm;
+              right: 15mm;
+              font-size: 11px;
+              color: #000000;
+            }
+          </style>
+        </head>
+        <body class="bg-white">
+          <div id="print-container">
+            <div class="pdf-page">
+              <div class="pdf-header">
+                ${report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie}`}
+              </div>
+              
+              <div style="font-family: 'Civilprom', sans-serif !important; font-size: 18px; text-align: center; color: #000000; margin-bottom: 8px; line-height: 1.4;">
+                Conservez et archivez consciencieusement ce certificat technique GMAO pour vos obligations d'entretien.
+              </div>
+
+              <div class="pdf-grid">
+                <!-- SECTION 1 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
+                  <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
+                    ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
+                    <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName}</div>
+                    <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ''}</span></div>
+                    <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
+                  </div>
+                </div>
+
+                <!-- SECTION 2 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">2 — Infos client & contrat.</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Client :</span> <span class="pdf-bold">${clientName || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Contact sur place :</span> <span class="pdf-bold">${snapshot.nomPrenomSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Téléphone du contact :</span> <span class="pdf-bold">${snapshot.telephoneSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Email du contact :</span> <span class="pdf-bold">${snapshot.emailSite || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Sous contrat :</span> <span class="pdf-bold">${snapshot.contrat || 'Non'}</span></div>
+                    ${snapshot.contrat === 'Oui' ? `
+                      <div class="pdf-line"><span class="pdf-label">Nom du contrat :</span> <span class="pdf-bold">${snapshot.nomContrat || ''}</span></div>
+                      <div class="pdf-line"><span class="pdf-label">Référence contrat :</span> <span class="pdf-bold">${snapshot.referenceContrat || ''}</span></div>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- SECTION 3 -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">3 — Spécifications du matériel (${snapshot.categorie}).</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Catégorie :</span> <span class="pdf-bold">${snapshot.categorie || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Identifiant unique :</span> <span class="pdf-bold">${snapshot.identifiant || ''}</span></div>
+                    ${snapshot.codeNfc ? `<div class="pdf-line"><span class="pdf-label">Code NFC :</span> <span class="pdf-bold">${snapshot.codeNfc}</span></div>` : ''}
+                    <div class="pdf-line"><span class="pdf-label">Statut GMAO :</span> <span class="pdf-bold">${snapshot.statutGmao || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Mise en service :</span> <span class="pdf-bold">${snapshot.miseEnServiceDate || snapshot.miseEnService || ''}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Conformité générale :</span> <span class="pdf-bold ${snapshot.conforme === 'Non' ? 'text-rose-600 font-bold' : 'text-emerald-600'}">${snapshot.conforme || 'Oui'}</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="pdf-footer">Page 1 / 2</div>
+            </div>
+
+            <!-- PAGE 2 -->
+            <div class="pdf-page">
+              <div class="pdf-grid">
+                <!-- CUSTOM SECTION / CHECKPOINTS -->
+                ${customProperties.length > 0 ? `
+                  <div class="pdf-card">
+                    <div class="pdf-card-header">4 — Paramètres spécifiques & Vérifications.</div>
+                    <div class="pdf-card-body">
+                      ${customProperties.map(([key, val]) => `
+                        <div class="pdf-line"><span class="pdf-label" style="text-transform: capitalize;">${key.replace(/([A-Z])/g, ' $1')}:</span> <span class="pdf-bold">${val}</span></div>
+                      `).join('')}
+                    </div>
+                  </div>
+                ` : ''}
+
+                <!-- ACTIONS, NOTES & CAPTURE EVIDENCE -->
+                <div class="pdf-card">
+                  <div class="pdf-card-header">5 — Clôture de l'intervention.</div>
+                  <div class="pdf-card-body">
+                    <div class="pdf-line"><span class="pdf-label">Technicien intervenant :</span> <span class="pdf-bold">${report.techName || 'Administrateur'}</span></div>
+                    <div class="pdf-line"><span class="pdf-label">Date d’intervention :</span> <span class="pdf-bold">${report.date || '-'}</span></div>
+                    ${report.endTimeStamp ? `<div class="pdf-line"><span class="pdf-label">Heure de fin :</span> <span class="pdf-bold">${report.endTimeStamp}</span></div>` : ''}
+                    <div class="pdf-line" style="margin-bottom: 4px;">
+                      <span class="pdf-label">Commentaire / Remarques :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireGmao || snapshot.commentaire || 'Aucun commentaire.'}</span>
+                    </div>
+
+                    <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
+                      <!-- Photo -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Photographie terrain.</div>
+                        ${report.photoUrl ? `
+                          <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
+                            <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Photo" referrerPolicy="no-referrer" />
+                          </div>
+                        ` : '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>'}
+                      </div>
+
+                      <!-- Signature -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature.</div>
+                        ${report.techSignature ? `
+                          <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
+                            <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
+                          </div>
+                        ` : `
+                          <div style="font-size: 15px; color: #a1a1a1; font-style: italic;">
+                            Non signée
+                          </div>
+                        `}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="pdf-footer">Page 2 / 2</div>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      return;
+    }
+
     // Resolve CompanyInfo
     const compLogo = companyInfo.logo || '';
     const compName = companyInfo.name || 'Défibeo Solutions';
@@ -1528,7 +1877,7 @@ export default function App() {
         const [
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
-          fReports, fTours, fMemos
+          fReports, fTours, fMemos, fOtherEquipments
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -1544,7 +1893,8 @@ export default function App() {
           fetchCollectionFromFirestore<any[]>('expenses'),
           fetchCollectionFromFirestore<any[]>('generatedReports'),
           fetchCollectionFromFirestore<any[]>('fsmTours'),
-          fetchCollectionFromFirestore<Memo[]>('memos')
+          fetchCollectionFromFirestore<Memo[]>('memos'),
+          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments')
         ]);
 
         // Handlers to apply state or write if empty
@@ -1747,13 +2097,23 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(defaultTours));
         }
 
-                if (fMemos !== null) {
+        if (fMemos !== null) {
           setMemos(fMemos);
           localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(fMemos));
         } else {
           setMemos([]);
           await saveCollectionToFirestore('memos', []);
           localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify([]));
+        }
+
+        if (fOtherEquipments !== null) {
+          setOtherEquipments(fOtherEquipments);
+          localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(fOtherEquipments));
+        } else {
+          const defaultVal = tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : [];
+          setOtherEquipments(defaultVal);
+          await saveCollectionToFirestore('otherEquipments', defaultVal);
+          localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(defaultVal));
         }
 
         setIsFirebaseLoaded(true);
@@ -1802,6 +2162,10 @@ export default function App() {
 
         const savedExpenses = localStorage.getItem(`defib_${tenantId}_expenses`);
         if (savedExpenses) setExpenses(JSON.parse(savedExpenses));
+
+        const savedOtherEquipments = localStorage.getItem(`defib_${tenantId}_other_equipments`);
+        if (savedOtherEquipments) setOtherEquipments(JSON.parse(savedOtherEquipments));
+        else setOtherEquipments(tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : []);
 
         const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
         if (savedPointagesHistory) setPointages(JSON.parse(savedPointagesHistory));
@@ -1938,6 +2302,17 @@ export default function App() {
       }
     }
   }, [memos, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('otherEquipments', otherEquipments);
+      try {
+        localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(otherEquipments));
+      } catch (e) {
+        console.warn('Storage quota exceeded for otherEquipments:', e);
+      }
+    }
+  }, [otherEquipments, isFirebaseLoaded, tenantId]);
 
   const saveGedDocs = (newGed: GedDocument[]) => {
     setGedDocs(newGed);
@@ -2347,6 +2722,14 @@ export default function App() {
     }
   };
 
+  const saveOtherEquipments = (newItems: OtherEquipment[]) => {
+    setOtherEquipments(newItems);
+    localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(newItems));
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('otherEquipments', newItems);
+    }
+  };
+
   // Ticket Operations
   const handleAddTicket = (ticketData: Omit<SupportTicket, 'id' | 'date' | 'status'>) => {
     const randomNum = Math.floor(100000 + Math.random() * 900000);
@@ -2545,6 +2928,8 @@ export default function App() {
         onUpdateStocks={saveStocks}
         fsmTours={fsmTours}
         onUpdateFsmTours={saveFsmTours}
+        otherEquipments={otherEquipments}
+        onUpdateOtherEquipments={saveOtherEquipments}
         generatedReports={generatedReports}
         onUpdateGeneratedReports={saveReports}
         pointages={pointages}
@@ -2569,6 +2954,7 @@ export default function App() {
       <ClientPortal
         clients={clients}
         defibrillateurs={defibrillateurs}
+        otherEquipments={otherEquipments}
         commercialDocs={commercialDocs}
         variables={variables}
         onClose={handleLogout}
@@ -2589,6 +2975,7 @@ export default function App() {
       <ClientPortal
         clients={clients}
         defibrillateurs={defibrillateurs}
+        otherEquipments={otherEquipments}
         commercialDocs={commercialDocs}
         variables={variables}
         onClose={() => {
@@ -2622,6 +3009,8 @@ export default function App() {
         onUpdateStocks={saveStocks}
         fsmTours={fsmTours}
         onUpdateFsmTours={saveFsmTours}
+        otherEquipments={otherEquipments}
+        onUpdateOtherEquipments={saveOtherEquipments}
         generatedReports={generatedReports}
         onUpdateGeneratedReports={saveReports}
         pointages={pointages}
@@ -2718,6 +3107,7 @@ export default function App() {
         <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
           {[
             { id: 'defibrillateurs', label: 'Défibrillateurs', icon: Heart },
+            ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: 'Autres matériels', icon: Layers }] : []),
             { id: 'clients', label: 'Clients', icon: User },
             { id: 'fsm', label: 'FSM', icon: Flame },
             { id: 'gmao', label: 'GMAO', icon: Wrench },
@@ -2814,6 +3204,19 @@ export default function App() {
               setActiveTab={setActiveTab}
               companyInfo={companyInfo}
               members={members}
+            />
+          )}
+
+          {activeTab === 'autres-materiels' && (
+            <AutresMaterielsTab
+              otherEquipments={otherEquipments}
+              saveOtherEquipments={saveOtherEquipments}
+              clients={clients}
+              fsmTours={fsmTours}
+              onUpdateFsmTours={saveFsmTours}
+              setActiveTab={setActiveTab}
+              members={members}
+              defibrillateurs={defibrillateurs}
             />
           )}
 
@@ -3477,6 +3880,25 @@ export default function App() {
                                         >
                                           {idx + 1}
                                         </div>
+                                        <span
+                                          style={{
+                                            backgroundColor: 'rgb(77, 21, 83)',
+                                            color: 'rgb(255, 255, 255)',
+                                            borderRadius: '1000px',
+                                            padding: '4px 12px',
+                                            fontSize: '15px',
+                                            fontWeight: 700,
+                                            border: 'none'
+                                          }}
+                                        >
+                                          {m.equipmentType || (() => {
+                                            const isDefib = defibrillateurs.some((d: any) => d.identifiant === m.defibIdentifiant);
+                                            if (isDefib) return 'Défibrillateur';
+                                            const other = otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant);
+                                            if (other) return other.categorie;
+                                            return m.reason?.toLowerCase().includes('autre') ? 'Autre matériel' : 'Défibrillateur';
+                                          })()}
+                                        </span>
                                       </div>
 
                                       {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Situation. */}
@@ -5310,6 +5732,10 @@ export default function App() {
               }}
               onLogout={handleLogout}
               currentUser={loggedUser}
+              enableOtherEquipments={enableOtherEquipments}
+              onUpdateOtherEquipments={setEnableOtherEquipments}
+              otherEquipments={otherEquipments}
+              onClearOtherEquipments={() => saveOtherEquipments([])}
             />
           )}
 
@@ -5350,6 +5776,10 @@ export default function App() {
         }}
         onLogout={handleLogout}
         currentUser={loggedUser}
+        enableOtherEquipments={enableOtherEquipments}
+        onUpdateOtherEquipments={setEnableOtherEquipments}
+        otherEquipments={otherEquipments}
+        onClearOtherEquipments={() => saveOtherEquipments([])}
       />
 
       <StatsModal

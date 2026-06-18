@@ -211,5 +211,50 @@ export interface Memo {
   createdAt: number;
 }
 
+export interface OtherEquipment {
+  id: string;
+  identifiant: string;
+  
+  // Section 1 - Client
+  clientId: string;
+  nomPrenomSite: string;
+  telephoneSite: string;
+  emailSite: string;
+  contrat: 'Oui' | 'Non';
+  nomContrat: string;
+  referenceContrat: string;
+  debutContrat: string;
+  finContrat: string;
+
+  // Section 2 - Localisation
+  numeroVoie: string;
+  ville: string;
+  codePostal: string;
+  region: string;
+  pays: string;
+  latitude: string;
+  longitude: string;
+  aideAcces: string;
+  accesPermanent: 'Oui' | 'Non';
+  accesJoursOuvres: 'Oui' | 'Non';
+  accesWeekend: 'Oui' | 'Non';
+  installeExterieur: 'Oui' | 'Non';
+
+  // Section 3 - Dates
+  expirationGarantie: string;
+  fabrication: string;
+  miseEnService: string;
+  derniereMaintenance: string;
+  sortieUsine: string;
+  prochaineMaintenance: string;
+
+  // Section 4 - Catégorie
+  categorie: string;
+  tournee?: string;
+
+  // Section 5 - Champs techniques spécifiques
+  specifiques: Record<string, any>;
+}
+
 
 

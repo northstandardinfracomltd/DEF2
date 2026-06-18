@@ -103,24 +103,17 @@ export async function sendScriptEmail(payload: {
  * When a user registers (CRÉER UN COMPTE), send a confirmation email containing credentials.
  * Scheduled for 15 minutes in the future.
  */
-export function triggerEmail1Inscription(emailEntreprise: string, passwordHexOrPlain: string) {
-  // Sending immediately (1 second delay) as clients/users close current page/tab or log in,
-  // which would cancel any long in-memory front-end timeout.
-  const delayMs = 1000;
-  
+export async function triggerEmail1Inscription(emailEntreprise: string, passwordHexOrPlain: string): Promise<boolean> {
   console.log(`[Email 1] Sending welcome/inscription email to ${emailEntreprise} immediately.`);
+  const subject = "Défibeo : Confirmation pour l’ouverture de votre environnement.";
+  const body = `Bravo pour l’ouverture de votre environnement Défibeo! Pour rappel, pour vous connecter, accédez à https://defibeo.com/ et cliquez sur Connexion, ensuite veuillez utiliser votre email ${emailEntreprise} ainsi que le mot de passe que vous avez ajouté.`;
   
-  setTimeout(async () => {
-    const subject = "Défibeo : Confirmation pour l’ouverture de votre environnement.";
-    const body = `Bravo pour l’ouverture de votre environnement Défibeo! Pour rappel, pour vous connecter, accédez à https://defibeo.com/ et cliquez sur Connexion, ensuite veuillez utiliser votre email ${emailEntreprise} ainsi que le mot de passe que vous avez ajouté.`;
-    
-    await sendScriptEmail({
-      to: `support@defibeo.com, ${emailEntreprise}`,
-      subject,
-      body,
-      replyTo: "support@defibeo.com"
-    });
-  }, delayMs);
+  return sendScriptEmail({
+    to: `support@defibeo.com, ${emailEntreprise}`,
+    subject,
+    body,
+    replyTo: "support@defibeo.com"
+  });
 }
 
 /**

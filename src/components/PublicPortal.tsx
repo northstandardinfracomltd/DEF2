@@ -42,6 +42,7 @@ import {
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, PointageLog, StockRecord, CommercialDoc, CommercialDocItem } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import GmaoCorrectionForm from './GmaoCorrectionForm';
+import GmaoOtherEquipmentCorrectionForm from './GmaoOtherEquipmentCorrectionForm';
 import { triggerEmail6RapportIntervention } from '../utils/emailService';
 
 // Helper functions for French date <-> ISO date picker compatibility
@@ -99,6 +100,8 @@ interface PublicPortalProps {
   onUpdateCommercialDocs?: (updatedDocs: CommercialDoc[]) => void;
   fsmTours?: any[];
   onUpdateFsmTours?: (updated: any[]) => void;
+  otherEquipments?: any[];
+  onUpdateOtherEquipments?: (updated: any[]) => void;
   generatedReports?: GeneratedReport[];
   onUpdateGeneratedReports?: (updated: GeneratedReport[]) => void;
   pointages?: PointageLog[];
@@ -149,6 +152,8 @@ export default function PublicPortal({
   onUpdateCommercialDocs,
   fsmTours,
   onUpdateFsmTours,
+  otherEquipments = [],
+  onUpdateOtherEquipments,
   generatedReports: propGeneratedReports,
   onUpdateGeneratedReports,
   pointages: propPointages,
@@ -351,6 +356,20 @@ export default function PublicPortal({
                     d.id === m.defibIdentifiant ||
                     (m.clientName && m.clientName.includes(d.identifiant))
                   );
+                  const other = otherEquipments.find((o: any) => 
+                    o.identifiant === m.defibIdentifiant || 
+                    o.id === m.defibIdentifiant
+                  );
+                  let equipmentType = m.equipmentType;
+                  if (!equipmentType) {
+                    if (defib) {
+                      equipmentType = 'Défibrillateur';
+                    } else if (other) {
+                      equipmentType = other.categorie;
+                    } else {
+                      equipmentType = m.reason?.toLowerCase().includes('autre') ? 'Autre matériel' : 'Défibrillateur';
+                    }
+                  }
                   let model = 'Défibrillateur standard';
                   let address = m.clientName || 'Adresse non spécifiée';
                   if (defib) {
@@ -362,6 +381,12 @@ export default function PublicPortal({
                     if (addrParts.length > 0) {
                       address = addrParts.join(', ');
                     }
+                  } else if (other) {
+                    model = other.categorie || 'Autre matériel';
+                    const addrParts = [other.numeroVoie, other.codePostal, other.ville].filter(Boolean);
+                    if (addrParts.length > 0) {
+                      address = addrParts.join(', ');
+                    }
                   }
                   return {
                     num: idx + 1,
@@ -369,6 +394,7 @@ export default function PublicPortal({
                     identifiant: m.defibIdentifiant || defib?.identifiant || '',
                     model,
                     address,
+                    equipmentType,
                     status: m.status || 'À faire',
                     reason: m.reason || 'Visite technique',
                     requiredParts: m.requiredParts || []
@@ -560,6 +586,20 @@ export default function PublicPortal({
                 d.id === m.defibIdentifiant ||
                 (m.clientName && m.clientName.includes(d.identifiant))
               );
+              const other = otherEquipments.find((o: any) => 
+                o.identifiant === m.defibIdentifiant || 
+                o.id === m.defibIdentifiant
+              );
+              let equipmentType = m.equipmentType;
+              if (!equipmentType) {
+                if (defib) {
+                  equipmentType = 'Défibrillateur';
+                } else if (other) {
+                  equipmentType = other.categorie;
+                } else {
+                  equipmentType = m.reason?.toLowerCase().includes('autre') ? 'Autre matériel' : 'Défibrillateur';
+                }
+              }
               let model = 'Défibrillateur standard';
               let address = m.clientName || 'Adresse non spécifiée';
               if (defib) {
@@ -571,6 +611,12 @@ export default function PublicPortal({
                 if (addrParts.length > 0) {
                   address = addrParts.join(', ');
                 }
+              } else if (other) {
+                model = other.categorie || 'Autre matériel';
+                const addrParts = [other.numeroVoie, other.codePostal, other.ville].filter(Boolean);
+                if (addrParts.length > 0) {
+                  address = addrParts.join(', ');
+                }
               }
               return {
                 num: idx + 1,
@@ -578,6 +624,7 @@ export default function PublicPortal({
                 identifiant: m.defibIdentifiant || defib?.identifiant || '',
                 model,
                 address,
+                equipmentType,
                 status: m.status || 'À faire',
                 reason: m.reason || 'Visite technique',
                 requiredParts: m.requiredParts || []
@@ -618,6 +665,7 @@ export default function PublicPortal({
   // PDF Report state variables
   const [selectedDefibId, setSelectedDefibId] = useState('');
   const [selectedDefibData, setSelectedDefibData] = useState<Defibrillateur | null>(null);
+  const [selectedOtherEquipmentUnique, setSelectedOtherEquipmentUnique] = useState<any | null>(null);
   const [isLotScannerOpen, setIsLotScannerOpen] = useState(false);
   const [isSerieScannerOpen, setIsSerieScannerOpen] = useState(false);
   const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
@@ -1799,246 +1847,326 @@ export default function PublicPortal({
             {/* FULL WIDTH SPECIAL REPORT FORM OVERLAY */}
             {isReportOverlayOpen && (
               <div className="absolute inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-2 py-2 sm:p-4 animate-slideUp text-black" id="report-form-overlay">
-                <GmaoCorrectionForm
-                  isNew={true}
-                  clients={clients}
-                  variables={variables}
-                  defibrillateurs={defibrillateurs}
-                  initialDefibId={selectedDefibId}
-                  stocks={stocks}
-                  onCancel={() => {
-                    setIsReportOverlayOpen(false);
-                    setSelectedDefibId('');
-                    setSelectedDefibData(null);
-                    setReportActiveTourId('');
-                    setReportActivePassageNum(null);
-                  }}
-                  onSave={(updatedReport) => {
-                    const reportId = 'REP-' + Date.now();
-                    const submission = {
-                      ...updatedReport,
-                      id: reportId,
-                      techName: authenticatedUser?.name || 'Technicien connecté',
-                      date: updatedReport.date || new Date().toLocaleString('fr-FR'),
-                    };
-                    
-                    saveReports([submission, ...generatedReports]);
-                    onUpdateDefib(updatedReport.defibSnapshot);
+                {selectedOtherEquipmentUnique ? (
+                  <GmaoOtherEquipmentCorrectionForm
+                    otherEquipment={selectedOtherEquipmentUnique}
+                    clients={clients}
+                    onCancel={() => {
+                      setIsReportOverlayOpen(false);
+                      setSelectedOtherEquipmentUnique(null);
+                      setReportActiveTourId('');
+                      setReportActivePassageNum(null);
+                    }}
+                    onSave={(updatedReport) => {
+                      const reportId = 'REP-' + Date.now();
+                      const submission = {
+                        ...updatedReport,
+                        id: reportId,
+                        techName: authenticatedUser?.name || 'Technicien connecté',
+                        date: updatedReport.date || new Date().toLocaleString('fr-FR'),
+                      };
 
-                    // Email 6: RAPPORT SUITE À UNE INTERVENTION AU CLIENT (Nouveau Rapport form)
-                    try {
-                      const snap = updatedReport.defibSnapshot;
-                      if (snap) {
-                        const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
-                        const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
-                        if (clientEmail && clientEmail.trim()) {
-                          triggerEmail6RapportIntervention(
-                            clientEmail.trim(),
-                            snap.identifiant || '',
-                            submission.date,
-                            companyInfo.name || 'Défibeo Suite',
-                            companyInfo.email || ''
-                          ).catch(e => console.error("Error triggering Email 6 for new report:", e));
-                        } else {
-                          console.warn(`[Email 6] Client email not found/blank for defibrillator ${snap.identifiant}`);
+                      saveReports([submission, ...generatedReports]);
+
+                      // Update other equip list
+                      const updatedList = otherEquipments.map(o => {
+                        if (o.id === selectedOtherEquipmentUnique.id) {
+                          return updatedReport.defibSnapshot;
+                        }
+                        return o;
+                      });
+                      if (onUpdateOtherEquipments) {
+                        onUpdateOtherEquipments(updatedList);
+                      }
+
+                      // Email 6 workflow
+                      try {
+                        const snap = updatedReport.defibSnapshot;
+                        if (snap) {
+                          const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
+                          const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
+                          if (clientEmail && clientEmail.trim()) {
+                            triggerEmail6RapportIntervention(
+                              clientEmail.trim(),
+                              snap.identifiant || '',
+                              submission.date,
+                              companyInfo.name || 'Défibeo Suite',
+                              companyInfo.email || ''
+                            ).catch(e => console.error("Error triggering Email 6 for non-defib report:", e));
+                          }
+                        }
+                      } catch (e) {
+                        console.error("Error setting up email triggers for non-defib:", e);
+                      }
+
+                      // Automatically transition corresponding passage status to "Effectué"
+                      if (reportActiveTourId && reportActivePassageNum !== null) {
+                        const updated = tours.map(t => {
+                          if (t.id === reportActiveTourId) {
+                            return {
+                              ...t,
+                              passages: t.passages.map(p => {
+                                if (p.num === reportActivePassageNum) {
+                                  return { ...p, status: 'Effectué' };
+                                }
+                                return p;
+                              })
+                            };
+                          }
+                          return t;
+                        });
+                        saveTours(updated);
+                      }
+
+                      alert(`Le rapport "${submission.title}" a été enregistré avec succès !`);
+                      setIsReportOverlayOpen(false);
+                      setSelectedOtherEquipmentUnique(null);
+                      setReportActiveTourId('');
+                      setReportActivePassageNum(null);
+                    }}
+                  />
+                ) : (
+                  <GmaoCorrectionForm
+                    isNew={true}
+                    clients={clients}
+                    variables={variables}
+                    defibrillateurs={defibrillateurs}
+                    initialDefibId={selectedDefibId}
+                    stocks={stocks}
+                    onCancel={() => {
+                      setIsReportOverlayOpen(false);
+                      setSelectedDefibId('');
+                      setSelectedDefibData(null);
+                      setReportActiveTourId('');
+                      setReportActivePassageNum(null);
+                    }}
+                    onSave={(updatedReport) => {
+                      const reportId = 'REP-' + Date.now();
+                      const submission = {
+                        ...updatedReport,
+                        id: reportId,
+                        techName: authenticatedUser?.name || 'Technicien connecté',
+                        date: updatedReport.date || new Date().toLocaleString('fr-FR'),
+                      };
+                      
+                      saveReports([submission, ...generatedReports]);
+                      onUpdateDefib(updatedReport.defibSnapshot);
+
+                      // Email 6: RAPPORT SUITE À UNE INTERVENTION AU CLIENT (Nouveau Rapport form)
+                      try {
+                        const snap = updatedReport.defibSnapshot;
+                        if (snap) {
+                          const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
+                          const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
+                          if (clientEmail && clientEmail.trim()) {
+                            triggerEmail6RapportIntervention(
+                              clientEmail.trim(),
+                              snap.identifiant || '',
+                              submission.date,
+                              companyInfo.name || 'Défibeo Suite',
+                              companyInfo.email || ''
+                            ).catch(e => console.error("Error triggering Email 6 for new report:", e));
+                          } else {
+                            console.warn(`[Email 6] Client email not found/blank for defibrillator ${snap.identifiant}`);
+                          }
+                        }
+                      } catch (err6) {
+                        console.error("Error triggering Email 6 workflow for new report:", err6);
+                      }
+
+                      // 1. Decrement Stock for selected/replaced products
+                      const updatedStocks = [...stocks];
+                      const toDecrementIds: string[] = [];
+
+                      if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
+                        toDecrementIds.push(updatedReport.selectionKitSecoursRemplace);
+                      }
+                      if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
+                        toDecrementIds.push(updatedReport.selectionBatterieRemplacee);
+                      }
+                      if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
+                        toDecrementIds.push(updatedReport.selectionElectrodePRemplacee);
+                      }
+                      if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
+                        toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
+                      }
+                      if (updatedReport.emettreFactureBrouillon === 'Oui' && updatedReport.serviceEmettreId) {
+                        const matchedStock = stocks.find(s => s.id === updatedReport.serviceEmettreId || s.denominationPieceId === updatedReport.serviceEmettreId);
+                        if (matchedStock) {
+                          toDecrementIds.push(matchedStock.id);
                         }
                       }
-                    } catch (err6) {
-                      console.error("Error triggering Email 6 workflow for new report:", err6);
-                    }
 
-                    // 1. Decrement Stock for selected/replaced products
-                    const updatedStocks = [...stocks];
-                    const toDecrementIds: string[] = [];
+                      let stocksMutated = false;
+                      toDecrementIds.forEach(id => {
+                        const stockIndex = updatedStocks.findIndex(s => s.id === id || s.denominationPieceId === id);
+                        if (stockIndex !== -1) {
+                          const stObj = updatedStocks[stockIndex];
+                          updatedStocks[stockIndex] = {
+                            ...stObj,
+                            quantite: Math.max(0, (stObj.quantite ?? 1) - 1),
+                            quantiteReservee: Math.max(0, (stObj.quantiteReservee ?? 0) - 1)
+                          };
+                          stocksMutated = true;
+                        }
+                      });
 
-                    if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
-                      toDecrementIds.push(updatedReport.selectionKitSecoursRemplace);
-                    }
-                    if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
-                      toDecrementIds.push(updatedReport.selectionBatterieRemplacee);
-                    }
-                    if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
-                      toDecrementIds.push(updatedReport.selectionElectrodePRemplacee);
-                    }
-                    if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
-                      toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
-                    }
-                    if (updatedReport.emettreFactureBrouillon === 'Oui' && updatedReport.serviceEmettreId) {
-                      const matchedStock = stocks.find(s => s.id === updatedReport.serviceEmettreId || s.denominationPieceId === updatedReport.serviceEmettreId);
-                      if (matchedStock) {
-                        toDecrementIds.push(matchedStock.id);
+                      if (stocksMutated && onUpdateStocks) {
+                        onUpdateStocks(updatedStocks);
                       }
-                    }
 
-                    let stocksMutated = false;
-                    toDecrementIds.forEach(id => {
-                      const stockIndex = updatedStocks.findIndex(s => s.id === id || s.denominationPieceId === id);
-                      if (stockIndex !== -1) {
-                        const stObj = updatedStocks[stockIndex];
-                        updatedStocks[stockIndex] = {
-                          ...stObj,
-                          quantite: Math.max(0, (stObj.quantite ?? 1) - 1),
-                          quantiteReservee: Math.max(0, (stObj.quantiteReservee ?? 0) - 1)
-                        };
-                        stocksMutated = true;
-                      }
-                    });
+                      // 2. Draft Invoice Creation
+                      if (updatedReport.emettreFactureBrouillon === 'Oui' && onUpdateCommercialDocs) {
+                        const invoiceItems: CommercialDocItem[] = [];
 
-                    if (stocksMutated && onUpdateStocks) {
-                      onUpdateStocks(updatedStocks);
-                    }
-
-                    // 2. Draft Invoice Creation
-                    if (updatedReport.emettreFactureBrouillon === 'Oui' && onUpdateCommercialDocs) {
-                      const invoiceItems: CommercialDocItem[] = [];
-
-                      // Add service if selected
-                      if (updatedReport.serviceEmettreId) {
-                        const st = stocks.find((s: any) => s.id === updatedReport.serviceEmettreId);
-                        if (st) {
-                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
-                          invoiceItems.push({
-                            variableId: st.denominationPieceId,
-                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Service',
-                            prixVenteHt: st.prixVenteHt,
-                            quantite: 1
-                          });
-                        } else {
-                          const matchedVar = variables.find((v: any) => v.id === updatedReport.serviceEmettreId);
-                          if (matchedVar) {
+                        // Add service if selected
+                        if (updatedReport.serviceEmettreId) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.serviceEmettreId);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
                             invoiceItems.push({
-                              variableId: matchedVar.id,
-                              nomPiece: `${matchedVar.nom} (${matchedVar.marque})`,
-                              prixVenteHt: 150,
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Service',
+                              prixVenteHt: st.prixVenteHt,
                               quantite: 1
                             });
-                          } else if (updatedReport.serviceEmettreId.startsWith('st_fallback_srv_')) {
-                            const fallbacks = [
-                              { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
-                              { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
-                              { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
-                            ];
-                            const matchedFallback = fallbacks.find(fb => fb.id === updatedReport.serviceEmettreId);
-                            if (matchedFallback) {
+                          } else {
+                            const matchedVar = variables.find((v: any) => v.id === updatedReport.serviceEmettreId);
+                            if (matchedVar) {
                               invoiceItems.push({
-                                variableId: 'v_srv_fallback',
-                                nomPiece: matchedFallback.label,
-                                prixVenteHt: matchedFallback.price,
+                                variableId: matchedVar.id,
+                                nomPiece: `${matchedVar.nom} (${matchedVar.marque})`,
+                                prixVenteHt: 150,
                                 quantite: 1
                               });
+                            } else if (updatedReport.serviceEmettreId.startsWith('st_fallback_srv_')) {
+                              const fallbacks = [
+                                { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
+                                { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
+                                { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
+                              ];
+                              const matchedFallback = fallbacks.find(fb => fb.id === updatedReport.serviceEmettreId);
+                              if (matchedFallback) {
+                                invoiceItems.push({
+                                  variableId: 'v_srv_fallback',
+                                  nomPiece: matchedFallback.label,
+                                  prixVenteHt: matchedFallback.price,
+                                  quantite: 1
+                                });
+                              }
                             }
                           }
                         }
-                      }
 
-                      // Add kit if replaced & selected
-                      if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
-                        const st = stocks.find((s: any) => s.id === updatedReport.selectionKitSecoursRemplace);
-                        if (st) {
-                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
-                          invoiceItems.push({
-                            variableId: st.denominationPieceId,
-                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Kit de secours',
-                            prixVenteHt: st.prixVenteHt,
-                            quantite: 1
-                          });
+                        // Add kit if replaced & selected
+                        if (updatedReport.kitSecoursRemplaceOuAjoute === 'Oui' && updatedReport.selectionKitSecoursRemplace) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionKitSecoursRemplace);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Kit de secours',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
                         }
-                      }
 
-                      // Add battery if replaced & selected
-                      if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
-                        const st = stocks.find((s: any) => s.id === updatedReport.selectionBatterieRemplacee);
-                        if (st) {
-                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
-                          invoiceItems.push({
-                            variableId: st.denominationPieceId,
-                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Batterie',
-                            prixVenteHt: st.prixVenteHt,
-                            quantite: 1
-                          });
+                        // Add battery if replaced & selected
+                        if (updatedReport.batterieRemplacee === 'Oui' && updatedReport.selectionBatterieRemplacee) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionBatterieRemplacee);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Batterie',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
                         }
-                      }
 
-                      // Add electrode P if replaced & selected
-                      if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
-                        const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodePRemplacee);
-                        if (st) {
-                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
-                          invoiceItems.push({
-                            variableId: st.denominationPieceId,
-                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode P',
-                            prixVenteHt: st.prixVenteHt,
-                            quantite: 1
-                          });
+                        // Add electrode P if replaced & selected
+                        if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodePRemplacee);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode P',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
                         }
-                      }
 
-                      // Add electrode A if replaced & selected
-                      if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
-                        const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodeARemplacee);
-                        if (st) {
-                          const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
-                          invoiceItems.push({
-                            variableId: st.denominationPieceId,
-                            nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode A',
-                            prixVenteHt: st.prixVenteHt,
-                            quantite: 1
-                          });
+                        // Add electrode A if replaced & selected
+                        if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodeARemplacee);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode A',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
                         }
-                      }
 
-                      if (invoiceItems.length > 0) {
-                        const clientId = updatedReport.defibSnapshot?.clientId || '';
-                        const matchedClient = clients.find((c: any) => c.id === clientId);
-                        const clientDenomination = matchedClient ? matchedClient.denomination : (updatedReport.defibSnapshot?.nomPrenomSite || 'Client inconnu');
+                        if (invoiceItems.length > 0) {
+                          const clientId = updatedReport.defibSnapshot?.clientId || '';
+                          const matchedClient = clients.find((c: any) => c.id === clientId);
+                          const clientDenomination = matchedClient ? matchedClient.denomination : (updatedReport.defibSnapshot?.nomPrenomSite || 'Client inconnu');
 
-                        const totalHtSum = invoiceItems.reduce((sum, item) => sum + item.prixVenteHt * item.quantite, 0);
+                          const totalHtSum = invoiceItems.reduce((sum, item) => sum + item.prixVenteHt * item.quantite, 0);
 
-                        const generatedRef = getNextDocRef('Facture', commercialDocs);
-                        const newInvoice: CommercialDoc = {
-                          id: 'doc-' + Date.now(),
-                          ref: generatedRef,
-                          type: 'Facture',
-                          clientId: clientId,
-                          clientDenomination: clientDenomination,
-                          items: invoiceItems,
-                          totalHt: totalHtSum,
-                          status: 'Brouillon',
-                          dateStr: new Date().toISOString().split('T')[0],
-                          commentaire: "Générée suite à une intervention."
-                        };
-
-                        onUpdateCommercialDocs([newInvoice, ...commercialDocs]);
-                      }
-                    }
-                    
-                    // Automatically transition corresponding passage status to "Effectué"
-                    if (reportActiveTourId && reportActivePassageNum !== null) {
-                      const updated = tours.map(t => {
-                        if (t.id === reportActiveTourId) {
-                          return {
-                            ...t,
-                            passages: t.passages.map(p => {
-                              if (p.num === reportActivePassageNum) {
-                                return { ...p, status: 'Effectué' };
-                              }
-                              return p;
-                            })
+                          const generatedRef = getNextDocRef('Facture', commercialDocs);
+                          const newInvoice: CommercialDoc = {
+                            id: 'doc-' + Date.now(),
+                            ref: generatedRef,
+                            type: 'Facture',
+                            clientId: clientId,
+                            clientDenomination: clientDenomination,
+                            items: invoiceItems,
+                            totalHt: totalHtSum,
+                            status: 'Brouillon',
+                            dateStr: new Date().toISOString().split('T')[0],
+                            commentaire: "Générée suite à une intervention."
                           };
-                        }
-                        return t;
-                      });
-                      saveTours(updated);
-                    }
 
-                    alert(`Le rapport "${submission.title}" a été enregistré avec succès, rattaché et l'état du matériel a été mis à jour !`);
-                    setIsReportOverlayOpen(false);
-                    setSelectedDefibId('');
-                    setSelectedDefibData(null);
-                    setReportActiveTourId('');
-                    setReportActivePassageNum(null);
-                  }}
-                />
+                          onUpdateCommercialDocs([newInvoice, ...commercialDocs]);
+                        }
+                      }
+                      
+                      // Automatically transition corresponding passage status to "Effectué"
+                      if (reportActiveTourId && reportActivePassageNum !== null) {
+                        const updated = tours.map(t => {
+                          if (t.id === reportActiveTourId) {
+                            return {
+                              ...t,
+                              passages: t.passages.map(p => {
+                                if (p.num === reportActivePassageNum) {
+                                  return { ...p, status: 'Effectué' };
+                                }
+                                return p;
+                              })
+                            };
+                          }
+                          return t;
+                        });
+                        saveTours(updated);
+                      }
+
+                      alert(`Le rapport "${submission.title}" a été enregistré avec succès, rattaché et l'état du matériel a été mis à jour !`);
+                      setIsReportOverlayOpen(false);
+                      setSelectedDefibId('');
+                      setSelectedDefibData(null);
+                      setReportActiveTourId('');
+                      setReportActivePassageNum(null);
+                    }}
+                  />
+                )}
 
                 <div className="hidden">
                   {/* Overlay header container */}
@@ -3204,12 +3332,13 @@ export default function PublicPortal({
                                   
                                   {/* Identifiant du défibrillateur dans une gelule alignée à gauche et pas en full width */}
                                   <span style={{
-                                    color: '#ffffff',
-                                    backgroundColor: '#5d1f74',
-                                    padding: '8px 16px',
-                                    borderRadius: '9999px',
-                                    fontWeight: 'bold',
-                                    fontSize: '16px',
+                                    backgroundColor: 'rgb(77, 21, 83)',
+                                    color: 'rgb(255, 255, 255)',
+                                    borderRadius: '1000px',
+                                    padding: '4px 12px',
+                                    fontSize: '15px',
+                                    fontWeight: 700,
+                                    border: 'none',
                                     display: 'inline-block'
                                   }}>
                                     {p.identifiant}
@@ -3218,6 +3347,18 @@ export default function PublicPortal({
 
                                 {/* Textes de la div en font color black */}
                                 <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
+                                  <p style={{ color: '#000000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    Matériel : <span style={{
+                                      backgroundColor: 'rgb(77, 21, 83)',
+                                      color: 'rgb(255, 255, 255)',
+                                      borderRadius: '1000px',
+                                      padding: '4px 12px',
+                                      fontSize: '15px',
+                                      fontWeight: 700,
+                                      border: 'none',
+                                      display: 'inline-block'
+                                    }}>{p.equipmentType || 'Défibrillateur'}</span>
+                                  </p>
                                   <p style={{ color: '#000000' }}>
                                     Modèle : <span className="font-semibold" style={{ color: '#000000' }}>{p.model}</span>
                                   </p>
@@ -3263,17 +3404,26 @@ export default function PublicPortal({
                                   type="button"
                                   disabled={isCompleted}
                                   onClick={() => {
-                                    const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
-                                    if (matched) {
-                                      handleDefibLookupChange(matched.id);
-                                      // Pre-fill fields for nicer wizard UX!
-                                      setReceiptTitle('Rapport technique défibrillateur');
-                                      setMissionSite('DÉPLACEMENT');
+                                    const matchedOther = otherEquipments?.find(o => o.identifiant === p.identifiant);
+                                    if (matchedOther) {
+                                      setSelectedOtherEquipmentUnique(matchedOther);
                                       setReportActiveTourId(t.id);
                                       setReportActivePassageNum(p.num);
                                       setIsReportOverlayOpen(true);
                                     } else {
-                                      alert(`Aucun matériel central disponible.`);
+                                      const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
+                                      if (matched) {
+                                        setSelectedOtherEquipmentUnique(null);
+                                        handleDefibLookupChange(matched.id);
+                                        // Pre-fill fields for nicer wizard UX!
+                                        setReceiptTitle('Rapport technique défibrillateur');
+                                        setMissionSite('DÉPLACEMENT');
+                                        setReportActiveTourId(t.id);
+                                        setReportActivePassageNum(p.num);
+                                        setIsReportOverlayOpen(true);
+                                      } else {
+                                        alert(`Aucun matériel central disponible.`);
+                                      }
                                     }
                                   }}
                                   style={{

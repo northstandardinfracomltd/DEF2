@@ -296,6 +296,7 @@ export default function DefibTab({
     textTransform: 'none',
     color: '#000000',
     cursor: 'default',
+    whiteSpace: 'nowrap',
   };
 
   // Active applied filters (1 to 10 filters)
@@ -446,6 +447,7 @@ export default function DefibTab({
         id: 'fsm-m-auto-' + Date.now() + '-' + index,
         clientName,
         defibIdentifiant: defib?.identifiant || 'PAR-101',
+        equipmentType: 'Défibrillateur',
         reason: 'Maintenance',
         requiredParts: [],
         status: 'À faire',
@@ -490,6 +492,7 @@ export default function DefibTab({
             id: 'fsm-m-auto-' + Date.now() + '-' + index,
             clientName,
             defibIdentifiant: defib?.identifiant || 'PAR-101',
+            equipmentType: 'Défibrillateur',
             reason: 'Maintenance',
             requiredParts: [],
             status: 'À faire',
@@ -1096,10 +1099,7 @@ export default function DefibTab({
        setFormError('Le numéro de série est requis.');
        return;
      }
-     if (!clientId) {
-       setFormError('Veuillez associer un client à l\'appareil.');
-       return;
-     }
+
  
      setIsSubmitChecking(true);
      try {
@@ -2183,6 +2183,9 @@ export default function DefibTab({
                           onChange={(e) => {
                             setClientSearchQuery(e.target.value);
                             setIsClientSearchFocused(true);
+                            if (clientId) {
+                              setClientId('');
+                            }
                           }}
                           onFocus={() => setIsClientSearchFocused(true)}
                           onBlur={() => {
@@ -2191,7 +2194,6 @@ export default function DefibTab({
                           }}
                           placeholder="Recherchez un client."
                           className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
-                          required
                         />
                         {clientSearchQuery && !clientId && (
                           <button
@@ -2527,14 +2529,27 @@ export default function DefibTab({
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div className="space-y-1">
                         <label htmlFor="form-pays" className="block text-[10px] font-bold text-slate-400 uppercase">Pays.</label>
-                        <input
-                          type="text"
+                        <select
                           id="form-pays"
                           value={pays}
                           onChange={(e) => setPays(e.target.value)}
-                          placeholder="Ex: France."
-                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs bg-white text-slate-700 font-semibold"
-                        />
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-semibold"
+                        >
+                          <option value="France">France</option>
+                          <option value="Espagne">Espagne</option>
+                          <option value="Portugal">Portugal</option>
+                          <option value="Suisse">Suisse</option>
+                          <option value="Luxembourg">Luxembourg</option>
+                          <option value="Belgique">Belgique</option>
+                          <option value="Allemagne">Allemagne</option>
+                          <option value="Pays-Bas">Pays-Bas</option>
+                          <option value="Royaume-Uni">Royaume-Uni</option>
+                          <option value="Irlande">Irlande</option>
+                          <option value="Suède">Suède</option>
+                          <option value="Pologne">Pologne</option>
+                          <option value="Tchéquie">Tchéquie</option>
+                          <option value="Autriche">Autriche</option>
+                        </select>
                       </div>
 
                       <div className="space-y-1">

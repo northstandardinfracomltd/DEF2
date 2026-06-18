@@ -34,6 +34,10 @@ interface SettingsModalProps {
   isPage?: boolean;
   onLogout?: () => void;
   currentUser?: { email: string; name: string } | null;
+  enableOtherEquipments?: string;
+  onUpdateOtherEquipments?: (val: string) => void;
+  otherEquipments?: any[];
+  onClearOtherEquipments?: () => void;
 }
 
 export default function SettingsModal({
@@ -47,7 +51,11 @@ export default function SettingsModal({
   onOpenClientPortal,
   isPage = false,
   onLogout,
-  currentUser
+  currentUser,
+  enableOtherEquipments: propEnableOtherEquipments = 'Non',
+  onUpdateOtherEquipments,
+  otherEquipments = [],
+  onClearOtherEquipments
 }: SettingsModalProps) {
   const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
   const [shortEnvId, setShortEnvId] = React.useState(() => localStorage.getItem('defib_short_env_id') || 'D18');
@@ -86,9 +94,13 @@ export default function SettingsModal({
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(() => {
-    return localStorage.getItem('defib_enable_other_equipments') || 'Non';
-  });
+  const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
+  const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
+
+  React.useEffect(() => {
+    setEnableOtherEquipments(propEnableOtherEquipments);
+    setShowDisableOtherEquipmentsConfirmation(false);
+  }, [propEnableOtherEquipments, isOpen]);
 
   // Synchronise if parent prop changes upon load or reset
   const hasLoadedRef = React.useRef(false);
@@ -610,7 +622,7 @@ export default function SettingsModal({
           </div>
           
           {/* SECTION: OTHER EQUIPMENTS INTEGRATION */}
-          <div className="space-y-2 mt-4">
+          <div className="space-y-2 mt-4 text-left">
             <label className="block text-[16px] font-bold text-black font-sans leading-tight">
               Activer l'infogérance et la maintenance de d'autres types d'équipements.
             </label>
@@ -620,6 +632,8 @@ export default function SettingsModal({
                 onClick={() => {
                   setEnableOtherEquipments("Oui");
                   localStorage.setItem('defib_enable_other_equipments', 'Oui');
+                  onUpdateOtherEquipments?.("Oui");
+                  setShowDisableOtherEquipmentsConfirmation(false);
                 }}
                 className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
               >
@@ -644,8 +658,14 @@ export default function SettingsModal({
               <button
                 type="button"
                 onClick={() => {
-                  setEnableOtherEquipments("Non");
-                  localStorage.setItem('defib_enable_other_equipments', 'Non');
+                  if (enableOtherEquipments === "Oui" && (otherEquipments || []).length > 0) {
+                    setShowDisableOtherEquipmentsConfirmation(true);
+                  } else {
+                    setEnableOtherEquipments("Non");
+                    localStorage.setItem('defib_enable_other_equipments', 'Non');
+                    onUpdateOtherEquipments?.("Non");
+                    setShowDisableOtherEquipmentsConfirmation(false);
+                  }
                 }}
                 className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
               >
@@ -667,6 +687,50 @@ export default function SettingsModal({
                 <span className="text-[15px] font-semibold text-black">Non</span>
               </button>
             </div>
+
+            {showDisableOtherEquipmentsConfirmation && (
+              <div 
+                className="mt-3 p-4 rounded-xl space-y-3 border transition-all animate-fadeIn"
+                style={{
+                  backgroundColor: '#fffdfd',
+                  borderColor: '#fca5a5',
+                }}
+              >
+                <p 
+                  className="font-sans font-medium text-red-600"
+                  style={{ fontSize: '15px', lineHeight: '1.4' }}
+                >
+                  Souhaitez-vous faire clôture votre extension, cela engendre la suppression de ces données.
+                </p>
+                <div className="flex gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDisableOtherEquipmentsConfirmation(false);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-all font-sans cursor-pointer text-sm"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEnableOtherEquipments("Non");
+                      localStorage.setItem('defib_enable_other_equipments', 'Non');
+                      onUpdateOtherEquipments?.("Non");
+                      onClearOtherEquipments?.();
+                      setShowDisableOtherEquipmentsConfirmation(false);
+                    }}
+                    className="px-4 py-2 rounded-xl text-white font-semibold transition-all font-sans cursor-pointer text-sm hover:opacity-90"
+                    style={{
+                      backgroundColor: '#ef4444'
+                    }}
+                  >
+                    Confirmer
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           
           {/* SECTION 1: MEMBERS LIST */}

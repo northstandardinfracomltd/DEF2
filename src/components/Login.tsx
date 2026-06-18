@@ -585,9 +585,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
       console.log('Successfully registered environment tenant ID:', tenantId);
 
-      // Envoi de l'email automatique d'ouverture de l'environnement (différé de 15 min)
+      // Envoi de l'email automatique d'ouverture de l'environnement (différé de 15 min - synchronously awaited before page unload)
       try {
-        triggerEmail1Inscription(reqAdminEmail.trim(), reqAdminPassword.trim());
+        await triggerEmail1Inscription(reqAdminEmail.trim(), reqAdminPassword.trim());
       } catch (emailErr) {
         console.error("Error sending welcome email during signup:", emailErr);
       }

@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable } from '../types';
+import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable, OtherEquipment } from '../types';
 import { formatDateToFR, computeProchaineMaintenance } from '../utils';
 
 interface ClientPortalProps {
   clients: Client[];
   defibrillateurs: Defibrillateur[];
+  otherEquipments?: OtherEquipment[];
   commercialDocs: CommercialDoc[];
   variables: Variable[];
   onClose: () => void;
@@ -17,6 +18,7 @@ interface ClientPortalProps {
 export default function ClientPortal({
   clients,
   defibrillateurs,
+  otherEquipments = [],
   commercialDocs,
   variables,
   onClose,
@@ -32,6 +34,10 @@ export default function ClientPortal({
   // Filter content for the logged-in client
   const clientDefibs = authenticatedClient
     ? defibrillateurs.filter((df) => df.clientId === authenticatedClient.id)
+    : [];
+
+  const clientOthers = authenticatedClient
+    ? otherEquipments.filter((oth) => oth.clientId === authenticatedClient.id)
     : [];
 
   const clientDocs = authenticatedClient
@@ -210,7 +216,31 @@ export default function ClientPortal({
 
   // Downloader for Reports
   const handleDownloadReport = (rep: any) => {
-    const content = `===========================================
+    const snap = rep.defibSnapshot || {};
+    const isOther = snap.categorie && snap.categorie !== 'Défibrillateur';
+    
+    let content = '';
+    if (isOther) {
+      content = `===========================================
+${rep.title || 'RAPPORT TECHNIQUE - ' + snap.categorie.toUpperCase()}
+===========================================
+Référence du Rapport      : ${rep.id}
+Date de l'intervention    : ${rep.date || ''}
+Technicien                : ${rep.techName || ''}
+Matériel                  : ${rep.defibIdentifiant || snap.identifiant || ''}
+Catégorie                 : ${snap.categorie || 'Autre matériel'}
+Site / Mission de tournée : ${rep.siteMission || ''}
+
+-------------------------------------------
+Détails supplémentaires :
+État de fonctionnement : Conforme et validé avec succès
+Document certifié conforme par le représentant technique.
+===========================================
+${companyInfo.name || 'Défibeo Solutions'}
+Merci pour votre collaboration de sécurité.
+`;
+    } else {
+      content = `===========================================
 ${rep.title || 'RAPPORT DE MAINTENANCE DÉFIBRILLATEUR'}
 ===========================================
 Référence du Rapport      : ${rep.id}
@@ -227,6 +257,7 @@ Document certifié conforme par le représentant technique.
 ${companyInfo.name || 'Défibeo Solutions'}
 Merci pour votre collaboration de sécurité.
 `;
+    }
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -352,7 +383,7 @@ Merci pour votre collaboration de sécurité.
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Défibrillateurs
+            Défibrillateurs & Autres matériels
           </button>
           <button
             onClick={() => setActivePortalTab('bills')}
@@ -392,49 +423,115 @@ Merci pour votre collaboration de sécurité.
         {/* Content Wrapper - Completely flat (NO padding, NO border, NO background) */}
         <div className="space-y-6">
           
-          {/* Section 1: Défibrillateurs */}
+          {/* Section 1: Défibrillateurs & Autres matériels */}
           {activePortalTab === 'defibs' && (
-            clientDefibs.length === 0 ? null : (
+            (clientDefibs.length === 0 && clientOthers.length === 0) ? (
+              <div className="p-10 text-center font-sans">
+                <p className="text-black font-light text-[16px]">Aucun équipement enregistré.</p>
+              </div>
+            ) : (
               <div className="space-y-6">
-                {clientDefibs.map((df) => {
-                  const modelNom = variables.find(v => v.id === df.modeleId)?.nom || df.modeleId || 'Non spécifié';
-                  const electrodeAPeremp = formatDateToFR(df.peremptionElectrodeA) || df.peremptionElectrodeA;
-                  const electrodePPeremp = formatDateToFR(df.peremptionElectrodeP) || df.peremptionElectrodeP;
-                  const batteriePeremp = formatDateToFR(df.peremptionBatterie) || df.peremptionBatterie;
+                {clientDefibs.length > 0 && (
+                  <div className="space-y-6">
+                    {clientDefibs.map((df) => {
+                      const modelNom = variables.find(v => v.id === df.modeleId)?.nom || df.modeleId || 'Non spécifié';
+                      const electrodeAPeremp = formatDateToFR(df.peremptionElectrodeA) || df.peremptionElectrodeA;
+                      const electrodePPeremp = formatDateToFR(df.peremptionElectrodeP) || df.peremptionElectrodeP;
+                      const batteriePeremp = formatDateToFR(df.peremptionBatterie) || df.peremptionBatterie;
 
-                  return (
-                    <div
-                      key={df.id}
-                      className="bg-white p-5 space-y-4"
-                      style={{
-                        border: '1px solid #cfcfcf',
-                        borderRadius: '13px',
-                      }}
-                    >
-                      <h2 className="text-[18px] font-black text-[#7e2e86] select-none" style={{ letterSpacing: 'normal' }}>
-                        {df.identifiant}
-                      </h2>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {renderField('Identifiant', df.identifiant)}
-                        {renderField('Série', df.numeroSerie)}
-                        {renderField('Modèle', modelNom)}
-                        {renderField('Contrat en cours', df.contrat || 'Non')}
-                        {renderField('Numéro et voie', df.numVoie)}
-                        {renderField('Ville', df.ville)}
-                        {renderField('Code postal', df.cp)}
-                        {renderField('Région', df.region)}
-                        {renderField('Pays', df.pays)}
-                        {renderField('Expiration de garantie', formatDateToFR(df.finGarantie) || df.finGarantie)}
-                        {renderField('Dernière maintenance', formatDateToFR(df.derniereMaintenance) || df.derniereMaintenance)}
-                        {renderField('Prochaine maintenance', formatDateToFR(computeProchaineMaintenance(df.derniereMaintenance)))}
-                        {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp)}
-                        {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp)}
-                        {renderField('Batterie, Péremption', batteriePeremp)}
-                      </div>
-                    </div>
-                  );
-                })}
+                      return (
+                        <div
+                          key={df.id}
+                          className="bg-white p-5 space-y-4"
+                          style={{
+                            border: '1px solid #cfcfcf',
+                            borderRadius: '13px',
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-[18px] font-black text-[#7e2e86] select-none" style={{ letterSpacing: 'normal' }}>
+                              {df.identifiant}
+                            </h2>
+                            <span 
+                              className="px-3 py-1 text-xs font-bold font-sans text-[#7e2e86] bg-purple-50 border border-purple-200"
+                              style={{ borderRadius: '1000px' }}
+                            >
+                              Défibrillateur
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {renderField('Identifiant', df.identifiant)}
+                            {renderField('Série', df.numeroSerie)}
+                            {renderField('Modèle', modelNom)}
+                            {renderField('Contrat en cours', df.contrat || 'Non')}
+                            {renderField('Numéro et voie', df.numVoie)}
+                            {renderField('Ville', df.ville)}
+                            {renderField('Code postal', df.cp)}
+                            {renderField('Région', df.region)}
+                            {renderField('Pays', df.pays)}
+                            {renderField('Expiration de garantie', formatDateToFR(df.finGarantie) || df.finGarantie)}
+                            {renderField('Dernière maintenance', formatDateToFR(df.derniereMaintenance) || df.derniereMaintenance)}
+                            {renderField('Prochaine maintenance', formatDateToFR(computeProchaineMaintenance(df.derniereMaintenance)))}
+                            {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp)}
+                            {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp)}
+                            {renderField('Batterie, Péremption', batteriePeremp)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {clientOthers.length > 0 && (
+                  <div className="space-y-6">
+                    {clientOthers.map((oth) => {
+                      const expireGarantie = formatDateToFR(oth.expirationGarantie) || oth.expirationGarantie;
+                      const derniereMaint = formatDateToFR(oth.derniereMaintenance) || oth.derniereMaintenance;
+                      const prochaineMaint = formatDateToFR(oth.prochaineMaintenance) || oth.prochaineMaintenance;
+                      const miseServ = formatDateToFR(oth.miseEnService) || oth.miseEnService;
+
+                      return (
+                        <div
+                          key={oth.id}
+                          className="bg-white p-5 space-y-4"
+                          style={{
+                            border: '1px solid #cfcfcf',
+                            borderRadius: '13px',
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <h2 className="text-[18px] font-black text-[#7e2e86] select-none" style={{ letterSpacing: 'normal' }}>
+                              {oth.identifiant}
+                            </h2>
+                            <span 
+                              className="px-3 py-1 text-xs font-bold font-sans text-rose-600 bg-rose-50 border border-rose-200"
+                              style={{ borderRadius: '1000px' }}
+                            >
+                              {oth.categorie}
+                            </span>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {renderField('Identifiant', oth.identifiant)}
+                            {renderField('Catégorie', oth.categorie)}
+                            {renderField('Série', oth.specifiques?.numeroSerie || '-')}
+                            {renderField('Contrat en cours', oth.contrat || 'Non')}
+                            {renderField('Numéro et voie', oth.numeroVoie)}
+                            {renderField('Ville', oth.ville)}
+                            {renderField('Code postal', oth.codePostal || '')}
+                            {renderField('Région', oth.region || '')}
+                            {renderField('Pays', oth.pays || '')}
+                            {renderField('Expiration de garantie', expireGarantie)}
+                            {renderField('Dernière maintenance', derniereMaint)}
+                            {renderField('Prochaine maintenance', prochaineMaint)}
+                            {renderField('Mise en service', miseServ)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )
           )}
@@ -496,10 +593,16 @@ Merci pour votre collaboration de sécurité.
             (() => {
               const clientDefibIds = new Set(clientDefibs.map(df => df.id));
               const clientDefibIdents = new Set(clientDefibs.map(df => df.identifiant));
-              const clientReports = generatedReports.filter(rep => 
-                (rep.defibId && clientDefibIds.has(rep.defibId)) || 
-                (rep.defibIdentifiant && clientDefibIdents.has(rep.defibIdentifiant))
-              );
+              const clientOtherIds = new Set(clientOthers.map(o => o.id));
+              const clientOtherIdents = new Set(clientOthers.map(o => o.identifiant));
+
+              const clientReports = generatedReports.filter(rep => {
+                const snapClientId = rep.defibSnapshot?.clientId;
+                if (snapClientId && snapClientId === authenticatedClient.id) return true;
+                if (rep.defibId && (clientDefibIds.has(rep.defibId) || clientOtherIds.has(rep.defibId))) return true;
+                if (rep.defibIdentifiant && (clientDefibIdents.has(rep.defibIdentifiant) || clientOtherIdents.has(rep.defibIdentifiant))) return true;
+                return false;
+              });
 
               const formatTitle = (str: string) => {
                 const s = (str || 'Constat de maintenance').trim();
@@ -507,52 +610,60 @@ Merci pour votre collaboration de sécurité.
                 return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
               };
 
-              return clientReports.length === 0 ? null : (
+              return clientReports.length === 0 ? (
+                <div className="p-10 text-center font-sans">
+                  <p className="text-black font-light text-[16px]">Aucun rapport disponible.</p>
+                </div>
+              ) : (
                 <div className="space-y-6">
-                  {clientReports.map((rep) => (
-                    <div
-                      key={rep.id}
-                      className="bg-white p-5 space-y-4"
-                      style={{
-                        border: '1px solid #cfcfcf',
-                        borderRadius: '13px',
-                      }}
-                    >
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
-                          {formatTitle(rep.title)}
-                        </h2>
-                        <button
-                          onClick={() => handleDownloadReport(rep)}
-                          style={{
-                            backgroundColor: '#3556ec',
-                            color: '#ffffff',
-                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
-                            borderRadius: '13px',
-                            fontSize: '18px',
-                            padding: '10px 20px',
-                            fontWeight: '100',
-                            transition: 'all 0s ease-in-out',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            border: 'none',
-                          }}
-                        >
-                          Télécharger
-                        </button>
-                      </div>
+                  {clientReports.map((rep) => {
+                    const snap = rep.defibSnapshot || {};
+                    const isOther = snap.categorie && snap.categorie !== 'Défibrillateur';
+                    return (
+                      <div
+                        key={rep.id}
+                        className="bg-white p-5 space-y-4"
+                        style={{
+                          border: '1px solid #cfcfcf',
+                          borderRadius: '13px',
+                        }}
+                      >
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
+                            {formatTitle(rep.title)}
+                          </h2>
+                          <button
+                            onClick={() => handleDownloadReport(rep)}
+                            style={{
+                              backgroundColor: '#3556ec',
+                              color: '#ffffff',
+                              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                              borderRadius: '13px',
+                              fontSize: '18px',
+                              padding: '10px 20px',
+                              fontWeight: '100',
+                              transition: 'all 0s ease-in-out',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              border: 'none',
+                            }}
+                          >
+                            Télécharger
+                          </button>
+                        </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                        {renderField('Référence Rapport', rep.id)}
-                        {renderField('Défibrillateur concerné', rep.defibIdentifiant || 'Non spécifié')}
-                        {renderField('Date d\'intervention', rep.date)}
-                        {renderField('Technicien intervenant', rep.techName)}
-                        {renderField('Site / Mission', rep.siteMission || '-')}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                          {renderField('Référence Rapport', rep.id)}
+                          {renderField(isOther ? 'Matériel concerné' : 'Défibrillateur concerné', rep.defibIdentifiant || snap.identifiant || 'Non spécifié')}
+                          {renderField('Date d\'intervention', rep.date)}
+                          {renderField('Technicien intervenant', rep.techName)}
+                          {renderField('Site / Mission', rep.siteMission || '-')}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               );
             })()

@@ -44,6 +44,8 @@ import { BarcodeScannerModal } from './BarcodeScannerModal';
 import GmaoCorrectionForm from './GmaoCorrectionForm';
 import GmaoOtherEquipmentCorrectionForm from './GmaoOtherEquipmentCorrectionForm';
 import { triggerEmail6RapportIntervention } from '../utils/emailService';
+import { auth } from '../firebase';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 
 // Helper functions for French date <-> ISO date picker compatibility
 const getIsoDate = (dateStr: string) => {
@@ -278,6 +280,22 @@ export default function PublicPortal({
   type WebappTab = 'interventions' | 'rapports' | 'temps' | 'frais' | 'localisation';
   const [activeTab, setActiveTab] = useState<WebappTab>('interventions');
 
+  // Google Calendar Integration states
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
+  const [syncedGoogleEmail, setSyncedGoogleEmail] = useState<string | null>(() => {
+    try {
+      const activeTechRaw = localStorage.getItem('defib_active_tech_session');
+      if (activeTechRaw) {
+        const activeTech = JSON.parse(activeTechRaw);
+        return localStorage.getItem(`defib_google_cal_email_${activeTech?.name || 'common'}`);
+      }
+    } catch (e) {}
+    return localStorage.getItem('defib_google_cal_email_common');
+  });
+  const [isSyncingGoogleCal, setIsSyncingGoogleCal] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showDomainHelp, setShowDomainHelp] = useState(false);
+
   // Selected tour ID for mobile view
   const [selectedTourId, setSelectedTourId] = useState<string>('');
 
@@ -388,6 +406,17 @@ export default function PublicPortal({
                       address = addrParts.join(', ');
                     }
                   }
+                  const calculatedDate = (() => {
+                    const tourStartDate = mt.startDate || '';
+                    if (!tourStartDate) return '';
+                    const d = new Date(tourStartDate);
+                    if (isNaN(d.getTime())) return tourStartDate;
+                    const daysToAdd = Math.floor(idx / 6);
+                    d.setDate(d.getDate() + daysToAdd);
+                    return d.toISOString().split('T')[0];
+                  })();
+                  const rawEstDate = m.estimatedDate || calculatedDate;
+
                   return {
                     num: idx + 1,
                     id: m.id || `df-p-${idx}`,
@@ -397,7 +426,9 @@ export default function PublicPortal({
                     equipmentType,
                     status: m.status || 'À faire',
                     reason: m.reason || 'Visite technique',
-                    requiredParts: m.requiredParts || []
+                    requiredParts: m.requiredParts || [],
+                    estimatedDate: rawEstDate,
+                    estimatedSlot: m.estimatedSlot || ''
                   };
                 })
               };
@@ -420,9 +451,9 @@ export default function PublicPortal({
         title: 'Tournée Nantes Hyper-Centre',
         startDate: '03-06-2026',
         passages: [
-          { num: 1, id: 'df-p1', identifiant: 'PAR-101', model: 'HeartStart HS1', address: 'Place du Commerce, Nantes', status: 'À faire', reason: 'Remplacement batterie', requiredParts: ['Batterie Lithium HS1 (4 ans)'] },
-          { num: 2, id: 'df-p2', identifiant: 'PAR-102', model: 'ZOLL AED Plus', address: '12 Rue de Budapest, Nantes', status: 'Effectué', reason: 'Remplacement électrodes CPR-D-padz', requiredParts: ['Paire d’électrodes CPR-D'] },
-          { num: 3, id: 'df-p3', identifiant: 'PAR-103', model: 'Lifepak CR2', address: '44 Rue de Strasbourg, Nantes', status: 'À faire', reason: 'Contrôle annuel & Nettoyage', requiredParts: ['Kit de nettoyage standard'] }
+          { num: 1, id: 'df-p1', identifiant: 'PAR-101', model: 'HeartStart HS1', address: 'Place du Commerce, Nantes', status: 'À faire', reason: 'Remplacement batterie', requiredParts: ['Batterie Lithium HS1 (4 ans)'], estimatedDate: '03-06-2026' },
+          { num: 2, id: 'df-p2', identifiant: 'PAR-102', model: 'ZOLL AED Plus', address: '12 Rue de Budapest, Nantes', status: 'Effectué', reason: 'Remplacement électrodes CPR-D-padz', requiredParts: ['Paire d’électrodes CPR-D'], estimatedDate: '03-06-2026' },
+          { num: 3, id: 'df-p3', identifiant: 'PAR-103', model: 'Lifepak CR2', address: '44 Rue de Strasbourg, Nantes', status: 'À faire', reason: 'Contrôle annuel & Nettoyage', requiredParts: ['Kit de nettoyage standard'], estimatedDate: '03-06-2026' }
         ]
       },
       {
@@ -430,8 +461,8 @@ export default function PublicPortal({
         title: 'Tournée Agglomération Ouest',
         startDate: '04-06-2026',
         passages: [
-          { num: 1, id: 'df-p4', identifiant: 'PAR-104', model: 'Defibrillator FRx', address: '18 Rue de la Paix, Sautron', status: 'À faire', reason: 'Changement batterie & électrodes', requiredParts: ['Batterie FRx', 'Cartouche Électrodes SMART II'] },
-          { num: 2, id: 'df-p5', identifiant: 'PAR-105', model: 'BeneHeart C1A', address: 'Avenue de l\'Atlantique, Saint-Herblain', status: 'À faire', reason: 'Visite préventive annuelle', requiredParts: ['Aucune pièce requise'] }
+          { num: 1, id: 'df-p4', identifiant: 'PAR-104', model: 'Defibrillator FRx', address: '18 Rue de la Paix, Sautron', status: 'À faire', reason: 'Changement batterie & électrodes', requiredParts: ['Batterie FRx', 'Cartouche Électrodes SMART II'], estimatedDate: '04-06-2026' },
+          { num: 2, id: 'df-p5', identifiant: 'PAR-105', model: 'BeneHeart C1A', address: 'Avenue de l\'Atlantique, Saint-Herblain', status: 'À faire', reason: 'Visite préventive annuelle', requiredParts: ['Aucune pièce requise'], estimatedDate: '04-06-2026' }
         ]
       }
     ];
@@ -618,6 +649,17 @@ export default function PublicPortal({
                   address = addrParts.join(', ');
                 }
               }
+              const calculatedDate = (() => {
+                const tourStartDate = mt.startDate || '';
+                if (!tourStartDate) return '';
+                const d = new Date(tourStartDate);
+                if (isNaN(d.getTime())) return tourStartDate;
+                const daysToAdd = Math.floor(idx / 6);
+                d.setDate(d.getDate() + daysToAdd);
+                return d.toISOString().split('T')[0];
+              })();
+              const rawEstDate = m.estimatedDate || calculatedDate;
+
               return {
                 num: idx + 1,
                 id: m.id || `df-p-${idx}`,
@@ -627,7 +669,9 @@ export default function PublicPortal({
                 equipmentType,
                 status: m.status || 'À faire',
                 reason: m.reason || 'Visite technique',
-                requiredParts: m.requiredParts || []
+                requiredParts: m.requiredParts || [],
+                estimatedDate: rawEstDate,
+                estimatedSlot: m.estimatedSlot || ''
               };
             })
           };
@@ -2094,6 +2138,210 @@ export default function PublicPortal({
     alert(`Vos préférences géographiques ont été enregistrées avec succès et le lien de live tracking a été envoyé vers le pupitre principal d'administration !`);
   };
 
+  // Google Calendar integration helpers
+  const handleGoogleCalendarSync = async () => {
+    setIsSyncingGoogleCal(true);
+    setSyncStatusMsg(null);
+    setShowDomainHelp(false);
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.addScope('https://www.googleapis.com/auth/calendar');
+      
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      const email = result?.user?.email || '';
+
+      if (!token) {
+        throw new Error("Impossible d'obtenir le jeton d'accès OAuth.");
+      }
+
+      setGoogleAccessToken(token);
+      setSyncedGoogleEmail(email);
+
+      // Persist the email
+      const techName = authenticatedUser?.name || 'common';
+      localStorage.setItem(`defib_google_cal_email_${techName}`, email);
+
+      // Perform synchronization!
+      const syncResult = await performGoogleCalendarSync(token);
+      
+      setSyncStatusMsg({
+        type: 'success',
+        text: `Agenda Google synchronisé avec succès ! ${syncResult.count} mission(s) synchronisée(s) sur le calendrier 'Défibeo'.`
+      });
+    } catch (error: any) {
+      console.error('Error in Google Calendar sync:', error);
+      
+      const errorMsgStr = error?.message || '';
+      const isAuthError = errorMsgStr.includes('unauthorized-domain') || 
+                          (error?.code && typeof error.code === 'string' && error.code.includes('unauthorized-domain'));
+      
+      if (isAuthError) {
+        setShowDomainHelp(true);
+        setSyncStatusMsg({
+          type: 'error',
+          text: `Erreur d'autorisation : Ce domaine n'est pas autorisé dans la configuration de votre projet Firebase. Veuillez suivre les instructions ci-dessous pour l'ajouter.`
+        });
+      } else {
+        setSyncStatusMsg({
+          type: 'error',
+          text: error?.message || 'Erreur lors de la synchronisation de l\'agenda.'
+        });
+      }
+    } finally {
+      setIsSyncingGoogleCal(false);
+    }
+  };
+
+  const handleDeactivateGoogleCalendar = () => {
+    if (!window.confirm('Voulez-vous désactiver la synchronisation de Google Calendar ?')) {
+      return;
+    }
+    const techName = authenticatedUser?.name || 'common';
+    localStorage.removeItem(`defib_google_cal_email_${techName}`);
+    setGoogleAccessToken(null);
+    setSyncedGoogleEmail(null);
+    setSyncStatusMsg({
+      type: 'success',
+      text: 'La synchronisation Google Calendar a été désactivée.'
+    });
+  };
+
+  const performGoogleCalendarSync = async (accessToken: string) => {
+    // 1. Get List of Calendars
+    const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    if (!listRes.ok) {
+      throw new Error('Impossible de récupérer la liste des agendas.');
+    }
+    const listData = await listRes.json();
+    const calendars = listData.items || [];
+    
+    // Find existing "Défibeo" calendar(s)
+    const existingCals = calendars.filter((c: any) => c.summary === 'Défibeo');
+    for (const ec of existingCals) {
+      // Delete existing calendar to avoid duplicates and ensure clean sync
+      await fetch(`https://www.googleapis.com/calendar/v3/calendars/${ec.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+    }
+
+    // 2. Create New Calendar "Défibeo"
+    const createRes = await fetch('https://www.googleapis.com/calendar/v3/calendars', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ summary: 'Défibeo' })
+    });
+    if (!createRes.ok) {
+      throw new Error("Impossible de créer l'agenda 'Défibeo'.");
+    }
+    const newCal = await createRes.json();
+    const calendarId = newCal.id;
+
+    // 3. Find and add missions
+    const missionsToSync = tours.flatMap(t => t.passages || []).filter(p => p.estimatedDate && p.estimatedSlot);
+    
+    if (missionsToSync.length === 0) {
+      return { count: 0 };
+    }
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Paris';
+
+    // Helper functions for French date <-> ISO date picker compatibility
+    const normalizeToYyyymmddInSync = (dateStr: string): string => {
+      if (!dateStr) return '';
+      const clean = dateStr.replace(/\//g, '-').trim();
+      const parts = clean.split('-');
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+        }
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+      return dateStr;
+    };
+
+    const parseSlotToTimeInSync = (slot: string) => {
+      const cleaned = slot.trim().toLowerCase();
+      const match = cleaned.match(/^(\d+):(\d+)(am|pm)?$/);
+      if (match) {
+        let hrs = parseInt(match[1]);
+        const mins = parseInt(match[2]);
+        const period = match[3];
+        if (period === 'pm' && hrs < 12) {
+          hrs += 12;
+        } else if (period === 'am' && hrs === 12) {
+          hrs = 0;
+        }
+        return { hrs, mins };
+      }
+      return { hrs: 9, mins: 0 };
+    };
+
+    for (const m of missionsToSync) {
+      const dateYmd = normalizeToYyyymmddInSync(m.estimatedDate);
+      const { hrs, mins } = parseSlotToTimeInSync(m.estimatedSlot);
+
+      const startHrsStr = String(hrs).padStart(2, '0');
+      const startMinsStr = String(mins).padStart(2, '0');
+
+      let endHrs = hrs;
+      let endMins = mins + 30;
+      if (endMins >= 60) {
+        endHrs += 1;
+        endMins -= 60;
+      }
+      if (endHrs >= 24) {
+        endHrs = 23;
+        endMins = 59;
+      }
+      const endHrsStr = String(endHrs).padStart(2, '0');
+      const endMinsStr = String(endMins).padStart(2, '0');
+
+      const startDateTime = `${dateYmd}T${startHrsStr}:${startMinsStr}:00`;
+      const endDateTime = `${dateYmd}T${endHrsStr}:${endMinsStr}:00`;
+
+      const description = `Modèle : ${m.model}\n` +
+                          `Adresse : ${m.address}\n` +
+                          `Situation : ${m.status}\n` +
+                          (m.requiredParts && m.requiredParts.length > 0 ? `Pièce(s) : ${m.requiredParts.join(', ')}` : '');
+
+      const eventBody = {
+        summary: `${m.reason || 'Visite technique'} - ${m.identifiant || 'Mission'}`,
+        description,
+        start: {
+          dateTime: startDateTime,
+          timeZone
+        },
+        end: {
+          dateTime: endDateTime,
+          timeZone
+        }
+      };
+
+      const eventRes = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}/events`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(eventBody)
+      });
+
+      if (!eventRes.ok) {
+        console.error(`Failed to add event for mission ${m.identifiant}:`, await eventRes.text());
+      }
+    }
+
+    return { count: missionsToSync.length };
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-0 text-slate-800 selection:bg-indigo-600/30 font-sans" id="public-portal-envelope">
 
@@ -3493,7 +3741,7 @@ export default function PublicPortal({
                   }}
                   className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
                 >
-                  <span>Localisation</span>
+                  <span>Réglages</span>
                 </button>
               </div>
             </nav>
@@ -3621,6 +3869,24 @@ export default function PublicPortal({
                                       Motif : <span className="font-semibold" style={{ color: '#000000' }}>{p.reason}</span>
                                     </p>
                                   )}
+                                  {p.estimatedDate && (
+                                    <p style={{ color: '#000000' }}>
+                                      Date estimée : <span className="font-semibold" style={{ color: '#000000' }}>{(() => {
+                                        const cleanDate = p.estimatedDate.replace(/\//g, '-');
+                                        const pts = cleanDate.split('-');
+                                        if (pts.length === 3) {
+                                          if (pts[0].length === 4) {
+                                            return `${pts[2]}/${pts[1]}/${pts[0]}`;
+                                          }
+                                          return `${pts[0]}/${pts[1]}/${pts[2]}`;
+                                        }
+                                        return p.estimatedDate;
+                                      })()}</span>
+                                    </p>
+                                  )}
+                                  <p style={{ color: '#000000' }}>
+                                    Créneau estimé : <span className="font-semibold" style={{ color: '#000000' }}>{p.estimatedSlot || '--'}</span>
+                                  </p>
                                   {p.requiredParts && p.requiredParts.length > 0 && p.requiredParts.some(part => part && part.trim() !== 'Aucune pièce' && part.trim() !== 'Aucune pièce requise' && part.trim() !== 'Aucune' && part.trim() !== '') && (
                                     <p style={{ color: '#000000' }}>
                                       Pièce(s) : <span className="font-semibold" style={{ color: '#000000' }}>{p.requiredParts.join(', ')}</span>
@@ -4282,6 +4548,113 @@ export default function PublicPortal({
                     >
                       <span>Enregistrer</span>
                     </button>
+
+                    {/* Google Calendar integration section */}
+                    <div className="pt-5 space-y-4">
+                      <h3 className="text-lg font-bold text-slate-800">Intégration Google Calendar</h3>
+                      
+                      {syncStatusMsg && (
+                        <div className={`p-3.5 rounded-xl text-sm font-medium ${syncStatusMsg.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                          {syncStatusMsg.text}
+                        </div>
+                      )}
+
+                      {showDomainHelp && (
+                        <div className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-[12px] space-y-2" id="domain-authorization-guide">
+                          <p className="font-bold text-sm">💡 Action requise sur votre projet Firebase :</p>
+                          <p className="text-xs leading-relaxed">
+                            Pour des raisons de sécurité, Google demande à ce que le nom de domaine de la webapp soit rajouté aux domaines autorisés de votre projet Firebase.
+                          </p>
+                          <ol className="text-xs list-decimal pl-4 space-y-1.5 font-medium">
+                            <li>Ouvrez la console Firebase : <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-semibold hover:text-indigo-800">console.firebase.google.com</a></li>
+                            <li>Allez dans <strong>Authentication</strong> &gt; onglet <strong>Paramètres</strong> &gt; section <strong>Domaines autorisés</strong></li>
+                            <li>Cliquez sur le bouton <strong>Ajouter un domaine</strong></li>
+                            <li>Saisissez l'adresse suivante : <code className="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-amber-900 font-bold select-all">{window.location.hostname}</code></li>
+                          </ol>
+                          <p className="text-xs text-amber-700 pt-1 font-semibold">
+                            Une fois l'adresse ajoutée, recliquez sur "Synchroniser Google Calendar" !
+                          </p>
+                        </div>
+                      )}
+
+                      {!syncedGoogleEmail ? (
+                        <button
+                          type="button"
+                          onClick={handleGoogleCalendarSync}
+                          disabled={isSyncingGoogleCal}
+                          style={{
+                            backgroundColor: '#000000',
+                             color: '#ffffff',
+                            fontSize: '18px',
+                            fontWeight: 'bold',
+                            borderRadius: '12px',
+                            padding: '14px 20px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            width: '100%'
+                          }}
+                          className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                        >
+                          {isSyncingGoogleCal ? (
+                            <span>Synchronisation en cours...</span>
+                          ) : (
+                            <span>Synchroniser</span>
+                          )}
+                        </button>
+                      ) : (
+                        <div className="space-y-3">
+                          <p className="text-sm font-semibold text-slate-700 bg-slate-50 border border-slate-200 p-3 rounded-xl">
+                            Compte synchronisé : <span className="font-bold text-slate-900">{syncedGoogleEmail}</span>
+                          </p>
+
+                          <button
+                            type="button"
+                            onClick={handleGoogleCalendarSync}
+                            disabled={isSyncingGoogleCal}
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#ffffff',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              borderRadius: '12px',
+                              padding: '14px 20px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              width: '100%'
+                            }}
+                            className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                          >
+                            {isSyncingGoogleCal ? (
+                              <span>Synchronisation en cours...</span>
+                            ) : (
+                              <>
+                                <RefreshCw className="w-5 h-5 text-white animate-spin" />
+                                <span>Forcer la synchronisation</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={handleDeactivateGoogleCalendar}
+                            style={{
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              borderRadius: '12px',
+                              padding: '14px 20px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              width: '100%'
+                            }}
+                            className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                          >
+                            <span>Désactiver Google Calendar</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
  
                   </form>
 

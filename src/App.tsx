@@ -3901,8 +3901,8 @@ export default function App() {
                                         </span>
                                       </div>
 
-                                      {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Situation. */}
-                                      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 w-full bg-white">
+                                      {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Créneau estimé., Situation. */}
+                                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 w-full bg-white">
                                         {/* Site. (toujours disabled) */}
                                         <div className="space-y-0.5 bg-white">
                                           <label className="block mb-1 fsm-label-style">Site.</label>
@@ -3967,6 +3967,50 @@ export default function App() {
                                               backgroundColor: '#ffffff'
                                             }}
                                           />
+                                        </div>
+
+                                        {/* Créneau estimé. */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Créneau estimé.</label>
+                                          <select
+                                            value={m.estimatedSlot || ''}
+                                            onChange={(e) => updateFsmMission(t.id, m.id, { estimatedSlot: e.target.value })}
+                                            className="w-full font-sans focus:outline-none cursor-pointer"
+                                            style={{
+                                              border: '1px solid #dedede',
+                                              borderRadius: '13px',
+                                              padding: '12px',
+                                              fontSize: '16px',
+                                              fontWeight: '100',
+                                              color: '#000000',
+                                              backgroundColor: '#ffffff'
+                                            }}
+                                          >
+                                            <option value="">-- Non défini --</option>
+                                            <option value="8:00am">8:00am</option>
+                                            <option value="8:30am">8:30am</option>
+                                            <option value="9:00am">9:00am</option>
+                                            <option value="9:30am">9:30am</option>
+                                            <option value="10:00am">10:00am</option>
+                                            <option value="10:30am">10:30am</option>
+                                            <option value="11:00am">11:00am</option>
+                                            <option value="11:30am">11:30am</option>
+                                            <option value="12:00pm">12:00pm</option>
+                                            <option value="12:30pm">12:30pm</option>
+                                            <option value="13:00pm">13:00pm</option>
+                                            <option value="13:30pm">13:30pm</option>
+                                            <option value="14:00pm">14:00pm</option>
+                                            <option value="14:30pm">14:30pm</option>
+                                            <option value="15:00pm">15:00pm</option>
+                                            <option value="15:30pm">15:30pm</option>
+                                            <option value="16:00pm">16:00pm</option>
+                                            <option value="16:30pm">16:30pm</option>
+                                            <option value="17:00pm">17:00pm</option>
+                                            <option value="17:30pm">17:30pm</option>
+                                            <option value="18:00pm">18:00pm</option>
+                                            <option value="18:30pm">18:30pm</option>
+                                            <option value="19:00pm">19:00pm</option>
+                                          </select>
                                         </div>
 
                                         {/* Situation. */}

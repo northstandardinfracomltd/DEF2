@@ -1,3 +1,11 @@
+export interface SignaturePin {
+  code: string;
+  createdAt: string;
+  status: 'émis' | 'validé';
+  validatedAt?: string;
+  reportTitle?: string;
+}
+
 export interface Client {
   id: string;
   denomination: string;
@@ -5,6 +13,8 @@ export interface Client {
   email: string;
   phone: string;
   accessKey?: string; // Clé d'accès pour le portail client
+  signaturePins?: SignaturePin[]; // Array of signature pin codes for validation
+  clientSignatureImage?: string; // Signature drawing saved by the client in their portal
   
   // Site Information & Contract details for autopopulation
   nomPrenomSite: string;
@@ -15,6 +25,25 @@ export interface Client {
   referenceContrat: string;
   debutContrat: string;
   finContrat: string;
+
+  typeContact1?: string;
+  typeContact2?: string;
+  typeContact3?: string;
+  typeContact4?: string;
+  typeContact5?: string;
+  nomContact2?: string;
+  telephoneSite2?: string;
+  emailSite2?: string;
+  nomContact3?: string;
+  telephoneSite3?: string;
+  emailSite3?: string;
+  nomContact4?: string;
+  telephoneSite4?: string;
+  emailSite4?: string;
+  nomContact5?: string;
+  telephoneSite5?: string;
+  emailSite5?: string;
+  commentaire?: string;
 }
 
 export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service';
@@ -26,6 +55,7 @@ export interface Variable {
   description: string;
   category: VariableCategory;
   imageUrl?: string; // Appliqué si category === 'Modèle Défibrillateur'
+  identifiant?: string;
 }
 
 export interface Defibrillateur {
@@ -66,6 +96,7 @@ export interface Defibrillateur {
   accesSemaine: boolean;
   accesWeekend: boolean;
   exterieur: boolean;
+  horaires?: string;
 
   // Section 5 - Dates
   finGarantie: string;
@@ -83,6 +114,8 @@ export interface Defibrillateur {
   situationElectrodeA: 'Vert' | 'Orange' | 'Rouge';
   commentaireElectrodeA: string;
   peremptionSecoursElectrodeA: string;
+  modeleElectrodeASecoursId?: string;
+  lotElectrodeASecours?: string;
 
   // Section 7 - Électrode Pédiatrique (P)
   modeleElectrodePId: string; // Lookup Variable category 'Modèle Électrode'
@@ -117,6 +150,8 @@ export interface Defibrillateur {
   ageVictime: string; // deux chiffres
   commentaireCampagneRappel: string;
   rappelMensuelAuto?: 'Oui' | 'Non';
+  rappelHebdoAuto?: 'Oui' | 'Non';
+  rappelJournalierAuto?: 'Oui' | 'Non';
 }
 
 export interface SupportTicket {
@@ -147,6 +182,9 @@ export interface CompanyInfo {
   website: string;
   email: string;
   phone: string;
+  nomLogiciel?: string;
+  conditionsLegalesLink?: string;
+  mentionsLegalesFactures?: string;
 }
 
 export interface PointageLog {
@@ -172,6 +210,10 @@ export interface StockRecord {
   marge: number;
   prixVenteHt: number;
   stockage: string;
+  besoinProjete2Mois?: number;
+  besoinProjete2a6Mois?: number;
+  totalACommander?: number;
+  commentaire?: string;
 }
 
 export interface CommercialDocItem {
@@ -189,7 +231,7 @@ export interface CommercialDoc {
   clientDenomination: string;
   items: CommercialDocItem[];
   totalHt: number;
-  status: 'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé';
+  status: 'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé';
   dateStr: string;
   commentaire?: string;
 }

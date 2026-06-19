@@ -416,6 +416,9 @@ export default function SettingsModal({
           outline: none !important;
           transition: all 0s !important;
         }
+        #settings-tab-container-harmonized input:not([type="radio"]):not([type="checkbox"]).bg-grey-input {
+          background: #f1f5f9 !important;
+        }
         #settings-tab-container-harmonized textarea {
           padding: 12px 16px !important;
           border: 1px solid #cbd5e1 !important;
@@ -593,6 +596,39 @@ export default function SettingsModal({
                   onChange={(e) => handleCompanyChange('phone', e.target.value)}
                   className="w-full text-black placeholder-[#747474] font-sans text-sm"
                   placeholder="Entrez le téléphone de l’entreprise."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">Nom du logiciel.</label>
+                <input
+                  type="text"
+                  value={localCompany.nomLogiciel ?? ''}
+                  onChange={(e) => handleCompanyChange('nomLogiciel', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  placeholder="Entrez un nom pour votre logiciel."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">Lien vers les conditions légales.</label>
+                <input
+                  type="url"
+                  value={localCompany.conditionsLegalesLink ?? ''}
+                  onChange={(e) => handleCompanyChange('conditionsLegalesLink', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  placeholder="Collez le lien vers vos conditions légales."
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">Mentions légales pour les pièces comptables.</label>
+                <input
+                  type="text"
+                  value={localCompany.mentionsLegalesFactures ?? ''}
+                  onChange={(e) => handleCompanyChange('mentionsLegalesFactures', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  placeholder="Saisissez les mentions légales pour vos devis et factures."
                 />
               </div>
 

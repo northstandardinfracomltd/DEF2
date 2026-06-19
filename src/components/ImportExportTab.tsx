@@ -70,7 +70,7 @@ function generateCSV(
         'peremptionBatterie', 'livraisonBatterie', 'situationBatterie', 'pourcentageBatterie', 
         'commentaireBatterie', 'loue', 'prete', 'stocke', 'archive', 'conforme', 
         'sousTraitance', 'fsmAutorise', 'victimeSurvie', 'victimeSansSurvie', 
-        'ageVictime', 'commentaireCampagneRappel', 'rappelMensuelAuto', 'commentaire'
+        'ageVictime', 'commentaireCampagneRappel', 'rappelMensuelAuto', 'rappelHebdoAuto', 'rappelJournalierAuto', 'commentaire'
       ];
       headers = [
         "Identifiant", "Numéro de Série", "Modèle Défibrillateur", "ID Client", "Nom du Site", 
@@ -88,7 +88,7 @@ function generateCSV(
         "Péremption Batterie", "Livraison Batterie", "Situation Batterie", "Pourcentage Batterie", 
         "Commentaire Batterie", "Loué", "Prêté", "Stocké", "Archivé", "Conforme", 
         "Sous-traitance", "FSM Autorisé", "Victime Survie", "Victime Sans Survie", 
-        "Âge Victime", "Commentaire Campagne Rappel", "Rappel Mensuel Auto", "Commentaire Général"
+        "Âge Victime", "Commentaire Campagne Rappel", "Rappel Mensuel Auto", "Rappel Hebdomadaire Auto", "Rappel Journalier Auto", "Commentaire Général"
       ];
       break;
 
@@ -320,7 +320,9 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
       victimeSansSurvie: 'Non',
       ageVictime: '',
       commentaireCampagneRappel: '',
-      rappelMensuelAuto: 'Non'
+      rappelMensuelAuto: 'Non',
+      rappelHebdoAuto: 'Non',
+      rappelJournalierAuto: 'Non'
     });
   }
 

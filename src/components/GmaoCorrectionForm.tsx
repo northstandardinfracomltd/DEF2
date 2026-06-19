@@ -1,7 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { REGIONS_FRANCAISES } from '../utils';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface GmaoCorrectionFormProps {
   report?: any;
@@ -86,8 +89,66 @@ const DEFAULT_DEFIB: Defibrillateur = {
   victimeSansSurvie: 'Non',
   ageVictime: '',
   commentaireCampagneRappel: '',
-  rappelMensuelAuto: 'Non'
+  rappelMensuelAuto: 'Non',
+  rappelHebdoAuto: 'Non',
+  rappelJournalierAuto: 'Non'
 };
+
+const ERROR_CODES_DB = [
+  // Philips
+  { label: "Philips - Code 1", description: "Les électrodes sont périmées, mal branchées ou le gel est sec. Il faut remplacer la cartouche d'électrodes immédiatement." },
+  { label: "Philips - Code 2", description: "La batterie est faible ou déchargée. Il faut remplacer la pile au lithium (M5070A)." },
+  { label: "Philips - Code 4", description: "Le DAE a détecté une erreur matérielle interne majeure lors de son auto-test. Il faut retirer et réinsérer la batterie pour relancer un auto-test complet. Si le problème persiste, l'appareil doit être retourné au SAV Philips." },
+  { label: "Philips - C1001", description: "Échec de la configuration ou de la carte de données. Il faut formater ou remplacer la carte SD configurée par le logiciel Philips." },
+  { label: "Philips - C1005", description: "Erreur critique de la mémoire flash interne. Il faut lancer un test initié par l'utilisateur (User-Initiated Test). Si l'erreur reste, la carte mère est à remplacer." },
+  { label: "Philips - Code \"F\" ou Voyant Clignotant Rouge", description: "Panne de sous-système interne (souvent le condensateur de charge). Il faut retirer l'appareil du service et contacter le support technique." },
+  { label: "Philips - Code 3", description: "La température de stockage de l'appareil est hors des tolérances acceptables (trop froid ou trop chaud). Il faut déplacer le DAE dans un environnement tempéré et attendre que la température se stabilise pour l'auto-test." },
+  { label: "Philips - Code 5", description: "Dysfonctionnement du circuit audio ou du haut-parleur. Il faut insérer une batterie neuve pour retenter le test. Si l'appareil reste muet mais clignote, le haut-parleur est défaillant." },
+  { label: "Philips - C1002", description: "Échec de l'auto-test de la pile ou tension réseau interne incorrecte. Il faut installer une batterie FR3 neuve certifiée Philips." },
+  { label: "Philips - C1004", description: "Erreur d'intégrité logicielle (Firmware corrompu). Il faut reflasher l'appareil avec le logiciel d'administration Philips ou remplacer la carte principale." },
+
+  // Zoll
+  { label: "Zoll - 902-E", description: "Il s'agit d'un problème de communication ou de détection du câble d'électrodes (souvent legato à des CPR-D padz mal enfoncées ou défectueuses). Il faut débrancher les électrodes, nettoyer les broches du connecteur et rebrancher une nouvelle paire." },
+  { label: "Zoll - N = 1", description: "Paramètres d'IP statique locale incorrects. Il faut vérifier dans le menu de configuration que l'adresse IP statique n'est pas à 0.0.0.0 et que le masque de sous-réseau est correct." },
+  { label: "Zoll - N = 2", description: "Erreur de serveur avec DNS désactivé. Il faut renseigner manuellement l'adresse IP du serveur de transmission des données (Full Disclosure Server)." },
+  { label: "Zoll - Échec Test de Choc", description: "Le circuit de charge ou de décharge haute tension est défaillant. Il faut tester l'appareil sur un simulateur de charge externe (ex: QA-90). Si le choc n'est pas délivré ou si l'énergie est hors tolérance, le module haute tension est HS." },
+  { label: "Zoll - Chirping", description: "Les piles (CR123a) sont faibles. Il faut remplacer l'ensemble des 10 piles en même temps par des piles de marque identique approuvées." },
+  { label: "Zoll - 901-E", description: "Échec du test de l'architecture électronique générale ou de la RAM lors de l'auto-test. Il faut effectuer un hard reset (retrait des piles pendant 2 minutes). Si le code persiste au redémarrage, la carte mère est défectueuse." },
+  { label: "Zoll - 905-E", description: "Problème lié au bouton de choc (contact permanent détecté ou bouton bloqué). Il faut inspecter visuellement le bouton, tenter de le décoincer mécaniquement, ou remplacer la face avant." },
+  { label: "Zoll - TIMEOUT CHG", description: "Le temps de charge maximum autorisé pour atteindre l'énergie sélectionnée a été dépassé. Il faut contrôler l'usure de la batterie principale ou le condensateur haute tension en atelier." },
+
+  // Physio-Control
+  { label: "Physio-Control - Icône Clé à molette", description: "Une anomalie interne a été détectée lors de l'auto-test hebdomadaire ou mensuel. Il faut retirer la batterie CHARGE-PAK, attendre 10 secondes, la réinsérer et observer si l'icône repasse sur 'OK'. Si la clé reste, l'appareil nécessite une intervention en atelier." },
+  { label: "Physio-Control - Icône \"!\"", description: "La batterie interne permanente est trop basse après le remplacement du module CHARGE-PAK. Il faut laisser l'appareil au repos pendant 24 à 72 heures pour permettre à la batterie interne de se recharger complètement." },
+  { label: "Physio-Control - Code 119", description: "Erreur d'interface utilisateur ou du sélecteur d'énergie. Il faut nettoyer ou remplacer le clavier à membrane ou le bouton rotatif." },
+  { label: "Physio-Control - Code 124", description: "Défaut d'acquisition ou d'isolation du module ECG. Il faut vérifier la carte d'entrée ECG et le câblage interne." },
+  { label: "Physio-Control - Code 128", description: "Erreur critique du sous-système de thérapie (haute tension). Il faut effectuer un test d'énergie et de calibration. Si le code revient à chaque tentative de charge, le module de thérapie est défectueux." },
+  { label: "Physio-Control - Code 102", description: "Erreur de communication avec le module de gestion de l'alimentation (Power PCB). Il faut inspecter les nappes de connexion internes et mettre à jour le firmware." },
+  { label: "Physio-Control - Code 105", description: "Erreur d'étalonnage de l'horloge interne (RTC). Il faut remplacer la pile bouton de sauvegarde soudée sur la carte mère." },
+  { label: "Physio-Control - Code 310", description: "Défaut d'alimentation secteur (liaison coupée ou fusible d'entrée sauté alors que le câble est branché). Il faut tester le cordon d'alimentation et vérifier les fusibles du bloc d'entrée." },
+  { label: "Physio-Control - Code 401", description: "Échec de l'auto-test de l'imprimante thermique. Il faut vérifier qu'un rouleau de papier est présent, que la porte est bien verrouillée et que la tête d'impression n'est pas encrassée." },
+
+  // Heartsine
+  { label: "Heartsine - Bip rapide continu + LED d'état éteinte", description: "Le Pad-Pak (cartouche intégrée pile + électrodes) est manquant, mal enclenché ou périmé. Il faut extraire le Pad-Pak, vérifier la date de péremption, nettoyer les glissières et le réinsérer fermement jusqu'à entendre le clic." },
+  { label: "Heartsine - Bip lent intermittent + Icône de maintenance (Clé)", description: "Erreur logicielle interne ou température de stockage hors limites (inférieure à 0°C ou supérieure à 50°C). Il faut replacer l'appareil dans un environnement tempéré pendant 2 heures puis extraire/réinsérer le Pad-Pak pour forcer un auto-test." },
+
+  // Schiller
+  { label: "Schiller - Err 1", description: "Erreur de configuration EEPROM ou données d'étalonnage manquantes. Il faut renvoyer l'appareil pour réécriture des données d'usine via le logiciel de service Schiller." },
+  { label: "Schiller - Err 4", description: "Échec du test du condensateur haute tension (temps de charge trop long). Il faut tester la capacité du condensateur et le remplacer si sa valeur a dérivé." },
+  { label: "Schiller - Err 5", description: "Le relais de sécurité ou le circuit de décharge interne est bloqué en position ouverte. La carte de thérapie doit être remplacée." },
+  { label: "Schiller - Err 8", description: "Tension de la pile de sauvegarde de sécurité insuffisante. Il faut ouvrir le boîtier pour remplacer la pile lithium interne dédiée à l'horloge et à la mémoire." },
+  { label: "Schiller - LED Rouge Clignotante + 3 bips", description: "Les électrodes ne sont pas détectées ou la date de péremption intégrée à la puce RFID est dépassée. Il faut remplacer les électrodes par un consommable neuf." },
+
+  // Primedic
+  { label: "Primedic - Err 21", description: "Erreur lors de la phase de charge haute tension (court-circuit détecté). Il faut vérifier l'absence de poussière conductrice sur la carte haute tension ou remplacer le transformateur de charge." },
+  { label: "Primedic - Err 32", description: "Problème logiciel détecté sur le processeur esclave de sécurité. Il faut faire une mise à jour du firmware ou un remplacement de la puce d'origine." },
+  { label: "Primedic - Err 45", description: "Dysfonctionnement du module d'enregistrement des données (carte SaveCard manquante ou défectueuse). Il faut insérer une carte mémoire Primedic valide." },
+
+  // Mindray
+  { label: "Mindray - Code 00-0022", description: "Erreur d'authentification ou d'identification de la batterie intelligente. Il faut nettoyer les contacts de la batterie ou tester avec une autre batterie d'origine Mindray." },
+  { label: "Mindray - Code 01-0004", description: "Échec du circuit de détection d'impédance du patient. Il faut remplacer le câble patient (câble thérapeutique) ou nettoyer le connecteur femelle de l'appareil." },
+  { label: "Mindray - Code 02-0008", description: "Erreur fatale du module de défibrillation (Échec du circuit d'analyse d'onde). L'appareil doit être immédiatement retiré du service pour remplacement de la carte principale." }
+];
 
 const rowActionButtonStyle: React.CSSProperties = {
   backgroundColor: '#000',
@@ -156,6 +217,15 @@ function FormRadio({
   );
 }
 
+function LocationPickerEvents({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
+
 export default function GmaoCorrectionForm({
   report,
   isNew = false,
@@ -219,6 +289,7 @@ export default function GmaoCorrectionForm({
   });
 
   // Report fields
+  const [clientPinCode, setClientPinCode] = useState(report?.clientPinCode || '');
   const [reportTitle, setReportTitle] = useState(report?.title || 'RAPPORT TECHNIQUE DÉFIBRILLATEUR');
   const [techName, setTechName] = useState(() => {
     if (report?.techName) return report.techName;
@@ -246,6 +317,12 @@ export default function GmaoCorrectionForm({
   );
   const [photoUrl, setPhotoUrl] = useState(report?.photoUrl || '');
   const [errorText, setErrorText] = useState('');
+  const [selectedErrorCode, setSelectedErrorCode] = useState('');
+
+  // States for map position selection
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [tempLat, setTempLat] = useState<number>(48.8566);
+  const [tempLng, setTempLng] = useState<number>(2.3522);
 
   // S3 Alarme & Armoire
   const [alarme, setAlarme] = useState<'Oui' | 'Non'>(report?.alarme || 'Non');
@@ -301,6 +378,8 @@ export default function GmaoCorrectionForm({
   
   const [isLotScannerOpen, setIsLotScannerOpen] = useState(false);
   const [isSerieScannerOpen, setIsSerieScannerOpen] = useState(false);
+  const [isIdentifiantScannerOpen, setIsIdentifiantScannerOpen] = useState(false);
+  const [isLookupScannerOpen, setIsLookupScannerOpen] = useState(false);
   const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
   const [isLotPScannerOpen, setIsLotPScannerOpen] = useState(false);
   const [isLotBatScannerOpen, setIsLotBatScannerOpen] = useState(false);
@@ -494,6 +573,44 @@ export default function GmaoCorrectionForm({
       return;
     }
 
+    if (!clientPinCode.trim()) {
+      setErrorText("Le code PIN de signature client est obligatoire.");
+      return;
+    }
+
+    const enteredPinTrimmed = clientPinCode.trim().toUpperCase();
+    const relatedClient = clients.find(c => c.id === snapshot.clientId);
+    const isOriginalPin = report && report.clientPinCode && report.clientPinCode.trim().toUpperCase() === enteredPinTrimmed;
+
+    if (relatedClient) {
+      const pins = relatedClient.signaturePins || [];
+      const hasAnyPins = pins.length > 0;
+      
+      if (hasAnyPins && !isOriginalPin) {
+        const matchingPin = pins.find(p => p.code.toUpperCase() === enteredPinTrimmed);
+        if (!matchingPin) {
+          setErrorText(`Le code PIN "${enteredPinTrimmed}" est incorrect pour ce client.`);
+          return;
+        }
+        if (matchingPin.status === 'validé') {
+          setErrorText(`Le code PIN "${enteredPinTrimmed}" a déjà été validé et utilisé pour la visite "${matchingPin.reportTitle || ''}".`);
+          return;
+        }
+      } else if (!isOriginalPin) {
+        const pinRegex = /^[A-Z]{3}\d{3}$/;
+        if (!pinRegex.test(enteredPinTrimmed)) {
+          setErrorText("Le code PIN de signature client doit se composer de 3 lettres suivies de 3 chiffres (ex: ABC123).");
+          return;
+        }
+      }
+    } else {
+      const pinRegex = /^[A-Z]{3}\d{3}$/;
+      if (!pinRegex.test(enteredPinTrimmed) && !isOriginalPin) {
+        setErrorText("Le code PIN de signature client doit se composer de 3 lettres suivies de 3 chiffres (ex: ABC123).");
+        return;
+      }
+    }
+
     const todayStr = new Date().toISOString().split('T')[0];
     const maintDate = interventionDate || todayStr;
 
@@ -549,6 +666,7 @@ export default function GmaoCorrectionForm({
       defibSnapshot: finalSnapshot,
       techSignature: techSignature,
       endTimeStamp: endTimeStamp,
+      clientPinCode: clientPinCode,
       
       // Section 3 additions
       alarme,
@@ -837,18 +955,48 @@ export default function GmaoCorrectionForm({
                 <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
                   Sélectionner un équipement.
                 </label>
-                <select
-                  value={selectedDefibId}
-                  onChange={(e) => handleDefibLookupChange(e.target.value)}
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
-                >
-                  <option value="">-- Choisir un DAE ou Saisir Libre --</option>
-                  {defibrillateurs.map(df => (
-                    <option key={df.id} value={df.id}>
-                      {df.identifiant} - {df.numeroSerie}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-1.5">
+                  <select
+                    value={selectedDefibId}
+                    onChange={(e) => handleDefibLookupChange(e.target.value)}
+                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                  >
+                    <option value="">-- Choisir un DAE ou Saisir Libre --</option>
+                    {defibrillateurs.map(df => (
+                      <option key={df.id} value={df.id}>
+                        {df.identifiant} - {df.numeroSerie}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorText('');
+                      setIsLookupScannerOpen(true);
+                    }}
+                    className="shrink-0 px-4 py-1.5 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isLookupScannerOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isLookupScannerOpen}
+                    onClose={() => setIsLookupScannerOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      const textUpper = scannedText.trim().toUpperCase();
+                      const matchingDefib = defibrillateurs.find(
+                        d => (d.identifiant || '').toUpperCase() === textUpper || (d.numeroSerie || '').toUpperCase() === textUpper
+                      );
+                      if (matchingDefib) {
+                        handleDefibLookupChange(matchingDefib.id);
+                      } else {
+                        setErrorText(`Aucun équipement trouvé avec le code-barres "${scannedText}".`);
+                      }
+                      setIsLookupScannerOpen(false);
+                    }}
+                  />
+                )}
               </div>
             )}
 
@@ -1045,15 +1193,41 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="snap-identifiant" className="block text-[11px] font-bold text-black uppercase">
                   Identifiant.
                 </label>
-                <input
-                  type="text"
-                  id="snap-identifiant"
-                  disabled
-                  value={snapshot.identifiant || ''}
-                  onChange={(e) => handleSnapshotChange('identifiant', e.target.value.toUpperCase())}
-                  placeholder="Entrez un identifiant."
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-500 cursor-not-allowed"
-                />
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    id="snap-identifiant"
+                    disabled
+                    value={snapshot.identifiant || ''}
+                    placeholder="Entrez un identifiant."
+                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-500 cursor-not-allowed"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsIdentifiantScannerOpen(true)}
+                    className="shrink-0 px-4 py-1.5 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isIdentifiantScannerOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isIdentifiantScannerOpen}
+                    onClose={() => setIsIdentifiantScannerOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      const textUpper = scannedText.trim().toUpperCase();
+                      const matchingDefib = defibrillateurs.find(
+                        d => d.identifiant.toUpperCase() === textUpper || d.numeroSerie.toUpperCase() === textUpper
+                      );
+                      if (matchingDefib) {
+                        handleDefibLookupChange(matchingDefib.id);
+                      } else {
+                        handleSnapshotChange('identifiant', textUpper);
+                      }
+                      setIsIdentifiantScannerOpen(false);
+                    }}
+                  />
+                )}
               </div>
 
               <div className="space-y-1">
@@ -1629,6 +1803,22 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 text-slate-500 rounded-lg font-mono text-xs cursor-not-allowed"
                 />
               </div>
+            </div>
+
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const savedLat = parseFloat(snapshot.latitude) || 48.8566;
+                  const savedLng = parseFloat(snapshot.longitude) || 2.3522;
+                  setTempLat(savedLat);
+                  setTempLng(savedLng);
+                  setIsMapPickerOpen(true);
+                }}
+                className="w-full py-2 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+              >
+                Ajuster Position
+              </button>
             </div>
           </div>
 
@@ -2292,6 +2482,22 @@ export default function GmaoCorrectionForm({
                 </div>
               </div>
 
+              {/* Divider & Warning message before Electrode A test */}
+              <div className="col-span-1 md:col-span-2 border-t border-slate-200 pt-3 mt-1 bg-white" />
+
+              <div className="col-span-1 md:col-span-2 bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 leading-relaxed space-y-2">
+                <div className="font-bold text-rose-950 flex items-start gap-1.5 home-important">
+                  <span className="text-sm">⚠️</span>
+                  <span>Important : Conformément aux manuels techniques des fabricants et aux recommandations de l'ANSM, la réalisation de tests de décharge de choc externe sur simulateur est proscrite ou déconseillée pour les modèles suivants :</span>
+                </div>
+                <ul className="list-disc list-inside space-y-1 font-sans text-rose-900 pl-3">
+                  <li><strong className="text-rose-950">ZOLL</strong> : AED Plus et AED 3</li>
+                  <li><strong className="text-rose-950">PHILIPS</strong> : HeartStart HS1 et FRx</li>
+                  <li><strong className="text-rose-950">CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
+                  <li><strong className="text-rose-950">LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
+                </ul>
+              </div>
+
               {/* 6. Résultat du test en joules de l’électrode A */}
               <div className="space-y-1 bg-white">
                 <label htmlFor="techResultatJoulesElectrodeA" className="block text-[11px] font-bold text-black uppercase">
@@ -2551,6 +2757,27 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
+            <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-3">
+              <label htmlFor="client-pin-code" className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                Signature Client (Code PIN de validation) <span className="text-red-500">*</span>
+              </label>
+              <div className="flex gap-2 max-w-sm">
+                <input
+                  type="text"
+                  id="client-pin-code"
+                  maxLength={6}
+                  value={clientPinCode}
+                  onChange={(e) => setClientPinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="Ex: ABC123"
+                  className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 tracking-widest placeholder:tracking-normal placeholder:font-sans"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 font-sans">
+                Entrez le code PIN à 6 caractères (3 lettres et 3 chiffres) fourni par le client pour authentifier et signer ce rapport.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-black uppercase">
@@ -2619,6 +2846,132 @@ export default function GmaoCorrectionForm({
         </div>
 
       </form>
+
+      {/* Sticky Error Code Helper Box */}
+      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 mt-6 space-y-3 w-full" style={{ boxShadow: 'none' }} id="error-code-helper-panel">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-bold text-black">Diagnostic d'un code erreur.</h4>
+        </div>
+        <select
+          value={selectedErrorCode}
+          onChange={(e) => setSelectedErrorCode(e.target.value)}
+          className="w-full p-2.5 border border-[#dedede] rounded-xl text-sm text-black bg-white focus:outline-hidden focus:border-black"
+          style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
+        >
+          <option value="">Sélectionnez un code erreur.</option>
+          {ERROR_CODES_DB.map((item, idx) => (
+            <option key={idx} value={item.label}>{item.label}</option>
+          ))}
+        </select>
+
+        {selectedErrorCode && (
+          <div className="p-3 bg-white border border-[#dedede] rounded-xl space-y-3 animate-fadeIn">
+            <p className="text-sm text-black font-medium leading-relaxed">
+              {ERROR_CODES_DB.find(e => e.label === selectedErrorCode)?.description}
+            </p>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setSelectedErrorCode('')}
+                className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white text-sm font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {isMapPickerOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-black font-sans leading-tight">Ajustez la position du DAE</h3>
+                <p className="text-[11px] text-slate-500 font-sans mt-0.5">Cliquez sur la carte ou glissez le marqueur pour définir précisément son emplacement.</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsMapPickerOpen(false)}
+                className="text-slate-400 hover:text-black hover:bg-slate-100 p-1.5 rounded-lg transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Map Container */}
+            <div className="relative h-80 w-full bg-slate-100">
+              <MapContainer
+                center={[tempLat, tempLng]}
+                zoom={14}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationPickerEvents onPick={(lat, lng) => {
+                  setTempLat(lat);
+                  setTempLng(lng);
+                }} />
+                <Marker 
+                  position={[tempLat, tempLng]}
+                  icon={L.divIcon({
+                    html: `
+                      <div class="relative flex items-center justify-center" style="transform: translate(-12px, -12px);">
+                        <div class="absolute w-8 h-8 rounded-full bg-black/30 animate-ping"></div>
+                        <div class="w-5 h-5 rounded-full bg-black border-2 border-white shadow-lg"></div>
+                      </div>
+                    `,
+                    className: 'custom-picker-icon',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                  })}
+                />
+              </MapContainer>
+            </div>
+
+            {/* Live coordinates display */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Latitude live</span>
+                  <code className="text-black font-semibold text-xs font-mono">{tempLat.toFixed(6)}</code>
+                </div>
+                <div>
+                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Longitude live</span>
+                  <code className="text-black font-semibold text-xs font-mono">{tempLng.toFixed(6)}</code>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 flex gap-3 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(false)}
+                className="flex-1 py-3 border border-slate-200 text-slate-700 hover:text-black hover:bg-slate-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSnapshotChange('latitude', tempLat.toFixed(6));
+                  handleSnapshotChange('longitude', tempLng.toFixed(6));
+                  setIsMapPickerOpen(false);
+                }}
+                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Valider la position
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

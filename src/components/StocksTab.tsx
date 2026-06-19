@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { Variable, StockRecord } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Variable, StockRecord, Defibrillateur } from '../types';
 
 interface StocksTabProps {
   stocks: StockRecord[];
   variables: Variable[];
+  defibrillateurs: Defibrillateur[];
   saveStocks: (updated: StockRecord[]) => void;
   showStockForm: boolean;
   setShowStockForm: (show: boolean) => void;
@@ -12,20 +13,23 @@ interface StocksTabProps {
 export default function StocksTab({
   stocks,
   variables,
+  defibrillateurs = [],
   saveStocks,
   showStockForm,
   setShowStockForm,
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
-  const [newDenomStr, setNewDenomStr] = useState(variables[0]?.id || '');
+  const [newDenomStr, setNewDenomStr] = useState('');
   const [newQty, setNewQty] = useState<number>(0);
   const [newQtyReservee, setNewQtyReservee] = useState<number>(0);
 
   React.useEffect(() => {
-    if (!newDenomStr && variables.length > 0) {
-      setNewDenomStr(variables[0].id);
+    const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId));
+    const isCurrentValid = available.some(v => v.id === newDenomStr);
+    if (!isCurrentValid && available.length > 0) {
+      setNewDenomStr(available[0].id);
     }
-  }, [variables, newDenomStr]);
+  }, [variables.length, stocks.length, editingStockId, newDenomStr]);
   
   const [newLivDate, setNewLivDate] = useState<string>('');
   const [newReapDate, setNewReapDate] = useState<string>('');
@@ -33,12 +37,105 @@ export default function StocksTab({
   const [newMarge, setNewMarge] = useState<string>('');
   const [newPrixHt, setNewPrixHt] = useState<string>('');
   const [newStorage, setNewStorage] = useState<string>('');
+  const [newCommentaire, setNewCommentaire] = useState<string>('');
 
   // Search & Filter State
   const [stockSearchQuery, setStockSearchQuery] = useState('');
-  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'Entrepôt A' | 'Entrepôt B' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Non approprié'>('Tous');
+  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'Entrepôt A' | 'Entrepôt B' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Non approprié' | 'ReqPrev2M' | 'ReqPrev2to6M'>('Tous');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Helper to dynamically calculate prevoiance for any variable id
+  const getPrevoianceForVariable = useMemo(() => {
+    return (denomId: string, qty: number) => {
+      if (!denomId) return { bis2M: 0, bis2to6M: 0, totalToOrder: 0 };
+
+      const today = new Date();
+      const twoMonthsFromNow = new Date();
+      twoMonthsFromNow.setMonth(today.getMonth() + 2);
+      const sixMonthsFromNow = new Date();
+      sixMonthsFromNow.setMonth(today.getMonth() + 6);
+
+      let bis2M = 0;
+      let bis2to6M = 0;
+
+      defibrillateurs.forEach(df => {
+        // 1. Modèle: défibrillateur
+        if (df.modeleId === denomId && df.finGarantie) {
+          const gDate = new Date(df.finGarantie);
+          if (!isNaN(gDate.getTime())) {
+            if (gDate <= twoMonthsFromNow) {
+              bis2M++;
+            } else if (gDate > twoMonthsFromNow && gDate <= sixMonthsFromNow) {
+              bis2to6M++;
+            }
+          }
+        }
+
+        // 2. Modèle : Électrode Adulte ou Mixte
+        if (df.modeleElectrodeAId === denomId && df.peremptionElectrodeA) {
+          const aDate = new Date(df.peremptionElectrodeA);
+          if (!isNaN(aDate.getTime())) {
+            if (aDate <= twoMonthsFromNow) {
+              bis2M++;
+            } else if (aDate > twoMonthsFromNow && aDate <= sixMonthsFromNow) {
+              bis2to6M++;
+            }
+          }
+        }
+
+        // 3. Modèle : Électrode Secours
+        if (df.modeleElectrodeASecoursId === denomId && df.peremptionSecoursElectrodeA) {
+          const sDate = new Date(df.peremptionSecoursElectrodeA);
+          if (!isNaN(sDate.getTime())) {
+            if (sDate <= twoMonthsFromNow) {
+              bis2M++;
+            } else if (sDate > twoMonthsFromNow && sDate <= sixMonthsFromNow) {
+              bis2to6M++;
+            }
+          }
+        }
+
+        // 4. Modèle : Électrode Pédiatrique
+        if (df.modeleElectrodePId === denomId && df.peremptionElectrodeP) {
+          const pDate = new Date(df.peremptionElectrodeP);
+          if (!isNaN(pDate.getTime())) {
+            if (pDate <= twoMonthsFromNow) {
+              pDate.setHours(0,0,0,0);
+              bis2M++;
+            } else if (pDate > twoMonthsFromNow && pDate <= sixMonthsFromNow) {
+              bis2to6M++;
+            }
+          }
+        }
+
+        // 5. Modèle : Batterie
+        if (df.modeleBatterieId === denomId && df.peremptionBatterie) {
+          const bDate = new Date(df.peremptionBatterie);
+          if (!isNaN(bDate.getTime())) {
+            if (bDate <= twoMonthsFromNow) {
+              bis2M++;
+            } else if (bDate > twoMonthsFromNow && bDate <= sixMonthsFromNow) {
+              bis2to6M++;
+            }
+          }
+        }
+      });
+
+      const totalToOrder = Math.max(0, (bis2M + bis2to6M) - qty);
+
+      return {
+        bis2M,
+        bis2to6M,
+        totalToOrder
+      };
+    };
+  }, [defibrillateurs]);
+
+  // Dynamic Prévoyance Calculation
+  const prevoianceData = useMemo(() => {
+    return getPrevoianceForVariable(newDenomStr, Number(newQty));
+  }, [newDenomStr, getPrevoianceForVariable, newQty]);
 
   // Help auto-fill pricing fields
   const handleAchatChange = (valStr: string) => {
@@ -74,6 +171,13 @@ export default function StocksTab({
     e.preventDefault();
     if (!newDenomStr) return;
 
+    // Check if this variable is already used by another stock record
+    const isAlreadyUsed = stocks.some(s => s.denominationPieceId === newDenomStr && s.id !== editingStockId);
+    if (isAlreadyUsed) {
+      alert("Erreur : La variable sélectionnée est déjà utilisée pour un autre stock. Une variable ne peut être configurée qu'une seule fois dans les stocks.");
+      return;
+    }
+
     const finalLivDate = newStorage === 'Non approprié' ? '' : newLivDate;
     const finalReapDate = newStorage === 'Non approprié' ? '' : newReapDate;
 
@@ -90,7 +194,11 @@ export default function StocksTab({
             valeurAchat: Number(newValAchat) || 0,
             marge: Number(newMarge) || 0,
             prixVenteHt: Number(newPrixHt) || 0,
-            stockage: newStorage
+            stockage: newStorage,
+            besoinProjete2Mois: prevoianceData.bis2M,
+            besoinProjete2a6Mois: prevoianceData.bis2to6M,
+            totalACommander: prevoianceData.totalToOrder,
+            commentaire: newCommentaire
           };
         }
         return st;
@@ -108,7 +216,11 @@ export default function StocksTab({
         valeurAchat: Number(newValAchat) || 0,
         marge: Number(newMarge) || 0,
         prixVenteHt: Number(newPrixHt) || 0,
-        stockage: newStorage
+        stockage: newStorage,
+        besoinProjete2Mois: prevoianceData.bis2M,
+        besoinProjete2a6Mois: prevoianceData.bis2to6M,
+        totalACommander: prevoianceData.totalToOrder,
+        commentaire: newCommentaire
       };
       saveStocks([newItem, ...stocks]);
     }
@@ -122,6 +234,7 @@ export default function StocksTab({
     setNewMarge('');
     setNewPrixHt('');
     setNewStorage('');
+    setNewCommentaire('');
     setShowStockForm(false);
   };
 
@@ -131,7 +244,8 @@ export default function StocksTab({
       setEditingStockId(null);
     } else {
       setEditingStockId(null);
-      setNewDenomStr(variables[0]?.id || '');
+      const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id));
+      setNewDenomStr(available[0]?.id || '');
       setNewQty(0);
       setNewQtyReservee(0);
       setNewLivDate('');
@@ -140,6 +254,7 @@ export default function StocksTab({
       setNewMarge('');
       setNewPrixHt('');
       setNewStorage('');
+      setNewCommentaire('');
       setShowStockForm(true);
     }
   };
@@ -220,7 +335,20 @@ export default function StocksTab({
     const modelMarque = vObj ? vObj.marque.toLowerCase() : '';
     const modelCat = vObj ? vObj.category.toLowerCase() : '';
     
-    const matchesStorage = stockStorageFilter === 'Tous' || st.stockage === stockStorageFilter;
+    let matchesStorage = false;
+    if (stockStorageFilter === 'Tous') {
+      matchesStorage = true;
+    } else if (stockStorageFilter === 'ReqPrev2M') {
+      const prev = getPrevoianceForVariable(st.denominationPieceId, st.quantite);
+      const val = st.besoinProjete2Mois !== undefined ? Math.max(st.besoinProjete2Mois, prev.bis2M) : prev.bis2M;
+      matchesStorage = val >= 1;
+    } else if (stockStorageFilter === 'ReqPrev2to6M') {
+      const prev = getPrevoianceForVariable(st.denominationPieceId, st.quantite);
+      const val = st.besoinProjete2a6Mois !== undefined ? Math.max(st.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
+      matchesStorage = val >= 1;
+    } else {
+      matchesStorage = st.stockage === stockStorageFilter;
+    }
     
     const query = stockSearchQuery.trim().toLowerCase();
     const matchesSearch = !query || 
@@ -343,19 +471,42 @@ export default function StocksTab({
 
           {/* Filters Pills Row */}
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-storage-pills">
-            {(['Tous', 'Entrepôt A', 'Entrepôt B', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Non approprié'] as const).map((filterOpt) => {
+            {[
+              { value: 'Tous', label: 'Tous' },
+              { value: 'Entrepôt A', label: 'Entrepôt A' },
+              { value: 'Entrepôt B', label: 'Entrepôt B' },
+              { value: 'Véhicule A', label: 'Véhicule A' },
+              { value: 'Véhicule B', label: 'Véhicule B' },
+              { value: 'Véhicule C', label: 'Véhicule C' },
+              { value: 'Non approprié', label: 'Non approprié' },
+              { value: 'ReqPrev2M', label: 'Réapprovisionnement requis prévoyance 2 mois' },
+              { value: 'ReqPrev2to6M', label: 'Réapprovisionnement requis prévoyance 2 à 6 mois' }
+            ].map((opt) => {
               let count = 0;
-              if (filterOpt === 'Tous') {
+              if (opt.value === 'Tous') {
                 count = stocks.length;
+              } else if (opt.value === 'ReqPrev2M') {
+                count = stocks.filter(s => {
+                  const prev = getPrevoianceForVariable(s.denominationPieceId, s.quantite);
+                  const val = s.besoinProjete2Mois !== undefined ? Math.max(s.besoinProjete2Mois, prev.bis2M) : prev.bis2M;
+                  return val >= 1;
+                }).length;
+              } else if (opt.value === 'ReqPrev2to6M') {
+                count = stocks.filter(s => {
+                  const prev = getPrevoianceForVariable(s.denominationPieceId, s.quantite);
+                  const val = s.besoinProjete2a6Mois !== undefined ? Math.max(s.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
+                  return val >= 1;
+                }).length;
               } else {
-                count = stocks.filter(s => s.stockage === filterOpt).length;
+                count = stocks.filter(s => s.stockage === opt.value).length;
               }
               
+              const isSelected = stockStorageFilter === opt.value;
               return (
                 <button
-                  key={filterOpt}
+                  key={opt.value}
                   type="button"
-                  onClick={() => setStockStorageFilter(filterOpt)}
+                  onClick={() => setStockStorageFilter(opt.value as any)}
                   style={{
                     borderRadius: '1000px',
                     padding: '10px 20px',
@@ -363,15 +514,15 @@ export default function StocksTab({
                     fontWeight: 100,
                     cursor: 'pointer',
                     fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                    backgroundColor: stockStorageFilter === filterOpt ? '#fa53d5' : '#ffffff',
-                    color: stockStorageFilter === filterOpt ? '#ffffff' : '#000000',
-                    border: stockStorageFilter === filterOpt ? '1px solid #fa53d5' : '1px solid rgb(218, 218, 218)',
+                    backgroundColor: isSelected ? '#fa53d5' : '#ffffff',
+                    color: isSelected ? '#ffffff' : '#000000',
+                    border: isSelected ? '1px solid #fa53d5' : '1px solid rgb(218, 218, 218)',
                     boxShadow: 'none',
                     transition: 'all 0.15s ease'
                   }}
                   className="transition-all"
                 >
-                  {filterOpt} ({count})
+                  {opt.label} ({count})
                 </button>
               );
             })}
@@ -469,6 +620,7 @@ export default function StocksTab({
                                   setNewMarge((st.marge ?? 0).toString());
                                   setNewPrixHt((st.prixVenteHt ?? 0).toString());
                                   setNewStorage(st.stockage);
+                                  setNewCommentaire(st.commentaire || '');
                                   setShowStockForm(true);
                                 }}
                                 style={rowActionButtonStyle}
@@ -573,11 +725,15 @@ export default function StocksTab({
                   required
                 >
                   <option value="" disabled hidden>Sélectionnez une pièce ou service.</option>
-                  {variables.map(v => (
-                    <option key={v.id} value={v.id}>
-                      {v.nom} ({v.category})
-                    </option>
-                  ))}
+                  {variables.map(v => {
+                    const isAlreadyUsed = stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId);
+                    if (isAlreadyUsed) return null;
+                    return (
+                      <option key={v.id} value={v.id}>
+                        {v.identifiant ? `[${v.identifiant}] ` : ''}{v.nom} ({v.category})
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -723,6 +879,63 @@ export default function StocksTab({
                     placeholder="0.00"
                   />
                 </div>
+              </div>
+
+              {/* Section Prévoyance. */}
+              <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-1">
+                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2" style={{ color: '#000000', cursor: 'default' }}>Prévoyance.</h4>
+                <div className="bg-slate-50 border border-slate-100 p-2.5 rounded text-xs text-slate-600 mb-2 font-sans">
+                  Nous estimons votre besoin de trésorerie à <span className="font-bold text-slate-900">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>€, pour l'achat des stocks requis aux actions de maintenances.
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Besoin projeté à 2 mois.</label>
+                    <input
+                      type="number"
+                      value={prevoianceData.bis2M}
+                      disabled
+                      readOnly
+                      placeholder="0"
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Besoin projeté entre 2 à 6 mois.</label>
+                    <input
+                      type="number"
+                      value={prevoianceData.bis2to6M}
+                      disabled
+                      readOnly
+                      placeholder="0"
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Total à commander.</label>
+                    <input
+                      type="number"
+                      value={prevoianceData.totalToOrder}
+                      disabled
+                      readOnly
+                      placeholder="0"
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Commentaire. */}
+              <div className="md:col-span-4 bg-white flex flex-col gap-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Commentaire.</label>
+                <input
+                  type="text"
+                  value={newCommentaire}
+                  onChange={(e) => setNewCommentaire(e.target.value)}
+                  placeholder="Entrez votre commentaire..."
+                  className="focus:outline-none w-full font-sans p-2 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                />
               </div>
 
             </div>

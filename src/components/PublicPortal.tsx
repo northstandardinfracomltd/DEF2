@@ -303,6 +303,20 @@ export default function PublicPortal({
   const [reportActiveTourId, setReportActiveTourId] = useState<string>('');
   const [reportActivePassageNum, setReportActivePassageNum] = useState<number | null>(null);
 
+  const handleNavigateToAddress = (address: string) => {
+    if (!address) return;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(navigator.userAgent);
+    const encodedAddress = encodeURIComponent(address);
+    if (isIOS) {
+      window.location.href = `maps://maps.apple.com/?q=${encodedAddress}`;
+    } else if (isAndroid) {
+      window.location.href = `geo:0,0?q=${encodedAddress}`;
+    } else {
+      window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank');
+    }
+  };
+
   // Navigation scrolling state and ref for fades
   const navRef = useRef<HTMLDivElement>(null);
   const [showLeftFade, setShowLeftFade] = useState(false);
@@ -1037,9 +1051,9 @@ export default function PublicPortal({
                         ` : '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>'}
                       </div>
 
-                      <!-- Signature -->
+                      <!-- Signature Technicien -->
                       <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                        <div class="pdf-line" style="font-size: 16px;">Signature.</div>
+                        <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
                         ${report.techSignature ? `
                           <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
                             <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
@@ -1048,6 +1062,33 @@ export default function PublicPortal({
                           <div style="font-size: 15px; color: #a1a1a1; font-style: italic;">
                             Non signée
                           </div>
+                        `}
+                      </div>
+
+                      <!-- Signature Client -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
+                        ${report.clientPinCode ? `
+                          <div style="font-size: 11px; margin-bottom: 2px;">
+                            <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
+                            <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                          </div>
+                        ` : ''}
+                        ${clientFound && clientFound.clientSignatureImage ? `
+                          <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                            <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                          </div>
+                        ` : `
+                          ${report.clientPinCode ? `
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                              Signé électroniquement par PIN (${report.clientPinCode})
+                            </div>
+                          ` : `
+                            <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                              Non signée
+                            </div>
+                          `}
                         `}
                       </div>
                     </div>
@@ -1476,9 +1517,9 @@ export default function PublicPortal({
                       ` : ''}
                     </div>
 
-                    <!-- Signature -->
+                    <!-- Signature Technicien -->
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                      <div class="pdf-line" style="font-size: 16px;">Signature du technicien.</div>
+                      <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
                       ${report.techSignature ? `
                         <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
                           <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
@@ -1487,6 +1528,33 @@ export default function PublicPortal({
                         <div style="font-size: 16px; color: #000000; font-style: italic;">
                           Non signée
                         </div>
+                      `}
+                    </div>
+
+                    <!-- Signature Client -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                      <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
+                      ${report.clientPinCode ? `
+                        <div style="font-size: 11px; margin-bottom: 2px;">
+                          <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
+                          <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                        </div>
+                      ` : ''}
+                      ${clientFound && clientFound.clientSignatureImage ? `
+                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                          <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                        </div>
+                      ` : `
+                        ${report.clientPinCode ? `
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                            Signé électroniquement par PIN (${report.clientPinCode})
+                          </div>
+                        ` : `
+                          <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                            Non signée
+                          </div>
+                        `}
                       `}
                     </div>
                   </div>
@@ -3899,7 +3967,7 @@ export default function PublicPortal({
                                 <button
                                   type="button"
                                   disabled={isCompleted}
-                                  onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.address)}`, '_blank')}
+                                  onClick={() => handleNavigateToAddress(p.address)}
                                   style={{
                                     backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
                                     color: isCompleted ? '#94a3b8' : '#fff',
@@ -4010,6 +4078,35 @@ export default function PublicPortal({
               {/* ----------------- TAB 2: RAPPORTS PDF ----------------- */}
               {activeTab === 'rapports' && (
                 <div className="space-y-4 pb-16 animate-fadeIn" id="tab-rapports-screen">
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedOtherEquipmentUnique(null);
+                      setSelectedDefibId('');
+                      setSelectedDefibData(null);
+                      setReceiptTitle('Rapport technique défibrillateur');
+                      setMissionSite('DÉPLACEMENT');
+                      setReportActiveTourId('');
+                      setReportActivePassageNum(null);
+                      setIsReportOverlayOpen(true);
+                    }}
+                    style={{
+                      backgroundColor: '#3556ec',
+                      color: '#ffffff',
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      borderRadius: '12px',
+                      padding: '14px 20px',
+                      border: 'none',
+                      boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                      cursor: 'pointer',
+                      width: '100%',
+                    }}
+                    className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 font-bold"
+                  >
+                    Nouveau Rapport Spontané
+                  </button>
 
                   <div className="space-y-4">
                     {sortedAndLimitedReports.map(rep => {
@@ -5193,6 +5290,38 @@ export default function PublicPortal({
                           BORNE EXTÉRIEURE : {snapshot.exterieur ? 'OUI' : 'NON'}
                         </div>
                       </div>
+
+                      {snapshot.horaires && (() => {
+                        try {
+                          const parsedSchs = JSON.parse(snapshot.horaires);
+                          if (Array.isArray(parsedSchs) && parsedSchs.length > 0 && parsedSchs.some((s: any) => s.days && s.days.length > 0)) {
+                            return (
+                              <div className="bg-slate-50 p-3 rounded-lg mt-2 text-xs border border-slate-150">
+                                <span className="text-[8px] text-slate-500 font-mono uppercase block mb-1">📅 Horaires d'ouverture</span>
+                                <div className="space-y-1 font-sans text-slate-700">
+                                  {parsedSchs.map((sch: any, idx: number) => {
+                                    if (!sch.days || sch.days.length === 0) return null;
+                                    const dayShorts = sch.days.map((d: string) => d.substring(0, 3)).join(', ');
+                                    return (
+                                      <div key={idx} className="flex flex-col sm:flex-row sm:justify-between border-b border-dashed border-slate-200 last:border-b-0 pb-1 last:pb-0">
+                                        <span className="font-semibold text-slate-800">{dayShorts} :</span>
+                                        <span>
+                                          {sch.fermetureMidi ? (
+                                            <span className="font-mono text-indigo-700">{sch.openMorning} - {sch.closeMorning} / {sch.openAfternoon} - {sch.closeAfternoon}</span>
+                                          ) : (
+                                            <span className="font-mono text-emerald-700">{sch.openContinuous} - {sch.closeContinuous}</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          }
+                        } catch(e) {}
+                        return null;
+                      })()}
                     </div>
 
                     {/* 5, 6, 7 & 8: CONSUMABLES */}

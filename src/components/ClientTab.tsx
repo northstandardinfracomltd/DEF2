@@ -30,11 +30,35 @@ export default function ClientTab({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [accessKey, setAccessKey] = useState('');
+  const [commentaire, setCommentaire] = useState('');
   
   // Site Information
   const [nomPrenomSite, setNomPrenomSite] = useState('');
   const [telephoneSite, setTelephoneSite] = useState('');
   const [emailSite, setEmailSite] = useState('');
+
+  // Contacts 1 to 5 extra State
+  const [typeContact1, setTypeContact1] = useState('');
+
+  const [typeContact2, setTypeContact2] = useState('');
+  const [nomContact2, setNomContact2] = useState('');
+  const [telephoneSite2, setTelephoneSite2] = useState('');
+  const [emailSite2, setEmailSite2] = useState('');
+
+  const [typeContact3, setTypeContact3] = useState('');
+  const [nomContact3, setNomContact3] = useState('');
+  const [telephoneSite3, setTelephoneSite3] = useState('');
+  const [emailSite3, setEmailSite3] = useState('');
+
+  const [typeContact4, setTypeContact4] = useState('');
+  const [nomContact4, setNomContact4] = useState('');
+  const [telephoneSite4, setTelephoneSite4] = useState('');
+  const [emailSite4, setEmailSite4] = useState('');
+
+  const [typeContact5, setTypeContact5] = useState('');
+  const [nomContact5, setNomContact5] = useState('');
+  const [telephoneSite5, setTelephoneSite5] = useState('');
+  const [emailSite5, setEmailSite5] = useState('');
   
   // Contract Details
   const [contrat, setContrat] = useState<Client['contrat']>('Oui');
@@ -136,6 +160,7 @@ export default function ClientTab({
     setEmail('');
     setPhone('');
     setAccessKey('');
+    setCommentaire('');
     setNomPrenomSite('');
     setTelephoneSite('');
     setEmailSite('');
@@ -146,6 +171,29 @@ export default function ClientTab({
     setFinContrat('');
     setContractFile(null);
     setError('');
+
+    setTypeContact1('');
+
+    setTypeContact2('');
+    setNomContact2('');
+    setTelephoneSite2('');
+    setEmailSite2('');
+
+    setTypeContact3('');
+    setNomContact3('');
+    setTelephoneSite3('');
+    setEmailSite3('');
+
+    setTypeContact4('');
+    setNomContact4('');
+    setTelephoneSite4('');
+    setEmailSite4('');
+
+    setTypeContact5('');
+    setNomContact5('');
+    setTelephoneSite5('');
+    setEmailSite5('');
+
     setIsModalOpen(true);
   };
 
@@ -156,6 +204,7 @@ export default function ClientTab({
     setEmail(client.email);
     setPhone(client.phone);
     setAccessKey(client.accessKey || '');
+    setCommentaire(client.commentaire || '');
     setNomPrenomSite(client.nomPrenomSite || '');
     setTelephoneSite(client.telephoneSite || '');
     setEmailSite(client.emailSite || '');
@@ -166,6 +215,29 @@ export default function ClientTab({
     setFinContrat(client.finContrat || '');
     setContractFile(null);
     setError('');
+
+    setTypeContact1(client.typeContact1 || '');
+
+    setTypeContact2(client.typeContact2 || '');
+    setNomContact2(client.nomContact2 || '');
+    setTelephoneSite2(client.telephoneSite2 || '');
+    setEmailSite2(client.emailSite2 || '');
+
+    setTypeContact3(client.typeContact3 || '');
+    setNomContact3(client.nomContact3 || '');
+    setTelephoneSite3(client.telephoneSite3 || '');
+    setEmailSite3(client.emailSite3 || '');
+
+    setTypeContact4(client.typeContact4 || '');
+    setNomContact4(client.nomContact4 || '');
+    setTelephoneSite4(client.telephoneSite4 || '');
+    setEmailSite4(client.emailSite4 || '');
+
+    setTypeContact5(client.typeContact5 || '');
+    setNomContact5(client.nomContact5 || '');
+    setTelephoneSite5(client.telephoneSite5 || '');
+    setEmailSite5(client.emailSite5 || '');
+
     setIsModalOpen(true);
   };
 
@@ -219,6 +291,7 @@ export default function ClientTab({
       email: email.trim(),
       phone: phone.trim(),
       accessKey: accessKey.trim(),
+      commentaire: commentaire.trim(),
       nomPrenomSite: nomPrenomSite.trim() || 'Représentant Standard',
       telephoneSite: telephoneSite.trim() || phone.trim(),
       emailSite: emailSite.trim() || email.trim(),
@@ -227,12 +300,35 @@ export default function ClientTab({
       referenceContrat: (hasContract && referenceContrat.trim()) ? referenceContrat.trim() : '-',
       debutContrat: hasContract ? debutContrat : '',
       finContrat: hasContract ? finContrat : '',
+
+      typeContact1: typeContact1,
+
+      typeContact2: typeContact2,
+      nomContact2: nomContact2,
+      telephoneSite2: telephoneSite2,
+      emailSite2: emailSite2,
+
+      typeContact3: typeContact3,
+      nomContact3: nomContact3,
+      telephoneSite3: telephoneSite3,
+      emailSite3: emailSite3,
+
+      typeContact4: typeContact4,
+      nomContact4: nomContact4,
+      telephoneSite4: telephoneSite4,
+      emailSite4: emailSite4,
+
+      typeContact5: typeContact5,
+      nomContact5: nomContact5,
+      telephoneSite5: telephoneSite5,
+      emailSite5: emailSite5,
     };
 
     if (editingClient) {
       onUpdateClient({
         id: editingClient.id,
         ...payload,
+        signaturePins: editingClient.signaturePins,
       });
     } else {
       onAddClient(payload);
@@ -542,6 +638,20 @@ export default function ClientTab({
                     />
                   </div>
                 </div>
+
+                <div className="space-y-1">
+                  <label htmlFor="input-client-commentaire" className="block text-[11px] font-bold text-slate-500 uppercase">
+                    Commentaire.
+                  </label>
+                  <textarea
+                    id="input-client-commentaire"
+                    value={commentaire}
+                    onChange={(e) => setCommentaire(e.target.value)}
+                    placeholder="Ajoutez un commentaire, notes particulières ou détails sur ce client..."
+                    rows={3}
+                    className="w-full text-sm p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"
+                  />
+                </div>
               </div>
 
               {/* Section 2 - Responsable / Contact Physique sur Site */}
@@ -568,44 +678,330 @@ export default function ClientTab({
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="space-y-1">
-                    <label htmlFor="input-client-site-nom" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Contact.
-                    </label>
-                    <input
-                      type="text"
-                      id="input-client-site-nom"
-                      value={nomPrenomSite}
-                      onChange={(e) => setNomPrenomSite(e.target.value)}
-                      placeholder="Entrez un nom et prénom."
-                    />
+                <div className="space-y-6">
+                  {/* Contact 1 */}
+                  <div className="border-b border-dashed border-slate-200 pb-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 1</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-type-1" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Type.
+                        </label>
+                        <select
+                          id="input-client-site-type-1"
+                          value={typeContact1}
+                          onChange={(e) => setTypeContact1(e.target.value)}
+                          className="font-sans cursor-pointer focus:outline-none"
+                        >
+                          <option value="">Sélectionnez</option>
+                          <option value="Direction">Direction</option>
+                          <option value="Responsable">Responsable</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Technique">Technique</option>
+                          <option value="Acheteur">Acheteur</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-nom-1" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Contact 1.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-nom-1"
+                          value={nomPrenomSite}
+                          onChange={(e) => setNomPrenomSite(e.target.value)}
+                          placeholder="Nom et prénom."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-tel-1" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Téléphone du contact 1.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-tel-1"
+                          value={telephoneSite}
+                          onChange={(e) => setTelephoneSite(e.target.value)}
+                          placeholder="Téléphone."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-mail-1" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Email du contact 1.
+                        </label>
+                        <input
+                          type="email"
+                          id="input-client-site-mail-1"
+                          value={emailSite}
+                          onChange={(e) => setEmailSite(e.target.value)}
+                          placeholder="Email."
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="input-client-site-tel" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Téléphone du contact.
-                    </label>
-                    <input
-                      type="text"
-                      id="input-client-site-tel"
-                      value={telephoneSite}
-                      onChange={(e) => setTelephoneSite(e.target.value)}
-                      placeholder="Entrez un téléphone."
-                    />
+                  {/* Contact 2 */}
+                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 2</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-type-2" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Type.
+                        </label>
+                        <select
+                          id="input-client-site-type-2"
+                          value={typeContact2}
+                          onChange={(e) => setTypeContact2(e.target.value)}
+                          className="font-sans cursor-pointer focus:outline-none"
+                        >
+                          <option value="">Sélectionnez</option>
+                          <option value="Direction">Direction</option>
+                          <option value="Responsable">Responsable</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Technique">Technique</option>
+                          <option value="Acheteur">Acheteur</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-nom-2" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Contact 2.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-nom-2"
+                          value={nomContact2}
+                          onChange={(e) => setNomContact2(e.target.value)}
+                          placeholder="Nom et prénom."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-tel-2" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Téléphone du contact 2.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-tel-2"
+                          value={telephoneSite2}
+                          onChange={(e) => setTelephoneSite2(e.target.value)}
+                          placeholder="Téléphone."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-mail-2" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Email du contact 2.
+                        </label>
+                        <input
+                          type="email"
+                          id="input-client-site-mail-2"
+                          value={emailSite2}
+                          onChange={(e) => setEmailSite2(e.target.value)}
+                          placeholder="Email."
+                        />
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label htmlFor="input-client-site-mail" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Email du contact.
-                    </label>
-                    <input
-                      type="email"
-                      id="input-client-site-mail"
-                      value={emailSite}
-                      onChange={(e) => setEmailSite(e.target.value)}
-                      placeholder="Entrez un email."
-                    />
+                  {/* Contact 3 */}
+                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 3</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-type-3" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Type.
+                        </label>
+                        <select
+                          id="input-client-site-type-3"
+                          value={typeContact3}
+                          onChange={(e) => setTypeContact3(e.target.value)}
+                          className="font-sans cursor-pointer focus:outline-none"
+                        >
+                          <option value="">Sélectionnez</option>
+                          <option value="Direction">Direction</option>
+                          <option value="Responsable">Responsable</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Technique">Technique</option>
+                          <option value="Acheteur">Acheteur</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-nom-3" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Contact 3.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-nom-3"
+                          value={nomContact3}
+                          onChange={(e) => setNomContact3(e.target.value)}
+                          placeholder="Nom et prénom."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-tel-3" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Téléphone du contact 3.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-tel-3"
+                          value={telephoneSite3}
+                          onChange={(e) => setTelephoneSite3(e.target.value)}
+                          placeholder="Téléphone."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-mail-3" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Email du contact 3.
+                        </label>
+                        <input
+                          type="email"
+                          id="input-client-site-mail-3"
+                          value={emailSite3}
+                          onChange={(e) => setEmailSite3(e.target.value)}
+                          placeholder="Email."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact 4 */}
+                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 4</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-type-4" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Type.
+                        </label>
+                        <select
+                          id="input-client-site-type-4"
+                          value={typeContact4}
+                          onChange={(e) => setTypeContact4(e.target.value)}
+                          className="font-sans cursor-pointer focus:outline-none"
+                        >
+                          <option value="">Sélectionnez</option>
+                          <option value="Direction">Direction</option>
+                          <option value="Responsable">Responsable</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Technique">Technique</option>
+                          <option value="Acheteur">Acheteur</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-nom-4" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Contact 4.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-nom-4"
+                          value={nomContact4}
+                          onChange={(e) => setNomContact4(e.target.value)}
+                          placeholder="Nom et prénom."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-tel-4" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Téléphone du contact 4.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-tel-4"
+                          value={telephoneSite4}
+                          onChange={(e) => setTelephoneSite4(e.target.value)}
+                          placeholder="Téléphone."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-mail-4" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Email du contact 4.
+                        </label>
+                        <input
+                          type="email"
+                          id="input-client-site-mail-4"
+                          value={emailSite4}
+                          onChange={(e) => setEmailSite4(e.target.value)}
+                          placeholder="Email."
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact 5 */}
+                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 5</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-type-5" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Type.
+                        </label>
+                        <select
+                          id="input-client-site-type-5"
+                          value={typeContact5}
+                          onChange={(e) => setTypeContact5(e.target.value)}
+                          className="font-sans cursor-pointer focus:outline-none"
+                        >
+                          <option value="">Sélectionnez</option>
+                          <option value="Direction">Direction</option>
+                          <option value="Responsable">Responsable</option>
+                          <option value="Commercial">Commercial</option>
+                          <option value="Technique">Technique</option>
+                          <option value="Acheteur">Acheteur</option>
+                          <option value="Autre">Autre</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-nom-5" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Contact 5.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-nom-5"
+                          value={nomContact5}
+                          onChange={(e) => setNomContact5(e.target.value)}
+                          placeholder="Nom et prénom."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-tel-5" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Téléphone du contact 5.
+                        </label>
+                        <input
+                          type="text"
+                          id="input-client-site-tel-5"
+                          value={telephoneSite5}
+                          onChange={(e) => setTelephoneSite5(e.target.value)}
+                          placeholder="Téléphone."
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label htmlFor="input-client-site-mail-5" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Email du contact 5.
+                        </label>
+                        <input
+                          type="email"
+                          id="input-client-site-mail-5"
+                          value={emailSite5}
+                          onChange={(e) => setEmailSite5(e.target.value)}
+                          placeholder="Email."
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -753,6 +1149,93 @@ export default function ClientTab({
                   )}
                 </div>
               </div>
+
+              {/* Section 4 - Historique des Codes PIN de Signature Client */}
+              {editingClient && (
+                <div 
+                  className="bg-white p-5 relative space-y-3 mt-6"
+                  style={{
+                    border: '1px solid rgb(218, 218, 218)',
+                    borderRadius: '18px',
+                  }}
+                >
+                  <div className="mb-2 bg-transparent">
+                    <span 
+                      className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                      style={{
+                        backgroundColor: '#4f46e5',
+                        borderRadius: '1000px',
+                        cursor: 'default',
+                        fontWeight: 100,
+                        textTransform: 'none',
+                      }}
+                    >
+                      4 — Codes PIN client
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-semibold text-slate-800 font-sans">
+                    Log des Codes PIN émis et validés pour {editingClient.denomination}
+                  </h4>
+
+                  <div className="overflow-x-auto">
+                    {!editingClient.signaturePins || editingClient.signaturePins.length === 0 ? (
+                      <p className="text-sm text-slate-500 italic py-2">
+                        Aucun code PIN n'a encore été émis ou validé pour ce client.
+                      </p>
+                    ) : (
+                      <table className="w-full text-left font-sans border-collapse text-xs mt-2">
+                        <thead>
+                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
+                            <th className="px-3 py-2">Code PIN.</th>
+                            <th className="px-3 py-2">Date d'émission.</th>
+                            <th className="px-3 py-2">Statut.</th>
+                            <th className="px-3 py-2">Date de validation.</th>
+                            <th className="px-3 py-2">Intervention.</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
+                          {editingClient.signaturePins.map((pin, i) => (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="px-3 py-2 font-mono font-bold text-slate-900 tracking-wider">
+                                {pin.code}
+                              </td>
+                              <td className="px-3 py-2 text-slate-500">
+                                {new Date(pin.createdAt).toLocaleDateString('fr-FR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                                  pin.status === 'validé' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {pin.status === 'validé' ? 'Validé' : 'Émis'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-slate-500">
+                                {pin.validatedAt ? new Date(pin.validatedAt).toLocaleDateString('fr-FR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                }) : '-'}
+                              </td>
+                              <td className="px-3 py-2 text-slate-600 font-semibold max-w-[150px] truncate">
+                                {pin.reportTitle || '-'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </div>

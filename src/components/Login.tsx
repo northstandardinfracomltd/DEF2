@@ -375,6 +375,82 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [isDefibIdTypedValid, setIsDefibIdTypedValid] = useState<boolean | null>(null);
   const [isCheckingId, setIsCheckingId] = useState(false);
 
+  const [clientIp, setClientIp] = useState<string>('local_ip');
+
+  React.useEffect(() => {
+    fetch('https://api64.ipify.org?format=json')
+      .then(res => res.json())
+      .then(data => {
+        if (data.ip) {
+          setClientIp(data.ip);
+        }
+      })
+      .catch(() => {
+        // Fallback intact
+      });
+  }, []);
+
+  const getBlockInfo = (): { count: number; blockedUntil: number; hoursText: string } | null => {
+    try {
+      const stored = localStorage.getItem(`login_attempts_${clientIp}`);
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      if (parsed.blockedUntil && Date.now() < parsed.blockedUntil) {
+        let h = '1h';
+        if (parsed.count >= 10) h = '24h';
+        else if (parsed.count >= 5) h = '10h';
+        return { ...parsed, hoursText: h };
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    return null;
+  };
+
+  const handleFailedAttempt = () => {
+    try {
+      const stored = localStorage.getItem(`login_attempts_${clientIp}`);
+      let parsed = { count: 0, blockedUntil: 0 };
+      if (stored) {
+        parsed = JSON.parse(stored);
+      }
+      
+      parsed.count = (parsed.count || 0) + 1;
+      
+      let blockDurationMs = 0;
+      let hoursText = '';
+      if (parsed.count >= 10) {
+        blockDurationMs = 24 * 60 * 60 * 1000;
+        hoursText = '24h';
+      } else if (parsed.count >= 5) {
+        blockDurationMs = 10 * 60 * 60 * 1000;
+        hoursText = '10h';
+      } else if (parsed.count >= 3) {
+        blockDurationMs = 1 * 60 * 60 * 1000;
+        hoursText = '1h';
+      }
+      
+      if (blockDurationMs > 0) {
+        parsed.blockedUntil = Date.now() + blockDurationMs;
+        localStorage.setItem(`login_attempts_${clientIp}`, JSON.stringify(parsed));
+        setError(`Vous avez effectué plusieurs tentatives de connexions. Par sécurité, veuillez patienter ${hoursText} avant d'essayer à nouveau.`);
+      } else {
+        localStorage.setItem(`login_attempts_${clientIp}`, JSON.stringify(parsed));
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleSuccessLogin = (emailVal: string, nameVal: string, tenantIdVal: string, roleVal?: string) => {
+    try {
+      localStorage.removeItem(`login_attempts_${clientIp}`);
+    } catch (e) {
+      console.error(e);
+    }
+    onLoginSuccess(emailVal, nameVal, tenantIdVal, roleVal);
+  };
+
   React.useEffect(() => {
     const trimmed = reportDefibId.trim();
     if (!trimmed) {
@@ -440,6 +516,14 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Preemptive block check
+    const block = getBlockInfo();
+    if (block) {
+      setError(`Vous avez effectué plusieurs tentatives de connexions. Par sécurité, veuillez patienter ${block.hoursText} avant d'essayer à nouveau.`);
+      return;
+    }
+
     setIsLoading(true);
 
     const emailLower = email.trim().toLowerCase();
@@ -449,7 +533,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       if (loginRole === 'admin') {
         const tenant = await loginTenantAdmin(emailLower, pass);
         if (tenant) {
-          onLoginSuccess(tenant.adminEmail, tenant.adminName, tenant.id, 'admin');
+          handleSuccessLogin(tenant.adminEmail, tenant.adminName, tenant.id, 'admin');
         } else {
           // Check for sub-account "Administrateur" members across all tenants
           const tenants = await getRegisteredTenants();
@@ -476,16 +560,17 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           }
 
           if (matchedAdmin) {
-            onLoginSuccess(matchedAdmin.email, matchedAdmin.name, matchedTenantId, 'admin');
+            handleSuccessLogin(matchedAdmin.email, matchedAdmin.name, matchedTenantId, 'admin');
           } else {
             setError(t.errorAdmin);
             setIsLoading(false);
+            handleFailedAttempt();
           }
         }
       } else if (loginRole === 'client') {
         // Authenticate client globally
         if (emailLower === 'client@demo.com' && pass === 'client123') {
-          onLoginSuccess('client@demo.com', 'Client Démo', 'demo', 'client');
+          handleSuccessLogin('client@demo.com', 'Client Démo', 'demo', 'client');
           return;
         }
 
@@ -513,15 +598,16 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         }
 
         if (matchedClient) {
-          onLoginSuccess(matchedClient.email, matchedClient.denomination, matchedTenantId, 'client');
+          handleSuccessLogin(matchedClient.email, matchedClient.denomination, matchedTenantId, 'client');
         } else {
           setError(t.errorClient);
           setIsLoading(false);
+          handleFailedAttempt();
         }
       } else if (loginRole === 'technicien') {
         // Authenticate technician globally
         if (emailLower === 'tech.ouest@defibeo.com' && pass === '4321') {
-          onLoginSuccess('tech.ouest@defibeo.com', 'Technicien Ouest', 'demo', 'technicien');
+          handleSuccessLogin('tech.ouest@defibeo.com', 'Technicien Ouest', 'demo', 'technicien');
           return;
         }
 
@@ -550,16 +636,18 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         }
 
         if (matchedMember) {
-          onLoginSuccess(matchedMember.email, matchedMember.name, matchedTenantId, 'technicien');
+          handleSuccessLogin(matchedMember.email, matchedMember.name, matchedTenantId, 'technicien');
         } else {
           setError(t.errorTech);
           setIsLoading(false);
+          handleFailedAttempt();
         }
       }
     } catch (err: any) {
       console.error('Error logging in:', err);
       setError('Erreur lors de la connexion: ' + (err.message || String(err)));
       setIsLoading(false);
+      handleFailedAttempt();
     }
   };
 

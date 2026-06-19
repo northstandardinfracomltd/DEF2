@@ -41,6 +41,18 @@ export function generateRandomShortCode(existingIds: string[]): string {
   return `DAE-${tenantIdDigit}-${Math.floor(Math.random() * 900) + 100}`;
 }
 
+export function generateRandomPin(): string {
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const digits = '0123456789';
+  let randLetters = '';
+  let randDigits = '';
+  for (let i = 0; i < 3; i++) {
+    randLetters += letters.charAt(Math.floor(Math.random() * letters.length));
+    randDigits += digits.charAt(Math.floor(Math.random() * digits.length));
+  }
+  return `${randLetters}${randDigits}`;
+}
+
 export const INITIAL_CLIENTS: Client[] = [
   {
     id: 'c1',

@@ -4,6 +4,122 @@ import MapModal from './MapModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { runMonthlyVigilanceCampaign } from '../utils/emailService';
 import { checkIfDefibIdentifiantExistsAnywhere } from '../firebase';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+function LocationPickerEvents({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
+
+const CODE39_PATTERNS: Record<string, string> = {
+  '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
+  '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
+  '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
+  'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
+  'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100',
+  'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011',
+  'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110',
+  'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001',
+  'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000',
+  '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100',
+  '$': '010101000', '/': '010100010', '+': '010010100', '%': '000101010'
+};
+
+function Code39Barcode({ value }: { value: string }) {
+  const text = (value || '').trim().toUpperCase();
+  if (!text) return null;
+
+  const NARROW_WIDTH = 1.5;
+  const WIDE_WIDTH = 3.5;
+  const GAP_WIDTH = 1.5;
+  const QUIET_ZONE = 12;
+  const BAR_HEIGHT = 38;
+
+  // Render text wrapped with start/stop asterisk
+  const cleanCharList = text.split('').filter(char => CODE39_PATTERNS[char] !== undefined);
+  if (cleanCharList.length === 0) return null;
+
+  const wrappedText = '*' + cleanCharList.join('') + '*';
+
+  // Pass 1: Compute total width
+  let totalWidth = QUIET_ZONE * 2;
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      totalWidth += isWide ? WIDE_WIDTH : NARROW_WIDTH;
+    }
+    if (i < wrappedText.length - 1) {
+      totalWidth += GAP_WIDTH;
+    }
+  }
+
+  // Pass 2: Generate bars
+  const rects: React.ReactNode[] = [];
+  let currentX = QUIET_ZONE;
+
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+      const isBar = j % 2 === 0;
+
+      if (isBar) {
+        rects.push(
+          <rect
+            key={`${i}-${j}`}
+            x={currentX}
+            y={8}
+            width={width}
+            height={BAR_HEIGHT}
+            fill="black"
+          />
+        );
+      }
+      currentX += width;
+    }
+    if (i < wrappedText.length - 1) {
+      currentX += GAP_WIDTH;
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center bg-white border border-slate-200 p-2 rounded-xl max-w-full">
+      <svg
+        viewBox={`0 0 ${totalWidth} 68`}
+        className="w-full max-h-16"
+        shapeRendering="crispEdges"
+        style={{ display: 'block' }}
+      >
+        <rect width={totalWidth} height={68} fill="white" />
+        {rects}
+        <text
+          x={totalWidth / 2}
+          y={60}
+          textAnchor="middle"
+          style={{
+            fontFamily: 'monospace',
+            fontWeight: 'bold',
+            fontSize: '9px',
+            letterSpacing: '2px',
+            fill: '#000000'
+          }}
+        >
+          {text}
+        </text>
+      </svg>
+    </div>
+  );
+}
 
 import {
   formatDateToFR,
@@ -180,6 +296,7 @@ interface DefibTabProps {
   fsmTours?: any[];
   onUpdateFsmTours?: (updated: any[]) => void;
   setActiveTab?: (tab: any) => void;
+  onShowGmaoReports?: (defibIdentifiant: string) => void;
   companyInfo?: CompanyInfo;
   members?: any[];
 }
@@ -196,6 +313,7 @@ export default function DefibTab({
   fsmTours = [],
   onUpdateFsmTours,
   setActiveTab,
+  onShowGmaoReports,
   companyInfo,
   members = [],
 }: DefibTabProps) {
@@ -553,11 +671,78 @@ export default function DefibTab({
   const [pays, setPays] = useState('France');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [tempLat, setTempLat] = useState<number>(48.8566);
+  const [tempLng, setTempLng] = useState<number>(2.3522);
   const [commentaireAdresse, setCommentaireAdresse] = useState('');
   const [acces247, setAcces247] = useState(false);
   const [accesSemaine, setAccesSemaine] = useState(false);
   const [accesWeekend, setAccesWeekend] = useState(false);
   const [exterieur, setExterieur] = useState(false);
+
+  // Horaires d'ouvertures
+  const [schedules, setSchedules] = useState<{
+    days: string[];
+    fermetureMidi: boolean;
+    openMorning: string;
+    closeMorning: string;
+    openAfternoon: string;
+    closeAfternoon: string;
+    openContinuous: string;
+    closeContinuous: string;
+  }[]>([
+    {
+      days: [],
+      fermetureMidi: false,
+      openMorning: '09:00',
+      closeMorning: '12:00',
+      openAfternoon: '14:00',
+      closeAfternoon: '18:00',
+      openContinuous: '09:00',
+      closeContinuous: '17:00'
+    }
+  ]);
+
+  const handleToggleDay = (idx: number, day: string) => {
+    // Check if the day is already taken in another block
+    const isTakenElsewhere = schedules.some((s, i) => i !== idx && s.days.includes(day));
+    if (isTakenElsewhere) return;
+
+    setSchedules(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      const days = item.days.includes(day)
+        ? item.days.filter(d => d !== day)
+        : [...item.days, day];
+      return { ...item, days };
+    }));
+  };
+
+  const handleUpdateScheduleField = (idx: number, field: string, value: any) => {
+    setSchedules(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, [field]: value };
+    }));
+  };
+
+  const handleAddSchedule = () => {
+    setSchedules(prev => [
+      ...prev,
+      {
+        days: [],
+        fermetureMidi: false,
+        openMorning: '09:00',
+        closeMorning: '12:00',
+        openAfternoon: '14:00',
+        closeAfternoon: '18:00',
+        openContinuous: '09:00',
+        closeContinuous: '17:00'
+      }
+    ]);
+  };
+
+  const handleRemoveSchedule = (idx: number) => {
+    setSchedules(prev => prev.filter((_, i) => i !== idx));
+  };
 
   // Ref to track the loaded address so we don't auto-geocode on initial open
   const loadedAddressRef = React.useRef({ numVoie: '', cp: '', ville: '', pays: '' });
@@ -680,6 +865,8 @@ export default function DefibTab({
   const [situationElectrodeA, setSituationElectrodeA] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
   const [commentaireElectrodeA, setCommentaireElectrodeA] = useState('');
   const [peremptionSecoursElectrodeA, setPeremptionSecoursElectrodeA] = useState('');
+  const [modeleElectrodeASecoursId, setModeleElectrodeASecoursId] = useState('');
+  const [lotElectrodeASecours, setLotElectrodeASecours] = useState('');
 
   // Section 7 - Électrode Pédiatrique (P)
   const [modeleElectrodePId, setModeleElectrodePId] = useState('');
@@ -714,6 +901,8 @@ export default function DefibTab({
   const [ageVictime, setAgeVictime] = useState('0');
   const [commentaireCampagneRappel, setCommentaireCampagneRappel] = useState('');
   const [rappelMensuelAuto, setRappelMensuelAuto] = useState<'Oui' | 'Non'>('Non');
+  const [rappelHebdoAuto, setRappelHebdoAuto] = useState<'Oui' | 'Non'>('Non');
+  const [rappelJournalierAuto, setRappelJournalierAuto] = useState<'Oui' | 'Non'>('Non');
 
   const [formError, setFormError] = useState('');
 
@@ -933,6 +1122,18 @@ export default function DefibTab({
     setAccesSemaine(true);
     setAccesWeekend(false);
     setExterieur(false);
+    setSchedules([
+      {
+        days: [],
+        fermetureMidi: false,
+        openMorning: '09:00',
+        closeMorning: '12:00',
+        openAfternoon: '14:00',
+        closeAfternoon: '18:00',
+        openContinuous: '09:00',
+        closeContinuous: '17:00'
+      }
+    ]);
 
     // Dates
     setFinGarantie('');
@@ -950,6 +1151,8 @@ export default function DefibTab({
     setSituationElectrodeA('Vert');
     setCommentaireElectrodeA('');
     setPeremptionSecoursElectrodeA('');
+    setModeleElectrodeASecoursId('');
+    setLotElectrodeASecours('');
 
     // Electrodes Pediatric (P)
     setModeleElectrodePId('');
@@ -984,6 +1187,8 @@ export default function DefibTab({
     setAgeVictime('0');
     setCommentaireCampagneRappel('');
     setRappelMensuelAuto('Non');
+    setRappelHebdoAuto('Non');
+    setRappelJournalierAuto('Non');
 
     setIsFormOpen(true);
   };
@@ -1035,6 +1240,38 @@ export default function DefibTab({
     setAccesWeekend(!!df.accesWeekend);
     setExterieur(!!df.exterieur);
 
+    if (df.horaires) {
+      try {
+        setSchedules(JSON.parse(df.horaires));
+      } catch (e) {
+        setSchedules([
+          {
+            days: [],
+            fermetureMidi: false,
+            openMorning: '09:00',
+            closeMorning: '12:00',
+            openAfternoon: '14:00',
+            closeAfternoon: '18:00',
+            openContinuous: '09:00',
+            closeContinuous: '17:00'
+          }
+        ]);
+      }
+    } else {
+      setSchedules([
+        {
+          days: [],
+          fermetureMidi: false,
+          openMorning: '09:00',
+          closeMorning: '12:00',
+          openAfternoon: '14:00',
+          closeAfternoon: '18:00',
+          openContinuous: '09:00',
+          closeContinuous: '17:00'
+        }
+      ]);
+    }
+
     setFinGarantie(df.finGarantie || '');
     setFabrication(df.fabrication || '');
     setMiseEnService(df.miseEnService || '');
@@ -1049,6 +1286,8 @@ export default function DefibTab({
     setSituationElectrodeA(df.situationElectrodeA || 'Vert');
     setCommentaireElectrodeA(df.commentaireElectrodeA || '');
     setPeremptionSecoursElectrodeA(df.peremptionSecoursElectrodeA || '');
+    setModeleElectrodeASecoursId(df.modeleElectrodeASecoursId || '');
+    setLotElectrodeASecours(df.lotElectrodeASecours || '');
 
     setModeleElectrodePId(df.modeleElectrodePId || '');
     setLotElectrodeP(df.lotElectrodeP || '');
@@ -1080,6 +1319,8 @@ export default function DefibTab({
     setAgeVictime(df.ageVictime || '0');
     setCommentaireCampagneRappel(df.commentaireCampagneRappel || '');
     setRappelMensuelAuto(df.rappelMensuelAuto || 'Non');
+    setRappelHebdoAuto(df.rappelHebdoAuto || 'Non');
+    setRappelJournalierAuto(df.rappelJournalierAuto || 'Non');
 
     setIsFormOpen(true);
   };
@@ -1156,6 +1397,7 @@ export default function DefibTab({
       accesSemaine,
       accesWeekend,
       exterieur,
+      horaires: JSON.stringify(schedules),
 
       finGarantie,
       fabrication,
@@ -1171,6 +1413,8 @@ export default function DefibTab({
       situationElectrodeA,
       commentaireElectrodeA: commentaireElectrodeA.trim(),
       peremptionSecoursElectrodeA,
+      modeleElectrodeASecoursId,
+      lotElectrodeASecours: lotElectrodeASecours.trim(),
 
       modeleElectrodePId,
       lotElectrodeP: lotElectrodeP.trim(),
@@ -1202,6 +1446,8 @@ export default function DefibTab({
       ageVictime: ageVictime.trim(),
       commentaireCampagneRappel: commentaireCampagneRappel.trim(),
       rappelMensuelAuto,
+      rappelHebdoAuto,
+      rappelJournalierAuto,
     };
 
     if (editingDefib) {
@@ -1769,6 +2015,16 @@ export default function DefibTab({
                       <td className="px-4 py-5 text-right" onClick={(e) => e.stopPropagation()}>
                         <div className="inline-flex gap-1.5">
                           <button
+                            onClick={() => {
+                              if (onShowGmaoReports) {
+                                onShowGmaoReports(df.identifiant);
+                              }
+                            }}
+                            style={rowActionButton18Style}
+                          >
+                            Rapport(s)
+                          </button>
+                          <button
                             onClick={() => openEditForm(df)}
                             style={rowActionButton18Style}
                           >
@@ -2043,6 +2299,11 @@ export default function DefibTab({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Identifiant */}
                       <div className="space-y-1">
+                        {identifiant && (
+                          <div className="mb-2">
+                            <Code39Barcode value={identifiant} />
+                          </div>
+                        )}
                         <label htmlFor="form-identifiant" className="block text-[11px] font-bold text-slate-500 uppercase">
                           Identifiant.
                         </label>
@@ -2577,6 +2838,22 @@ export default function DefibTab({
                       </div>
                     </div>
 
+                    <div className="pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const savedLat = parseFloat(latitude) || 48.8566;
+                          const savedLng = parseFloat(longitude) || 2.3522;
+                          setTempLat(savedLat);
+                          setTempLng(savedLng);
+                          setIsMapPickerOpen(true);
+                        }}
+                        className="w-full py-2 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                      >
+                        Ajuster Position
+                      </button>
+                    </div>
+
                     <div className="space-y-1">
                       <label htmlFor="form-com-adresse" className="block text-[11px] font-bold text-slate-500 uppercase">
                         Aide d'accès.
@@ -2589,6 +2866,154 @@ export default function DefibTab({
                         placeholder="Entrez votre commentaire."
                         className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs text-slate-750"
                       />
+                    </div>
+
+                    {/* Horaires d'ouverture section */}
+                    <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                          Horaires d'ouverture
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleAddSchedule}
+                          className="px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-all cursor-pointer"
+                        >
+                          + Ajouter une plage
+                        </button>
+                      </div>
+
+                      {schedules.map((sch, schIdx) => (
+                        <div key={schIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-3">
+                          {schedules.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSchedule(schIdx)}
+                              className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                              title="Supprimer cette plage"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
+
+                          {/* Midi closing toggle */}
+                          <div className="flex items-center gap-2 select-none">
+                            <input
+                              type="checkbox"
+                              id={`mid-close-${schIdx}`}
+                              checked={sch.fermetureMidi}
+                              onChange={(e) => handleUpdateScheduleField(schIdx, 'fermetureMidi', e.target.checked)}
+                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            />
+                            <label htmlFor={`mid-close-${schIdx}`} className="text-[11px] font-semibold text-slate-700 cursor-pointer">
+                              Fermeture le midi (4 plages horaires)
+                            </label>
+                          </div>
+
+                          {/* Time Inputs */}
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                            {sch.fermetureMidi ? (
+                              <>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">Ouv. Matin</label>
+                                  <input
+                                    type="time"
+                                    value={sch.openMorning}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'openMorning', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Midi</label>
+                                  <input
+                                    type="time"
+                                    value={sch.closeMorning}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'closeMorning', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">RéOuv. Midi</label>
+                                  <input
+                                    type="time"
+                                    value={sch.openAfternoon}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'openAfternoon', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Soir</label>
+                                  <input
+                                    type="time"
+                                    value={sch.closeAfternoon}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'closeAfternoon', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">Ouv. Général</label>
+                                  <input
+                                    type="time"
+                                    value={sch.openContinuous}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'openContinuous', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Général</label>
+                                  <input
+                                    type="time"
+                                    value={sch.closeContinuous}
+                                    onChange={(e) => handleUpdateScheduleField(schIdx, 'closeContinuous', e.target.value)}
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                  />
+                                </div>
+                              </>
+                            )}
+                          </div>
+
+                          {/* Day checkboxes (Lundi to Dimanche) */}
+                          <div className="space-y-1">
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase">Jours de la semaine</span>
+                            <div className="flex flex-wrap gap-1">
+                              {[
+                                { key: 'Lundi', label: 'Lun' },
+                                { key: 'Mardi', label: 'Mar' },
+                                { key: 'Mercredi', label: 'Mer' },
+                                { key: 'Jeudi', label: 'Jeu' },
+                                { key: 'Vendredi', label: 'Ven' },
+                                { key: 'Samedi', label: 'Sam' },
+                                { key: 'Dimanche', label: 'Dim' }
+                              ].map((dayObj) => {
+                                const isChecked = sch.days.includes(dayObj.key);
+                                const isDayTakenElsewhere = schedules.some((s, i) => i !== schIdx && s.days.includes(dayObj.key));
+                                return (
+                                  <button
+                                    key={dayObj.key}
+                                    type="button"
+                                    disabled={isDayTakenElsewhere}
+                                    onClick={() => handleToggleDay(schIdx, dayObj.key)}
+                                    className={`px-2 py-1 text-[10px] font-semibold border rounded transition-all select-none ${
+                                      isChecked
+                                        ? 'bg-slate-800 text-white border-slate-800 shadow-sm cursor-pointer'
+                                        : isDayTakenElsewhere
+                                          ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-45 cursor-not-allowed'
+                                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer'
+                                    }`}
+                                  >
+                                    {dayObj.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
 
                     {/* Checkbox settings converted to stylized radio checks */}
@@ -2910,8 +3335,50 @@ export default function DefibTab({
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-a-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
+                        <select
+                          id="form-elec-a-sec-lookup"
+                          value={modeleElectrodeASecoursId}
+                          onChange={(e) => setModeleElectrodeASecoursId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sélectionner Électrode --</option>
+                          {modelesElectrode.map(v => (
+                            <option key={v.id} value={v.id}>
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-a-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                        <input
+                          type="text"
+                          id="form-elec-a-sec-lot"
+                          value={lotElectrodeASecours || ''}
+                          onChange={(e) => setLotElectrodeASecours(e.target.value)}
+                          placeholder="Numéro de lot"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                        <input
+                          type="date"
+                          id="form-elec-a-sec"
+                          value={peremptionSecoursElectrodeA}
+                          onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 bg-white">
                         <label htmlFor="form-elec-a-sit" className="block text-[10px] font-bold text-slate-400 uppercase">Statut.</label>
                         <select
                           id="form-elec-a-sit"
@@ -2927,28 +3394,17 @@ export default function DefibTab({
                         </select>
                       </div>
 
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption Secours.</label>
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-a-com" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">Commentaire.</label>
                         <input
-                          type="date"
-                          id="form-elec-a-sec"
-                          value={peremptionSecoursElectrodeA}
-                          onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                          type="text"
+                          id="form-elec-a-com"
+                          value={commentaireElectrodeA}
+                          onChange={(e) => setCommentaireElectrodeA(e.target.value)}
+                          placeholder="Entrez votre commentaire."
+                          className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label htmlFor="form-elec-a-com" className="block text-[11px] font-bold text-slate-500 uppercase">Commentaire.</label>
-                      <input
-                        type="text"
-                        id="form-elec-a-com"
-                        value={commentaireElectrodeA}
-                        onChange={(e) => setCommentaireElectrodeA(e.target.value)}
-                        placeholder="Entrez votre commentaire."
-                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
-                      />
                     </div>
                   </div>
 
@@ -3520,7 +3976,11 @@ export default function DefibTab({
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() => setRappelMensuelAuto('Oui')}
+                            onClick={() => {
+                              setRappelMensuelAuto('Oui');
+                              setRappelHebdoAuto('Non');
+                              setRappelJournalierAuto('Non');
+                            }}
                             className="inline-flex items-center cursor-pointer gap-2 select-none"
                             style={{ fontSize: '16px', color: '#000' }}
                           >
@@ -3537,6 +3997,72 @@ export default function DefibTab({
                           >
                             <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelMensuelAuto === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
                               {rappelMensuelAuto === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Email Hebdomadaire Auto-Vigilence */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email hebdomadaire d'auto-vigilance.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRappelHebdoAuto('Oui');
+                              setRappelMensuelAuto('Non');
+                              setRappelJournalierAuto('Non');
+                            }}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelHebdoAuto === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelHebdoAuto === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRappelHebdoAuto('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelHebdoAuto === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelHebdoAuto === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Email Journalier Auto-Vigilence */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email journalier d'auto-vigilance.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setRappelJournalierAuto('Oui');
+                              setRappelMensuelAuto('Non');
+                              setRappelHebdoAuto('Non');
+                            }}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelJournalierAuto === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelJournalierAuto === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setRappelJournalierAuto('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rappelJournalierAuto === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {rappelJournalierAuto === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                             </span>
                             Non
                           </button>
@@ -3575,6 +4101,96 @@ export default function DefibTab({
               </div>
 
             </form>
+          </div>
+        </div>
+      )}
+
+      {isMapPickerOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+            {/* Header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-black font-sans leading-tight">Ajustez la position du DAE</h3>
+                <p className="text-[11px] text-slate-500 font-sans mt-0.5">Cliquez sur la carte pour définir précisément son emplacement.</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => setIsMapPickerOpen(false)}
+                className="text-slate-400 hover:text-black hover:bg-slate-100 p-1.5 rounded-lg transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Map Container */}
+            <div className="relative h-80 w-full bg-slate-100">
+              <MapContainer
+                center={[tempLat, tempLng]}
+                zoom={14}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationPickerEvents onPick={(lat, lng) => {
+                  setTempLat(lat);
+                  setTempLng(lng);
+                }} />
+                <Marker 
+                  position={[tempLat, tempLng]}
+                  icon={L.divIcon({
+                    html: `
+                      <div class="relative flex items-center justify-center" style="transform: translate(-12px, -12px);">
+                        <div class="absolute w-8 h-8 rounded-full bg-black/30 animate-ping"></div>
+                        <div class="w-5 h-5 rounded-full bg-black border-2 border-white shadow-lg"></div>
+                      </div>
+                    `,
+                    className: 'custom-picker-icon',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                  })}
+                />
+              </MapContainer>
+            </div>
+
+            {/* Live coordinates display */}
+            <div className="p-4 bg-slate-50 border-b border-slate-200">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Latitude live</span>
+                  <code className="text-black font-semibold text-xs font-mono">{tempLat.toFixed(6)}</code>
+                </div>
+                <div>
+                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Longitude live</span>
+                  <code className="text-black font-semibold text-xs font-mono">{tempLng.toFixed(6)}</code>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 flex gap-3 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(false)}
+                className="flex-1 py-3 border border-slate-200 text-slate-700 hover:text-black hover:bg-slate-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLatitude(tempLat.toFixed(6));
+                  setLongitude(tempLng.toFixed(6));
+                  setIsMapPickerOpen(false);
+                }}
+                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Valider la position
+              </button>
+            </div>
           </div>
         </div>
       )}

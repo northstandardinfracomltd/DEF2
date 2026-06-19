@@ -5,6 +5,7 @@ import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
   INITIAL_DEFIBRILLATEURS,
+  generateRandomPin,
 } from './utils';
 import {
   triggerEmail4Signalement,
@@ -555,7 +556,7 @@ export default function App() {
   const [docRef, setDocRef] = useState('');
   const [docClientId, setDocClientId] = useState('');
   const [docDateStr, setDocDateStr] = useState('');
-  const [docStatus, setDocStatus] = useState<'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé'>('Brouillon');
+  const [docStatus, setDocStatus] = useState<'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé'>('Brouillon');
   const [docItems, setDocItems] = useState<CommercialDocItem[]>([]);
   const [docCommentaire, setDocCommentaire] = useState('');
 
@@ -905,23 +906,47 @@ export default function App() {
       // Email 5: AVISAGE FSM DESTINÉ AUX CLIENTS
       try {
         const toursMissions = existingTour.missions || [];
+        let updatedClientsList = [...clients];
+        let hasUpdatedClient = false;
+
         toursMissions.forEach((m: any) => {
           const defibId = m.defibIdentifiant;
           const defib = defibrillateurs.find(df => df.identifiant === defibId);
           if (defib) {
-            const matchingClient = clients.find(c => c.id === defib.clientId);
-            const clientEmail = defib.emailSite || matchingClient?.email || matchingClient?.emailSite;
-            if (clientEmail && clientEmail.trim()) {
-              triggerEmail5AvisageFSM(
-                clientEmail.trim(),
-                defibId,
-                companyName,
-                companyEmail,
-                formattedDate || 'prochainement'
-              ).catch(e => console.error("Error sending Email 5:", e));
+            const index = updatedClientsList.findIndex(c => c.id === defib.clientId);
+            if (index !== -1) {
+              const matchedClient = updatedClientsList[index];
+              const clientEmail = defib.emailSite || matchedClient.email || matchedClient.emailSite;
+              if (clientEmail && clientEmail.trim()) {
+                const pin = generateRandomPin();
+                const newPins = [...(matchedClient.signaturePins || [])];
+                newPins.push({
+                  code: pin,
+                  createdAt: new Date().toISOString(),
+                  status: 'émis'
+                });
+                updatedClientsList[index] = {
+                  ...matchedClient,
+                  signaturePins: newPins
+                };
+                hasUpdatedClient = true;
+
+                triggerEmail5AvisageFSM(
+                  clientEmail.trim(),
+                  defibId,
+                  companyName,
+                  companyEmail,
+                  formattedDate || 'prochainement',
+                  pin
+                ).catch(e => console.error("Error sending Email 5:", e));
+              }
             }
           }
         });
+
+        if (hasUpdatedClient) {
+          saveClients(updatedClientsList);
+        }
       } catch (err5) {
         console.error("Error triggering Email 5 sequence:", err5);
       }
@@ -1313,9 +1338,9 @@ export default function App() {
                         ` : '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>'}
                       </div>
 
-                      <!-- Signature -->
+                      <!-- Signature Technicien -->
                       <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                        <div class="pdf-line" style="font-size: 16px;">Signature.</div>
+                        <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
                         ${report.techSignature ? `
                           <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
                             <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
@@ -1324,6 +1349,33 @@ export default function App() {
                           <div style="font-size: 15px; color: #a1a1a1; font-style: italic;">
                             Non signée
                           </div>
+                        `}
+                      </div>
+
+                      <!-- Signature Client -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
+                        ${report.clientPinCode ? `
+                          <div style="font-size: 11px; margin-bottom: 2px;">
+                            <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
+                            <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                          </div>
+                        ` : ''}
+                        ${clientFound && clientFound.clientSignatureImage ? `
+                          <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                            <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                          </div>
+                        ` : `
+                          ${report.clientPinCode ? `
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                              Signé électroniquement par PIN (${report.clientPinCode})
+                            </div>
+                          ` : `
+                            <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                              Non signée
+                            </div>
+                          `}
                         `}
                       </div>
                     </div>
@@ -1752,9 +1804,9 @@ export default function App() {
                       ` : ''}
                     </div>
 
-                    <!-- Signature -->
+                    <!-- Signature Technicien -->
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                      <div class="pdf-line" style="font-size: 16px;">Signature du technicien.</div>
+                      <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
                       ${report.techSignature ? `
                         <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
                           <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
@@ -1763,6 +1815,33 @@ export default function App() {
                         <div style="font-size: 16px; color: #000000; font-style: italic;">
                           Non signée
                         </div>
+                      `}
+                    </div>
+
+                    <!-- Signature Client -->
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                      <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
+                      ${report.clientPinCode ? `
+                        <div style="font-size: 11px; margin-bottom: 2px;">
+                          <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
+                          <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                        </div>
+                      ` : ''}
+                      ${clientFound && clientFound.clientSignatureImage ? `
+                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                          <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                        </div>
+                      ` : `
+                        ${report.clientPinCode ? `
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                            Signé électroniquement par PIN (${report.clientPinCode})
+                          </div>
+                        ` : `
+                          <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                            Non signée
+                          </div>
+                        `}
                       `}
                     </div>
                   </div>
@@ -2484,6 +2563,14 @@ export default function App() {
             </div>
           </div>
 
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
+              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
+            </div>
+          ` : ''}
+
           <!-- TABLEAU DES PRESTATIONS / PIECES -->
           <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -2526,6 +2613,39 @@ export default function App() {
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
+  };
+
+  const handleTransformDoc = (doc: CommercialDoc) => {
+    const targetType = doc.type === 'Devis' ? 'Facture' : 'Devis';
+    const prefix = targetType === 'Devis' ? 'DEV' : targetType === 'Facture' ? 'FACT' : 'PRO';
+    const year = '2026';
+    const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+    let maxNum = 0;
+    for (const d of commercialDocs) {
+      if (d.type === targetType && d.ref) {
+        const match = d.ref.match(pattern);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+    }
+    const nextNum = maxNum + 1;
+    const generatedRef = `${prefix}-${year}-${String(nextNum).padStart(4, '0')}`;
+
+    const newDoc: CommercialDoc = {
+      ...doc,
+      id: 'doc-' + Date.now(),
+      ref: generatedRef,
+      type: targetType,
+      status: 'Brouillon',
+      dateStr: new Date().toISOString().substring(0, 10),
+    };
+
+    saveCommercialDocs([newDoc, ...commercialDocs]);
+    alert(`${doc.type === 'Devis' ? 'Le devis' : 'La facture'} ${doc.ref} a été transformé(e) avec succès en ${targetType === 'Devis' ? 'devis' : 'facture'} (réf: ${generatedRef}, situation: Brouillon).`);
   };
 
   const startEditDoc = (doc: CommercialDoc) => {
@@ -2962,6 +3082,8 @@ export default function App() {
         initialClient={activePortalClient || clients.find(c => c.id === 'c1')}
         companyInfo={companyInfo}
         generatedReports={generatedReports}
+        onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
+        stocks={stocks}
       />
     );
   }
@@ -2991,6 +3113,8 @@ export default function App() {
         initialClient={activePortalClient}
         companyInfo={companyInfo}
         generatedReports={generatedReports}
+        onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
+        stocks={stocks}
       />
     );
   }
@@ -3202,6 +3326,10 @@ export default function App() {
               fsmTours={fsmTours}
               onUpdateFsmTours={saveFsmTours}
               setActiveTab={setActiveTab}
+              onShowGmaoReports={(identifiant) => {
+                setActiveTab('gmao');
+                setGmaoSearchQuery(identifiant);
+              }}
               companyInfo={companyInfo}
               members={members}
             />
@@ -4192,6 +4320,44 @@ export default function App() {
                       if (updatedReport.defibSnapshot) {
                         handleUpdateDefib(updatedReport.defibSnapshot);
                       }
+                      
+                      // Match and validate the client signature pin if present
+                      if (updatedReport.clientPinCode && updatedReport.defibSnapshot?.clientId) {
+                        const targetClientId = updatedReport.defibSnapshot.clientId;
+                        const typedPin = updatedReport.clientPinCode.trim().toUpperCase();
+                        
+                        const updatedClients = clients.map(cl => {
+                          if (cl.id === targetClientId) {
+                            const originalPins = cl.signaturePins || [];
+                            const matchIndex = originalPins.findIndex(p => p.code.toUpperCase() === typedPin);
+                            let newPins = [...originalPins];
+                            if (matchIndex !== -1) {
+                              newPins[matchIndex] = {
+                                ...newPins[matchIndex],
+                                status: 'validé',
+                                validatedAt: new Date().toISOString(),
+                                reportTitle: updatedReport.title || 'Rapport d\'Intervention'
+                              };
+                            } else {
+                              // If there wasn't an emitted pin match but format was valid, record it as a custom validated pin!
+                              newPins.push({
+                                code: typedPin,
+                                createdAt: new Date().toISOString(),
+                                status: 'validé',
+                                validatedAt: new Date().toISOString(),
+                                reportTitle: updatedReport.title || 'Rapport d\'Intervention'
+                              });
+                            }
+                            return {
+                              ...cl,
+                              signaturePins: newPins
+                            };
+                          }
+                          return cl;
+                        });
+                        saveClients(updatedClients);
+                      }
+
                       setEditingReportId(null);
                       setEditReportForm(null);
                     }}
@@ -5362,6 +5528,14 @@ export default function App() {
                                         </button>
                                         <button
                                           type="button"
+                                          onClick={() => handleTransformDoc(doc)}
+                                          style={rowActionButton18Style}
+                                          className="cursor-pointer font-sans"
+                                        >
+                                          Transformer
+                                        </button>
+                                        <button
+                                          type="button"
                                           onClick={() => startEditDoc(doc)}
                                           style={rowActionButton18Style}
                                           className="cursor-pointer font-sans"
@@ -5519,6 +5693,8 @@ export default function App() {
                             <option value="Terminé">Terminé</option>
                             <option value="Accepté">Accepté</option>
                             <option value="Refusé">Refusé</option>
+                            <option value="Annulé">Annulé</option>
+                            <option value="Supprimé">Supprimé</option>
                           </select>
                         </div>
 
@@ -5557,7 +5733,7 @@ export default function App() {
                               <option value="">Sélection d'une pièce ou service.</option>
                               {variables.map(v => (
                                 <option key={v.id} value={v.id}>
-                                  [{v.category}] {v.nom} ({v.marque})
+                                  {v.identifiant ? `[${v.identifiant}] ` : ''}[{v.category}] {v.nom} ({v.marque})
                                 </option>
                               ))}
                             </select>
@@ -5690,6 +5866,7 @@ export default function App() {
             <StocksTab
               stocks={stocks}
               variables={variables}
+              defibrillateurs={defibrillateurs}
               saveStocks={saveStocks}
               showStockForm={showStockForm}
               setShowStockForm={setShowStockForm}

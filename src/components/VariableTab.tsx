@@ -122,6 +122,7 @@ export default function VariableTab({
   const [marque, setMarque] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [identifiant, setIdentifiant] = useState('');
   const [error, setError] = useState('');
 
   // Filtering variables
@@ -130,7 +131,8 @@ export default function VariableTab({
       const matchSearch =
         (v.nom || '').toLowerCase().includes(search.toLowerCase()) ||
         (v.marque || '').toLowerCase().includes(search.toLowerCase()) ||
-        (v.description || '').toLowerCase().includes(search.toLowerCase());
+        (v.description || '').toLowerCase().includes(search.toLowerCase()) ||
+        (v.identifiant || '').toLowerCase().includes(search.toLowerCase());
       
       const matchCategory = filterCategory === 'Tous' || v.category === filterCategory;
 
@@ -145,6 +147,7 @@ export default function VariableTab({
     setMarque('Standard');
     setDescription('');
     setImageUrl('');
+    setIdentifiant('');
     setError('');
     setIsModalOpen(true);
   };
@@ -156,6 +159,7 @@ export default function VariableTab({
     setMarque(v.marque || 'Standard');
     setDescription(v.description);
     setImageUrl(v.imageUrl || '');
+    setIdentifiant(v.identifiant || '');
     setError('');
     setIsModalOpen(true);
   };
@@ -179,6 +183,7 @@ export default function VariableTab({
       marque: marque.trim() || 'Standard',
       description: description.trim(),
       imageUrl: category === 'Modèle Défibrillateur' ? imageUrl.trim() : undefined,
+      identifiant: identifiant.trim() || undefined,
     };
 
     if (editingVariable) {
@@ -351,6 +356,20 @@ export default function VariableTab({
                   />
                 </div>
 
+                {/* Identifiant. (optionnel) */}
+                <div className="space-y-1">
+                  <label htmlFor="input-variable-identifiant" className="block text-[11px] font-bold text-slate-500 uppercase">
+                    Identifiant. (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    id="input-variable-identifiant"
+                    value={identifiant}
+                    onChange={(e) => setIdentifiant(e.target.value)}
+                    placeholder="Ex: REF123"
+                  />
+                </div>
+
                 {/* Optional Line Source de l'image (No sub-div, simple list flow) */}
                 {category === 'Modèle Défibrillateur' && (
                   <div className="space-y-1">
@@ -516,6 +535,11 @@ export default function VariableTab({
                       <div className="font-semibold text-slate-950">
                         {v.nom}
                       </div>
+                      {v.identifiant && (
+                        <div className="text-xs text-slate-500 font-mono mt-0.5">
+                          Identifiant: {v.identifiant}
+                        </div>
+                      )}
                     </td>
 
                     {/* Catégorie technique */}

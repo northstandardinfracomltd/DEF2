@@ -1545,7 +1545,7 @@ export default function ClientTab({
                 </div>
               </div>
 
-              {/* Section 4 - Historique des Codes PIN de Signature Client */}
+              {/* Section 4 - Unique Client Signature PIN */}
               {editingClient && (
                 <div 
                   className="bg-white p-5 relative space-y-3 mt-6"
@@ -1556,78 +1556,43 @@ export default function ClientTab({
                 >
                   <div className="mb-2 bg-transparent">
                     <span 
-                      className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                      className="text-white px-3 py-1 text-[13px] inline-block font-sans animate-pulse"
                       style={{
                         backgroundColor: '#4f46e5',
                         borderRadius: '1000px',
                         cursor: 'default',
-                        fontWeight: 100,
+                        fontWeight: 600,
                         textTransform: 'none',
                       }}
                     >
-                      4 — Codes PIN client
+                      4 — Code PIN de signature unique
                     </span>
                   </div>
 
-                  <h4 className="text-sm font-semibold text-slate-800 font-sans">
-                    Log des Codes PIN émis et validés pour {editingClient.denomination}
+                  <h4 className="text-sm font-semibold text-slate-850 font-sans">
+                    Code PIN de confiance configuré pour {editingClient.denomination}
                   </h4>
 
-                  <div className="overflow-x-auto">
-                    {!editingClient.signaturePins || editingClient.signaturePins.length === 0 ? (
-                      <p className="text-sm text-slate-500 italic py-2">
-                        Aucun code PIN n'a encore été émis ou validé pour ce client.
-                      </p>
-                    ) : (
-                      <table className="w-full text-left font-sans border-collapse text-xs mt-2">
-                        <thead>
-                          <tr className="border-b border-slate-200 bg-slate-50 text-slate-600 font-bold uppercase tracking-wider text-[10px]">
-                            <th className="px-3 py-2">Code PIN.</th>
-                            <th className="px-3 py-2">Date d'émission.</th>
-                            <th className="px-3 py-2">Statut.</th>
-                            <th className="px-3 py-2">Date de validation.</th>
-                            <th className="px-3 py-2">Intervention.</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 text-slate-700">
-                          {editingClient.signaturePins.map((pin, i) => (
-                            <tr key={i} className="hover:bg-slate-50">
-                              <td className="px-3 py-2 font-mono font-bold text-slate-900 tracking-wider">
-                                {pin.code}
-                              </td>
-                              <td className="px-3 py-2 text-slate-500">
-                                {new Date(pin.createdAt).toLocaleDateString('fr-FR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                })}
-                              </td>
-                              <td className="px-3 py-2">
-                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                                  pin.status === 'validé' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                                }`}>
-                                  {pin.status === 'validé' ? 'Validé' : 'Émis'}
-                                </span>
-                              </td>
-                              <td className="px-3 py-2 text-slate-500">
-                                {pin.validatedAt ? new Date(pin.validatedAt).toLocaleDateString('fr-FR', {
-                                  day: '2-digit',
-                                  month: '2-digit',
-                                  year: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit'
-                                }) : '-'}
-                              </td>
-                              <td className="px-3 py-2 text-slate-600 font-semibold max-w-[150px] truncate">
-                                {pin.reportTitle || '-'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
+                  <div className="pt-2 bg-white space-y-2">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        value={signaturePin}
+                        onChange={(e) => setSignaturePin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                        placeholder="Ex: ABC123"
+                        className="px-4 py-2 text-center text-lg font-mono font-bold text-indigo-600 border border-slate-305 rounded-xl bg-slate-50 w-44 tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-indigo-505"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setSignaturePin(generateRandomPin())}
+                        className="px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-lg border-0 cursor-pointer transition-all"
+                      >
+                        Générer un code PIN aléatoire
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-500 font-sans max-w-xl">
+                      Ce code PIN unique sert de signature de confiance pour l'ensemble des rapports d'intervention de ce client. Le client l'utilise depuis son portail dédié pour certifier l’historique ou signer les interventions.
+                    </p>
                   </div>
                 </div>
               )}

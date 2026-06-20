@@ -920,15 +920,18 @@ export default function App() {
               const matchedClient = updatedClientsList[index];
               const clientEmail = defib.emailSite || matchedClient.email || matchedClient.emailSite;
               if (clientEmail && clientEmail.trim()) {
-                const pin = generateRandomPin();
+                const pin = matchedClient.signaturePin || generateRandomPin();
                 const newPins = [...(matchedClient.signaturePins || [])];
-                newPins.push({
-                  code: pin,
-                  createdAt: new Date().toISOString(),
-                  status: 'émis'
-                });
+                if (!newPins.some(p => p.code.toUpperCase() === pin.toUpperCase())) {
+                  newPins.push({
+                    code: pin,
+                    createdAt: new Date().toISOString(),
+                    status: 'émis'
+                  });
+                }
                 updatedClientsList[index] = {
                   ...matchedClient,
+                  signaturePin: pin,
                   signaturePins: newPins
                 };
                 hasUpdatedClient = true;

@@ -1998,14 +1998,26 @@ export default function App() {
         ]);
 
         // Handlers to apply state or write if empty
+        let baseClients: Client[] = [];
         if (fClients !== null) {
-          setClients(fClients);
-          localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(fClients));
+          baseClients = fClients;
         } else {
-          const defaultVal = tenantId === 'demo' ? INITIAL_CLIENTS : [];
-          setClients(defaultVal);
-          await saveCollectionToFirestore('clients', defaultVal);
-          localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(defaultVal));
+          baseClients = tenantId === 'demo' ? INITIAL_CLIENTS : [];
+        }
+
+        let clientsChanged = false;
+        const sanitizedClients = baseClients.map(c => {
+          if (!c.signaturePin || !c.signaturePin.trim()) {
+            clientsChanged = true;
+            return { ...c, signaturePin: generateRandomPin() };
+          }
+          return c;
+        });
+
+        setClients(sanitizedClients);
+        localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(sanitizedClients));
+        if (fClients === null || clientsChanged) {
+          await saveCollectionToFirestore('clients', sanitizedClients);
         }
 
         if (fVariables !== null) {
@@ -2231,8 +2243,24 @@ export default function App() {
         console.error('Firestore loading failed, falling back to offline localStorage:', err);
         // Fallback loading from local storage
         const savedClients = localStorage.getItem(`defib_${tenantId}_clients`);
-        if (savedClients) setClients(JSON.parse(savedClients));
-        else setClients(tenantId === 'demo' ? INITIAL_CLIENTS : []);
+        let offlineClients: Client[] = [];
+        if (savedClients) {
+          offlineClients = JSON.parse(savedClients);
+        } else {
+          offlineClients = tenantId === 'demo' ? INITIAL_CLIENTS : [];
+        }
+        let offlineChanged = false;
+        const sanitizedOffline = offlineClients.map(c => {
+          if (!c.signaturePin || !c.signaturePin.trim()) {
+            offlineChanged = true;
+            return { ...c, signaturePin: generateRandomPin() };
+          }
+          return c;
+        });
+        setClients(sanitizedOffline);
+        if (offlineChanged) {
+          localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(sanitizedOffline));
+        }
 
         const savedVariables = localStorage.getItem(`defib_${tenantId}_variables`);
         if (savedVariables) setVariables(JSON.parse(savedVariables));
@@ -2865,10 +2893,16 @@ export default function App() {
 
   // Save changes to LocalStorage whenever state updates
   const saveClients = (newClients: Client[]) => {
-    setClients(newClients);
-    localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(newClients));
+    const sanitized = newClients.map(c => {
+      if (!c.signaturePin || !c.signaturePin.trim()) {
+        return { ...c, signaturePin: generateRandomPin() };
+      }
+      return c;
+    });
+    setClients(sanitized);
+    localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(sanitized));
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
-      saveCollectionToFirestore('clients', newClients);
+      saveCollectionToFirestore('clients', sanitized);
     }
   };
 

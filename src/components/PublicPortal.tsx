@@ -135,6 +135,7 @@ interface GeneratedReport {
   siteMission: string;
   photoUrl?: string;
   defibSnapshot?: Defibrillateur;
+  validated?: boolean;
 }
 
 export default function PublicPortal({
@@ -298,10 +299,14 @@ export default function PublicPortal({
 
   // Selected tour ID for mobile view
   const [selectedTourId, setSelectedTourId] = useState<string>('');
+  const [pauseEnabled, setPauseEnabled] = useState(false);
 
   // Selected tour ID and passage num for currently opening GMAO report overlay
   const [reportActiveTourId, setReportActiveTourId] = useState<string>('');
   const [reportActivePassageNum, setReportActivePassageNum] = useState<number | null>(null);
+
+  // Error messages for each tour ID in technician portal
+  const [tourErrorMap, setTourErrorMap] = useState<Record<string, string>>({});
 
   const handleNavigateToAddress = (address: string) => {
     if (!address) return;
@@ -442,7 +447,9 @@ export default function PublicPortal({
                     reason: m.reason || 'Visite technique',
                     requiredParts: m.requiredParts || [],
                     estimatedDate: rawEstDate,
-                    estimatedSlot: m.estimatedSlot || ''
+                    estimatedSlot: m.estimatedSlot || '',
+                    rejectionReason: m.rejectionReason || '',
+                    rejectedAt: m.rejectedAt || ''
                   };
                 })
               };
@@ -495,7 +502,12 @@ export default function PublicPortal({
           const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
             const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
             if (matchedPassage) {
-              return { ...m, status: matchedPassage.status };
+              return { 
+                ...m, 
+                status: matchedPassage.status,
+                rejectionReason: matchedPassage.rejectionReason || '',
+                rejectedAt: matchedPassage.rejectedAt || ''
+              };
             }
             return m;
           });
@@ -526,7 +538,12 @@ export default function PublicPortal({
               const updatedMissions = (mt.missions || []).map((m: any, idx: number) => {
                 const matchedPassage = matchedMobileTour.passages.find((p: any) => p.num === idx + 1 || p.identifiant === m.defibIdentifiant);
                 if (matchedPassage) {
-                  return { ...m, status: matchedPassage.status };
+                  return { 
+                    ...m, 
+                    status: matchedPassage.status,
+                    rejectionReason: matchedPassage.rejectionReason || '',
+                    rejectedAt: matchedPassage.rejectedAt || ''
+                  };
                 }
                 return m;
               });
@@ -1128,8 +1145,14 @@ export default function PublicPortal({
     const electrodeAModel = variables.find(v => v.id === snapshot.modeleElectrodeAId);
     const electrodeAModelName = electrodeAModel ? `${electrodeAModel.marque} ${electrodeAModel.nom}` : (snapshot.modeleElectrodeAId || 'Non spécifié');
 
+    const electrodeASecoursModel = variables.find(v => v.id === snapshot.modeleElectrodeASecoursId);
+    const electrodeASecoursModelName = electrodeASecoursModel ? `${electrodeASecoursModel.marque} ${electrodeASecoursModel.nom}` : '';
+
     const electrodePModel = variables.find(v => v.id === snapshot.modeleElectrodePId);
     const electrodePModelName = electrodePModel ? `${electrodePModel.marque} ${electrodePModel.nom}` : (snapshot.modeleElectrodePId || 'Non spécifié');
+
+    const electrodePSecoursModel = variables.find(v => v.id === snapshot.modeleElectrodePSecoursId);
+    const electrodePSecoursModelName = electrodePSecoursModel ? `${electrodePSecoursModel.marque} ${electrodePSecoursModel.nom}` : '';
 
     const batterieModel = variables.find(v => v.id === snapshot.modeleBatterieId);
     const batterieModelName = batterieModel ? `${batterieModel.marque} ${batterieModel.nom}` : (snapshot.modeleBatterieId || 'Non spécifié');
@@ -1383,6 +1406,7 @@ export default function PublicPortal({
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle de boîtier :</span> <span class="pdf-bold">${coffretModelName || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot de boîtier :</span> <span class="pdf-bold">${snapshot.numeroLotCoffret || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Équipé d’une alarme :</span> <span class="pdf-bold">${report.equipeAlarme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Alarme fonctionnelle :</span> <span class="pdf-bold">${report.alarme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Dispositif d’armoire connectée :</span> <span class="pdf-bold">${report.armoireConnectee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Dispositif handicap :</span> <span class="pdf-bold">${report.dispositifHandicap || ''}</span></div>
@@ -1402,16 +1426,17 @@ export default function PublicPortal({
               <div class="pdf-card">
                 <div class="pdf-card-header">4 — Vérifications techniques.</div>
                 <div class="pdf-card-body" style="gap: 3px;">
+                  <div class="pdf-line"><span class="pdf-label">Conforme à mon arrivée :</span> <span class="pdf-bold">${report.techConformeArrivee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire sur l’état à mon arrivée :</span> <span class="pdf-bold">${report.techCommentaireArrivee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-rose-700">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Voyant conforme :</span> <span class="pdf-bold">${report.techVoyantConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Équipé d’un message numérique :</span> <span class="pdf-bold">${report.techEquipeMessageNumerique || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Message numérique conforme :</span> <span class="pdf-bold">${report.techMessageNumeroConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Guides vocaux conformes :</span> <span class="pdf-bold">${report.techGuidesVocauxConformes || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Branchement conforme des électrodes :</span> <span class="pdf-bold">${report.techBranchementElectrodesConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Délivrance du choc conforme :</span> <span class="pdf-bold">${report.techDelivranceChocConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode A :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA ? report.techResultatJoulesElectrodeA + ' J' : ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode P :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA2 ? report.techResultatJoulesElectrodeA2 + ' J' : ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Accessibilité conforme :</span> <span class="pdf-bold">${report.techAccessibiliteConforme || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">État fonctionnel conforme :</span> <span class="pdf-bold">${report.techEtatFonctionnelConforme || ''}</span></div>
                 </div>
               </div>
 
@@ -1423,7 +1448,11 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Lot A :</span> <span class="pdf-bold">${snapshot.lotElectrodeA || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Insertion :</span> <span class="pdf-bold">${snapshot.insertionElectrodeA || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeA || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodeASecoursModelName || 'Aucun'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodeASecours || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ''}</span></div>
@@ -1438,7 +1467,11 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode P :</span> <span class="pdf-bold">${electrodePModelName || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot P :</span> <span class="pdf-bold">${snapshot.lotElectrodeP || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeP || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodePSecoursModelName || 'Aucun'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodePSecours || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ''}</span></div>
@@ -1477,7 +1510,9 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Sélection d’un kit de secours :</span> <span class="pdf-bold">${selKitSecours || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Ciseaux présents :</span> <span class="pdf-bold">${report.kitCiseauxPresents || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Masque présent :</span> <span class="pdf-bold">${report.kitMasquePresent || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption du masque :</span> <span class="pdf-bold">${report.kitPeremptionMasque || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Serviettes présentes :</span> <span class="pdf-bold">${report.kitServiettesPresentes || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption des serviettes :</span> <span class="pdf-bold">${report.kitPeremptionServiettes || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Paires de gants présents :</span> <span class="pdf-bold">${report.kitGantsPresents || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Rasoir :</span> <span class="pdf-bold">${report.kitRasoirPresent || ''}</span></div>
                 </div>
@@ -2410,6 +2445,51 @@ export default function PublicPortal({
     return { count: missionsToSync.length };
   };
 
+  const getNextPassageZone = () => {
+    if (!selectedTourId) return 'Ville_CP';
+    const activeTour = getSortedTours().find(t => t.id === selectedTourId);
+    if (!activeTour || !activeTour.passages || activeTour.passages.length === 0) return 'Ville_CP';
+
+    const donePassages = activeTour.passages.filter((p: any) => p.status === 'Effectué');
+    let nextPassage: any = null;
+
+    if (donePassages.length > 0) {
+      const highestDoneNum = Math.max(...donePassages.map((p: any) => p.num));
+      nextPassage = activeTour.passages.find((p: any) => p.num === highestDoneNum + 1);
+      if (!nextPassage) {
+        nextPassage = activeTour.passages.find((p: any) => p.status === 'À faire' && p.num > highestDoneNum);
+      }
+    }
+
+    if (!nextPassage) {
+      nextPassage = activeTour.passages.find((p: any) => p.status === 'À faire');
+    }
+
+    if (!nextPassage) return 'Ville_CP';
+
+    const defib = defibrillateurs.find((d: any) => d.identifiant === nextPassage.identifiant || d.id === nextPassage.identifiant);
+    if (defib && defib.ville) {
+      const cpStr = defib.cp ? ` ${defib.cp}` : '';
+      return `${defib.ville}${cpStr}`;
+    }
+
+    const other = otherEquipments.find((o: any) => o.identifiant === nextPassage.identifiant || o.id === nextPassage.identifiant);
+    if (other && other.ville) {
+      const cpStr = other.codePostal ? ` ${other.codePostal}` : '';
+      return `${other.ville}${cpStr}`;
+    }
+
+    if (nextPassage.address) {
+      const parts = nextPassage.address.split(',');
+      if (parts.length > 1) {
+        return parts[parts.length - 1].trim();
+      }
+      return nextPassage.address;
+    }
+
+    return 'Ville_CP';
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center p-0 text-slate-800 selection:bg-indigo-600/30 font-sans" id="public-portal-envelope">
 
@@ -2440,40 +2520,13 @@ export default function PublicPortal({
                         id: reportId,
                         techName: authenticatedUser?.name || 'Technicien connecté',
                         date: updatedReport.date || new Date().toLocaleString('fr-FR'),
+                        validated: false, // Explicitly false so it requires validation from GMAO
                       };
 
                       saveReports([submission, ...generatedReports]);
 
-                      // Update other equip list
-                      const updatedList = otherEquipments.map(o => {
-                        if (o.id === selectedOtherEquipmentUnique.id) {
-                          return updatedReport.defibSnapshot;
-                        }
-                        return o;
-                      });
-                      if (onUpdateOtherEquipments) {
-                        onUpdateOtherEquipments(updatedList);
-                      }
-
-                      // Email 6 workflow
-                      try {
-                        const snap = updatedReport.defibSnapshot;
-                        if (snap) {
-                          const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
-                          const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
-                          if (clientEmail && clientEmail.trim()) {
-                            triggerEmail6RapportIntervention(
-                              clientEmail.trim(),
-                              snap.identifiant || '',
-                              submission.date,
-                              companyInfo.name || 'Défibeo Suite',
-                              companyInfo.email || ''
-                            ).catch(e => console.error("Error triggering Email 6 for non-defib report:", e));
-                          }
-                        }
-                      } catch (e) {
-                        console.error("Error setting up email triggers for non-defib:", e);
-                      }
+                      // NOTE: Auto-update other equip list and email sending is bypassed at this stage
+                      // It will occur automatically once validated from the main GMAO workspace.
 
                       // Automatically transition corresponding passage status to "Effectué"
                       if (reportActiveTourId && reportActivePassageNum !== null) {
@@ -2494,7 +2547,7 @@ export default function PublicPortal({
                         saveTours(updated);
                       }
 
-                      alert(`Le rapport "${submission.title}" a été enregistré avec succès !`);
+                      alert(`Le rapport "${submission.title}" a été enregistré avec succès (en attente de validation sur le logiciel principal) !`);
                       setIsReportOverlayOpen(false);
                       setSelectedOtherEquipmentUnique(null);
                       setReportActiveTourId('');
@@ -2523,32 +2576,13 @@ export default function PublicPortal({
                         id: reportId,
                         techName: authenticatedUser?.name || 'Technicien connecté',
                         date: updatedReport.date || new Date().toLocaleString('fr-FR'),
+                        validated: false, // Require validation in GMAO tab
                       };
                       
                       saveReports([submission, ...generatedReports]);
-                      onUpdateDefib(updatedReport.defibSnapshot);
 
-                      // Email 6: RAPPORT SUITE À UNE INTERVENTION AU CLIENT (Nouveau Rapport form)
-                      try {
-                        const snap = updatedReport.defibSnapshot;
-                        if (snap) {
-                          const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
-                          const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
-                          if (clientEmail && clientEmail.trim()) {
-                            triggerEmail6RapportIntervention(
-                              clientEmail.trim(),
-                              snap.identifiant || '',
-                              submission.date,
-                              companyInfo.name || 'Défibeo Suite',
-                              companyInfo.email || ''
-                            ).catch(e => console.error("Error triggering Email 6 for new report:", e));
-                          } else {
-                            console.warn(`[Email 6] Client email not found/blank for defibrillator ${snap.identifiant}`);
-                          }
-                        }
-                      } catch (err6) {
-                        console.error("Error triggering Email 6 workflow for new report:", err6);
-                      }
+                      // NOTE: Auto-update defibrillator record and email triggering are bypassed at this level
+                      // They are successfully pending approval inside the GMAO tab.
 
                       // 1. Decrement Stock for selected/replaced products
                       const updatedStocks = [...stocks];
@@ -2734,7 +2768,7 @@ export default function PublicPortal({
                         saveTours(updated);
                       }
 
-                      alert(`Le rapport "${submission.title}" a été enregistré avec succès, rattaché et l'état du matériel a été mis à jour !`);
+                      alert(`Le rapport "${submission.title}" a été enregistré avec succès (en attente de validation sur le logiciel principal) !`);
                       setIsReportOverlayOpen(false);
                       setSelectedDefibId('');
                       setSelectedDefibData(null);
@@ -3818,262 +3852,410 @@ export default function PublicPortal({
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 no-scrollbar" id="tab-content-area">
               
               {/* ----------------- TAB 1: INTERVENTIONS ----------------- */}
-              {activeTab === 'interventions' && (
-                <div className="space-y-4 pb-16 animate-fadeIn" id="tab-interventions-screen">
-                  {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
-                  <div className="px-1 select-none">
-                    <select
-                      value={selectedTourId}
-                      onChange={(e) => setSelectedTourId(e.target.value)}
-                      className="w-full bg-white text-black cursor-pointer appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
-                      style={{
-                        border: '1px solid rgb(201, 190, 205)',
-                        borderRadius: '14px',
-                        padding: '14px 20px',
-                        fontSize: '18px',
-                        fontWeight: 'bold',
-                        boxShadow: 'none',
-                        outline: 'none',
-                        textAlign: 'center',
-                        textAlignLast: 'center'
-                      }}
-                    >
-                      <option value="" disabled>Sélectionnez une tournée</option>
-                      {getSortedTours().map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {truncateTourTitle(t.title)} - {t.startDate} {t.status === 'Terminé' ? ' (Terminé)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              {activeTab === 'interventions' && (() => {
+                const currentTourForPause = selectedTourId ? getSortedTours().find(t => t.id === selectedTourId) : null;
+                const hasTodoMissions = currentTourForPause && currentTourForPause.passages 
+                  ? currentTourForPause.passages.some((p: any) => p.status === 'À faire')
+                  : false;
 
-                  {/* List of stacked tournées */}
-                  {selectedTourId && getSortedTours().filter(t => t.id === selectedTourId).map((t) => (
-                    <div key={t.id} className="space-y-3">
-
-                      {/* Stacked Passage records list */}
-                      <div className="space-y-3" id={`tour-passages-${t.id}`}>
-                        {t.passages.map((p) => {
-                          const isCompleted = p.status === 'Effectué';
-                          return (
-                            <div 
-                              key={p.num} 
-                              className="bg-white p-5 space-y-4" 
-                              style={{ border: '1px solid rgb(201, 190, 205)', borderRadius: '14px', boxShadow: 'none' }} 
-                              id={`passage-card-${p.num}`}
+                return (
+                  <div className="space-y-4 pb-16 animate-fadeIn" id="tab-interventions-screen">
+                    {/* Toggle "Suspendre pour pause" */}
+                    {selectedTourId && hasTodoMissions && (
+                      <div className="px-1" id="pause-toggle-block">
+                        <div 
+                          className="bg-slate-50 border p-4 space-y-3"
+                          style={{
+                            borderColor: 'rgb(201, 190, 205)',
+                            borderRadius: '14px'
+                          }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-black font-sans">Suspendre pour pause.</span>
+                            <button
+                              type="button"
+                              onClick={() => setPauseEnabled(!pauseEnabled)}
+                              className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+                              style={{
+                                backgroundColor: pauseEnabled ? '#fe4eba' : '#cbd5e1'
+                              }}
                             >
-                              {/* Toggle Status Check above passage number, aligned to the left */}
-                              <div className="flex justify-start w-full">
-                                <button
-                                  type="button"
-                                  onClick={() => togglePassageStatus(t.id, p.num)}
-                                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
-                                  style={{ fontSize: '16px' }}
-                                >
-                                  <span 
-                                    className="rounded-full flex items-center justify-center transition-all bg-white"
-                                    style={{
-                                      border: isCompleted ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
-                                      width: '22px',
-                                      height: '22px',
-                                      minWidth: '22px',
-                                      minHeight: '22px',
-                                      backgroundColor: '#ffffff'
-                                    }}
-                                  >
-                                    {isCompleted && (
-                                      <span className="rounded-full bg-[#fe4eba]" style={{ width: '10px', height: '10px' }} />
-                                    )}
-                                  </span>
-                                  <span className="font-semibold text-black">
-                                    {isCompleted ? 'Effectué' : 'À faire'}
-                                  </span>
-                                </button>
-                              </div>
+                              <span
+                                className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                                style={{
+                                  transform: pauseEnabled ? 'translateX(20px)' : 'translateX(0px)'
+                                }}
+                              />
+                            </button>
+                          </div>
+                          {pauseEnabled && (
+                            <div className="p-3 bg-white border rounded-lg text-xs font-semibold text-[#fe4eba]" style={{ borderColor: 'rgba(254, 78, 187, 0.2)' }}>
+                              Zone recommandée pour votre pause : <span className="font-bold">{getNextPassageZone()}</span>.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                              <div className="space-y-3">
-                                <div className="flex items-center gap-3">
-                                  {/* Rond rose avec le numéro du passage */}
-                                  <div 
-                                    className="flex items-center justify-center font-bold text-white rounded-full shrink-0"
-                                    style={{
-                                      backgroundColor: '#fe4eba',
-                                      width: '28px',
-                                      height: '28px',
-                                      fontSize: '14px',
-                                    }}
+                    {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
+                    <div className="px-1 select-none">
+                      <select
+                        value={selectedTourId}
+                        onChange={(e) => setSelectedTourId(e.target.value)}
+                        className="w-full bg-white text-black cursor-pointer appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
+                        style={{
+                          border: '1px solid rgb(201, 190, 205)',
+                          borderRadius: '14px',
+                          padding: '14px 20px',
+                          fontSize: '18px',
+                          fontWeight: 'bold',
+                          boxShadow: 'none',
+                          outline: 'none',
+                          textAlign: 'center',
+                          textAlignLast: 'center'
+                        }}
+                      >
+                        <option value="" disabled>Sélectionnez une tournée</option>
+                        {getSortedTours().map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {truncateTourTitle(t.title)} - {t.startDate} {t.status === 'Terminé' ? ' (Terminé)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* List of stacked tournées */}
+                    {selectedTourId && getSortedTours().filter(t => t.id === selectedTourId).map((t) => (
+                      <div key={t.id} className="space-y-3">
+
+                        {/* Stacked Passage records list */}
+                        <div className="space-y-3" id={`tour-passages-${t.id}`}>
+                          {t.passages.map((p) => {
+                            const isCompleted = p.status === 'Effectué';
+                            const matchedOther = otherEquipments?.find((o: any) => o.identifiant === p.identifiant || o.id === p.identifiant);
+                            const matchedDefib = defibrillateurs?.find((d: any) => d.identifiant === p.identifiant || d.id === p.identifiant);
+                            const equipmentPhone = matchedOther?.telephoneSite || matchedDefib?.telephoneSite || '';
+                            return (
+                              <div 
+                                key={p.num} 
+                                className="bg-white p-5 space-y-4" 
+                                style={{ border: '1px solid rgb(201, 190, 205)', borderRadius: '14px', boxShadow: 'none' }} 
+                                id={`passage-card-${p.num}`}
+                              >
+                                {/* Toggle Status Check above passage number, aligned to the left */}
+                                <div className="flex justify-start w-full">
+                                  <button
+                                    type="button"
+                                    onClick={() => togglePassageStatus(t.id, p.num)}
+                                    className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                                    style={{ fontSize: '16px' }}
                                   >
-                                    {p.num}
+                                    <span 
+                                      className="rounded-full flex items-center justify-center transition-all bg-white"
+                                      style={{
+                                        border: isCompleted ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                                        width: '22px',
+                                        height: '22px',
+                                        minWidth: '22px',
+                                        minHeight: '22px',
+                                        backgroundColor: '#ffffff'
+                                      }}
+                                    >
+                                      {isCompleted && (
+                                        <span className="rounded-full bg-[#fe4eba]" style={{ width: '10px', height: '10px' }} />
+                                      )}
+                                    </span>
+                                    <span className="font-semibold text-black">
+                                      {isCompleted ? 'Effectué' : 'À faire'}
+                                    </span>
+                                  </button>
+                                </div>
+
+                                <div className="space-y-3">
+                                  <div className="flex items-center gap-3">
+                                    {/* Rond rose avec le numéro du passage */}
+                                    <div 
+                                      className="flex items-center justify-center font-bold text-white rounded-full shrink-0"
+                                      style={{
+                                        backgroundColor: '#fe4eba',
+                                        width: '28px',
+                                        height: '28px',
+                                        fontSize: '14px',
+                                      }}
+                                    >
+                                      {p.num}
+                                    </div>
+                                    
+                                    {/* Identifiant du défibrillateur dans une gelule alignée à gauche et pas en full width */}
+                                    <span style={{
+                                      backgroundColor: 'rgb(77, 21, 83)',
+                                      color: 'rgb(255, 255, 255)',
+                                      borderRadius: '1000px',
+                                      padding: '4px 12px',
+                                      fontSize: '15px',
+                                      fontWeight: 700,
+                                      border: 'none',
+                                      display: 'inline-block'
+                                    }}>
+                                      {p.identifiant}
+                                    </span>
                                   </div>
-                                  
-                                  {/* Identifiant du défibrillateur dans une gelule alignée à gauche et pas en full width */}
-                                  <span style={{
-                                    backgroundColor: 'rgb(77, 21, 83)',
-                                    color: 'rgb(255, 255, 255)',
-                                    borderRadius: '1000px',
-                                    padding: '4px 12px',
-                                    fontSize: '15px',
-                                    fontWeight: 700,
-                                    border: 'none',
-                                    display: 'inline-block'
-                                  }}>
-                                    {p.identifiant}
-                                  </span>
-                                </div>
 
-                                {/* Textes de la div en font color black */}
-                                <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
-                                  <p style={{ color: '#000000' }}>
-                                    Matériel : <span className="font-semibold" style={{ color: '#000000' }}>{p.equipmentType || 'Défibrillateur'}</span>
-                                  </p>
-                                  <p style={{ color: '#000000' }}>
-                                    Modèle : <span className="font-semibold" style={{ color: '#000000' }}>{p.model}</span>
-                                  </p>
-                                  <p style={{ color: '#000000' }}>
-                                    Adresse : <span className="font-semibold" style={{ color: '#000000' }}>{p.address}</span>
-                                  </p>
-                                  {p.reason && p.reason.trim() !== '' && (
+                                  {/* Textes de la div en font color black */}
+                                  <div className="space-y-1.5" style={{ fontSize: '16px', color: '#000000', fontFamily: 'var(--font-sans), sans-serif' }}>
                                     <p style={{ color: '#000000' }}>
-                                      Motif : <span className="font-semibold" style={{ color: '#000000' }}>{p.reason}</span>
+                                      Matériel : <span className="font-semibold" style={{ color: '#000000' }}>{p.equipmentType || 'Défibrillateur'}</span>
                                     </p>
-                                  )}
-                                  {p.estimatedDate && (
                                     <p style={{ color: '#000000' }}>
-                                      Date estimée : <span className="font-semibold" style={{ color: '#000000' }}>{(() => {
-                                        const cleanDate = p.estimatedDate.replace(/\//g, '-');
-                                        const pts = cleanDate.split('-');
-                                        if (pts.length === 3) {
-                                          if (pts[0].length === 4) {
-                                            return `${pts[2]}/${pts[1]}/${pts[0]}`;
+                                      Modèle : <span className="font-semibold" style={{ color: '#000000' }}>{p.model}</span>
+                                    </p>
+                                    <p style={{ color: '#000000' }}>
+                                      Adresse : <span className="font-semibold" style={{ color: '#000000' }}>{p.address}</span>
+                                    </p>
+                                    <p style={{ color: '#000000' }}>
+                                      Téléphone : {equipmentPhone ? (
+                                        <a 
+                                          href={`tel:${equipmentPhone.replace(/\s+/g, '')}`} 
+                                          className="font-semibold underline hover:opacity-75 transition-opacity" 
+                                          style={{ color: '#fe4eba', cursor: 'pointer' }}
+                                          id={`tel-link-${p.num}`}
+                                        >
+                                          {equipmentPhone}
+                                        </a>
+                                      ) : (
+                                        <span className="font-semibold text-gray-400">Non renseigné</span>
+                                      )}
+                                    </p>
+                                    {p.reason && p.reason.trim() !== '' && (
+                                      <p style={{ color: '#000000' }}>
+                                        Motif : <span className="font-semibold" style={{ color: '#000000' }}>{p.reason}</span>
+                                      </p>
+                                    )}
+                                    {p.estimatedDate && (
+                                      <p style={{ color: '#000000' }}>
+                                        Date estimée : <span className="font-semibold" style={{ color: '#000000' }}>{(() => {
+                                          const cleanDate = p.estimatedDate.replace(/\//g, '-');
+                                          const pts = cleanDate.split('-');
+                                          if (pts.length === 3) {
+                                            if (pts[0].length === 4) {
+                                              return `${pts[2]}/${pts[1]}/${pts[0]}`;
+                                            }
+                                            return `${pts[0]}/${pts[1]}/${pts[2]}`;
                                           }
-                                          return `${pts[0]}/${pts[1]}/${pts[2]}`;
-                                        }
-                                        return p.estimatedDate;
-                                      })()}</span>
-                                    </p>
-                                  )}
-                                  <p style={{ color: '#000000' }}>
-                                    Créneau estimé : <span className="font-semibold" style={{ color: '#000000' }}>{p.estimatedSlot || '--'}</span>
-                                  </p>
-                                  {p.requiredParts && p.requiredParts.length > 0 && p.requiredParts.some(part => part && part.trim() !== 'Aucune pièce' && part.trim() !== 'Aucune pièce requise' && part.trim() !== 'Aucune' && part.trim() !== '') && (
+                                          return p.estimatedDate;
+                                        })()}</span>
+                                      </p>
+                                    )}
                                     <p style={{ color: '#000000' }}>
-                                      Pièce(s) : <span className="font-semibold" style={{ color: '#000000' }}>{p.requiredParts.join(', ')}</span>
+                                      Créneau estimé : <span className="font-semibold" style={{ color: '#000000' }}>{p.estimatedSlot || '--'}</span>
                                     </p>
-                                  )}
+                                    {p.requiredParts && p.requiredParts.length > 0 && p.requiredParts.some(part => part && part.trim() !== 'Aucune pièce' && part.trim() !== 'Aucune pièce requise' && part.trim() !== 'Aucune' && part.trim() !== '') && (
+                                      <p style={{ color: '#000000' }}>
+                                        Pièce(s) : <span className="font-semibold" style={{ color: '#000000' }}>{p.requiredParts.join(', ')}</span>
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
 
-                              <div className="flex gap-3">
-                                <button
-                                  type="button"
-                                  disabled={isCompleted}
-                                  onClick={() => handleNavigateToAddress(p.address)}
-                                  style={{
-                                    backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
-                                    color: isCompleted ? '#94a3b8' : '#fff',
-                                    fontSize: '18px',
-                                    fontWeight: 'bold',
-                                    borderRadius: '12px',
-                                    padding: '11px 20px',
-                                    border: 'none',
-                                    boxShadow: 'none',
-                                    cursor: isCompleted ? 'not-allowed' : 'pointer',
-                                    flex: 1
-                                  }}
-                                  className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
-                                >
-                                  Y aller
-                                </button>
-                                
-                                <button
-                                  type="button"
-                                  disabled={isCompleted}
-                                  onClick={() => {
-                                    const matchedOther = otherEquipments?.find(o => o.identifiant === p.identifiant);
-                                    if (matchedOther) {
-                                      setSelectedOtherEquipmentUnique(matchedOther);
-                                      setReportActiveTourId(t.id);
-                                      setReportActivePassageNum(p.num);
-                                      setIsReportOverlayOpen(true);
-                                    } else {
-                                      const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
-                                      if (matched) {
-                                        setSelectedOtherEquipmentUnique(null);
-                                        handleDefibLookupChange(matched.id);
-                                        // Pre-fill fields for nicer wizard UX!
-                                        setReceiptTitle('Rapport technique défibrillateur');
-                                        setMissionSite('DÉPLACEMENT');
+                                <div className="flex gap-3">
+                                  <button
+                                    type="button"
+                                    disabled={isCompleted}
+                                    onClick={() => handleNavigateToAddress(p.address)}
+                                    style={{
+                                      backgroundColor: isCompleted ? '#e2e8f0' : '#000000',
+                                      color: isCompleted ? '#94a3b8' : '#fff',
+                                      fontSize: '18px',
+                                      fontWeight: 'bold',
+                                      borderRadius: '12px',
+                                      padding: '11px 20px',
+                                      border: 'none',
+                                      boxShadow: 'none',
+                                      cursor: isCompleted ? 'not-allowed' : 'pointer',
+                                      flex: 1
+                                    }}
+                                    className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
+                                  >
+                                    Y aller
+                                  </button>
+                                  
+                                  <button
+                                    type="button"
+                                    disabled={isCompleted}
+                                    onClick={() => {
+                                      const matchedOther = otherEquipments?.find(o => o.identifiant === p.identifiant);
+                                      if (matchedOther) {
+                                        setSelectedOtherEquipmentUnique(matchedOther);
                                         setReportActiveTourId(t.id);
                                         setReportActivePassageNum(p.num);
                                         setIsReportOverlayOpen(true);
                                       } else {
-                                        alert(`Aucun matériel central disponible.`);
+                                        const matched = defibrillateurs.find(df => df.identifiant === p.identifiant) || defibrillateurs[0];
+                                        if (matched) {
+                                          setSelectedOtherEquipmentUnique(null);
+                                          handleDefibLookupChange(matched.id);
+                                          // Pre-fill fields for nicer wizard UX!
+                                          setReceiptTitle('Rapport technique défibrillateur');
+                                          setMissionSite('DÉPLACEMENT');
+                                          setReportActiveTourId(t.id);
+                                          setReportActivePassageNum(p.num);
+                                          setIsReportOverlayOpen(true);
+                                        } else {
+                                          alert(`Aucun matériel central disponible.`);
+                                        }
                                       }
-                                    }
-                                  }}
-                                  style={{
-                                    backgroundColor: isCompleted ? '#e2e8f0' : '#3556ec',
-                                    color: isCompleted ? '#94a3b8' : '#fff',
-                                    fontSize: '18px',
-                                    fontWeight: 'bold',
-                                    borderRadius: '12px',
-                                    padding: '11px 20px',
-                                    border: 'none',
-                                    boxShadow: isCompleted ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
-                                    cursor: isCompleted ? 'not-allowed' : 'pointer',
-                                    flex: 1
-                                  }}
-                                  className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
-                                >
-                                  Rapport
-                                </button>
+                                    }}
+                                    style={{
+                                      backgroundColor: isCompleted ? '#e2e8f0' : '#3556ec',
+                                      color: isCompleted ? '#94a3b8' : '#fff',
+                                      fontSize: '18px',
+                                      fontWeight: 'bold',
+                                      borderRadius: '12px',
+                                      padding: '11px 20px',
+                                      border: 'none',
+                                      boxShadow: isCompleted ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
+                                      cursor: isCompleted ? 'not-allowed' : 'pointer',
+                                      flex: 1
+                                    }}
+                                    className={isCompleted ? "opacity-60 transition-all font-bold" : "hover:opacity-90 active:scale-[0.99] transition-all font-bold"}
+                                  >
+                                    Rapport
+                                  </button>
+                                </div>
+
+                                {/* Rejection reason input for uncompleted passages */}
+                                {!isCompleted && (
+                                  <div className="mt-2.5 p-3 rounded-lg border" style={{ backgroundColor: '#fff5f5', borderColor: '#feb2b2' }}>
+                                    <label className="block text-xs font-bold uppercase mb-1" style={{ color: '#c53030' }}>
+                                      Raison de rejet de mission. <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="text"
+                                      maxLength={25}
+                                      value={p.rejectionReason || ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        const updated = tours.map(item => {
+                                          if (item.id === t.id) {
+                                            return {
+                                              ...item,
+                                              passages: item.passages.map(pass => {
+                                                if (pass.num === p.num) {
+                                                  return { 
+                                                    ...pass, 
+                                                    rejectionReason: val,
+                                                    rejectedAt: pass.rejectedAt || new Date().toLocaleDateString('fr-FR')
+                                                  };
+                                                }
+                                                return pass;
+                                              })
+                                            };
+                                          }
+                                          return item;
+                                        });
+                                        saveTours(updated);
+                                      }}
+                                      placeholder="Raison du rejet (max 25 car.)"
+                                      style={{
+                                        backgroundColor: '#ffffff',
+                                        color: '#000000',
+                                        border: '1px solid #fc8181',
+                                        borderRadius: '8px',
+                                        padding: '7px 10px',
+                                        width: '100%',
+                                        fontSize: '14px',
+                                      }}
+                                    />
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          );
-                        })}
-                      </div>
+                            );
+                          })}
+                        </div>
 
-                      {/* Terminer la tournée button in Red */}
-                      <div className="pt-2">
-                        <button
-                          type="button"
-                          disabled={t.status === 'Terminé'}
-                          onClick={() => {
-                            // update tours state
-                            const updatedTours = tours.map(item => {
-                              if (item.id === t.id) {
-                                  return { ...item, status: 'Terminé' };
+                        {/* Terminer la tournée button in Red */}
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            disabled={t.status === 'Terminé'}
+                            onClick={() => {
+                              // Find non-completed passages
+                              const uncompletedPassages = t.passages.filter(pass => pass.status !== 'Effectué');
+                              if (uncompletedPassages.length > 0) {
+                                // Check if any of these does not have a filled out rejectionReason
+                                const hasUnfilledReasons = uncompletedPassages.some(pass => !pass.rejectionReason || !pass.rejectionReason.trim());
+                                if (hasUnfilledReasons) {
+                                  // Update error message
+                                  setTourErrorMap(prev => ({
+                                    ...prev,
+                                    [t.id]: "Informations requises sur les missions non effectuées."
+                                  }));
+                                  return;
+                                }
                               }
-                              return item;
-                            });
-                            saveTours(updatedTours);
-                            
-                            alert("La tournée a bien été marquée comme terminée !");
-                          }}
-                          style={{
-                            backgroundColor: '#dc2626',
-                            color: '#ffffff',
-                            fontSize: '18px',
-                            fontWeight: 'bold',
-                            borderRadius: '12px',
-                            padding: '14px 20px',
-                            border: 'none',
-                            boxShadow: t.status === 'Terminé' ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
-                            cursor: t.status === 'Terminé' ? 'not-allowed' : 'pointer',
-                            width: '100%',
-                            opacity: t.status === 'Terminé' ? 0.55 : 1
-                          }}
-                          className={`${t.status === 'Terminé' ? '' : 'hover:bg-red-700 active:scale-[0.99]'} transition-all flex items-center justify-center gap-2`}
-                        >
-                          Terminer la tournée
-                        </button>
+
+                              // Success: clear errors, mark as finished
+                              setTourErrorMap(prev => {
+                                const copy = { ...prev };
+                                delete copy[t.id];
+                                return copy;
+                              });
+
+                              // update tours state
+                              const updatedTours = tours.map(item => {
+                                if (item.id === t.id) {
+                                    return { 
+                                      ...item, 
+                                      status: 'Terminé',
+                                      passages: item.passages.map(pass => {
+                                        if (pass.status !== 'Effectué' && (!pass.rejectedAt || pass.rejectedAt.trim() === '')) {
+                                          return {
+                                            ...pass,
+                                            rejectedAt: new Date().toLocaleDateString('fr-FR')
+                                          };
+                                        }
+                                        return pass;
+                                      })
+                                    };
+                                }
+                                return item;
+                              });
+                              saveTours(updatedTours);
+                              
+                              alert("La tournée a bien été marquée comme terminée !");
+                            }}
+                            style={{
+                              backgroundColor: '#dc2626',
+                              color: '#ffffff',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              borderRadius: '12px',
+                              padding: '14px 20px',
+                              border: 'none',
+                              boxShadow: t.status === 'Terminé' ? 'none' : 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f',
+                              cursor: t.status === 'Terminé' ? 'not-allowed' : 'pointer',
+                              width: '100%',
+                              opacity: t.status === 'Terminé' ? 0.55 : 1
+                            }}
+                            className={`${t.status === 'Terminé' ? '' : 'hover:bg-red-700 active:scale-[0.99]'} transition-all flex items-center justify-center gap-2`}
+                          >
+                            Terminer la tournée
+                          </button>
+
+                          {/* Conditional error message */}
+                          {tourErrorMap[t.id] && (
+                            <div className="mt-2.5 p-3 rounded-lg border text-center font-semibold text-sm animate-fadeIn" style={{ backgroundColor: '#fff5f5', borderColor: '#feb2b2', color: '#c53030' }}>
+                              {tourErrorMap[t.id]}
+                            </div>
+                          )}
+                        </div>
+
                       </div>
+                    ))}
 
-                    </div>
-                  ))}
-
-                </div>
-              )}
+                  </div>
+                );
+              })()}
 
               {/* ----------------- TAB 2: RAPPORTS PDF ----------------- */}
               {activeTab === 'rapports' && (

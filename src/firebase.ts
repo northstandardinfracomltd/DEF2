@@ -403,7 +403,8 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     'expenses',
     'generatedReports',
     'fsmTours',
-    'otherEquipments'
+    'otherEquipments',
+    'pointagesAutoVigilance'
   ];
 
   await Promise.all(

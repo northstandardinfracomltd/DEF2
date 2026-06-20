@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
-import { Client, Defibrillateur, Variable } from '../types';
-import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck } from 'lucide-react';
+import React, { useState, useMemo, useRef } from 'react';
+import { Client, Defibrillateur, Variable, CompanyInfo } from '../types';
+import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck, Download } from 'lucide-react';
 import { checkIfEmailExistsAnywhere } from '../firebase';
 
 interface ClientTabProps {
@@ -10,6 +10,7 @@ interface ClientTabProps {
   onAddClient: (client: Omit<Client, 'id'>) => void;
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
+  companyInfo: CompanyInfo;
 }
 
 export default function ClientTab({
@@ -19,6 +20,7 @@ export default function ClientTab({
   onAddClient,
   onUpdateClient,
   onDeleteClient,
+  companyInfo,
 }: ClientTabProps) {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,6 +74,288 @@ export default function ClientTab({
   }, [variables]);
 
   const [contractFile, setContractFile] = useState<File | null>(null);
+
+  // New contract signature & redact fields
+  const [redactionContrat, setRedactionContrat] = useState('');
+  const [dateSignatureContrat, setDateSignatureContrat] = useState('');
+  const [signeParContrat, setSigneParContrat] = useState('');
+  const [signatureClientContratImage, setSignatureClientContratImage] = useState('');
+
+  const contractCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingContractSig = useRef(false);
+
+  // Drawing helpers for contract canvas signature
+  const startDrawingContractSig = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const canvas = contractCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    isDrawingContractSig.current = true;
+    const pos = getEventCoordsContractSig(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+
+  const drawContractSig = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingContractSig.current) return;
+    e.preventDefault();
+    const canvas = contractCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getEventCoordsContractSig(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const stopDrawingContractSig = () => {
+    if (!isDrawingContractSig.current) return;
+    isDrawingContractSig.current = false;
+    const canvas = contractCanvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL();
+      setSignatureClientContratImage(dataUrl);
+    }
+  };
+
+  const clearContractSignature = () => {
+    const canvas = contractCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setSignatureClientContratImage('');
+  };
+
+  const handleDownloadContractPDF = () => {
+    const compLogo = companyInfo.logo || '';
+    const compName = companyInfo.name || 'Défibeo Solutions';
+    const compEmail = companyInfo.email || '';
+    const compPhone = companyInfo.phone || '';
+    const compWebsite = companyInfo.website || '';
+
+    // Format date beautifully under contract options
+    const formattedDate = dateSignatureContrat ? new Date(dateSignatureContrat).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }) : '-';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Contrat de Maintenance - ${denomination || 'Client'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @font-face {
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: "Civilprom";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+          
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
+          body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
+            font-family: "Civilprom", sans-serif !important;
+            font-weight: 100 !important;
+            color: #000000 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            font-size: 16px !important;
+          }
+          
+          .text-large {
+            font-size: 18px !important;
+          }
+          
+          h1.doc-title {
+            font-family: "Gochi" !important;
+            font-size: 55px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+          }
+          
+          .blue-link {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+            font-weight: 100 !important;
+          }
+          
+          @media print {
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
+            .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+          }
+        </style>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </head>
+      <body class="bg-white text-black p-8">
+        <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
+          
+          <!-- HAUT DE PAGE / COORDONNEES -->
+          <div class="flex justify-between items-start pb-4" style="border-bottom: 1px solid #dcdcdc;">
+            <div>
+              \${compLogo ? \`<img src="\${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />\` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">\${compName}</span>
+              <div>\${compEmail}</div>
+              <div>\${compPhone}</div>
+              <div style="margin-top: 2px;"><a href="https://\${compWebsite}" target="_blank" class="blue-link">\${compWebsite}</a></div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold;">CONTRAT DE MAINTENANCE</div>
+              <div style="margin-top: 4px; color: #555;">Généré le \${new Date().toLocaleDateString('fr-FR')}</div>
+              \${nomContrat ? \`<div style="margin-top: 4px; font-weight: bold; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; display: inline-block;">Catégorie : \${nomContrat}</div>\` : ''}
+            </div>
+          </div>
+
+          <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
+          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+            <div>
+              <h1 class="doc-title" style="margin-bottom: 10px;">CONTRAT</h1>
+              <p style="margin: 4px 0 0 0; font-size: 15px !important; color: #555 !important;">
+                Le présent contrat formalise les engagements de maintenance et d'audit pour la sécurité de vos dispositifs d'urgence de santé.
+              </p>
+            </div>
+            <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
+              <div style="margin-bottom: 6px; font-weight: bold; color: #555;">Client bénéficiaire.</div>
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">\${denomination || 'Non renseigné'}</div>
+              \${siret ? \`<div style="margin-bottom: 2px;">SIRET. \${siret}</div>\` : ''}
+              \${nomPrenomSite ? \`<div style="margin-bottom: 2px;">Contact site. \${nomPrenomSite}</div>\` : ''}
+              \${email ? \`<div style="margin-bottom: 2px;">Email. \${email}</div>\` : ''}
+              \${phone ? \`<div style="margin-bottom: 2px;">Téléphone. \${phone}</div>\` : ''}
+            </div>
+          </div>
+
+          <!-- CORPS DU CONTRAT -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
+              Conditions Particulières & Descriptif de la maintenance
+            </div>
+            <div style="white-space: pre-wrap; font-size: 15px !important; line-height: 1.6 !important; color: #333333 !important;">
+              \${redactionContrat || "Aucun détail contractuel n'est rédigé."}
+            </div>
+          </div>
+
+          <!-- SIGNATURES -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
+              Signatures contractuelles
+            </div>
+            <div class="grid grid-cols-2 gap-6" style="margin-top: 12px;">
+              <div>
+                <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le prestataire :</div>
+                <div style="font-size: 15px !important; font-weight: bold !important;">\${compName}</div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 4px;">Signé électroniquement par défaut de service contractuel.</div>
+              </div>
+              <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le Client :</div>
+                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>\${signeParContrat || '-'}</strong></div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : \${formattedDate}</div>
+                
+                <div style="margin-top: 12px; text-align: center;">
+                  \${signatureClientContratImage ? \`
+                    <div style="display: inline-block; border: 1px dashed rgb(200, 200, 200); padding: 6px; border-radius: 8px; background-color: #fff;">
+                      <img src="\${signatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
+                      <div style="font-size: 10px !important; color: #16a34a; font-weight: bold; margin-top: 4px;">✓ Document signé électroniquement</div>
+                    </div>
+                  \` : \`
+                    <div style="border: 1px dashed #dcdcdc; padding: 20px; color: #a1a1a1; font-style: italic; font-size: 14px !important; border-radius: 8px;">
+                      Contrat en attente de signature client
+                    </div>
+                  \`}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          \${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? \`
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px !important;">
+              \${companyInfo.mentionsLegalesFactures ? \`<div style="font-size: 12px !important; color: #64748b !important;">Mentions légales : \${companyInfo.mentionsLegalesFactures}</div>\` : ''}
+              \${companyInfo.conditionsLegalesLink ? \`<div style="font-size: 12px !important; color: #64748b !important;">Conditions légales : <a href="\${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link" style="font-size: 12px !important;">\${companyInfo.conditionsLegalesLink}</a></div>\` : ''}
+            </div>
+          \` : ''}
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
+  const getEventCoordsContractSig = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e) {
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      }
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  // Draw signature if loaded
+  React.useEffect(() => {
+    if (isModalOpen && signatureClientContratImage && contractCanvasRef.current) {
+      const canvas = contractCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = signatureClientContratImage;
+      }
+    }
+  }, [signatureClientContratImage, isModalOpen]);
   
   const [error, setError] = useState('');
   
@@ -194,6 +478,11 @@ export default function ClientTab({
     setTelephoneSite5('');
     setEmailSite5('');
 
+    setRedactionContrat('');
+    setDateSignatureContrat('');
+    setSigneParContrat('');
+    setSignatureClientContratImage('');
+
     setIsModalOpen(true);
   };
 
@@ -215,6 +504,11 @@ export default function ClientTab({
     setFinContrat(client.finContrat || '');
     setContractFile(null);
     setError('');
+
+    setRedactionContrat(client.redactionContrat || '');
+    setDateSignatureContrat(client.dateSignatureContrat || '');
+    setSigneParContrat(client.signeParContrat || '');
+    setSignatureClientContratImage(client.signatureClientContratImage || '');
 
     setTypeContact1(client.typeContact1 || '');
 
@@ -322,6 +616,11 @@ export default function ClientTab({
       nomContact5: nomContact5,
       telephoneSite5: telephoneSite5,
       emailSite5: emailSite5,
+
+      redactionContrat: redactionContrat,
+      dateSignatureContrat: dateSignatureContrat,
+      signeParContrat: signeParContrat,
+      signatureClientContratImage: signatureClientContratImage,
     };
 
     if (editingClient) {
@@ -1039,7 +1338,16 @@ export default function ClientTab({
                       <select
                         id="input-client-contract-name"
                         value={nomContrat}
-                        onChange={(e) => setNomContrat(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setNomContrat(val);
+                          const selectedModel = contractModels.find(v => v.nom === val);
+                          if (selectedModel) {
+                            setRedactionContrat(selectedModel.description || '');
+                          } else {
+                            setRedactionContrat('');
+                          }
+                        }}
                         className="font-sans cursor-pointer focus:outline-none"
                       >
                         <option value="">Sélectionnez une catégorie.</option>
@@ -1094,59 +1402,127 @@ export default function ClientTab({
                     </div>
                   </div>
 
-                  {/* Upload de fichier si contrat sélectionné */}
-                  {nomContrat && nomContrat.trim() !== '' && nomContrat.trim() !== 'Sans contrat de maintenance' && (
-                    <div className="space-y-1 pt-2">
+                  {/* Rédaction du contrat */}
+                  <div className="space-y-1 pt-2">
+                    <label htmlFor="input-client-contract-redac" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Rédaction du contrat.
+                    </label>
+                    <textarea
+                      id="input-client-contract-redac"
+                      value={redactionContrat}
+                      onChange={(e) => setRedactionContrat(e.target.value)}
+                      placeholder="Contenu / Rédaction du contrat..."
+                      rows={5}
+                      className="w-full font-sans text-sm text-black bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all"
+                      style={{
+                        border: '1px solid rgb(218, 218, 218)',
+                        borderRadius: '11px',
+                        padding: '10px 14px',
+                      }}
+                    />
+                  </div>
+
+                  {/* Date, Signé Par, Signature en 3 colonnes */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 items-start">
+                    {/* Date de signature */}
+                    <div className="space-y-1">
+                      <label htmlFor="input-client-contract-sig-date" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Date de signature.
+                      </label>
+                      <input
+                        type="date"
+                        id="input-client-contract-sig-date"
+                        value={dateSignatureContrat}
+                        onChange={(e) => setDateSignatureContrat(e.target.value)}
+                        className="w-full text-sm text-black bg-white focus:outline-none"
+                        style={{
+                          border: '1px solid rgb(218, 218, 218)',
+                          borderRadius: '11px',
+                          padding: '10px 14px',
+                          height: '42px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Signé par */}
+                    <div className="space-y-1">
+                      <label htmlFor="input-client-contract-sig-by" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Signé par.
+                      </label>
+                      <input
+                        type="text"
+                        id="input-client-contract-sig-by"
+                        value={signeParContrat}
+                        onChange={(e) => setSigneParContrat(e.target.value)}
+                        placeholder="Nom du signataire"
+                        className="w-full text-sm text-black bg-white focus:outline-none"
+                        style={{
+                          border: '1px solid rgb(218, 218, 218)',
+                          borderRadius: '11px',
+                          padding: '10px 14px',
+                          height: '42px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Signature du client */}
+                    <div className="space-y-1 flex flex-col">
                       <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                        Téléchargement du contrat.
+                        Signature du client.
                       </label>
                       <div 
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const file = e.dataTransfer.files?.[0];
-                          if (!file) return;
-                          const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-                          if (file.size > MAX_SIZE_BYTES) {
-                            alert(`Le fichier dépasse la limite standard de 10 Mo (poids du fichier sélectionné : ${(file.size / (1024 * 1024)).toFixed(2)} Mo).`);
-                            return;
-                          }
-                          setContractFile(file);
+                        className="bg-slate-50/50 flex flex-col items-center justify-center p-2"
+                        style={{
+                          border: '1px dashed rgb(200, 200, 200)',
+                          borderRadius: '11px',
                         }}
-                        onClick={() => document.getElementById('client-contract-file-upload-input')?.click()}
-                        className="p-8 text-center space-y-4 hover:bg-[#ffecf8]/20 transition-all cursor-pointer"
-                        style={{ borderRadius: '13px', border: 'none', backgroundColor: '#fdecff' }}
                       >
-                        <input
-                          type="file"
-                          id="client-contract-file-upload-input"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (!file) return;
-                            const MAX_SIZE_BYTES = 10 * 1024 * 1024; // 10MB
-                            if (file.size > MAX_SIZE_BYTES) {
-                              alert(`Le fichier dépasse la limite standard de 10 Mo (poids du fichier sélectionné : ${(file.size / (1024 * 1024)).toFixed(2)} Mo).`);
-                              return;
-                            }
-                            setContractFile(file);
-                          }}
+                        <canvas
+                          ref={contractCanvasRef}
+                          width={320}
+                          height={120}
+                          className="bg-white border border-slate-200 cursor-crosshair rounded-lg"
+                          onMouseDown={startDrawingContractSig}
+                          onMouseMove={drawContractSig}
+                          onMouseUp={stopDrawingContractSig}
+                          onMouseLeave={stopDrawingContractSig}
+                          onTouchStart={startDrawingContractSig}
+                          onTouchMove={drawContractSig}
+                          onTouchEnd={stopDrawingContractSig}
                         />
-                        
-                        <div className="font-sans" style={{ fontSize: '16px', color: '#000000' }}>
-                          {contractFile ? (
-                            <span className="font-bold inline-block" style={{ fontSize: '16px', padding: '9px 16px', backgroundColor: '#501655', border: 'none', color: '#ffffff', borderRadius: '9999px' }}>
-                              Fichier contrat : {contractFile.name} ({(contractFile.size / (1024 * 1024)).toFixed(2)} Mo)
-                            </span>
-                          ) : (
-                            <span style={{ color: '#000000', fontSize: '16px' }}>
-                              Cliquez dans cette zone ou glissez directement votre fichier.
+                        <div className="flex justify-between w-full mt-2 px-1">
+                          <button
+                            type="button"
+                            onClick={clearContractSignature}
+                            className="text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer border-0 bg-transparent"
+                          >
+                            Effacer
+                          </button>
+                          {signatureClientContratImage && (
+                            <span className="text-[10px] text-emerald-600 font-bold font-sans">
+                              ✓ Signé
                             </span>
                           )}
                         </div>
                       </div>
                     </div>
-                  )}
+                  </div>
+
+                  {/* Bouton Télécharger le contrat PDF */}
+                  <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
+                    <button
+                      type="button"
+                      onClick={handleDownloadContractPDF}
+                      className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 border-0"
+                      style={{
+                        backgroundColor: '#4f46e5',
+                      }}
+                    >
+                      <Download size={15} />
+                      Télécharger le contrat PDF
+                    </button>
+                  </div>
+
                 </div>
               </div>
 

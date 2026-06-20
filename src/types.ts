@@ -44,6 +44,10 @@ export interface Client {
   telephoneSite5?: string;
   emailSite5?: string;
   commentaire?: string;
+  redactionContrat?: string;
+  dateSignatureContrat?: string;
+  signeParContrat?: string;
+  signatureClientContratImage?: string;
 }
 
 export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service';
@@ -126,6 +130,8 @@ export interface Defibrillateur {
   situationElectrodeP: 'Vert' | 'Orange' | 'Rouge';
   commentaireElectrodeP: string;
   peremptionSecoursElectrodeP: string;
+  modeleElectrodePSecoursId?: string;
+  lotElectrodePSecours?: string;
 
   // Section 8 - Batterie (B)
   modeleBatterieId: string; // Lookup Variable category 'Modèle Batterie'
@@ -297,6 +303,18 @@ export interface OtherEquipment {
   // Section 5 - Champs techniques spécifiques
   specifiques: Record<string, any>;
 }
+
+export interface PointageAutoVigilance {
+  id: string;
+  clientId: string;
+  equipementId: string;
+  equipementIdentifiant: string;
+  equipementNom: string;
+  date: string;
+  commentaire: 'En fonctionnement et accessible' | 'Problème résolu' | 'Problème non résolu' | 'Problème non résolu et assistance demandée';
+  createdAt?: string;
+}
+
 
 
 

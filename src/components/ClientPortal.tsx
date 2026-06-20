@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable, OtherEquipment } from '../types';
+import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable, OtherEquipment, PointageAutoVigilance } from '../types';
 import { formatDateToFR, computeProchaineMaintenance } from '../utils';
 
 interface ClientPortalProps {
@@ -15,6 +15,8 @@ interface ClientPortalProps {
   generatedReports?: any[];
   onUpdateClient?: (client: Client) => void;
   stocks?: any[];
+  pointagesAutoVigilance?: PointageAutoVigilance[];
+  onAddPointageAutoVigilance?: (newPt: PointageAutoVigilance) => void;
 }
 
 export default function ClientPortal({
@@ -30,16 +32,365 @@ export default function ClientPortal({
   generatedReports = [],
   onUpdateClient,
   stocks = [],
+  pointagesAutoVigilance = [],
+  onAddPointageAutoVigilance,
 }: ClientPortalProps) {
-  const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info'>('defibs');
+  const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info' | 'autovigilance'>('defibs');
 
   const authenticatedClient = initialClient;
+
+  // Contact editing states
+  const [isEditingContacts, setIsEditingContacts] = useState(false);
+  const [c1Nom, setC1Nom] = useState('');
+  const [c1Tel, setC1Tel] = useState('');
+  const [c1Email, setC1Email] = useState('');
+  const [c1Type, setC1Type] = useState('');
+
+  const [c2Nom, setC2Nom] = useState('');
+  const [c2Tel, setC2Tel] = useState('');
+  const [c2Email, setC2Email] = useState('');
+  const [c2Type, setC2Type] = useState('');
+
+  const [c3Nom, setC3Nom] = useState('');
+  const [c3Tel, setC3Tel] = useState('');
+  const [c3Email, setC3Email] = useState('');
+  const [c3Type, setC3Type] = useState('');
+
+  const [c4Nom, setC4Nom] = useState('');
+  const [c4Tel, setC4Tel] = useState('');
+  const [c4Email, setC4Email] = useState('');
+  const [c4Type, setC4Type] = useState('');
+
+  const [c5Nom, setC5Nom] = useState('');
+  const [c5Tel, setC5Tel] = useState('');
+  const [c5Email, setC5Email] = useState('');
+  const [c5Type, setC5Type] = useState('');
+
+  useEffect(() => {
+    if (authenticatedClient) {
+      setC1Nom(authenticatedClient.nomPrenomSite || '');
+      setC1Tel(authenticatedClient.telephoneSite || '');
+      setC1Email(authenticatedClient.emailSite || '');
+      setC1Type(authenticatedClient.typeContact1 || '');
+
+      setC2Nom(authenticatedClient.nomContact2 || '');
+      setC2Tel(authenticatedClient.telephoneSite2 || '');
+      setC2Email(authenticatedClient.emailSite2 || '');
+      setC2Type(authenticatedClient.typeContact2 || '');
+
+      setC3Nom(authenticatedClient.nomContact3 || '');
+      setC3Tel(authenticatedClient.telephoneSite3 || '');
+      setC3Email(authenticatedClient.emailSite3 || '');
+      setC3Type(authenticatedClient.typeContact3 || '');
+
+      setC4Nom(authenticatedClient.nomContact4 || '');
+      setC4Tel(authenticatedClient.telephoneSite4 || '');
+      setC4Email(authenticatedClient.emailSite4 || '');
+      setC4Type(authenticatedClient.typeContact4 || '');
+
+      setC5Nom(authenticatedClient.nomContact5 || '');
+      setC5Tel(authenticatedClient.telephoneSite5 || '');
+      setC5Email(authenticatedClient.emailSite5 || '');
+      setC5Type(authenticatedClient.typeContact5 || '');
+    }
+  }, [authenticatedClient]);
 
   // Signature related states & refs
   const [clientSignature, setClientSignature] = useState(authenticatedClient?.clientSignatureImage || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const clientCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingSig = useRef(false);
+
+  // Contract-specific states in ClientPortal
+  const [portalRedactionContrat, setPortalRedactionContrat] = useState('');
+  const [portalDateSignatureContrat, setPortalDateSignatureContrat] = useState('');
+  const [portalSigneParContrat, setPortalSigneParContrat] = useState('');
+  const [portalSignatureClientContratImage, setPortalSignatureClientContratImage] = useState('');
+  const [contractSaveSuccess, setContractSaveSuccess] = useState(false);
+
+  const portalContractCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingPortalContractSig = useRef(false);
+
+  useEffect(() => {
+    if (authenticatedClient) {
+      setPortalRedactionContrat(authenticatedClient.redactionContrat || '');
+      setPortalDateSignatureContrat(authenticatedClient.dateSignatureContrat || new Date().toISOString().split('T')[0]);
+      setPortalSigneParContrat(authenticatedClient.signeParContrat || '');
+      setPortalSignatureClientContratImage(authenticatedClient.signatureClientContratImage || '');
+    }
+  }, [authenticatedClient]);
+
+  useEffect(() => {
+    if (activePortalTab === 'info' && portalSignatureClientContratImage && portalContractCanvasRef.current) {
+      const canvas = portalContractCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = portalSignatureClientContratImage;
+      }
+    }
+  }, [portalSignatureClientContratImage, activePortalTab]);
+
+  const startDrawingPortalContractSig = (e: React.MouseEvent | React.TouchEvent) => {
+    if (authenticatedClient?.signatureClientContratImage) return; // Read-only once saved
+    e.preventDefault();
+    const canvas = portalContractCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    isDrawingPortalContractSig.current = true;
+    const pos = getEventCoordsSig(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+
+  const drawPortalContractSig = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingPortalContractSig.current) return;
+    e.preventDefault();
+    const canvas = portalContractCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getEventCoordsSig(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const stopDrawingPortalContractSig = () => {
+    if (!isDrawingPortalContractSig.current) return;
+    isDrawingPortalContractSig.current = false;
+    const canvas = portalContractCanvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL();
+      setPortalSignatureClientContratImage(dataUrl);
+    }
+  };
+
+  const clearPortalContractSignature = () => {
+    if (authenticatedClient?.signatureClientContratImage) return; // Read-only once saved
+    const canvas = portalContractCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setPortalSignatureClientContratImage('');
+  };
+
+  const handleSavePortalContract = () => {
+    if (!authenticatedClient || !onUpdateClient) return;
+    if (!portalSigneParContrat.trim()) {
+      alert("Veuillez renseigner le champ 'Signé par' avant d'enregistrer.");
+      return;
+    }
+    if (!portalSignatureClientContratImage) {
+      alert("Veuillez signer avant d'enregistrer.");
+      return;
+    }
+
+    const updated: Client = {
+      ...authenticatedClient,
+      dateSignatureContrat: portalDateSignatureContrat,
+      signeParContrat: portalSigneParContrat.trim(),
+      signatureClientContratImage: portalSignatureClientContratImage,
+    };
+
+    onUpdateClient(updated);
+    setContractSaveSuccess(true);
+    setTimeout(() => {
+      setContractSaveSuccess(false);
+    }, 3000);
+  };
+
+  const handleDownloadContractPDF = () => {
+    if (!authenticatedClient) return;
+    const compLogo = companyInfo.logo || '';
+    const compName = companyInfo.name || 'Défibeo Solutions';
+    const compEmail = companyInfo.email || '';
+    const compPhone = companyInfo.phone || '';
+    const compWebsite = companyInfo.website || '';
+
+    // Format date beautifully under contract options
+    const formattedDate = portalDateSignatureContrat ? new Date(portalDateSignatureContrat).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }) : '-';
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Contrat de Maintenance - ${authenticatedClient.denomination || 'Client'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @font-face {
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: "Civilprom";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+          
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
+          body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
+            font-family: "Civilprom", sans-serif !important;
+            font-weight: 100 !important;
+            color: #000000 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            font-size: 16px !important;
+          }
+          
+          .text-large {
+            font-size: 18px !important;
+          }
+          
+          h1.doc-title {
+            font-family: "Gochi" !important;
+            font-size: 55px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+          }
+          
+          .blue-link {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+            font-weight: 100 !important;
+          }
+          
+          @media print {
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
+            .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+          }
+        </style>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </head>
+      <body class="bg-white text-black p-8">
+        <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
+          
+          <!-- HAUT DE PAGE / COORDONNEES -->
+          <div class="flex justify-between items-start pb-4" style="border-bottom: 1px solid #dcdcdc;">
+            <div>
+              \${compLogo ? \`<img src="\${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />\` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">\${compName}</span>
+              <div>\${compEmail}</div>
+              <div>\${compPhone}</div>
+              <div style="margin-top: 2px;"><a href="https://\${compWebsite}" target="_blank" class="blue-link">\${compWebsite}</a></div>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-weight: bold;">CONTRAT DE MAINTENANCE</div>
+              <div style="margin-top: 4px; color: #555;">Généré le \${new Date().toLocaleDateString('fr-FR')}</div>
+              \${authenticatedClient.nomContrat ? \`<div style="margin-top: 4px; font-weight: bold; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; display: inline-block;">Catégorie : \${authenticatedClient.nomContrat}</div>\` : ''}
+            </div>
+          </div>
+
+          <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
+          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+            <div>
+              <h1 class="doc-title" style="margin-bottom: 10px;">CONTRAT</h1>
+              <p style="margin: 4px 0 0 0; font-size: 15px !important; color: #555 !important;">
+                Le présent contrat formalise les engagements de maintenance et d'audit pour la sécurité de vos dispositifs d'urgence de santé.
+              </p>
+            </div>
+            <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
+              <div style="margin-bottom: 6px; font-weight: bold; color: #555;">Client bénéficiaire.</div>
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">\${authenticatedClient.denomination || 'Non renseigné'}</div>
+              \${authenticatedClient.siret ? \`<div style="margin-bottom: 2px;">SIRET. \${authenticatedClient.siret}</div>\` : ''}
+              \${authenticatedClient.nomPrenomSite ? \`<div style="margin-bottom: 2px;">Contact site. \${authenticatedClient.nomPrenomSite}</div>\` : ''}
+              \${authenticatedClient.email ? \`<div style="margin-bottom: 2px;">Email. \${authenticatedClient.email}</div>\` : ''}
+              \${authenticatedClient.phone ? \`<div style="margin-bottom: 2px;">Téléphone. \${authenticatedClient.phone}</div>\` : ''}
+            </div>
+          </div>
+
+          <!-- CORPS DU CONTRAT -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
+              Conditions Particulières & Descriptif de la maintenance
+            </div>
+            <div style="white-space: pre-wrap; font-size: 15px !important; line-height: 1.6 !important; color: #333333 !important;">
+              \${portalRedactionContrat || "Aucun détail contractuel n'est rédigé."}
+            </div>
+          </div>
+
+          <!-- SIGNATURES -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
+            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
+              Signatures contractuelles
+            </div>
+            <div class="grid grid-cols-2 gap-6" style="margin-top: 12px;">
+              <div>
+                <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le prestataire :</div>
+                <div style="font-size: 15px !important; font-weight: bold !important;">\${compName}</div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 4px;">Signé électroniquement par défaut de service contractuel.</div>
+              </div>
+              <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
+                <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le Client :</div>
+                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>\${portalSigneParContrat || '-'}</strong></div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : \${formattedDate}</div>
+                
+                <div style="margin-top: 12px; text-align: center;">
+                  \${portalSignatureClientContratImage ? \`
+                    <div style="display: inline-block; border: 1px dashed rgb(200, 200, 200); padding: 6px; border-radius: 8px; background-color: #fff;">
+                      <img src="\${portalSignatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
+                      <div style="font-size: 10px !important; color: #16a34a; font-weight: bold; margin-top: 4px;">✓ Document signé électroniquement</div>
+                    </div>
+                  \` : \`
+                    <div style="border: 1px dashed #dcdcdc; padding: 20px; color: #a1a1a1; font-style: italic; font-size: 14px !important; border-radius: 8px;">
+                      Contrat en attente de signature client
+                    </div>
+                  \`}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          \${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? \`
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px !important;">
+              \${companyInfo.mentionsLegalesFactures ? \`<div style="font-size: 12px !important; color: #64748b !important;">Mentions légales : \${companyInfo.mentionsLegalesFactures}</div>\` : ''}
+              \${companyInfo.conditionsLegalesLink ? \`<div style="font-size: 12px !important; color: #64748b !important;">Conditions légales : <a href="\${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link" style="font-size: 12px !important;">\${companyInfo.conditionsLegalesLink}</a></div>\` : ''}
+            </div>
+          \` : ''}
+
+        </div>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
 
   useEffect(() => {
     if (authenticatedClient) {
@@ -157,6 +508,67 @@ export default function ClientPortal({
     }
   };
 
+  const handleSaveContacts = () => {
+    if (!authenticatedClient) return;
+    if (onUpdateClient) {
+      const updated: Client = {
+        ...authenticatedClient,
+        nomPrenomSite: c1Nom,
+        telephoneSite: c1Tel,
+        emailSite: c1Email,
+        typeContact1: c1Type,
+
+        nomContact2: c2Nom,
+        telephoneSite2: c2Tel,
+        emailSite2: c2Email,
+        typeContact2: c2Type,
+
+        nomContact3: c3Nom,
+        telephoneSite3: c3Tel,
+        emailSite3: c3Email,
+        typeContact3: c3Type,
+
+        nomContact4: c4Nom,
+        telephoneSite4: c4Tel,
+        emailSite4: c4Email,
+        typeContact4: c4Type,
+
+        nomContact5: c5Nom,
+        telephoneSite5: c5Tel,
+        emailSite5: c5Email,
+        typeContact5: c5Type,
+      };
+      onUpdateClient(updated);
+      setIsEditingContacts(false);
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+      }, 3000);
+    }
+  };
+
+  const renderEditField = (label: string, value: string, onChange: (val: string) => void) => {
+    return (
+      <div className="space-y-1">
+        <span className="block text-xs font-semibold text-slate-700 font-sans">
+          {label}
+        </span>
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+          style={{
+            border: '1px solid #cfcfcf',
+            borderRadius: '11px',
+            padding: '10px 14px',
+            fontWeight: 100
+          }}
+        />
+      </div>
+    );
+  };
+
   // Filter content for the logged-in client
   const clientDefibs = authenticatedClient
     ? defibrillateurs.filter((df) => df.clientId === authenticatedClient.id)
@@ -165,6 +577,63 @@ export default function ClientPortal({
   const clientOthers = authenticatedClient
     ? otherEquipments.filter((oth) => oth.clientId === authenticatedClient.id)
     : [];
+
+  // Pointages form states
+  const [selectedEquipId, setSelectedEquipId] = useState('');
+  const [pointageDate, setPointageDate] = useState(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
+  const [pointageComment, setPointageComment] = useState<'En fonctionnement et accessible' | 'Problème résolu' | 'Problème non résolu' | 'Problème non résolu et assistance demandée'>('En fonctionnement et accessible');
+  const [pointageSuccess, setPointageSuccess] = useState(false);
+
+  const assignedEquipment = [
+    ...clientDefibs.map(d => ({
+      id: d.id,
+      identifiant: d.identifiant,
+      nom: `${variables.find(v => v.id === d.modeleId)?.nom || 'Défibrillateur'} (${d.identifiant})`,
+      type: 'defib'
+    })),
+    ...clientOthers.map(o => ({
+      id: o.id,
+      identifiant: o.identifiant,
+      nom: `${o.categorie || 'Autre matériel'} (${o.identifiant})`,
+      type: 'other'
+    }))
+  ];
+
+  const handleSavePointage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authenticatedClient) return;
+    if (!selectedEquipId) {
+      alert('Veuillez sélectionner un matériel.');
+      return;
+    }
+    const equip = assignedEquipment.find(eq => eq.id === selectedEquipId);
+    if (!equip) return;
+
+    if (onAddPointageAutoVigilance) {
+      const newPt: PointageAutoVigilance = {
+        id: 'pt_av_' + Date.now(),
+        clientId: authenticatedClient.id,
+        equipementId: equip.id,
+        equipementIdentifiant: equip.identifiant,
+        equipementNom: equip.nom,
+        date: pointageDate,
+        commentaire: pointageComment,
+        createdAt: new Date().toISOString()
+      };
+      onAddPointageAutoVigilance(newPt);
+      setSelectedEquipId('');
+      setPointageSuccess(true);
+      setTimeout(() => {
+        setPointageSuccess(false);
+      }, 3000);
+    }
+  };
 
   const clientDocs = authenticatedClient
     ? commercialDocs.filter((doc) => doc.clientId === authenticatedClient.id)
@@ -222,6 +691,11 @@ export default function ClientPortal({
             font-display: swap;
           }
           
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
           body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
             font-family: "Civilprom", sans-serif !important;
             font-weight: 100 !important;
@@ -250,7 +724,7 @@ export default function ClientPortal({
           
           @media print {
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
             .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
           }
         </style>
@@ -296,14 +770,6 @@ export default function ClientPortal({
             </div>
           </div>
 
-          <!-- MENTIONS LEGALES ET CONDITIONS -->
-          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
-            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
-              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
-              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
-            </div>
-          ` : ''}
-
           <!-- TABLEAU DES PRESTATIONS / PIECES -->
           <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -338,6 +804,14 @@ export default function ClientPortal({
               </div>
             </div>
           </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
+              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
+            </div>
+          ` : ''}
 
         </div>
       </body>
@@ -970,7 +1444,7 @@ export default function ClientPortal({
       <header 
         className="sticky top-0 z-50 px-4 py-5 shrink-0 border-b border-purple-950/20 shadow-md bg-gradient-to-r from-[#7e2e86] to-[#36093a]"
       >
-        <div className="max-w-4xl mx-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between font-sans">
+        <div className="max-w-7xl mx-auto flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between font-sans">
           <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
             <h1 className="text-lg font-black text-white animate-fadeIn" style={{ letterSpacing: 'normal' }}>
               {companyInfo?.name || 'Défibeo Solutions'}
@@ -1013,7 +1487,7 @@ export default function ClientPortal({
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6">
         
         {/* Navigation Tabs (Stacks vertically on mobile, horizontally on sm screens) */}
         <div 
@@ -1029,7 +1503,18 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Défibrillateurs & Autres matériels
+            Matériels
+          </button>
+          <button
+            onClick={() => setActivePortalTab('autovigilance')}
+            className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
+              activePortalTab === 'autovigilance'
+                ? 'bg-white shadow-xs'
+                : 'bg-transparent hover:bg-white/45'
+            }`}
+            style={{ borderRadius: '12px' }}
+          >
+            Pointages auto-vigilance
           </button>
           <button
             onClick={() => setActivePortalTab('bills')}
@@ -1270,6 +1755,7 @@ export default function ClientPortal({
               const clientOtherIdents = new Set(clientOthers.map(o => o.identifiant));
 
               const clientReports = generatedReports.filter(rep => {
+                if (!rep.validated) return false;
                 const snapClientId = rep.defibSnapshot?.clientId;
                 if (snapClientId && snapClientId === authenticatedClient.id) return true;
                 if (rep.defibId && (clientDefibIds.has(rep.defibId) || clientOtherIds.has(rep.defibId))) return true;
@@ -1342,6 +1828,201 @@ export default function ClientPortal({
             })()
           )}
 
+          {/* Section: Pointages auto-vigilance */}
+          {activePortalTab === 'autovigilance' && (
+            <div className="space-y-6">
+              <div
+                className="bg-white p-6"
+                style={{
+                  border: '1px solid #cfcfcf',
+                  borderRadius: '13px',
+                }}
+              >
+                <div className="border-b border-slate-100 pb-4 mb-5">
+                  <h2 className="text-[20px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
+                    Nouveau pointage d'auto-vigilance
+                  </h2>
+                  <p className="text-xs text-slate-500 font-sans mt-1">
+                    Enregistrez périodiquement l'état et le bon fonctionnement de vos matériels de sécurité.
+                  </p>
+                </div>
+
+                {assignedEquipment.length === 0 ? (
+                  <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-sans">
+                    Aucun matériel n'est actuellement affecté à votre établissement. Vous pourrez ajouter des pointages d'auto-vigilance dès que votre parc de matériels sera configuré.
+                  </div>
+                ) : (
+                  <form onSubmit={handleSavePointage} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {/* Sélection du matériel */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                          Sélection du matériel *
+                        </label>
+                        <select
+                          required
+                          value={selectedEquipId}
+                          onChange={(e) => setSelectedEquipId(e.target.value)}
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer"
+                          style={{
+                            border: '1px solid #cfcfcf',
+                            borderRadius: '11px',
+                            padding: '10px 14px',
+                            fontWeight: 100,
+                            height: '42px'
+                          }}
+                        >
+                          <option value="">-- Choisir un matériel --</option>
+                          {assignedEquipment.map((eq) => (
+                            <option key={eq.id} value={eq.id}>
+                              {eq.nom}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Date */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                          Date *
+                        </label>
+                        <input
+                          type="date"
+                          required
+                          value={pointageDate}
+                          onChange={(e) => setPointageDate(e.target.value)}
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                          style={{
+                            border: '1px solid #cfcfcf',
+                            borderRadius: '11px',
+                            padding: '10px 14px',
+                            fontWeight: 100,
+                            height: '42px'
+                          }}
+                        />
+                      </div>
+
+                      {/* Commentaire */}
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                          Commentaire *
+                        </label>
+                        <select
+                          required
+                          value={pointageComment}
+                          onChange={(e) => setPointageComment(e.target.value as any)}
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer"
+                          style={{
+                            border: '1px solid #cfcfcf',
+                            borderRadius: '11px',
+                            padding: '10px 14px',
+                            fontWeight: 100,
+                            height: '42px'
+                          }}
+                        >
+                          <option value="En fonctionnement et accessible">En fonctionnement et accessible</option>
+                          <option value="Problème résolu">Problème résolu</option>
+                          <option value="Problème non résolu">Problème non résolu</option>
+                          <option value="Problème non résolu et assistance demandée">Problème non résolu et assistance demandée</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div>
+                        {pointageSuccess && (
+                          <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
+                            ✓ Pointage enregistré avec succès !
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        className="px-6 py-2.5 text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none shrink-0"
+                        style={{
+                          backgroundColor: '#22c55e',
+                          boxShadow: '0 4px 6px -1px rgb(34 197 94 / 0.1), 0 2px 4px -2px rgb(34 197 94 / 0.1)'
+                        }}
+                      >
+                        Enregistrer
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+
+              {/* Liste des pointages */}
+              <div
+                className="bg-white p-6"
+                style={{
+                  border: '1px solid #cfcfcf',
+                  borderRadius: '13px',
+                }}
+              >
+                <div className="border-b border-slate-100 pb-3 mb-4">
+                  <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
+                    Historique des pointages d'auto-vigilance
+                  </h3>
+                  <p className="text-xs text-slate-500 font-sans mt-0.5">
+                    Retrouvez ci-dessous la liste de tous vos autocontrôles de vigilance déclarés.
+                  </p>
+                </div>
+
+                {!pointagesAutoVigilance || pointagesAutoVigilance.filter(p => p.clientId === authenticatedClient?.id).length === 0 ? (
+                  <div className="p-8 text-center text-slate-500 font-sans italic text-sm">
+                    Aucun pointage enregistré pour le moment.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left font-sans text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500 font-bold">
+                          <th className="py-3 px-2">Date du pointage</th>
+                          <th className="py-3 px-2">Matériel concerné</th>
+                          <th className="py-3 px-2">Identifiant</th>
+                          <th className="py-3 px-2">Statut / Commentaire</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {[...pointagesAutoVigilance]
+                          .filter(p => p.clientId === authenticatedClient?.id)
+                          .sort((a, b) => b.date.localeCompare(a.date))
+                          .map((pt) => {
+                            let badgeStyle = { backgroundColor: '#e2e8f0', color: '#1e293b' };
+                            if (pt.commentaire === 'En fonctionnement et accessible' || pt.commentaire === 'Problème résolu') {
+                              badgeStyle = { backgroundColor: '#dcfce7', color: '#15803d' };
+                            } else if (pt.commentaire === 'Problème non résolu') {
+                              badgeStyle = { backgroundColor: '#fef3c7', color: '#b45309' };
+                            } else if (pt.commentaire === 'Problème non résolu et assistance demandée') {
+                              badgeStyle = { backgroundColor: '#fee2e2', color: '#b91c1c' };
+                            }
+
+                            return (
+                              <tr key={pt.id} className="hover:bg-slate-50/50 transition-colors">
+                                <td className="py-3 px-2 font-medium text-slate-900">
+                                  {formatDateToFR ? formatDateToFR(pt.date) : pt.date}
+                                </td>
+                                <td className="py-3 px-2 text-slate-700">{pt.equipementNom}</td>
+                                <td className="py-3 px-2 text-slate-500 font-mono text-xs">{pt.equipementIdentifiant}</td>
+                                <td className="py-3 px-2">
+                                  <span
+                                    className="inline-block px-2.5 py-1 text-xs font-bold rounded-full font-sans"
+                                    style={badgeStyle}
+                                  >
+                                    {pt.commentaire}
+                                  </span>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Section 3: Informations (contrat) */}
           {activePortalTab === 'info' && (
             <div className="space-y-6">
@@ -1378,7 +2059,7 @@ export default function ClientPortal({
                 </div>
               )}
 
-              {/* Card Contacts de l'Établissement */}
+              {/* Card Contrat */}
               <div
                 className="bg-white p-5 list-none space-y-4"
                 style={{
@@ -1387,65 +2068,333 @@ export default function ClientPortal({
                 }}
               >
                 <div>
-                  <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
-                    Contacts de l'établissement / Site
+                  <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
+                    Contrat.
                   </h3>
                   <p className="text-xs text-slate-500 font-sans mt-1">
-                    Retrouvez ci-dessous la liste des contacts enregistrés pour votre établissement.
+                    Retrouvez ci-dessous les détails de votre contrat, la rédaction contractuelle de la maintenance, et signez votre contrat en ligne.
                   </p>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Contact 1 */}
-                  <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 1 {authenticatedClient.typeContact1 ? `(${authenticatedClient.typeContact1})` : ''}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {renderField('Contact', authenticatedClient.nomPrenomSite || '-')}
-                      {renderField('Téléphone', authenticatedClient.telephoneSite || '-')}
-                      {renderField('Email', authenticatedClient.emailSite || '-')}
-                    </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                    Rédaction du contrat de maintenance.
+                  </label>
+                  <textarea
+                    value={portalRedactionContrat || "Aucun texte contractuel rédigé pour le moment."}
+                    readOnly={true}
+                    disabled={true}
+                    rows={6}
+                    className="w-full text-slate-700 bg-slate-50 p-3 text-sm focus:outline-none rounded-xl border border-slate-200"
+                  />
+                </div>
+
+                {/* 3 columns on desktop for Signature details */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-start">
+                  {/* Date de signature */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Date de signature.
+                    </label>
+                    <input
+                      type="date"
+                      value={portalDateSignatureContrat}
+                      onChange={(e) => setPortalDateSignatureContrat(e.target.value)}
+                      disabled={!!authenticatedClient?.signatureClientContratImage}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
+                    />
                   </div>
 
-                  {/* Contact 2 */}
-                  <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 2 {authenticatedClient.typeContact2 ? `(${authenticatedClient.typeContact2})` : ''}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {renderField('Contact', authenticatedClient.nomContact2 || '-')}
-                      {renderField('Téléphone', authenticatedClient.telephoneSite2 || '-')}
-                      {renderField('Email', authenticatedClient.emailSite2 || '-')}
-                    </div>
+                  {/* Signé par */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Signé par.
+                    </label>
+                    <input
+                      type="text"
+                      value={portalSigneParContrat}
+                      onChange={(e) => setPortalSigneParContrat(e.target.value)}
+                      disabled={!!authenticatedClient?.signatureClientContratImage}
+                      placeholder="Nom du signataire"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
+                    />
                   </div>
 
-                  {/* Contact 3 */}
-                  <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 3 {authenticatedClient.typeContact3 ? `(${authenticatedClient.typeContact3})` : ''}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {renderField('Contact', authenticatedClient.nomContact3 || '-')}
-                      {renderField('Téléphone', authenticatedClient.telephoneSite3 || '-')}
-                      {renderField('Email', authenticatedClient.emailSite3 || '-')}
-                    </div>
-                  </div>
-
-                  {/* Contact 4 */}
-                  <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 4 {authenticatedClient.typeContact4 ? `(${authenticatedClient.typeContact4})` : ''}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {renderField('Contact', authenticatedClient.nomContact4 || '-')}
-                      {renderField('Téléphone', authenticatedClient.telephoneSite4 || '-')}
-                      {renderField('Email', authenticatedClient.emailSite4 || '-')}
-                    </div>
-                  </div>
-
-                  {/* Contact 5 */}
-                  <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                    <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 5 {authenticatedClient.typeContact5 ? `(${authenticatedClient.typeContact5})` : ''}</div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {renderField('Contact', authenticatedClient.nomContact5 || '-')}
-                      {renderField('Téléphone', authenticatedClient.telephoneSite5 || '-')}
-                      {renderField('Email', authenticatedClient.emailSite5 || '-')}
+                  {/* Signature du client */}
+                  <div className="space-y-1 flex flex-col">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Signature du client.
+                    </label>
+                    <div 
+                      className="bg-slate-50/50 flex flex-col items-center justify-center p-2"
+                      style={{
+                        border: '1px dashed rgb(200, 200, 200)',
+                        borderRadius: '11px',
+                      }}
+                    >
+                      {authenticatedClient?.signatureClientContratImage ? (
+                        <div className="bg-white border border-slate-200 rounded-lg p-1 w-[320px] h-[120px] flex items-center justify-center">
+                          <img 
+                            src={authenticatedClient.signatureClientContratImage} 
+                            alt="Signature client sous contrat" 
+                            className="max-h-full max-w-full object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <canvas
+                            ref={portalContractCanvasRef}
+                            width={320}
+                            height={120}
+                            className="bg-white border border-slate-200 cursor-crosshair rounded-lg"
+                            onMouseDown={startDrawingPortalContractSig}
+                            onMouseMove={drawPortalContractSig}
+                            onMouseUp={stopDrawingPortalContractSig}
+                            onMouseLeave={stopDrawingPortalContractSig}
+                            onTouchStart={startDrawingPortalContractSig}
+                            onTouchMove={drawPortalContractSig}
+                            onTouchEnd={stopDrawingPortalContractSig}
+                          />
+                          <div className="flex justify-between w-full mt-2 px-1">
+                            <button
+                              type="button"
+                              onClick={clearPortalContractSignature}
+                              className="text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer border-0 bg-transparent"
+                            >
+                              Effacer
+                            </button>
+                            {portalSignatureClientContratImage && (
+                              <span className="text-[10px] text-emerald-600 font-bold font-sans">
+                                ✓ Signé
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
+
+                {/* Actions row: Download button always visible, Save button visible if not signed yet */}
+                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-slate-100 mt-2 gap-4">
+                  <div>
+                    {contractSaveSuccess && (
+                      <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
+                        ✓ Votre signature a été enregistrée avec succès !
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <button
+                      type="button"
+                      onClick={handleDownloadContractPDF}
+                      className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 border-none outline-none"
+                      style={{
+                        backgroundColor: '#4f46e5',
+                      }}
+                    >
+                      Télécharger le contrat PDF
+                    </button>
+
+                    {!authenticatedClient?.signatureClientContratImage && (
+                      <button
+                        type="button"
+                        onClick={handleSavePortalContract}
+                        className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer outline-none border-none shrink-0"
+                        style={{
+                          backgroundColor: '#22c55e',
+                        }}
+                      >
+                        Enregistrer & Signer le Contrat
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Card Contacts de l'Établissement */}
+              <div
+                className="bg-white p-5 list-none space-y-4"
+                style={{
+                  border: '1px solid #cfcfcf',
+                  borderRadius: '13px',
+                }}
+              >
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
+                      Contacts de l'établissement / Site
+                    </h3>
+                    <p className="text-xs text-slate-500 font-sans mt-1">
+                      Retrouvez ci-dessous la liste des contacts enregistrés pour votre établissement.
+                    </p>
+                  </div>
+                  {!isEditingContacts ? (
+                    <button
+                      onClick={() => setIsEditingContacts(true)}
+                      className="px-4 py-2 bg-[#3556ec] hover:bg-[#2e4bcb] text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none whitespace-nowrap self-stretch sm:self-auto"
+                    >
+                      Modifier les contacts
+                    </button>
+                  ) : (
+                    <div className="flex gap-2 self-stretch sm:self-auto justify-end">
+                      <button
+                        onClick={handleSaveContacts}
+                        className="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none"
+                        style={{ backgroundColor: '#22c55e' }}
+                      >
+                        Enregistrer
+                      </button>
+                      <button
+                        onClick={() => {
+                          // Reset to previous state values
+                          if (authenticatedClient) {
+                            setC1Nom(authenticatedClient.nomPrenomSite || '');
+                            setC1Tel(authenticatedClient.telephoneSite || '');
+                            setC1Email(authenticatedClient.emailSite || '');
+                            setC1Type(authenticatedClient.typeContact1 || '');
+
+                            setC2Nom(authenticatedClient.nomContact2 || '');
+                            setC2Tel(authenticatedClient.telephoneSite2 || '');
+                            setC2Email(authenticatedClient.emailSite2 || '');
+                            setC2Type(authenticatedClient.typeContact2 || '');
+
+                            setC3Nom(authenticatedClient.nomContact3 || '');
+                            setC3Tel(authenticatedClient.telephoneSite3 || '');
+                            setC3Email(authenticatedClient.emailSite3 || '');
+                            setC3Type(authenticatedClient.typeContact3 || '');
+
+                            setC4Nom(authenticatedClient.nomContact4 || '');
+                            setC4Tel(authenticatedClient.telephoneSite4 || '');
+                            setC4Email(authenticatedClient.emailSite4 || '');
+                            setC4Type(authenticatedClient.typeContact4 || '');
+
+                            setC5Nom(authenticatedClient.nomContact5 || '');
+                            setC5Tel(authenticatedClient.telephoneSite5 || '');
+                            setC5Email(authenticatedClient.emailSite5 || '');
+                            setC5Type(authenticatedClient.typeContact5 || '');
+                          }
+                          setIsEditingContacts(false);
+                        }}
+                        className="px-4 py-2 bg-[#ef4444] text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {!isEditingContacts ? (
+                  <div className="space-y-6">
+                    {/* Contact 1 */}
+                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 1 {c1Type ? `(${c1Type})` : ''}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {renderField('Contact', c1Nom || '-')}
+                        {renderField('Téléphone', c1Tel || '-')}
+                        {renderField('Email', c1Email || '-')}
+                      </div>
+                    </div>
+
+                    {/* Contact 2 */}
+                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 2 {c2Type ? `(${c2Type})` : ''}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {renderField('Contact', c2Nom || '-')}
+                        {renderField('Téléphone', c2Tel || '-')}
+                        {renderField('Email', c2Email || '-')}
+                      </div>
+                    </div>
+
+                    {/* Contact 3 */}
+                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 3 {c3Type ? `(${c3Type})` : ''}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {renderField('Contact', c3Nom || '-')}
+                        {renderField('Téléphone', c3Tel || '-')}
+                        {renderField('Email', c3Email || '-')}
+                      </div>
+                    </div>
+
+                    {/* Contact 4 */}
+                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 4 {c4Type ? `(${c4Type})` : ''}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {renderField('Contact', c4Nom || '-')}
+                        {renderField('Téléphone', c4Tel || '-')}
+                        {renderField('Email', c4Email || '-')}
+                      </div>
+                    </div>
+
+                    {/* Contact 5 */}
+                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
+                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 5 {c5Type ? `(${c5Type})` : ''}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        {renderField('Contact', c5Nom || '-')}
+                        {renderField('Téléphone', c5Tel || '-')}
+                        {renderField('Email', c5Email || '-')}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-6 pt-2">
+                    {/* Edit Contact 1 */}
+                    <div className="border-b border-slate-100 pb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 1</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderEditField('Type du contact (ex. Direction)', c1Type, setC1Type)}
+                        {renderEditField('Nom & Prénom', c1Nom, setC1Nom)}
+                        {renderEditField('Téléphone', c1Tel, setC1Tel)}
+                        {renderEditField('Email', c1Email, setC1Email)}
+                      </div>
+                    </div>
+
+                    {/* Edit Contact 2 */}
+                    <div className="border-b border-slate-100 pb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 2</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderEditField('Type du contact (ex. Direction)', c2Type, setC2Type)}
+                        {renderEditField('Nom & Prénom', c2Nom, setC2Nom)}
+                        {renderEditField('Téléphone', c2Tel, setC2Tel)}
+                        {renderEditField('Email', c2Email, setC2Email)}
+                      </div>
+                    </div>
+
+                    {/* Edit Contact 3 */}
+                    <div className="border-b border-slate-100 pb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 3</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderEditField('Type du contact (ex. Direction)', c3Type, setC3Type)}
+                        {renderEditField('Nom & Prénom', c3Nom, setC3Nom)}
+                        {renderEditField('Téléphone', c3Tel, setC3Tel)}
+                        {renderEditField('Email', c3Email, setC3Email)}
+                      </div>
+                    </div>
+
+                    {/* Edit Contact 4 */}
+                    <div className="border-b border-slate-100 pb-6">
+                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 4</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderEditField('Type du contact (ex. Direction)', c4Type, setC4Type)}
+                        {renderEditField('Nom & Prénom', c4Nom, setC4Nom)}
+                        {renderEditField('Téléphone', c4Tel, setC4Tel)}
+                        {renderEditField('Email', c4Email, setC4Email)}
+                      </div>
+                    </div>
+
+                    {/* Edit Contact 5 */}
+                    <div className="pb-2">
+                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 5</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderEditField('Type du contact (ex. Direction)', c5Type, setC5Type)}
+                        {renderEditField('Nom & Prénom', c5Nom, setC5Nom)}
+                        {renderEditField('Téléphone', c5Tel, setC5Tel)}
+                        {renderEditField('Email', c5Email, setC5Email)}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Card Signature pour le client */}

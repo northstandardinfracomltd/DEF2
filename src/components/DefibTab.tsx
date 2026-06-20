@@ -426,6 +426,7 @@ export default function DefibTab({
     actionExpired: false,
     categorie: 'Tous',
     contrat: 'Tous',
+    actionRejected: false,
   });
 
   // Draft filters inside the sidebar/pane
@@ -437,6 +438,7 @@ export default function DefibTab({
     actionExpired: false,
     categorie: 'Tous',
     contrat: 'Tous',
+    actionRejected: false,
   });
   
   // Selection state
@@ -877,6 +879,8 @@ export default function DefibTab({
   const [situationElectrodeP, setSituationElectrodeP] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
   const [commentaireElectrodeP, setCommentaireElectrodeP] = useState('');
   const [peremptionSecoursElectrodeP, setPeremptionSecoursElectrodeP] = useState('');
+  const [modeleElectrodePSecoursId, setModeleElectrodePSecoursId] = useState('');
+  const [lotElectrodePSecours, setLotElectrodePSecours] = useState('');
 
   // Section 8 - Batterie (B)
   const [modeleBatterieId, setModeleBatterieId] = useState('');
@@ -1044,6 +1048,14 @@ export default function DefibTab({
       // 7. Contrat Match
       const isMatchContrat = activeFilters.contrat === 'Tous' || df.contrat === activeFilters.contrat;
 
+      // 8. Rejeté Match
+      const hasBeenRejected = (fsmTours || []).some((t: any) => 
+        t.missions?.some((m: any) => 
+          m.defibIdentifiant === df.identifiant && m.status !== 'Effectué' && m.rejectionReason
+        )
+      );
+      const isMatchRejected = !activeFilters.actionRejected || hasBeenRejected;
+
       return isMatchSearch && 
              isMatchRegion && 
              isMatchModele &&
@@ -1051,9 +1063,10 @@ export default function DefibTab({
              isMatchActionUnder3 &&
              isMatchActionExpired &&
              isMatchCategorie &&
-             isMatchContrat;
+             isMatchContrat &&
+             isMatchRejected;
     });
-  }, [defibrillateurs, search, activeFilters, clientMap, variableMap]);
+  }, [defibrillateurs, search, activeFilters, clientMap, variableMap, fsmTours]);
 
   // Row selectors
   const handleSelectRow = (id: string, e: React.MouseEvent) => {
@@ -1163,6 +1176,8 @@ export default function DefibTab({
     setSituationElectrodeP('Vert');
     setCommentaireElectrodeP('');
     setPeremptionSecoursElectrodeP('');
+    setModeleElectrodePSecoursId('');
+    setLotElectrodePSecours('');
 
     // Battery (B)
     setModeleBatterieId('');
@@ -1297,6 +1312,8 @@ export default function DefibTab({
     setSituationElectrodeP(df.situationElectrodeP || 'Vert');
     setCommentaireElectrodeP(df.commentaireElectrodeP || '');
     setPeremptionSecoursElectrodeP(df.peremptionSecoursElectrodeP || '');
+    setModeleElectrodePSecoursId(df.modeleElectrodePSecoursId || '');
+    setLotElectrodePSecours(df.lotElectrodePSecours || '');
 
     setModeleBatterieId(df.modeleBatterieId || '');
     setLotBatterie(df.lotBatterie || '');
@@ -1424,6 +1441,8 @@ export default function DefibTab({
       situationElectrodeP,
       commentaireElectrodeP: commentaireElectrodeP.trim(),
       peremptionSecoursElectrodeP,
+      modeleElectrodePSecoursId,
+      lotElectrodePSecours: lotElectrodePSecours.trim(),
 
       modeleBatterieId,
       lotBatterie: lotBatterie.trim(),
@@ -1588,6 +1607,7 @@ export default function DefibTab({
                       activeFilters.actionExpired === true,
                       activeFilters.categorie !== 'Tous',
                       activeFilters.contrat !== 'Tous',
+                      activeFilters.actionRejected === true,
                     ].filter(Boolean).length;
                     return count > 0 ? (
                       <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 text-[11px] font-black text-white bg-[#fe4eba] rounded-full ml-1">
@@ -1987,24 +2007,64 @@ export default function DefibTab({
                           if (matchingTours.length > 0) {
                             // Show only the single most recent one (the last matching one in our list)
                             const latestTour = matchingTours[matchingTours.length - 1];
+                            const matchMission = latestTour.missions?.find((m: any) => m.defibIdentifiant === df.identifiant);
+                            const isRejected = matchMission && matchMission.status !== 'Effectué' && matchMission.rejectionReason;
+                            
+                            const rawRejectedDate = matchMission?.rejectedAt || matchMission?.estimatedDate || latestTour.startDate || new Date().toLocaleDateString('fr-FR');
+                            const formatToFrDate = (dStr: string) => {
+                              if (!dStr) return '';
+                              const clean = dStr.replace(/\//g, '-');
+                              const pts = clean.split('-');
+                              if (pts.length === 3) {
+                                if (pts[0].length === 4) {
+                                  return `${pts[2]}/${pts[1]}/${pts[0]}`;
+                                }
+                                return `${pts[0]}/${pts[1]}/${pts[2]}`;
+                              }
+                              return dStr;
+                            };
+                            const rejectedDateFormatted = formatToFrDate(rawRejectedDate);
+
                             return (
-                              <span 
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  borderRadius: '1000px',
-                                  backgroundColor: '#ffffff',
-                                  border: '1px solid rgb(231, 231, 231)',
-                                  color: '#000000',
-                                  fontSize: '16px',
-                                  fontWeight: 100,
-                                  padding: '4px 12px',
-                                  whiteSpace: 'nowrap',
-                                }} 
-                                title={latestTour.title}
-                              >
-                                {latestTour.title}
-                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                                <span 
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    borderRadius: '1000px',
+                                    backgroundColor: '#ffffff',
+                                    border: '1px solid rgb(231, 231, 231)',
+                                    color: '#000000',
+                                    fontSize: '16px',
+                                    fontWeight: 100,
+                                    padding: '4px 12px',
+                                    whiteSpace: 'nowrap',
+                                    width: 'fit-content'
+                                  }} 
+                                  title={latestTour.title}
+                                >
+                                  {latestTour.title}
+                                </span>
+                                {isRejected && (
+                                  <span 
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      borderRadius: '1000px',
+                                      backgroundColor: '#dc2626',
+                                      color: '#ffffff',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      padding: '2px 8px',
+                                      whiteSpace: 'nowrap',
+                                      width: 'fit-content',
+                                      textTransform: 'none'
+                                    }}
+                                  >
+                                    Rejeté {rejectedDateFormatted} : {matchMission.rejectionReason}
+                                  </span>
+                                )}
+                              </div>
                             );
                           }
                           return null;
@@ -3516,8 +3576,50 @@ export default function DefibTab({
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-p-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
+                        <select
+                          id="form-elec-p-sec-lookup"
+                          value={modeleElectrodePSecoursId}
+                          onChange={(e) => setModeleElectrodePSecoursId(e.target.value)}
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                        >
+                          <option value="">-- Sélectionner Électrode --</option>
+                          {modelesElectrode.map(v => (
+                            <option key={v.id} value={v.id}>
+                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-p-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                        <input
+                          type="text"
+                          id="form-elec-p-sec-lot"
+                          value={lotElectrodePSecours || ''}
+                          onChange={(e) => setLotElectrodePSecours(e.target.value)}
+                          placeholder="Numéro de lot"
+                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                        />
+                      </div>
+
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                        <input
+                          type="date"
+                          id="form-elec-p-sec"
+                          value={peremptionSecoursElectrodeP}
+                          onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
+                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="space-y-1">
+                      <div className="space-y-1 bg-white">
                         <label htmlFor="form-elec-p-sit" className="block text-[10px] font-bold text-slate-400 uppercase">Statut.</label>
                         <select
                           id="form-elec-p-sit"
@@ -3533,28 +3635,17 @@ export default function DefibTab({
                         </select>
                       </div>
 
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption Secours.</label>
+                      <div className="space-y-1 bg-white">
+                        <label htmlFor="form-elec-p-com" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">Commentaire.</label>
                         <input
-                          type="date"
-                          id="form-elec-p-sec"
-                          value={peremptionSecoursElectrodeP}
-                          onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                          type="text"
+                          id="form-elec-p-com"
+                          value={commentaireElectrodeP}
+                          onChange={(e) => setCommentaireElectrodeP(e.target.value)}
+                          placeholder="Entrez votre commentaire."
+                          className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
                         />
                       </div>
-                    </div>
-
-                    <div className="space-y-1">
-                      <label htmlFor="form-elec-p-com" className="block text-[11px] font-bold text-slate-500 uppercase">Commentaire.</label>
-                      <input
-                        type="text"
-                        id="form-elec-p-com"
-                        value={commentaireElectrodeP}
-                        onChange={(e) => setCommentaireElectrodeP(e.target.value)}
-                        placeholder="Entrez votre commentaire."
-                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs"
-                      />
                     </div>
                   </div>
 
@@ -4860,6 +4951,50 @@ export default function DefibTab({
               </div>
             </div>
 
+            {/* Filter 6: Rejeté(s) en intervention */}
+            <div className="py-1 flex items-center justify-between gap-4">
+              <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: 100 }}>Rejeté(s) en intervention.</span>
+              <div className="flex items-center gap-4">
+                {/* Oui Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionRejected: true })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      draftFilters.actionRejected ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {draftFilters.actionRejected && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Oui</span>
+                </button>
+
+                {/* Non Option */}
+                <button
+                  type="button"
+                  onClick={() => setDraftFilters({ ...draftFilters, actionRejected: false })}
+                  className="flex items-center gap-2 cursor-pointer focus:outline-hidden"
+                >
+                  <div 
+                    className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                      !draftFilters.actionRejected ? 'border-[#fe4eba]' : 'border-slate-400 bg-white'
+                    }`} 
+                    style={{ borderWidth: '2.5px' }}
+                  >
+                    {!draftFilters.actionRejected && (
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                    )}
+                  </div>
+                  <span className="text-[16px] text-black font-sans" style={{ fontWeight: 100 }}>Non</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
           {/* Footer Actions - 50/50 Side by side with zero top divider, matching active column action button styles */}
@@ -4874,6 +5009,7 @@ export default function DefibTab({
                   actionExpired: false,
                   categorie: 'Tous',
                   contrat: 'Tous',
+                  actionRejected: false,
                 };
                 setDraftFilters(defaults);
                 setActiveFilters(defaults);

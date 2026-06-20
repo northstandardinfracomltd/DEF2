@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -11,7 +11,8 @@ import {
   triggerEmail4Signalement,
   triggerEmail5AvisageFSM,
   triggerEmail7CrmReply,
-  triggerEmail8NouvelleTourneeTech
+  triggerEmail8NouvelleTourneeTech,
+  triggerEmail6RapportIntervention
 } from './utils/emailService';
 
 import DefibTab from './components/DefibTab';
@@ -431,6 +432,7 @@ export default function App() {
   const [variables, setVariables] = useState<Variable[]>([]);
   const [defibrillateurs, setDefibrillateurs] = useState<Defibrillateur[]>([]);
   const [otherEquipments, setOtherEquipments] = useState<OtherEquipment[]>([]);
+  const [pointagesAutoVigilance, setPointagesAutoVigilance] = useState<PointageAutoVigilance[]>([]);
   const [enableOtherEquipments, setEnableOtherEquipments] = useState<string>(() => {
     return localStorage.getItem('defib_enable_other_equipments') || 'Non';
   });
@@ -1415,8 +1417,14 @@ export default function App() {
     const electrodeAModel = variables.find(v => v.id === snapshot.modeleElectrodeAId);
     const electrodeAModelName = electrodeAModel ? `${electrodeAModel.marque} ${electrodeAModel.nom}` : (snapshot.modeleElectrodeAId || 'Non spécifié');
 
+    const electrodeASecoursModel = variables.find(v => v.id === snapshot.modeleElectrodeASecoursId);
+    const electrodeASecoursModelName = electrodeASecoursModel ? `${electrodeASecoursModel.marque} ${electrodeASecoursModel.nom}` : '';
+
     const electrodePModel = variables.find(v => v.id === snapshot.modeleElectrodePId);
     const electrodePModelName = electrodePModel ? `${electrodePModel.marque} ${electrodePModel.nom}` : (snapshot.modeleElectrodePId || 'Non spécifié');
+
+    const electrodePSecoursModel = variables.find(v => v.id === snapshot.modeleElectrodePSecoursId);
+    const electrodePSecoursModelName = electrodePSecoursModel ? `${electrodePSecoursModel.marque} ${electrodePSecoursModel.nom}` : '';
 
     const batterieModel = variables.find(v => v.id === snapshot.modeleBatterieId);
     const batterieModelName = batterieModel ? `${batterieModel.marque} ${batterieModel.nom}` : (snapshot.modeleBatterieId || 'Non spécifié');
@@ -1670,6 +1678,7 @@ export default function App() {
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle de boîtier :</span> <span class="pdf-bold">${coffretModelName || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot de boîtier :</span> <span class="pdf-bold">${snapshot.numeroLotCoffret || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Équipé d’une alarme :</span> <span class="pdf-bold">${report.equipeAlarme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Alarme fonctionnelle :</span> <span class="pdf-bold">${report.alarme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Dispositif d’armoire connectée :</span> <span class="pdf-bold">${report.armoireConnectee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Dispositif handicap :</span> <span class="pdf-bold">${report.dispositifHandicap || ''}</span></div>
@@ -1689,16 +1698,17 @@ export default function App() {
               <div class="pdf-card">
                 <div class="pdf-card-header">4 — Vérifications techniques.</div>
                 <div class="pdf-card-body" style="gap: 3px;">
+                  <div class="pdf-line"><span class="pdf-label">Conforme à mon arrivée :</span> <span class="pdf-bold">${report.techConformeArrivee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Commentaire sur l’état à mon arrivée :</span> <span class="pdf-bold">${report.techCommentaireArrivee || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-rose-700">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Voyant conforme :</span> <span class="pdf-bold">${report.techVoyantConforme || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Équipé d’un message numérique :</span> <span class="pdf-bold">${report.techEquipeMessageNumerique || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Message numérique conforme :</span> <span class="pdf-bold">${report.techMessageNumeroConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Guides vocaux conformes :</span> <span class="pdf-bold">${report.techGuidesVocauxConformes || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Branchement conforme des électrodes :</span> <span class="pdf-bold">${report.techBranchementElectrodesConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Délivrance du choc conforme :</span> <span class="pdf-bold">${report.techDelivranceChocConforme || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode A :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA ? report.techResultatJoulesElectrodeA + ' J' : ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode P :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA2 ? report.techResultatJoulesElectrodeA2 + ' J' : ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Accessibilité conforme :</span> <span class="pdf-bold">${report.techAccessibiliteConforme || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">État fonctionnel conforme :</span> <span class="pdf-bold">${report.techEtatFonctionnelConforme || ''}</span></div>
                 </div>
               </div>
 
@@ -1710,7 +1720,11 @@ export default function App() {
                   <div class="pdf-line"><span class="pdf-label">Lot A :</span> <span class="pdf-bold">${snapshot.lotElectrodeA || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Insertion :</span> <span class="pdf-bold">${snapshot.insertionElectrodeA || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeA || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodeASecoursModelName || 'Aucun'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodeASecours || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ''}</span></div>
@@ -1725,7 +1739,11 @@ export default function App() {
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode P :</span> <span class="pdf-bold">${electrodePModelName || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot P :</span> <span class="pdf-bold">${snapshot.lotElectrodeP || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeP || ''}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Péremption Secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodePSecoursModelName || 'Aucun'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodePSecours || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ''}</span></div>
@@ -1764,7 +1782,9 @@ export default function App() {
                   <div class="pdf-line"><span class="pdf-label">Sélection d’un kit de secours :</span> <span class="pdf-bold">${selKitSecours || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Ciseaux présents :</span> <span class="pdf-bold">${report.kitCiseauxPresents || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Masque présent :</span> <span class="pdf-bold">${report.kitMasquePresent || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption du masque :</span> <span class="pdf-bold">${report.kitPeremptionMasque || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Serviettes présentes :</span> <span class="pdf-bold">${report.kitServiettesPresentes || ''}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption des serviettes :</span> <span class="pdf-bold">${report.kitPeremptionServiettes || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Paires de gants présents :</span> <span class="pdf-bold">${report.kitGantsPresents || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Rasoir :</span> <span class="pdf-bold">${report.kitRasoirPresent || ''}</span></div>
                 </div>
@@ -1956,7 +1976,7 @@ export default function App() {
         const [
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
-          fReports, fTours, fMemos, fOtherEquipments
+          fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -1973,7 +1993,8 @@ export default function App() {
           fetchCollectionFromFirestore<any[]>('generatedReports'),
           fetchCollectionFromFirestore<any[]>('fsmTours'),
           fetchCollectionFromFirestore<Memo[]>('memos'),
-          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments')
+          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments'),
+          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance')
         ]);
 
         // Handlers to apply state or write if empty
@@ -2195,6 +2216,15 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(defaultVal));
         }
 
+        if (fPointagesAutoVigilance !== null) {
+          setPointagesAutoVigilance(fPointagesAutoVigilance);
+          localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify(fPointagesAutoVigilance));
+        } else {
+          setPointagesAutoVigilance([]);
+          await saveCollectionToFirestore('pointagesAutoVigilance', []);
+          localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify([]));
+        }
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       } catch (err) {
@@ -2248,6 +2278,10 @@ export default function App() {
 
         const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
         if (savedPointagesHistory) setPointages(JSON.parse(savedPointagesHistory));
+
+        const savedPointagesAutoVigilance = localStorage.getItem(`defib_${tenantId}_pointages_auto_vigilance`);
+        if (savedPointagesAutoVigilance) setPointagesAutoVigilance(JSON.parse(savedPointagesAutoVigilance));
+        else setPointagesAutoVigilance([]);
 
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
@@ -2312,6 +2346,13 @@ export default function App() {
       localStorage.setItem(`defib_${tenantId}_pointages_history`, JSON.stringify(pointages));
     }
   }, [pointages, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('pointagesAutoVigilance', pointagesAutoVigilance);
+      localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify(pointagesAutoVigilance));
+    }
+  }, [pointagesAutoVigilance, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
@@ -2489,6 +2530,11 @@ export default function App() {
             font-display: swap;
           }
           
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
           body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
             font-family: "Civilprom", sans-serif !important;
             font-weight: 100 !important;
@@ -2517,7 +2563,7 @@ export default function App() {
           
           @media print {
             .no-print { display: none !important; }
-            body { background: white !important; padding: 0 !important; }
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
             .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
           }
         </style>
@@ -2563,14 +2609,6 @@ export default function App() {
             </div>
           </div>
 
-          <!-- MENTIONS LEGALES ET CONDITIONS -->
-          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
-            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
-              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
-              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
-            </div>
-          ` : ''}
-
           <!-- TABLEAU DES PRESTATIONS / PIECES -->
           <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -2605,6 +2643,14 @@ export default function App() {
               </div>
             </div>
           </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
+              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
+            </div>
+          ` : ''}
 
         </div>
       </body>
@@ -3084,6 +3130,8 @@ export default function App() {
         generatedReports={generatedReports}
         onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
         stocks={stocks}
+        pointagesAutoVigilance={pointagesAutoVigilance}
+        onAddPointageAutoVigilance={(newPt) => setPointagesAutoVigilance(prev => [newPt, ...prev])}
       />
     );
   }
@@ -3115,6 +3163,8 @@ export default function App() {
         generatedReports={generatedReports}
         onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
         stocks={stocks}
+        pointagesAutoVigilance={pointagesAutoVigilance}
+        onAddPointageAutoVigilance={(newPt) => setPointagesAutoVigilance(prev => [newPt, ...prev])}
       />
     );
   }
@@ -3356,6 +3406,7 @@ export default function App() {
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
+              companyInfo={companyInfo}
             />
           )}
 
@@ -4637,11 +4688,89 @@ export default function App() {
                                   <div className="inline-flex gap-2">
                                     <button
                                       type="button"
+                                      disabled={rep.validated}
                                       onClick={() => setEditingReportId(rep.id)}
-                                      style={rowActionButtonStyle}
-                                      className="cursor-pointer"
+                                      style={{
+                                        ...rowActionButtonStyle,
+                                        opacity: rep.validated ? 0.35 : 1,
+                                        cursor: rep.validated ? 'not-allowed' : 'pointer',
+                                        backgroundColor: rep.validated ? '#cbd5e1' : '#000000',
+                                        color: rep.validated ? '#64748b' : '#ffffff',
+                                      }}
+                                      className={`${rep.validated ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
                                       Corriger
+                                    </button>
+                                    <button
+                                      type="button"
+                                      disabled={rep.validated}
+                                      onClick={() => {
+                                        const updatedReports = generatedReports.map(r => r.id === rep.id ? { ...r, validated: true } : r);
+                                        saveReports(updatedReports);
+
+                                        // Update the main equipment database and send validation email to the client
+                                        const snap = rep.defibSnapshot;
+                                        if (snap) {
+                                          const uuid = snap.id || rep.defibId;
+                                          const ident = snap.identifiant || rep.defibIdentifiant;
+
+                                          const isDefib = defibrillateurs.some(df => df.id === uuid || df.identifiant === ident);
+                                          if (isDefib) {
+                                            const updatedList = defibrillateurs.map(df => {
+                                              if (df.id === uuid || df.identifiant === ident) {
+                                                return {
+                                                  ...snap,
+                                                  derniereMaintenance: snap.derniereMaintenance || new Date().toISOString().split('T')[0]
+                                                };
+                                              }
+                                              return df;
+                                            });
+                                            saveDefibs(updatedList);
+                                          } else {
+                                            const isOther = otherEquipments.some(o => o.id === uuid || o.identifiant === ident);
+                                            if (isOther) {
+                                              const updatedList = otherEquipments.map(o => {
+                                                if (o.id === uuid || o.identifiant === ident) {
+                                                  return snap;
+                                                }
+                                                return o;
+                                              });
+                                              saveOtherEquipments(updatedList);
+                                            }
+                                          }
+
+                                          // Trigger Email 6: RAPPORT DE MAINTENANCE AU CLIENT
+                                          try {
+                                            const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
+                                            const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
+                                            if (clientEmail && clientEmail.trim()) {
+                                              triggerEmail6RapportIntervention(
+                                                clientEmail.trim(),
+                                                snap.identifiant || rep.defibIdentifiant || '',
+                                                rep.date || new Date().toLocaleString('fr-FR'),
+                                                companyInfo.name || 'Défibeo Suite',
+                                                companyInfo.email || ''
+                                              ).catch(e => console.error("Error triggering Email 6 during GMAO validation:", e));
+                                            }
+                                          } catch (err6) {
+                                            console.error("Error sending validation email during GMAO validation:", err6);
+                                          }
+                                        }
+
+                                        alert("Le rapport d'intervention a été validé avec succès ! L'état de l'équipement a été mis à jour et un e-mail avec le rapport a été envoyé au client.");
+                                      }}
+                                      style={{
+                                        ...rowActionButtonStyle,
+                                        backgroundColor: rep.validated ? '#f1f5f9' : '#10b981',
+                                        color: rep.validated ? '#94a3b8' : '#ffffff',
+                                        borderColor: rep.validated ? '#e2e8f0' : 'transparent',
+                                        borderWidth: rep.validated ? '1px' : '0px',
+                                        borderStyle: rep.validated ? 'solid' : 'none',
+                                        cursor: rep.validated ? 'not-allowed' : 'pointer',
+                                      }}
+                                      className={`${rep.validated ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer hover:bg-emerald-600'}`}
+                                    >
+                                      {rep.validated ? '✓ Validé' : 'Valider'}
                                     </button>
                                     <button
                                       type="button"

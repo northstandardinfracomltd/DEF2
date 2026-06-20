@@ -368,10 +368,11 @@ export default function GmaoOtherEquipmentCorrectionForm({
               backgroundColor: 'rgb(53, 86, 236)',
               color: '#ffffff',
               border: '1px solid rgb(53, 86, 236)',
+              opacity: saving ? 0.5 : 1,
             }}
             className="transition-all cursor-pointer font-semibold"
           >
-            {saving ? 'Enregistrement...' : 'Enregistrer'}
+            Enregistrer
           </button>
         </div>
       </div>

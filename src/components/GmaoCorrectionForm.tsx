@@ -226,6 +226,26 @@ function LocationPickerEvents({ onPick }: { onPick: (lat: number, lng: number) =
   return null;
 }
 
+const parseDateSafely = (dateStr: string): Date | null => {
+  if (!dateStr || !dateStr.trim()) return null;
+  const cleanStr = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(cleanStr)) {
+    const d = new Date(cleanStr);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const match = cleanStr.match(/^(\d{2})[-/](\d{2})[-/](\d{4})/);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const nativeParsed = new Date(cleanStr);
+  if (!isNaN(nativeParsed.getTime())) return nativeParsed;
+  return null;
+};
+
 export default function GmaoCorrectionForm({
   report,
   isNew = false,
@@ -281,11 +301,15 @@ export default function GmaoCorrectionForm({
 
   // Snapshot initialization
   const [snapshot, setSnapshot] = useState<Defibrillateur>(() => {
-    return {
+    const base = {
       ...DEFAULT_DEFIB,
       ...(origDefib ? origDefib : {}),
       ...(report?.defibSnapshot ? report.defibSnapshot : {})
     };
+    if (isNew) {
+      base.conforme = '' as any; // Par défaut à l’arrivée deselect
+    }
+    return base;
   });
 
   // Report fields
@@ -317,6 +341,8 @@ export default function GmaoCorrectionForm({
   );
   const [photoUrl, setPhotoUrl] = useState(report?.photoUrl || '');
   const [errorText, setErrorText] = useState('');
+  const [alertInfoErrors, setAlertInfoErrors] = useState<string[]>([]);
+  const [hasClickedOnce, setHasClickedOnce] = useState(false);
   const [selectedErrorCode, setSelectedErrorCode] = useState('');
 
   // States for map position selection
@@ -325,7 +351,8 @@ export default function GmaoCorrectionForm({
   const [tempLng, setTempLng] = useState<number>(2.3522);
 
   // S3 Alarme & Armoire
-  const [alarme, setAlarme] = useState<'Oui' | 'Non'>(report?.alarme || 'Non');
+  const [equipeAlarme, setEquipeAlarme] = useState<'Oui' | 'Non' | ''>(report?.equipeAlarme || 'Oui');
+  const [alarme, setAlarme] = useState<'Oui' | 'Non' | ''>(report?.alarme || 'Non');
   const [armoireConnectee, setArmoireConnectee] = useState<'Oui' | 'Non'>(report?.armoireConnectee || 'Non');
   const [dispositifHandicap, setDispositifHandicap] = useState<'Oui' | 'Non'>(report?.dispositifHandicap || 'Non');
   const [signaletiqueConforme, setSignaletiqueConforme] = useState<'Oui' | 'Non'>(report?.signaletiqueConforme || 'Non');
@@ -348,14 +375,15 @@ export default function GmaoCorrectionForm({
   );
 
   // S9 Vérifications techniques
-  const [techAccessibiliteConforme, setTechAccessibiliteConforme] = useState<'Oui' | 'Non'>(report?.techAccessibiliteConforme || 'Oui');
-  const [techEtatFonctionnelConforme, setTechEtatFonctionnelConforme] = useState<'Oui' | 'Non'>(report?.techEtatFonctionnelConforme || 'Oui');
-  const [techVoyantConforme, setTechVoyantConforme] = useState<'Oui' | 'Non'>(report?.techVoyantConforme || 'Oui');
-  const [techMessageNumeroConforme, setTechMessageNumeroConforme] = useState<'Oui' | 'Non'>(report?.techMessageNumeroConforme || 'Oui');
-  const [techGuidesVocauxConformes, setTechGuidesVocauxConformes] = useState<'Oui' | 'Non'>(report?.techGuidesVocauxConformes || 'Oui');
-  const [techNettoyage, setTechNettoyage] = useState<'Oui' | 'Non'>(report?.techNettoyage || 'Oui');
-  const [techBranchementElectrodesConforme, setTechBranchementElectrodesConforme] = useState<'Oui' | 'Non'>(report?.techBranchementElectrodesConforme || 'Oui');
-  const [techDelivranceChocConforme, setTechDelivranceChocConforme] = useState<'Oui' | 'Non'>(report?.techDelivranceChocConforme || 'Oui');
+  const [techConformeArrivee, setTechConformeArrivee] = useState<'Oui' | 'Non' | ''>(report?.techConformeArrivee || '');
+  const [techCommentaireArrivee, setTechCommentaireArrivee] = useState<string>(report?.techCommentaireArrivee || '');
+  const [techVoyantConforme, setTechVoyantConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techVoyantConforme || ''));
+  const [techEquipeMessageNumerique, setTechEquipeMessageNumerique] = useState<'Oui' | 'Non' | ''>(report?.techEquipeMessageNumerique || 'Oui');
+  const [techMessageNumeroConforme, setTechMessageNumeroConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techMessageNumeroConforme || ''));
+  const [techGuidesVocauxConformes, setTechGuidesVocauxConformes] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techGuidesVocauxConformes || ''));
+  const [techNettoyage, setTechNettoyage] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techNettoyage || ''));
+  const [techBranchementElectrodesConforme, setTechBranchementElectrodesConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techBranchementElectrodesConforme || ''));
+  const [techDelivranceChocConforme, setTechDelivranceChocConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techDelivranceChocConforme || ''));
   const [techResultatJoulesElectrodeA, setTechResultatJoulesElectrodeA] = useState<string>(report?.techResultatJoulesElectrodeA || '');
   const [techResultatJoulesElectrodeA2, setTechResultatJoulesElectrodeA2] = useState<string>(report?.techResultatJoulesElectrodeA2 || '');
 
@@ -363,7 +391,9 @@ export default function GmaoCorrectionForm({
   const [kitTrousseSecoursPresent, setKitTrousseSecoursPresent] = useState<'Oui' | 'Non'>(report?.kitTrousseSecoursPresent || 'Oui');
   const [kitCiseauxPresents, setKitCiseauxPresents] = useState<'Oui' | 'Non'>(report?.kitCiseauxPresents || 'Oui');
   const [kitMasquePresent, setKitMasquePresent] = useState<'Oui' | 'Non'>(report?.kitMasquePresent || 'Oui');
+  const [kitPeremptionMasque, setKitPeremptionMasque] = useState<string>(report?.kitPeremptionMasque || '');
   const [kitServiettesPresentes, setKitServiettesPresentes] = useState<'Oui' | 'Non'>(report?.kitServiettesPresentes || 'Oui');
+  const [kitPeremptionServiettes, setKitPeremptionServiettes] = useState<string>(report?.kitPeremptionServiettes || '');
   const [kitGantsPresents, setKitGantsPresents] = useState<'Oui' | 'Non'>(report?.kitGantsPresents || 'Oui');
   const [kitRasoirPresent, setKitRasoirPresent] = useState<'Oui' | 'Non'>(report?.kitRasoirPresent || 'Oui');
   const [kitSecoursRemplaceOuAjoute, setKitSecoursRemplaceOuAjoute] = useState<'Oui' | 'Non'>(report?.kitSecoursRemplaceOuAjoute || 'Non');
@@ -559,55 +589,192 @@ export default function GmaoCorrectionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorText('');
+    setAlertInfoErrors([]);
 
+    const errors: string[] = [];
+
+    // Basic block validation
     if (!snapshot.identifiant.trim()) {
-      setErrorText("L'identifiant unique du défibrillateur est obligatoire.");
-      return;
+      errors.push("L'identifiant unique du défibrillateur est obligatoire.");
     }
     if (!snapshot.numeroSerie.trim()) {
-      setErrorText("Le numéro de série du défibrillateur est obligatoire.");
-      return;
+      errors.push("Le numéro de série du défibrillateur est obligatoire.");
     }
     if (!snapshot.clientId) {
-      setErrorText("Veuillez associer un client à l'appareil.");
-      return;
+      errors.push("Veuillez associer un client à l'appareil.");
     }
 
-    if (!clientPinCode.trim()) {
-      setErrorText("Le code PIN de signature client est obligatoire.");
-      return;
-    }
-
+    // 1. PIN Code validation
     const enteredPinTrimmed = clientPinCode.trim().toUpperCase();
-    const relatedClient = clients.find(c => c.id === snapshot.clientId);
-    const isOriginalPin = report && report.clientPinCode && report.clientPinCode.trim().toUpperCase() === enteredPinTrimmed;
+    let isPinValid = true;
+    if (!clientPinCode.trim()) {
+      isPinValid = false;
+    } else {
+      const relatedClient = clients.find(c => c.id === snapshot.clientId);
+      const isOriginalPin = report && report.clientPinCode && report.clientPinCode.trim().toUpperCase() === enteredPinTrimmed;
 
-    if (relatedClient) {
-      const pins = relatedClient.signaturePins || [];
-      const hasAnyPins = pins.length > 0;
-      
-      if (hasAnyPins && !isOriginalPin) {
-        const matchingPin = pins.find(p => p.code.toUpperCase() === enteredPinTrimmed);
-        if (!matchingPin) {
-          setErrorText(`Le code PIN "${enteredPinTrimmed}" est incorrect pour ce client.`);
-          return;
+      if (relatedClient) {
+        const pins = relatedClient.signaturePins || [];
+        const hasAnyPins = pins.length > 0;
+        
+        if (hasAnyPins && !isOriginalPin) {
+          const matchingPin = pins.find(p => p.code.toUpperCase() === enteredPinTrimmed);
+          if (!matchingPin || matchingPin.status === 'validé') {
+            isPinValid = false;
+          }
+        } else if (!isOriginalPin) {
+          const pinRegex = /^[A-Z]{3}\d{3}$/;
+          if (!pinRegex.test(enteredPinTrimmed)) {
+            isPinValid = false;
+          }
         }
-        if (matchingPin.status === 'validé') {
-          setErrorText(`Le code PIN "${enteredPinTrimmed}" a déjà été validé et utilisé pour la visite "${matchingPin.reportTitle || ''}".`);
-          return;
-        }
-      } else if (!isOriginalPin) {
+      } else {
         const pinRegex = /^[A-Z]{3}\d{3}$/;
-        if (!pinRegex.test(enteredPinTrimmed)) {
-          setErrorText("Le code PIN de signature client doit se composer de 3 lettres suivies de 3 chiffres (ex: ABC123).");
-          return;
+        if (!pinRegex.test(enteredPinTrimmed) && !isOriginalPin) {
+          isPinValid = false;
         }
       }
-    } else {
-      const pinRegex = /^[A-Z]{3}\d{3}$/;
-      if (!pinRegex.test(enteredPinTrimmed) && !isOriginalPin) {
-        setErrorText("Le code PIN de signature client doit se composer de 3 lettres suivies de 3 chiffres (ex: ABC123).");
+    }
+    if (!isPinValid) {
+      errors.push("Le code PIN de signature client est invalide.");
+    }
+
+    // 2. Dates validation
+    const today = new Date();
+    const todayPure = new Date(today);
+    todayPure.setHours(0, 0, 0, 0);
+
+    const twoYearsFromNow = new Date(today);
+    twoYearsFromNow.setFullYear(today.getFullYear() + 2);
+
+    const sixMonthsFromNow = new Date(today);
+    sixMonthsFromNow.setMonth(today.getMonth() + 6);
+    const sixMonthsFromNowPure = new Date(sixMonthsFromNow);
+    sixMonthsFromNowPure.setHours(23, 59, 59, 999);
+
+    const checkDateRules = (val: string, label: string) => {
+      if (!val || !val.trim()) return;
+      const d = parseDateSafely(val);
+      if (!d) return;
+
+      const dPure = new Date(d);
+      dPure.setHours(0, 0, 0, 0);
+
+      if (d > twoYearsFromNow) {
+        errors.push(`La date de ${label} est à plus de 2 ans.`);
+      }
+      if (dPure < todayPure) {
+        errors.push(`La date de ${label} est dans le passé.`);
+      }
+      if (dPure >= todayPure && dPure <= sixMonthsFromNowPure) {
+        errors.push(`La date de ${label} est sous 6 mois.`);
+      }
+    };
+
+    checkDateRules(snapshot.fabrication, "fabrication");
+    checkDateRules(snapshot.miseEnService, "mise en service");
+    checkDateRules(snapshot.finGarantie, "fin de garantie");
+    checkDateRules(snapshot.insertionElectrodeA, "l'insertion de l'électrode adulte");
+    checkDateRules(snapshot.peremptionElectrodeA, "la péremption de l'électrode adulte");
+    checkDateRules(snapshot.peremptionSecoursElectrodeA, "la péremption de l’électrode de secours");
+    checkDateRules(snapshot.insertionElectrodeP, "l'insertion de l'électrode pédiatrique");
+    checkDateRules(snapshot.peremptionElectrodeP, "la péremption de l'électrode pédiatrique");
+    checkDateRules(snapshot.peremptionSecoursElectrodeP, "la péremption de l’électrode de secours pédiatrique");
+    checkDateRules(snapshot.insertionBatterie, "l'insertion de la batterie");
+    checkDateRules(snapshot.peremptionBatterie, "la péremption de la batterie");
+    checkDateRules(kitPeremptionMasque, "la péremption du masque");
+    checkDateRules(kitPeremptionServiettes, "la péremption des serviettes");
+    checkDateRules(interventionDate, "l'horodatage entrant");
+
+    // 3. Special characters validation
+    const checkSpecialChars = (val: string, label: string) => {
+      if (!val || !val.trim()) return;
+      const regex = /^[a-zA-Z0-9\sÀ-ÿŒœÆæ.,'_\-]*$/;
+      if (!regex.test(val)) {
+        const capLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        errors.push(`${capLabel} contient des caractères spéciaux.`);
+      }
+    };
+
+    checkSpecialChars(snapshot.identifiant, "identifiant");
+    checkSpecialChars(snapshot.numeroSerie, "numéro de série");
+    checkSpecialChars(snapshot.lotElectrodeA, "lot de l'électrode adulte");
+    checkSpecialChars(snapshot.lotElectrodeASecours, "lot de l'électrode de secours");
+    checkSpecialChars(snapshot.lotElectrodeP, "lot de l'électrode pédiatrique");
+    checkSpecialChars(snapshot.lotElectrodePSecours, "lot de l'électrode de secours pédiatrique");
+    checkSpecialChars(snapshot.lotBatterie, "lot de la batterie");
+    checkSpecialChars(snapshot.numeroLotCoffret, "lot de boîtier");
+    checkSpecialChars(reportTitle, "titre du rapport");
+
+    // 4. Section 11 conforme validation (blocking)
+    if (snapshot.conforme !== 'Oui' && snapshot.conforme !== 'Non') {
+      errors.push("À la section 11, vous devez choisir Oui ou Non pour le défibrillateur conforme et prêt à l’usage. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+    }
+
+    // 5. Section 9 arrivee conforme validation (blocking)
+    if (techConformeArrivee !== 'Oui' && techConformeArrivee !== 'Non') {
+      errors.push("À la section 9, vous devez choisir Oui ou Non pour (défibrillateur) conforme à mon arrivée. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+    }
+
+    // 6. Section 11 signature validation (blocking)
+    if (!techSignature || !techSignature.trim()) {
+      errors.push("À la section 11, vous n’avez pas dessiné votre signature. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+    }
+
+    // 7. Lot numbers but no expiration date checks
+    if (snapshot.lotElectrodeA && !snapshot.peremptionElectrodeA) {
+      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode adulte), mais vous n’avez pas renseigné de date de péremption.");
+    }
+    if (snapshot.lotElectrodeASecours && !snapshot.peremptionSecoursElectrodeA) {
+      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours), mais vous n’avez pas renseigné de date de péremption.");
+    }
+    if (snapshot.lotElectrodeP && !snapshot.peremptionElectrodeP) {
+      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
+    }
+    if (snapshot.lotElectrodePSecours && !snapshot.peremptionSecoursElectrodeP) {
+      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
+    }
+    if (snapshot.lotBatterie && !snapshot.peremptionBatterie) {
+      errors.push("Vous avez renseigné un numéro de lot (lot de la batterie), mais vous n’avez pas renseigné de date de péremption.");
+    }
+
+    // 8. Replaced option but no selected product checks
+    if (electrodeARemplacee === 'Oui' && !selectionElectrodeARemplacee) {
+      errors.push("Une électrode est marquée comme remplacée (électrode A remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+    }
+    if (electrodePRemplacee === 'Oui' && !selectionElectrodePRemplacee) {
+      errors.push("Une électrode est marquée comme remplacée (électrode P remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+    }
+    if (batterieRemplacee === 'Oui' && !selectionBatterieRemplacee) {
+      errors.push("La batterie est marquée comme remplacée (batterie remplacée), mais vous n’avez pas sélectionné de batterie en remplacement.");
+    }
+    if (kitSecoursRemplaceOuAjoute === 'Oui' && !selectionKitSecoursRemplace) {
+      errors.push("Le kit de secours est marqué comme remplacé (kit de secours remplacé ou ajouté), mais vous n’avez pas sélectionné de kit de secours en remplacement.");
+    }
+
+    if (errors.length > 0) {
+      if (!hasClickedOnce) {
+        setAlertInfoErrors(errors);
+        setHasClickedOnce(true);
+        setTimeout(() => {
+          document.getElementById('custom-alert-info-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
         return;
+      } else {
+        const hasBlocking = errors.some(err => 
+          err.includes("bloquant") || 
+          err.includes("obligatoire") || 
+          err.includes("associer un client") || 
+          err.includes("invalide")
+        );
+        if (hasBlocking) {
+          setAlertInfoErrors(errors);
+          setErrorText("Veuillez corriger les erreurs bloquantes avant d'enregistrer.");
+          setTimeout(() => {
+            document.getElementById('custom-alert-info-box')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
+          return;
+        }
       }
     }
 
@@ -669,6 +836,7 @@ export default function GmaoCorrectionForm({
       clientPinCode: clientPinCode,
       
       // Section 3 additions
+      equipeAlarme,
       alarme,
       armoireConnectee,
       dispositifHandicap,
@@ -689,10 +857,17 @@ export default function GmaoCorrectionForm({
       selectionBatterieRemplacee,
       batterieConformeSante,
 
+      // Section 10 kit de secours additionnels
+      kitPeremptionMasque,
+      kitPeremptionServiettes,
+
       // Section 9 : Vérifications techniques
-      techAccessibiliteConforme,
-      techEtatFonctionnelConforme,
+      techConformeArrivee,
+      techCommentaireArrivee,
+      techAccessibiliteConforme: 'Oui', // preserved for type and backward comp
+      techEtatFonctionnelConforme: finalSnapshot.conforme || 'Oui', // mapped dependency
       techVoyantConforme,
+      techEquipeMessageNumerique,
       techMessageNumeroConforme,
       techGuidesVocauxConformes,
       techNettoyage,
@@ -756,16 +931,47 @@ export default function GmaoCorrectionForm({
             disabled={isSaving}
             form="gmao-correction-form"
             id="btn-submit-gmao-form"
-            style={{ ...registerButtonStyle, opacity: isSaving ? 0.7 : 1 }}
+            style={{ ...registerButtonStyle, opacity: isSaving ? 0.5 : (hasClickedOnce ? 0.85 : 1) }}
             className="transition-colors cursor-pointer font-sans"
           >
-            {isSaving ? 'Enregistrement de l\'intervention...' : 'Enregistrer'}
+            Enregistrer
           </button>
         </div>
       </div>
 
+      {alertInfoErrors && alertInfoErrors.length > 0 && (
+        <div 
+          className="p-5 border rounded-2xl font-sans text-sm animate-fadeIn space-y-2" 
+          style={{ 
+            backgroundColor: '#fffdf5', 
+            borderColor: '#eab308', 
+            color: '#854d0e',
+            maxWidth: '100%',
+            margin: '12px auto'
+          }} 
+          id="custom-alert-info-box"
+        >
+          <div className="font-bold text-[15px] flex items-center gap-1.5" style={{ color: '#713f12' }}>
+            <span>⚠️</span> Potentielles erreurs détectées :
+          </div>
+          <ul className="list-disc pl-5 mt-1.5 space-y-1">
+            {alertInfoErrors.map((err, idx) => {
+              const isBlocking = err.includes("Attention, ça c’est vraiment champ bloquant");
+              return (
+                <li key={idx} className={isBlocking ? "font-bold text-red-600" : ""}>
+                  {err}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-xs pt-1 text-slate-500 italic">
+            * S'il n'y a pas d'erreur bloquante (affichée en rouge gras), vous pouvez cliquer à nouveau sur "Enregistrer" pour confirmer votre choix de l'enregistrer dans cet état.
+          </p>
+        </div>
+      )}
+
       {errorText && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-medium" style={{ maxWidth: '100%', margin: 'auto' }} id="correction-error">
+        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" style={{ maxWidth: '100%', margin: 'auto' }} id="correction-error">
           {errorText}
         </div>
       )}
@@ -1193,41 +1399,14 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="snap-identifiant" className="block text-[11px] font-bold text-black uppercase">
                   Identifiant.
                 </label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    id="snap-identifiant"
-                    disabled
-                    value={snapshot.identifiant || ''}
-                    placeholder="Entrez un identifiant."
-                    className="flex-1 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-500 cursor-not-allowed"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setIsIdentifiantScannerOpen(true)}
-                    className="shrink-0 px-4 py-1.5 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer font-sans"
-                  >
-                    Scan
-                  </button>
-                </div>
-                {isIdentifiantScannerOpen && (
-                  <BarcodeScannerModal
-                    isOpen={isIdentifiantScannerOpen}
-                    onClose={() => setIsIdentifiantScannerOpen(false)}
-                    onScanSuccess={(scannedText) => {
-                      const textUpper = scannedText.trim().toUpperCase();
-                      const matchingDefib = defibrillateurs.find(
-                        d => d.identifiant.toUpperCase() === textUpper || d.numeroSerie.toUpperCase() === textUpper
-                      );
-                      if (matchingDefib) {
-                        handleDefibLookupChange(matchingDefib.id);
-                      } else {
-                        handleSnapshotChange('identifiant', textUpper);
-                      }
-                      setIsIdentifiantScannerOpen(false);
-                    }}
-                  />
-                )}
+                <input
+                  type="text"
+                  id="snap-identifiant"
+                  disabled
+                  value={snapshot.identifiant || ''}
+                  placeholder="Entrez un identifiant."
+                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-500 cursor-not-allowed"
+                />
               </div>
 
               <div className="space-y-1">
@@ -1620,11 +1799,42 @@ export default function GmaoCorrectionForm({
             <div className="pt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
+                  Équipé d’une alarme.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio 
+                    label="Oui" 
+                    checked={equipeAlarme === 'Oui'} 
+                    onChange={() => {
+                      setEquipeAlarme('Oui');
+                    }} 
+                  />
+                  <FormRadio 
+                    label="Non" 
+                    checked={equipeAlarme === 'Non'} 
+                    onChange={() => {
+                      setEquipeAlarme('Non');
+                      setAlarme('');
+                    }} 
+                  />
+                </div>
+              </div>
+
+              <div className={`space-y-1 bg-white transition-opacity duration-200 ${equipeAlarme === 'Non' ? 'opacity-50 pointer-events-none' : ''}`}>
+                <label className="block text-[11px] font-bold text-black uppercase">
                   Alarme fonctionnelle.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={alarme === 'Oui'} onChange={() => setAlarme('Oui')} />
-                  <FormRadio label="Non" checked={alarme === 'Non'} onChange={() => setAlarme('Non')} />
+                  <FormRadio 
+                    label="Oui" 
+                    checked={alarme === 'Oui' && equipeAlarme !== 'Non'} 
+                    onChange={() => equipeAlarme !== 'Non' && setAlarme('Oui')} 
+                  />
+                  <FormRadio 
+                    label="Non" 
+                    checked={alarme === 'Non' && equipeAlarme !== 'Non'} 
+                    onChange={() => equipeAlarme !== 'Non' && setAlarme('Non')} 
+                  />
                 </div>
               </div>
 
@@ -1962,7 +2172,7 @@ export default function GmaoCorrectionForm({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label htmlFor="snap-insertionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
                   Insertion.
@@ -1987,9 +2197,43 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                 />
               </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
+              <div className="space-y-1">
+                <label htmlFor="snap-modeleElectrodeASecoursId" className="block text-[11px] font-bold text-black uppercase">
+                  Modèle d’électrode de secours.
+                </label>
+                <select
+                  id="snap-modeleElectrodeASecoursId"
+                  value={snapshot.modeleElectrodeASecoursId || ''}
+                  onChange={(e) => handleSnapshotChange('modeleElectrodeASecoursId', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 rounded-lg text-xs cursor-pointer"
+                >
+                  <option value="">Sélectionnez un modèle de secours.</option>
+                  {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
+                    <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="snap-lotElectrodeASecours" className="block text-[11px] font-bold text-black uppercase">
+                  Lot de l’électrode de secours.
+                </label>
+                <input
+                  type="text"
+                  id="snap-lotElectrodeASecours"
+                  value={snapshot.lotElectrodeASecours || ''}
+                  onChange={(e) => handleSnapshotChange('lotElectrodeASecours', e.target.value)}
+                  placeholder="Numéro de lot"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                />
+              </div>
+
               <div className="space-y-1">
                 <label htmlFor="snap-peremptionSecoursElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption Secours.
+                  Péremption de l’électrode de secours.
                 </label>
                 <input
                   type="date"
@@ -2105,7 +2349,7 @@ export default function GmaoCorrectionForm({
               </select>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
                 <label htmlFor="snap-lotElectrodeP" className="block text-[11px] font-bold text-black uppercase">
                   Lot P.
@@ -2152,10 +2396,43 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                 />
               </div>
+            </div>
+
+            <div className="border-t border-slate-100 pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
+              <div className="space-y-1">
+                <label htmlFor="snap-modeleElectrodePSecoursId" className="block text-[11px] font-bold text-black uppercase">
+                  Modèle d’électrode de secours.
+                </label>
+                <select
+                  id="snap-modeleElectrodePSecoursId"
+                  value={snapshot.modeleElectrodePSecoursId || ''}
+                  onChange={(e) => handleSnapshotChange('modeleElectrodePSecoursId', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 rounded-lg text-xs cursor-pointer"
+                >
+                  <option value="">Sélectionnez un modèle de secours.</option>
+                  {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
+                    <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label htmlFor="snap-lotElectrodePSecours" className="block text-[11px] font-bold text-black uppercase">
+                  Lot de l’électrode de secours.
+                </label>
+                <input
+                  type="text"
+                  id="snap-lotElectrodePSecours"
+                  value={snapshot.lotElectrodePSecours || ''}
+                  onChange={(e) => handleSnapshotChange('lotElectrodePSecours', e.target.value)}
+                  placeholder="Numéro de lot"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                />
+              </div>
 
               <div className="space-y-1">
                 <label htmlFor="snap-peremptionSecoursElectrodeP" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption Secours.
+                  Péremption de l’électrode de secours.
                 </label>
                 <input
                   type="date"
@@ -2427,7 +2704,52 @@ export default function GmaoCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
-              {/* 1. Voyant conforme */}
+              {/* Conforme à mon arrivée (Full width span) */}
+              <div className="col-span-1 md:col-span-2 space-y-1 bg-white border-b border-slate-100 pb-3">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Conforme à mon arrivée.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio 
+                    label="Oui" 
+                    checked={techConformeArrivee === 'Oui'} 
+                    onChange={() => setTechConformeArrivee('Oui')} 
+                  />
+                  <FormRadio 
+                    label="Non" 
+                    checked={techConformeArrivee === 'Non'} 
+                    onChange={() => setTechConformeArrivee('Non')} 
+                  />
+                </div>
+              </div>
+
+              {/* Commentaire sur l'état à mon arrivée (Full width span) */}
+              <div className="col-span-1 md:col-span-2 space-y-1 bg-white border-b border-slate-100 pb-3">
+                <label htmlFor="techCommentaireArrivee" className="block text-[11px] font-bold text-black uppercase">
+                  Commentaire sur l’état à mon arrivée.
+                </label>
+                <input
+                  type="text"
+                  id="techCommentaireArrivee"
+                  value={techCommentaireArrivee}
+                  onChange={(e) => setTechCommentaireArrivee(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-805 rounded-lg text-xs"
+                  placeholder="Saisissez un commentaire sur l'état constaté à votre arrivée..."
+                />
+              </div>
+
+              {/* 1. Nettoyage. (Moved first!) */}
+              <div className="space-y-1 bg-white animate-fadeIn">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Nettoyage.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio label="Oui" checked={techNettoyage === 'Oui'} onChange={() => setTechNettoyage('Oui')} />
+                  <FormRadio label="Non" checked={techNettoyage === 'Non'} onChange={() => setTechNettoyage('Non')} />
+                </div>
+              </div>
+
+              {/* 2. Voyant conforme. */}
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Voyant conforme.
@@ -2438,18 +2760,48 @@ export default function GmaoCorrectionForm({
                 </div>
               </div>
 
-              {/* 2. Message numérique conforme */}
-              <div className="space-y-1 bg-white">
+              {/* 3. Équipé d’un message numérique. (New!) */}
+              <div className="space-y-1 bg-white animate-fadeIn">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Équipé d’un message numérique.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio 
+                    label="Oui" 
+                    checked={techEquipeMessageNumerique === 'Oui'} 
+                    onChange={() => setTechEquipeMessageNumerique('Oui')} 
+                  />
+                  <FormRadio 
+                    label="Non" 
+                    checked={techEquipeMessageNumerique === 'Non'} 
+                    onChange={() => {
+                      setTechEquipeMessageNumerique('Non');
+                      setTechMessageNumeroConforme('');
+                    }} 
+                  />
+                </div>
+              </div>
+
+              {/* 4. Message numérique conforme. (Dependent on Equipé d'un message numérique) */}
+              <div className={`space-y-1 bg-white transition-opacity duration-200 ${techEquipeMessageNumerique === 'Non' ? 'opacity-50 pointer-events-none' : ''}`}>
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Message numérique conforme.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={techMessageNumeroConforme === 'Oui'} onChange={() => setTechMessageNumeroConforme('Oui')} />
-                  <FormRadio label="Non" checked={techMessageNumeroConforme === 'Non'} onChange={() => setTechMessageNumeroConforme('Non')} />
+                  <FormRadio 
+                    label="Oui" 
+                    checked={techMessageNumeroConforme === 'Oui' && techEquipeMessageNumerique !== 'Non'} 
+                    onChange={() => techEquipeMessageNumerique !== 'Non' && setTechMessageNumeroConforme('Oui')} 
+                  />
+                  <FormRadio 
+                    label="Non" 
+                    checked={techMessageNumeroConforme === 'Non' && techEquipeMessageNumerique !== 'Non'} 
+                    onChange={() => techEquipeMessageNumerique !== 'Non' && setTechMessageNumeroConforme('Non')} 
+                  />
                 </div>
               </div>
 
-              {/* 3. Guides vocaux conformes */}
+              {/* 5. Guides vocaux conformes. */}
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Guides vocaux conformes.
@@ -2460,7 +2812,7 @@ export default function GmaoCorrectionForm({
                 </div>
               </div>
 
-              {/* 4. Branchement conforme des électrodes */}
+              {/* 6. Branchement conforme des électrodes. */}
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Branchement conforme des électrodes.
@@ -2471,7 +2823,7 @@ export default function GmaoCorrectionForm({
                 </div>
               </div>
 
-              {/* 5. Délivrance du choc conforme */}
+              {/* 7. Délivrance du choc conforme. */}
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Délivrance du choc conforme.
@@ -2481,6 +2833,9 @@ export default function GmaoCorrectionForm({
                   <FormRadio label="Non" checked={techDelivranceChocConforme === 'Non'} onChange={() => setTechDelivranceChocConforme('Non')} />
                 </div>
               </div>
+
+              {/* Spacer */}
+              <div className="col-span-1 md:col-span-2 bg-white" />
 
               {/* Divider & Warning message before Electrode A test */}
               <div className="col-span-1 md:col-span-2 border-t border-slate-200 pt-3 mt-1 bg-white" />
@@ -2498,7 +2853,7 @@ export default function GmaoCorrectionForm({
                 </ul>
               </div>
 
-              {/* 6. Résultat du test en joules de l’électrode A */}
+              {/* 8. Résultat du test en joules de l’électrode A */}
               <div className="space-y-1 bg-white">
                 <label htmlFor="techResultatJoulesElectrodeA" className="block text-[11px] font-bold text-black uppercase">
                   Résultat du test en joules de l’électrode A.
@@ -2513,7 +2868,7 @@ export default function GmaoCorrectionForm({
                 />
               </div>
 
-              {/* 7. Résultat du test en joules de l’électrode P */}
+              {/* 9. Résultat du test en joules de l’électrode P */}
               <div className="space-y-1 bg-white">
                 <label htmlFor="techResultatJoulesElectrodeA2" className="block text-[11px] font-bold text-black uppercase">
                   Résultat du test en joules de l’électrode P.
@@ -2526,39 +2881,6 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-805 rounded-lg text-xs font-mono"
                   placeholder="Saisissez un chiffre..."
                 />
-              </div>
-
-              {/* 8. Accessibilité conforme */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Accessibilité conforme.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={techAccessibiliteConforme === 'Oui'} onChange={() => setTechAccessibiliteConforme('Oui')} />
-                  <FormRadio label="Non" checked={techAccessibiliteConforme === 'Non'} onChange={() => setTechAccessibiliteConforme('Non')} />
-                </div>
-              </div>
-
-              {/* 9. Nettoyage */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Nettoyage.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={techNettoyage === 'Oui'} onChange={() => setTechNettoyage('Oui')} />
-                  <FormRadio label="Non" checked={techNettoyage === 'Non'} onChange={() => setTechNettoyage('Non')} />
-                </div>
-              </div>
-
-              {/* 10. État fonctionnel conforme */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  État fonctionnel conforme.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={techEtatFonctionnelConforme === 'Oui'} onChange={() => setTechEtatFonctionnelConforme('Oui')} />
-                  <FormRadio label="Non" checked={techEtatFonctionnelConforme === 'Non'} onChange={() => setTechEtatFonctionnelConforme('Non')} />
-                </div>
               </div>
             </div>
           </div>
@@ -2656,8 +2978,23 @@ export default function GmaoCorrectionForm({
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
                   <FormRadio label="Oui" checked={kitMasquePresent === 'Oui'} onChange={() => setKitMasquePresent('Oui')} />
-                  <FormRadio label="Non" checked={kitMasquePresent === 'Non'} onChange={() => setKitMasquePresent('Non')} />
+                  <FormRadio label="Non" checked={kitMasquePresent === 'Non'} onChange={() => { setKitMasquePresent('Non'); setKitPeremptionMasque(''); }} />
                 </div>
+              </div>
+
+              {/* 4b. Péremption du masque */}
+              <div className={`space-y-1 bg-white transition-opacity duration-200 ${kitMasquePresent !== 'Oui' ? 'opacity-50 pointer-events-none' : ''}`}>
+                <label htmlFor="kitPeremptionMasque" className="block text-[11px] font-bold text-black uppercase">
+                  Péremption du masque.
+                </label>
+                <input
+                  type="date"
+                  id="kitPeremptionMasque"
+                  value={kitPeremptionMasque || ''}
+                  onChange={(e) => setKitPeremptionMasque(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  disabled={kitMasquePresent !== 'Oui'}
+                />
               </div>
 
               {/* 5. Serviettes présentes */}
@@ -2667,8 +3004,23 @@ export default function GmaoCorrectionForm({
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
                   <FormRadio label="Oui" checked={kitServiettesPresentes === 'Oui'} onChange={() => setKitServiettesPresentes('Oui')} />
-                  <FormRadio label="Non" checked={kitServiettesPresentes === 'Non'} onChange={() => setKitServiettesPresentes('Non')} />
+                  <FormRadio label="Non" checked={kitServiettesPresentes === 'Non'} onChange={() => { setKitServiettesPresentes('Non'); setKitPeremptionServiettes(''); }} />
                 </div>
+              </div>
+
+              {/* 5b. Péremption des serviettes */}
+              <div className={`space-y-1 bg-white transition-opacity duration-200 ${kitServiettesPresentes !== 'Oui' ? 'opacity-50 pointer-events-none' : ''}`}>
+                <label htmlFor="kitPeremptionServiettes" className="block text-[11px] font-bold text-black uppercase">
+                  Péremption des serviettes.
+                </label>
+                <input
+                  type="date"
+                  id="kitPeremptionServiettes"
+                  value={kitPeremptionServiettes || ''}
+                  onChange={(e) => setKitPeremptionServiettes(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  disabled={kitServiettesPresentes !== 'Oui'}
+                />
               </div>
 
               {/* 6. Paires de gants présents */}
@@ -2745,7 +3097,7 @@ export default function GmaoCorrectionForm({
                 <div className="flex gap-6 items-center pt-1 bg-white">
                   <FormRadio 
                     label="Oui" 
-                    checked={snapshot.conforme !== 'Non'} 
+                    checked={snapshot.conforme === 'Oui'} 
                     onChange={() => handleSnapshotChange('conforme', 'Oui')} 
                   />
                   <FormRadio 

@@ -2,6 +2,62 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Camera, RefreshCw } from 'lucide-react';
 
+// Resize image to prevent massive browser heap memory crashes on Safari (iOS devices)
+const resizeImageToMaxDimension = (file: File, maxDimension: number): Promise<File> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const resizedFile = new File([blob], file.name, {
+                type: file.type || 'image/jpeg',
+                lastModified: file.lastModified,
+              });
+              resolve(resizedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          file.type || 'image/jpeg',
+          0.85
+        );
+      };
+      img.onerror = () => resolve(file);
+      img.src = event.target?.result as string;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+};
+
 interface BarcodeScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -31,16 +87,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         qrCodeInstanceRef.current = html5QrcodeInstance;
 
         const config = {
-          fps: 20,
-          qrbox: (width: number, height: number) => {
-            // Generate a wide, short rectangular bounding box perfect for linear barcodes
-            const boxWidth = Math.floor(width * 0.85);
-            const boxHeight = Math.floor(height * 0.35);
-            return {
-              width: Math.max(260, Math.min(boxWidth, 480)),
-              height: Math.max(90, Math.min(boxHeight, 150))
-            };
-          },
+          fps: 25,
+          // CRITICAL: We DO NOT pass a qrbox here. Doing so enables FULL-FRAME scanning under the hood.
+          // By scanning the entire uncropped high-resolution stream, we bypass iOS canvas cropping misalignment bugs
+          // and let the ZXing engine scan wide horizontal barcodes with 100% of the camera's resolution.
+          // Our visual CSS frame on top is purely visual, guiding the user where to align the barcode.
           formatsToSupport: [
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
@@ -51,10 +102,11 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
             Html5QrcodeSupportedFormats.UPC_E,
             Html5QrcodeSupportedFormats.ITF,
             Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.DATA_MATRIX,
           ],
           experimentalFeatures: {
-            useBarCodeDetectorIfSupported: false, // Disabled to prevent buggy iOS native implementations and let ZXing decode robustly
+            // Enabled native barcode detector! iOS 17+ supports this natively. It uses the Apple Neural Engine
+            // to spot linear barcodes instantly and flawlessly on the camera stream with zero lag.
+            useBarCodeDetectorIfSupported: true,
           }
         };
 
@@ -78,8 +130,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         // Try high-resolution camera on environment mode FIRST to ensure razor-sharp linear barcode lines
         tryStart({
           facingMode: 'environment',
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
         })
           .then(() => {
             if (isMounted) setIsCameraActive(true);
@@ -168,8 +220,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
   }, [isOpen]);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const rawFile = e.target.files?.[0];
+    if (!rawFile) return;
 
     setIsScanningFile(true);
     setErrorMsg(null);
@@ -190,7 +242,12 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         setIsCameraActive(false);
       }
 
-      const decodedText = await localInstance.scanFile(file, true);
+      // 1. Optimize image resolution to a maximum of 1000px and compress.
+      // This completely runs in local browser memory and avoids crashing the Safari / Chrome iOS memory sandbox!
+      const optimizedFile = await resizeImageToMaxDimension(rawFile, 1000);
+
+      // 2. Decode the resized image using ZXing. It will scan quickly and consume very low RAM resources.
+      const decodedText = await localInstance.scanFile(optimizedFile, true);
       onScanSuccess(decodedText);
       onClose(); // Auto-close upon successful trigger
     } catch (err) {
@@ -198,6 +255,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
       setErrorMsg("Aucun code-barres n'a pu être détecté. Prenez une photo nette et de plus près.");
     } finally {
       setIsScanningFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ""; // Clear file selector input cache
+      }
     }
   };
 
@@ -259,10 +319,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
           
           {isCameraActive && (
             <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-24 bg-transparent outline outline-[2000px] outline-black/65 rounded shadow-inner" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-24 flex items-center justify-center pointer-events-none">
-                <span className="text-[13px] text-white font-sans font-medium bg-indigo-600/90 px-4 py-1.5 rounded-full tracking-normal shadow-sm">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-24 bg-transparent outline outline-[2000px] outline-black/65 rounded-md border-2 border-dashed border-indigo-400 shadow-inner" />
+              <div className="absolute top-[calc(50%+4rem)] left-1/2 -translate-x-1/2 w-[90%] flex flex-col items-center justify-center pointer-events-none gap-1">
+                <span className="text-[12px] text-white font-sans font-medium bg-indigo-600/95 px-4 py-1.5 rounded-full tracking-normal shadow-md text-center max-w-[90%]">
                   Alignez le code-barres dans le cadre
+                </span>
+                <span className="text-[10px] text-slate-200 font-sans font-normal bg-black/75 px-3 py-1 rounded-md text-center mt-1 scale-95 border border-white/10">
+                  💡 Éloignez votre iPhone/iPad (15-20 cm) pour faire le focus !
                 </span>
               </div>
             </div>

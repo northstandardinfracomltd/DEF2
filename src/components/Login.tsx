@@ -535,28 +535,39 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         if (tenant) {
           handleSuccessLogin(tenant.adminEmail, tenant.adminName, tenant.id, 'admin');
         } else {
-          // Check for sub-account "Administrateur" members across all tenants
+          // Check for sub-account "Administrateur" members across all tenants in parallel
           const tenants = await getRegisteredTenants();
           let matchedAdmin: any = null;
           let matchedTenantId = 'demo';
 
-          for (const tnt of tenants) {
-            const tenantId = tnt.id;
-            const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
-            const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
-            if (fetchedMembers && Array.isArray(fetchedMembers)) {
-              const found = fetchedMembers.find(
-                (m: any) =>
-                  m.email && m.email.trim().toLowerCase() === emailLower &&
-                  m.pin && m.pin.trim() === pass &&
-                  (m.role?.toLowerCase().includes('admin') || m.role?.toLowerCase().includes('propriétaire'))
-              );
-              if (found) {
-                matchedAdmin = found;
-                matchedTenantId = tenantId;
-                break;
+          const results = await Promise.all(
+            tenants.map(async (tnt) => {
+              const tenantId = tnt.id;
+              const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
+              try {
+                const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+                if (fetchedMembers && Array.isArray(fetchedMembers)) {
+                  const found = fetchedMembers.find(
+                    (m: any) =>
+                      m.email && m.email.trim().toLowerCase() === emailLower &&
+                      m.pin && m.pin.trim() === pass &&
+                      (m.role?.toLowerCase().includes('admin') || m.role?.toLowerCase().includes('propriétaire'))
+                  );
+                  if (found) {
+                    return { found, tenantId };
+                  }
+                }
+              } catch (err) {
+                console.error(`Error checking sub-admin in tenant ${tenantId}:`, err);
               }
-            }
+              return null;
+            })
+          );
+
+          const matchedAdminResult = results.find(r => r !== null);
+          if (matchedAdminResult) {
+            matchedAdmin = matchedAdminResult.found;
+            matchedTenantId = matchedAdminResult.tenantId;
           }
 
           if (matchedAdmin) {
@@ -578,23 +589,34 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         let matchedClient: any = null;
         let matchedTenantId = 'demo';
 
-        // Search for this client in each tenant's clients collection
-        for (const tnt of tenants) {
-          const tenantId = tnt.id;
-          const key = tenantId === 'demo' ? 'clients' : `${tenantId}_clients`;
-          const fetchedClients = await fetchCollectionFromFirestore<any[]>(key);
-          if (fetchedClients && Array.isArray(fetchedClients)) {
-            const found = fetchedClients.find(
-              (c: any) =>
-                c.email && c.email.trim().toLowerCase() === emailLower &&
-                c.accessKey && c.accessKey.trim() === pass
-            );
-            if (found) {
-              matchedClient = found;
-              matchedTenantId = tenantId;
-              break;
+        // Search for this client in each tenant's clients collection in parallel
+        const results = await Promise.all(
+          tenants.map(async (tnt) => {
+            const tenantId = tnt.id;
+            const key = tenantId === 'demo' ? 'clients' : `${tenantId}_clients`;
+            try {
+              const fetchedClients = await fetchCollectionFromFirestore<any[]>(key);
+              if (fetchedClients && Array.isArray(fetchedClients)) {
+                const found = fetchedClients.find(
+                  (c: any) =>
+                    c.email && c.email.trim().toLowerCase() === emailLower &&
+                    c.accessKey && c.accessKey.trim() === pass
+                );
+                if (found) {
+                  return { found, tenantId };
+                }
+              }
+            } catch (err) {
+              console.error(`Error checking client in tenant ${tenantId}:`, err);
             }
-          }
+            return null;
+          })
+        );
+
+        const matchedClientResult = results.find(r => r !== null);
+        if (matchedClientResult) {
+          matchedClient = matchedClientResult.found;
+          matchedTenantId = matchedClientResult.tenantId;
         }
 
         if (matchedClient) {
@@ -615,24 +637,35 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         let matchedMember: any = null;
         let matchedTenantId = 'demo';
 
-        // Search for this member in each tenant's members list
-        for (const tnt of tenants) {
-          const tenantId = tnt.id;
-          const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
-          const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
-          if (fetchedMembers && Array.isArray(fetchedMembers)) {
-            const found = fetchedMembers.find(
-              (m: any) =>
-                m.email && m.email.trim().toLowerCase() === emailLower &&
-                m.pin && m.pin.trim() === pass &&
-                (m.role?.toLowerCase().includes('tech') || m.role?.toLowerCase().includes('technicien') || m.role?.toLowerCase().includes('maintenance'))
-            );
-            if (found) {
-              matchedMember = found;
-              matchedTenantId = tenantId;
-              break;
+        // Search for this member in each tenant's members list in parallel
+        const results = await Promise.all(
+          tenants.map(async (tnt) => {
+            const tenantId = tnt.id;
+            const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
+            try {
+              const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+              if (fetchedMembers && Array.isArray(fetchedMembers)) {
+                const found = fetchedMembers.find(
+                  (m: any) =>
+                    m.email && m.email.trim().toLowerCase() === emailLower &&
+                    m.pin && m.pin.trim() === pass &&
+                    (m.role?.toLowerCase().includes('tech') || m.role?.toLowerCase().includes('technicien') || m.role?.toLowerCase().includes('maintenance'))
+                );
+                if (found) {
+                  return { found, tenantId };
+                }
+              }
+            } catch (err) {
+              console.error(`Error checking tech in tenant ${tenantId}:`, err);
             }
-          }
+            return null;
+          })
+        );
+
+        const matchedMemberResult = results.find(r => r !== null);
+        if (matchedMemberResult) {
+          matchedMember = matchedMemberResult.found;
+          matchedTenantId = matchedMemberResult.tenantId;
         }
 
         if (matchedMember) {
@@ -1059,6 +1092,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                     onChange={(e) => setEmail(e.target.value)}
                     className="block w-full"
                     placeholder={t.emailPlace}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                 </div>
 
@@ -1075,6 +1111,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                     onChange={(e) => setPassword(e.target.value)}
                     className="block w-full"
                     placeholder={t.passwordPlace}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                   />
                 </div>
 

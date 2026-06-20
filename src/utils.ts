@@ -537,6 +537,21 @@ export function formatDateToFR(dateStr: string): string {
   return dateStr;
 }
 
+export function formatDateToMonthYear(dateStr: string): string {
+  if (!dateStr || dateStr === '-') return '-';
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    const [year, month, day] = parts;
+    return `${month}/${year}`;
+  }
+  const partsSlash = dateStr.split('/');
+  if (partsSlash.length === 3) {
+    const [day, month, year] = partsSlash;
+    return `${month}/${year}`;
+  }
+  return dateStr;
+}
+
 export function parseFRDateToISO(dateStr: string): string {
   if (!dateStr) return '';
   const parts = dateStr.split('/');

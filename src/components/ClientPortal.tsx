@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable, OtherEquipment, PointageAutoVigilance } from '../types';
-import { formatDateToFR, computeProchaineMaintenance } from '../utils';
+import { formatDateToFR, computeProchaineMaintenance, formatDateToMonthYear } from '../utils';
 
 interface ClientPortalProps {
   clients: Client[];
@@ -1603,10 +1603,21 @@ export default function ClientPortal({
                             {renderField('Pays', df.pays)}
                             {renderField('Expiration de garantie', formatDateToFR(df.finGarantie) || df.finGarantie)}
                             {renderField('Dernière maintenance', formatDateToFR(df.derniereMaintenance) || df.derniereMaintenance)}
-                            {renderField('Prochaine maintenance', formatDateToFR(computeProchaineMaintenance(df.derniereMaintenance)))}
+                            {renderField('Prochaine maintenance indicative.', formatDateToMonthYear(computeProchaineMaintenance(df.derniereMaintenance)))}
                             {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp)}
                             {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp)}
                             {renderField('Batterie, Péremption', batteriePeremp)}
+                            {(() => {
+                              let recurrenceAutoVigilance = 'Aucune';
+                              if (df.rappelMensuelAuto === 'Oui') {
+                                recurrenceAutoVigilance = 'Mensuelle';
+                              } else if (df.rappelHebdoAuto === 'Oui') {
+                                recurrenceAutoVigilance = 'Hebdomadaire';
+                              } else if (df.rappelJournalierAuto === 'Oui') {
+                                recurrenceAutoVigilance = 'Journalière';
+                              }
+                              return renderField('Récurrence auto-vigilance', recurrenceAutoVigilance);
+                            })()}
                             
                             {df.horaires && (() => {
                               try {
@@ -2465,6 +2476,25 @@ export default function ClientPortal({
                         Aucune signature enregistrée pour l'instant.
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Single PIN display in disabled view */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4 pt-4 border-t border-slate-100 bg-white">
+                  <div className="space-y-1 bg-white">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Votre code PIN de signature unique :
+                    </label>
+                    <input
+                      type="text"
+                      disabled
+                      value={authenticatedClient?.signaturePin || 'Non défini'}
+                      style={{ cursor: 'not-allowed', backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }}
+                      className="px-3 py-2 border text-slate-700 rounded-xl font-mono font-bold text-[14px] text-center w-40"
+                    />
+                    <p className="text-[10.5px] text-slate-400 font-sans mt-1">
+                      Ce code PIN unique remplace les anciens codes à usage unique et est valide pour signer électroniquement tous vos rapports d'interventions.
+                    </p>
                   </div>
                 </div>
               </div>

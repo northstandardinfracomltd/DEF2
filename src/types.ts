@@ -13,6 +13,7 @@ export interface Client {
   email: string;
   phone: string;
   accessKey?: string; // Clé d'accès pour le portail client
+  signaturePin?: string; // Single signature PIN code valid for all interventions
   signaturePins?: SignaturePin[]; // Array of signature pin codes for validation
   clientSignatureImage?: string; // Signature drawing saved by the client in their portal
   

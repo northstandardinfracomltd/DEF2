@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Client, Defibrillateur, Variable, CompanyInfo } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck, Download } from 'lucide-react';
 import { checkIfEmailExistsAnywhere } from '../firebase';
+import { generateRandomPin } from '../utils';
 
 interface ClientTabProps {
   clients: Client[];
@@ -32,6 +33,7 @@ export default function ClientTab({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [accessKey, setAccessKey] = useState('');
+  const [signaturePin, setSignaturePin] = useState('');
   const [commentaire, setCommentaire] = useState('');
   
   // Site Information
@@ -444,6 +446,7 @@ export default function ClientTab({
     setEmail('');
     setPhone('');
     setAccessKey('');
+    setSignaturePin(generateRandomPin());
     setCommentaire('');
     setNomPrenomSite('');
     setTelephoneSite('');
@@ -493,6 +496,7 @@ export default function ClientTab({
     setEmail(client.email);
     setPhone(client.phone);
     setAccessKey(client.accessKey || '');
+    setSignaturePin(client.signaturePin || generateRandomPin());
     setCommentaire(client.commentaire || '');
     setNomPrenomSite(client.nomPrenomSite || '');
     setTelephoneSite(client.telephoneSite || '');
@@ -585,6 +589,7 @@ export default function ClientTab({
       email: email.trim(),
       phone: phone.trim(),
       accessKey: accessKey.trim(),
+      signaturePin: signaturePin.trim().toUpperCase(),
       commentaire: commentaire.trim(),
       nomPrenomSite: nomPrenomSite.trim() || 'Représentant Standard',
       telephoneSite: telephoneSite.trim() || phone.trim(),
@@ -934,6 +939,20 @@ export default function ClientTab({
                       onChange={(e) => setAccessKey(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                       placeholder="Entrez un mot de passe."
                       className="font-mono font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="input-client-signature-pin" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Code PIN de signature unique.
+                    </label>
+                    <input
+                      type="text"
+                      id="input-client-signature-pin"
+                      value={signaturePin}
+                      onChange={(e) => setSignaturePin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      placeholder="Entrez un code PIN de signature."
+                      className="font-mono font-bold text-indigo-600 text-center tracking-widest"
                     />
                   </div>
                 </div>

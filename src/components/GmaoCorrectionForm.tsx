@@ -614,18 +614,26 @@ export default function GmaoCorrectionForm({
       const isOriginalPin = report && report.clientPinCode && report.clientPinCode.trim().toUpperCase() === enteredPinTrimmed;
 
       if (relatedClient) {
-        const pins = relatedClient.signaturePins || [];
-        const hasAnyPins = pins.length > 0;
+        const clientStaticPin = relatedClient.signaturePin ? relatedClient.signaturePin.trim().toUpperCase() : '';
         
-        if (hasAnyPins && !isOriginalPin) {
-          const matchingPin = pins.find(p => p.code.toUpperCase() === enteredPinTrimmed);
-          if (!matchingPin || matchingPin.status === 'validé') {
+        if (clientStaticPin) {
+          if (enteredPinTrimmed !== clientStaticPin && !isOriginalPin) {
             isPinValid = false;
           }
-        } else if (!isOriginalPin) {
-          const pinRegex = /^[A-Z]{3}\d{3}$/;
-          if (!pinRegex.test(enteredPinTrimmed)) {
-            isPinValid = false;
+        } else {
+          const pins = relatedClient.signaturePins || [];
+          const hasAnyPins = pins.length > 0;
+          
+          if (hasAnyPins && !isOriginalPin) {
+            const matchingPin = pins.find(p => p.code.toUpperCase() === enteredPinTrimmed);
+            if (!matchingPin || matchingPin.status === 'validé') {
+              isPinValid = false;
+            }
+          } else if (!isOriginalPin) {
+            const pinRegex = /^[A-Z]{3}\d{3}$/;
+            if (!pinRegex.test(enteredPinTrimmed)) {
+              isPinValid = false;
+            }
           }
         }
       } else {
@@ -636,7 +644,7 @@ export default function GmaoCorrectionForm({
       }
     }
     if (!isPinValid) {
-      errors.push("Le code PIN de signature client est invalide.");
+      errors.push("Le code PIN de signature client s'est avéré invalide pour ce client.");
     }
 
     // 2. Dates validation

@@ -31,7 +31,16 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         qrCodeInstanceRef.current = html5QrcodeInstance;
 
         const config = {
-          fps: 15,
+          fps: 20,
+          qrbox: (width: number, height: number) => {
+            // Generate a wide, short rectangular bounding box perfect for linear barcodes
+            const boxWidth = Math.floor(width * 0.85);
+            const boxHeight = Math.floor(height * 0.35);
+            return {
+              width: Math.max(260, Math.min(boxWidth, 480)),
+              height: Math.max(90, Math.min(boxHeight, 150))
+            };
+          },
           formatsToSupport: [
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39,
@@ -45,7 +54,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
             Html5QrcodeSupportedFormats.DATA_MATRIX,
           ],
           experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
+            useBarCodeDetectorIfSupported: false, // Disabled to prevent buggy iOS native implementations and let ZXing decode robustly
           }
         };
 
@@ -66,57 +75,71 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
           );
         };
 
-        // Try standard environment facing mode first
-        tryStart({ facingMode: 'environment' })
+        // Try high-resolution camera on environment mode FIRST to ensure razor-sharp linear barcode lines
+        tryStart({
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        })
           .then(() => {
             if (isMounted) setIsCameraActive(true);
           })
-          .catch((firstErr) => {
-            console.warn("First scanner start failed. Trying exact constraint...", firstErr);
+          .catch((highResErr) => {
+            console.warn("High-res camera stream start failed on iOS. Trying standard environment stream...", highResErr);
             if (!isMounted) return;
 
-            // Try exact environment constraint
-            tryStart({ facingMode: { exact: 'environment' } })
+            // Fallback 1: Standard environment facing mode
+            tryStart({ facingMode: 'environment' })
               .then(() => {
                 if (isMounted) setIsCameraActive(true);
               })
-              .catch((secondErr) => {
-                console.warn("Second scanner start failed. Searching devices list...", secondErr);
+              .catch((firstErr) => {
+                console.warn("First fallback scanner start failed. Trying exact constraint...", firstErr);
                 if (!isMounted) return;
 
-                // Query available camera devices and bind first rear camera
-                Html5Qrcode.getCameras()
-                  .then((devices) => {
-                    if (!isMounted) return;
-                    if (devices && devices.length > 0) {
-                      const backCam = devices.find(device => 
-                        device.label.toLowerCase().includes('back') || 
-                        device.label.toLowerCase().includes('arrière') ||
-                        device.label.toLowerCase().includes('environment') ||
-                        device.label.toLowerCase().includes('cam 0')
-                      ) || devices[0];
-
-                      tryStart({ deviceId: backCam.id })
-                        .then(() => {
-                          if (isMounted) setIsCameraActive(true);
-                        })
-                        .catch((thirdErr) => {
-                          console.error("All camera active attempts failed:", thirdErr);
-                          if (isMounted) {
-                            setErrorMsg("Impossible d'activer la caméra en direct.");
-                          }
-                        });
-                    } else {
-                      if (isMounted) {
-                        setErrorMsg("Aucun périphérique de caméra détecté.");
-                      }
-                    }
+                // Fallback 2: Try exact environment constraint
+                tryStart({ facingMode: { exact: 'environment' } })
+                  .then(() => {
+                    if (isMounted) setIsCameraActive(true);
                   })
-                  .catch((camErr) => {
-                    console.error("Camera listing lookup error:", camErr);
-                    if (isMounted) {
-                      setErrorMsg("Impossible de scanner en direct. Utilisez la photo failsafe.");
-                    }
+                  .catch((secondErr) => {
+                    console.warn("Second fallback scanner start failed. Searching devices list...", secondErr);
+                    if (!isMounted) return;
+
+                    // Fallback 3: Query available camera devices and bind first rear camera
+                    Html5Qrcode.getCameras()
+                      .then((devices) => {
+                        if (!isMounted) return;
+                        if (devices && devices.length > 0) {
+                          const backCam = devices.find(device => 
+                            device.label.toLowerCase().includes('back') || 
+                            device.label.toLowerCase().includes('arrière') ||
+                            device.label.toLowerCase().includes('environment') ||
+                            device.label.toLowerCase().includes('cam 0')
+                          ) || devices[0];
+
+                          tryStart({ deviceId: backCam.id })
+                            .then(() => {
+                              if (isMounted) setIsCameraActive(true);
+                            })
+                            .catch((thirdErr) => {
+                              console.error("All camera active attempts failed:", thirdErr);
+                              if (isMounted) {
+                                setErrorMsg("Impossible d'activer la caméra en direct.");
+                              }
+                            });
+                        } else {
+                          if (isMounted) {
+                            setErrorMsg("Aucun périphérique de caméra détecté.");
+                          }
+                        }
+                      })
+                      .catch((camErr) => {
+                        console.error("Camera listing lookup error:", camErr);
+                        if (isMounted) {
+                          setErrorMsg("Impossible de scanner en direct. Utilisez la photo failsafe.");
+                        }
+                      });
                   });
               });
           });

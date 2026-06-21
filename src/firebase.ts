@@ -1,12 +1,14 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { INITIAL_VARIABLES } from './utils';
 import { Member, Client } from './types';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+});
 export const auth = getAuth();
 
 export interface Tenant {
@@ -40,23 +42,43 @@ export function getCollectionKey(collectionName: string, tenantId: string = curr
   return `${tenantId}_${collectionName}`;
 }
 
+export function saveToLocalCache(key: string, value: any): void {
+  try {
+    localStorage.setItem(`fs_cache_${key}`, JSON.stringify(value));
+  } catch (err) {
+    console.warn(`Failed to write to local cache for key ${key}:`, err);
+  }
+}
+
+export function getFromLocalCache<T>(key: string): T | null {
+  try {
+    const val = localStorage.getItem(`fs_cache_${key}`);
+    return val ? JSON.parse(val) as T : null;
+  } catch (err) {
+    console.warn(`Failed to read from local cache for key ${key}:`, err);
+    return null;
+  }
+}
+
 /**
  * Fetches a collection (stored as a single document with a 'list' array or object data) 
  * from Firestore. Returns null if the document does not exist yet.
  */
 export async function fetchCollectionFromFirestore<T>(collectionName: string): Promise<T | null> {
+  const key = getCollectionKey(collectionName);
   try {
-    const key = getCollectionKey(collectionName);
     const docRef = doc(db, 'appData', key);
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const payload = snap.data();
-      return payload.value as T;
+      const val = payload.value as T;
+      saveToLocalCache(key, val);
+      return val;
     }
-    return null;
+    return getFromLocalCache<T>(key);
   } catch (error) {
-    console.error(`Error fetching collection ${collectionName} from Firestore:`, error);
-    return null;
+    console.error(`Error fetching collection ${collectionName} from Firestore (will try cache):`, error);
+    return getFromLocalCache<T>(key);
   }
 }
 
@@ -104,37 +126,41 @@ export function sanitizeUndefined(obj: any): any {
  * Saves a collection array or object to Firestore.
  */
 export async function saveCollectionToFirestore<T>(collectionName: string, value: T): Promise<void> {
-  try {
-    const tenantId = getTenantId();
-    const key = getCollectionKey(collectionName, tenantId);
-    
-    // Auto-inject envId and tenantId if items are objects inside an array
-    let sanitizedValue = value;
-    if (Array.isArray(value)) {
-      sanitizedValue = value.map(item => {
-        if (item && typeof item === 'object') {
-          return {
-            ...item,
-            envId: tenantId,
-            tenantId: tenantId
-          };
-        }
-        return item;
-      }) as unknown as T;
-    } else if (value && typeof value === 'object') {
-      sanitizedValue = {
-        ...value,
-        envId: tenantId,
-        tenantId: tenantId
-      } as unknown as T;
-    }
+  const tenantId = getTenantId();
+  const key = getCollectionKey(collectionName, tenantId);
+  
+  // Auto-inject envId and tenantId if items are objects inside an array
+  let sanitizedValue = value;
+  if (Array.isArray(value)) {
+    sanitizedValue = value.map(item => {
+      if (item && typeof item === 'object') {
+        return {
+          ...item,
+          envId: tenantId,
+          tenantId: tenantId
+        };
+      }
+      return item;
+    }) as unknown as T;
+  } else if (value && typeof value === 'object') {
+    sanitizedValue = {
+      ...value,
+      envId: tenantId,
+      tenantId: tenantId
+    } as unknown as T;
+  }
 
+  const finalCleanValue = sanitizeUndefined(sanitizedValue);
+  
+  // Save to cache immediately so UI reads it instantly
+  saveToLocalCache(key, finalCleanValue);
+
+  try {
     const docRef = doc(db, 'appData', key);
-    const finalCleanValue = sanitizeUndefined(sanitizedValue);
     await setDoc(docRef, { value: finalCleanValue });
     console.log(`Successfully synced ${key} to Firestore with hidden environment fields.`);
   } catch (error) {
-    console.error(`Error saving collection ${collectionName} to Firestore:`, error);
+    console.error(`Error saving collection ${collectionName} to Firestore (kept in cache):`, error);
   }
 }
 
@@ -186,12 +212,13 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
         console.log('Successfully migrated missing shortEnvId for some tenants:', updatedTenants);
       }
 
+      saveToLocalCache('registered_tenants', updatedTenants);
       return updatedTenants;
     }
-    return [];
+    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
   } catch (err) {
-    console.error('Error fetching registered_tenants:', err);
-    return [];
+    console.error('Error fetching registered_tenants (will try cache):', err);
+    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
   }
 }
 
@@ -204,12 +231,14 @@ export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promis
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const payload = snap.data();
-      return payload.value as T;
+      const val = payload.value as T;
+      saveToLocalCache(rawKey, val);
+      return val;
     }
-    return null;
+    return getFromLocalCache<T>(rawKey);
   } catch (error) {
-    console.error(`Error fetching raw collection ${rawKey} from Firestore:`, error);
-    return null;
+    console.error(`Error fetching raw collection ${rawKey} from Firestore (will try cache):`, error);
+    return getFromLocalCache<T>(rawKey);
   }
 }
 

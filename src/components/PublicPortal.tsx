@@ -825,7 +825,9 @@ export default function PublicPortal({
                 reason: m.reason || 'Visite technique',
                 requiredParts: m.requiredParts || [],
                 estimatedDate: rawEstDate,
-                estimatedSlot: m.estimatedSlot || ''
+                estimatedSlot: m.estimatedSlot || '',
+                rejectionReason: m.rejectionReason || '',
+                rejectedAt: m.rejectedAt || ''
               };
             })
           };

@@ -1,62 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Camera, RefreshCw } from 'lucide-react';
-
-// Resize image to prevent massive browser heap memory crashes on Safari (iOS devices)
-const resizeImageToMaxDimension = (file: File, maxDimension: number): Promise<File> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = Math.round((height * maxDimension) / width);
-            width = maxDimension;
-          } else {
-            width = Math.round((width * maxDimension) / height);
-            height = maxDimension;
-          }
-        }
-
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(file);
-          return;
-        }
-
-        ctx.drawImage(img, 0, 0, width, height);
-
-        canvas.toBlob(
-          (blob) => {
-            if (blob) {
-              const resizedFile = new File([blob], file.name, {
-                type: file.type || 'image/jpeg',
-                lastModified: file.lastModified,
-              });
-              resolve(resizedFile);
-            } else {
-              resolve(file);
-            }
-          },
-          file.type || 'image/jpeg',
-          0.85
-        );
-      };
-      img.onerror = () => resolve(file);
-      img.src = event.target?.result as string;
-    };
-    reader.onerror = () => resolve(file);
-    reader.readAsDataURL(file);
-  });
-};
 
 interface BarcodeScannerModalProps {
   isOpen: boolean;
@@ -67,9 +10,7 @@ interface BarcodeScannerModalProps {
 export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen, onClose, onScanSuccess }) => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isCameraActive, setIsCameraActive] = useState<boolean>(false);
-  const [isScanningFile, setIsScanningFile] = useState<boolean>(false);
   const qrCodeInstanceRef = useRef<Html5Qrcode | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const elementId = "html5-qrcode-scanner-element";
 
   useEffect(() => {
@@ -189,7 +130,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
                       .catch((camErr) => {
                         console.error("Camera listing lookup error:", camErr);
                         if (isMounted) {
-                          setErrorMsg("Impossible de scanner en direct. Utilisez la photo failsafe.");
+                          setErrorMsg("Impossible de scanner en direct.");
                         }
                       });
                   });
@@ -218,48 +159,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
       stopAndUnmount();
     };
   }, [isOpen]);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawFile = e.target.files?.[0];
-    if (!rawFile) return;
-
-    setIsScanningFile(true);
-    setErrorMsg(null);
-
-    try {
-      let localInstance = qrCodeInstanceRef.current;
-      if (!localInstance) {
-        localInstance = new Html5Qrcode(elementId);
-        qrCodeInstanceRef.current = localInstance;
-      }
-
-      if (localInstance.isScanning) {
-        try {
-          await localInstance.stop();
-        } catch (stopErr) {
-          console.warn("Stopping scanner failed before file decode:", stopErr);
-        }
-        setIsCameraActive(false);
-      }
-
-      // 1. Optimize image resolution to a maximum of 1000px and compress.
-      // This completely runs in local browser memory and avoids crashing the Safari / Chrome iOS memory sandbox!
-      const optimizedFile = await resizeImageToMaxDimension(rawFile, 1000);
-
-      // 2. Decode the resized image using ZXing. It will scan quickly and consume very low RAM resources.
-      const decodedText = await localInstance.scanFile(optimizedFile, true);
-      onScanSuccess(decodedText);
-      onClose(); // Auto-close upon successful trigger
-    } catch (err) {
-      console.error("File selection scan error:", err);
-      setErrorMsg("Aucun code-barres n'a pu être détecté. Prenez une photo nette et de plus près.");
-    } finally {
-      setIsScanningFile(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ""; // Clear file selector input cache
-      }
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -337,7 +236,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
                 {errorMsg}
               </span>
               <span className="text-[11.5px] text-slate-400 font-sans">
-                Veuillez utiliser l'option photo ci-dessous pour procéder.
+                Veuillez réessayer ou vérifier vos autorisations d'accès à la caméra.
               </span>
             </div>
           )}
@@ -349,41 +248,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
               </span>
             </div>
           )}
-        </div>
-
-        {/* Action Button for iPhone (Failsafe native camera & photo picker) */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col items-center justify-center gap-2">
-          <input
-            type="file"
-            ref={fileInputRef}
-            accept="image/*"
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isScanningFile}
-            className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-sans font-semibold py-3 px-4 rounded-xl shadow-md transition-all text-sm cursor-pointer border-0 active:scale-95"
-          >
-            {isScanningFile ? (
-              <>
-                <RefreshCw className="w-4.5 h-4.5 animate-spin" />
-                Lecture du code-barres de l'image...
-              </>
-            ) : (
-              <>
-                <Camera className="w-4.5 h-4.5" />
-                Dépannage : Prendre une photo (Failsafe iPhone)
-              </>
-            )}
-          </button>
-          
-          <p className="text-[10.5px] text-slate-550 font-sans text-center max-w-xs leading-relaxed mt-1">
-            Si votre iPhone/Safari bloque la caméra en direct ou affiche un écran noir, cliquez ici pour prendre une photo nette en haute définition. Elle sera décodée instantanément !
-          </p>
         </div>
       </div>
     </div>

@@ -70,6 +70,7 @@ export default function ClientTab({
   const [referenceContrat, setReferenceContrat] = useState('');
   const [debutContrat, setDebutContrat] = useState('');
   const [finContrat, setFinContrat] = useState('');
+  const [numeroMarche, setNumeroMarche] = useState('');
 
   const contractModels = useMemo(() => {
     return variables.filter((v) => v.category === 'Modèle Contrat');
@@ -456,6 +457,7 @@ export default function ClientTab({
     setReferenceContrat('');
     setDebutContrat('');
     setFinContrat('');
+    setNumeroMarche('');
     setContractFile(null);
     setError('');
 
@@ -506,6 +508,7 @@ export default function ClientTab({
     setReferenceContrat(client.referenceContrat === '-' ? '' : (client.referenceContrat || ''));
     setDebutContrat(client.debutContrat || '');
     setFinContrat(client.finContrat || '');
+    setNumeroMarche(client.numeroMarche || '');
     setContractFile(null);
     setError('');
 
@@ -582,7 +585,10 @@ export default function ClientTab({
       }
     }
 
-    const hasContract = nomContrat && nomContrat.trim() !== '' && nomContrat.trim() !== 'Sans contrat de maintenance';
+    const hasContract = (nomContrat && nomContrat.trim() !== '' && nomContrat.trim() !== 'Sans contrat de maintenance') ||
+                        (referenceContrat && referenceContrat.trim() !== '' && referenceContrat.trim() !== '-') ||
+                        (debutContrat && debutContrat.trim() !== '') ||
+                        (finContrat && finContrat.trim() !== '');
     const payload = {
       denomination: denomination.trim(),
       siret: siret.trim(),
@@ -595,10 +601,11 @@ export default function ClientTab({
       telephoneSite: telephoneSite.trim() || phone.trim(),
       emailSite: emailSite.trim() || email.trim(),
       contrat: (hasContract ? 'Oui' : 'Non') as 'Oui' | 'Non',
-      nomContrat: hasContract ? nomContrat.trim() : 'Sans contrat de maintenance',
-      referenceContrat: (hasContract && referenceContrat.trim()) ? referenceContrat.trim() : '-',
-      debutContrat: hasContract ? debutContrat : '',
-      finContrat: hasContract ? finContrat : '',
+      nomContrat: hasContract ? (nomContrat.trim() || 'Contrat actif') : 'Sans contrat de maintenance',
+      referenceContrat: referenceContrat.trim() ? referenceContrat.trim() : '-',
+      debutContrat: debutContrat,
+      finContrat: finContrat,
+      numeroMarche: numeroMarche.trim(),
 
       typeContact1: typeContact1,
 
@@ -1393,7 +1400,7 @@ export default function ClientTab({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <label htmlFor="input-client-contract-start" className="block text-[11px] font-bold text-slate-500 uppercase">
                         Début.
@@ -1417,6 +1424,20 @@ export default function ClientTab({
                         value={finContrat}
                         onChange={(e) => setFinContrat(e.target.value)}
                         placeholder="dd/mm/yyyy"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="input-client-contract-marche" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Numéro de marché.
+                      </label>
+                      <input
+                        type="text"
+                        id="input-client-contract-marche"
+                        value={numeroMarche}
+                        onChange={(e) => setNumeroMarche(e.target.value)}
+                        placeholder="N° de marché"
+                        className="font-mono"
                       />
                     </div>
                   </div>

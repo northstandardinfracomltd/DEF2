@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Variable, StockRecord, Defibrillateur } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc } from '../types';
 
 interface StocksTabProps {
   stocks: StockRecord[];
@@ -8,6 +8,11 @@ interface StocksTabProps {
   saveStocks: (updated: StockRecord[]) => void;
   showStockForm: boolean;
   setShowStockForm: (show: boolean) => void;
+  distributedStocks?: DistributedStockLocation[];
+  onNavigateToDistributedStocks?: (ugs: string) => void;
+  stockSearchQuery?: string;
+  setStockSearchQuery?: (q: string) => void;
+  commercialDocs?: CommercialDoc[];
 }
 
 export default function StocksTab({
@@ -17,11 +22,144 @@ export default function StocksTab({
   saveStocks,
   showStockForm,
   setShowStockForm,
+  distributedStocks = [],
+  onNavigateToDistributedStocks,
+  stockSearchQuery: externalStockSearchQuery,
+  setStockSearchQuery: externalSetStockSearchQuery,
+  commercialDocs = [],
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState('');
   const [newQty, setNewQty] = useState<number>(0);
   const [newQtyReservee, setNewQtyReservee] = useState<number>(0);
+
+  const availableBcs = useMemo(() => {
+    if (!commercialDocs || commercialDocs.length === 0) return [];
+    const bcs = commercialDocs
+      .filter(doc => doc.hasBonCommande && doc.bonCommandeReference && doc.bonCommandeReference.trim() !== '')
+      .map(doc => doc.bonCommandeReference!.trim());
+    return Array.from(new Set(bcs));
+  }, [commercialDocs]);
+
+  // Stock Movement States
+  const [mouvements, setMouvements] = useState<StockMovement[]>([]);
+  const [newMvType, setNewMvType] = useState<'Réapprovisionnement fournisseur' | 'Distribution' | 'Rapatriement'>('Distribution');
+  const [newMvVolume, setNewMvVolume] = useState<number>(1);
+  const [newMvDate, setNewMvDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [newMvStatut, setNewMvStatut] = useState<'Préparation' | 'Expédié' | 'Terminé' | 'Annulé'>('Préparation');
+  const [newMvBonCommande, setNewMvBonCommande] = useState<string>('');
+  const [newMvTrackingLink, setNewMvTrackingLink] = useState<string>('');
+  const [newMvEmplacement, setNewMvEmplacement] = useState<string>('');
+  const [showMvForm, setShowMvForm] = useState<boolean>(false);
+  const [newUgs, setNewUgs] = useState<string>('');
+
+  useEffect(() => {
+    if (newMvType === 'Distribution' || newMvType === 'Rapatriement') {
+      if (distributedStocks.length > 0) {
+        const ds = distributedStocks[0];
+        const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
+        const itemName = matchedVar ? matchedVar.nom : 'Pièce';
+        const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+        const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
+        setNewMvEmplacement(`${itemName} ${ugsCode} : ${ds.locationName}`);
+      } else {
+        setNewMvEmplacement('');
+      }
+    } else {
+      setNewMvEmplacement('');
+    }
+  }, [newMvType, distributedStocks, variables, stocks]);
+
+  const handleAddMovementInline = () => {
+    if (newMvVolume <= 0) {
+      alert("Le volume doit être supérieur à 0");
+      return;
+    }
+    if (!newMvDate) {
+      alert("La date est requise");
+      return;
+    }
+    const newMv: StockMovement = {
+      id: 'mv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: newMvType,
+      volume: Number(newMvVolume),
+      date: newMvDate,
+      statut: newMvStatut,
+      bonCommande: newMvBonCommande,
+      trackingLink: newMvTrackingLink,
+      emplacement: newMvEmplacement
+    };
+    setMouvements([...mouvements, newMv]);
+    setNewMvVolume(1);
+    setNewMvBonCommande('');
+    setNewMvTrackingLink('');
+    setNewMvEmplacement('');
+    setShowMvForm(false);
+  };
+
+  const handleUpdateMovementStatus = (mvId: string, status: 'Préparation' | 'Expédié' | 'Terminé' | 'Annulé') => {
+    const updated = mouvements.map((m) => {
+      if (m.id === mvId) {
+        return { ...m, statut: status };
+      }
+      return m;
+    });
+    setMouvements(updated);
+  };
+
+  const handleUpdateMovementTrackingLink = (mvId: string, link: string) => {
+    const updated = mouvements.map((m) => {
+      if (m.id === mvId) {
+        return { ...m, trackingLink: link };
+      }
+      return m;
+    });
+    setMouvements(updated);
+  };
+
+  const handleUpdateMovementBonCommande = (mvId: string, bc: string) => {
+    const updated = mouvements.map((m) => {
+      if (m.id === mvId) {
+        return { ...m, bonCommande: bc };
+      }
+      return m;
+    });
+    setMouvements(updated);
+  };
+
+  const handleCancelMovement = (mvId: string) => {
+    const clickedMv = mouvements.find(m => m.id === mvId);
+    if (!clickedMv) return;
+
+    // Mark cliked row as canceled (and its status also updated to Annulé visually, as the user says "disable toutes actions possible")
+    const updatedMouvements = mouvements.map((m) => {
+      if (m.id === mvId) {
+        return { ...m, isCanceled: true, statut: 'Annulé' as const };
+      }
+      return m;
+    });
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Generate a brand new movement line
+    const annulationMv: StockMovement = {
+      id: 'mv_ann_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      type: 'Annulation',
+      volume: clickedMv.volume,
+      date: todayStr,
+      statut: 'Préparation',
+      bonCommande: '',
+      trackingLink: '',
+      emplacement: 'Centrale',
+      isCanceled: true // Canceled / disabled by definition since it's an Annulation row
+    };
+
+    setMouvements([...updatedMouvements, annulationMv]);
+  };
+
+  const handleRemoveMovement = (mvId: string) => {
+    setMouvements(mouvements.filter(m => m.id !== mvId));
+  };
 
   React.useEffect(() => {
     const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId));
@@ -40,8 +178,10 @@ export default function StocksTab({
   const [newCommentaire, setNewCommentaire] = useState<string>('');
 
   // Search & Filter State
-  const [stockSearchQuery, setStockSearchQuery] = useState('');
-  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'Entrepôt A' | 'Entrepôt B' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Non approprié' | 'ReqPrev2M' | 'ReqPrev2to6M'>('Tous');
+  const [localStockSearchQuery, setLocalStockSearchQuery] = useState('');
+  const stockSearchQuery = externalStockSearchQuery !== undefined ? externalStockSearchQuery : localStockSearchQuery;
+  const setStockSearchQuery = externalSetStockSearchQuery !== undefined ? externalSetStockSearchQuery : setLocalStockSearchQuery;
+  const [stockStorageFilter, setStockStorageFilter] = useState<'Tous' | 'ReqPrev2M' | 'ReqPrev2to6M'>('Tous');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -178,8 +318,9 @@ export default function StocksTab({
       return;
     }
 
-    const finalLivDate = newStorage === 'Non approprié' ? '' : newLivDate;
-    const finalReapDate = newStorage === 'Non approprié' ? '' : newReapDate;
+    const finalLivDate = newLivDate;
+    const finalReapDate = newReapDate;
+    const finalStorage = newStorage || 'Entrepôt A';
 
     if (editingStockId) {
       const updated = stocks.map(st => {
@@ -194,11 +335,13 @@ export default function StocksTab({
             valeurAchat: Number(newValAchat) || 0,
             marge: Number(newMarge) || 0,
             prixVenteHt: Number(newPrixHt) || 0,
-            stockage: newStorage,
+            stockage: finalStorage,
             besoinProjete2Mois: prevoianceData.bis2M,
             besoinProjete2a6Mois: prevoianceData.bis2to6M,
             totalACommander: prevoianceData.totalToOrder,
-            commentaire: newCommentaire
+            commentaire: newCommentaire,
+            mouvements: mouvements,
+            ugs: newUgs || '0001'
           };
         }
         return st;
@@ -216,11 +359,13 @@ export default function StocksTab({
         valeurAchat: Number(newValAchat) || 0,
         marge: Number(newMarge) || 0,
         prixVenteHt: Number(newPrixHt) || 0,
-        stockage: newStorage,
+        stockage: finalStorage,
         besoinProjete2Mois: prevoianceData.bis2M,
         besoinProjete2a6Mois: prevoianceData.bis2to6M,
         totalACommander: prevoianceData.totalToOrder,
-        commentaire: newCommentaire
+        commentaire: newCommentaire,
+        mouvements: mouvements,
+        ugs: newUgs || '0001'
       };
       saveStocks([newItem, ...stocks]);
     }
@@ -233,8 +378,10 @@ export default function StocksTab({
     setNewValAchat('');
     setNewMarge('');
     setNewPrixHt('');
-    setNewStorage('');
+    setNewStorage('Entrepôt A');
     setNewCommentaire('');
+    setNewUgs('');
+    setMouvements([]);
     setShowStockForm(false);
   };
 
@@ -253,8 +400,18 @@ export default function StocksTab({
       setNewValAchat('');
       setNewMarge('');
       setNewPrixHt('');
-      setNewStorage('');
+      setNewStorage('Entrepôt A');
       setNewCommentaire('');
+      setMouvements([]);
+      
+      // Auto-generate UGS
+      const numbers = stocks
+        .map(s => parseInt(s.ugs || '', 10))
+        .filter(n => !isNaN(n));
+      const max = numbers.length > 0 ? Math.max(...numbers) : 0;
+      const nextUgsVal = String(max + 1).padStart(4, '0');
+      setNewUgs(nextUgsVal);
+
       setShowStockForm(true);
     }
   };
@@ -346,8 +503,6 @@ export default function StocksTab({
       const prev = getPrevoianceForVariable(st.denominationPieceId, st.quantite);
       const val = st.besoinProjete2a6Mois !== undefined ? Math.max(st.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
       matchesStorage = val >= 1;
-    } else {
-      matchesStorage = st.stockage === stockStorageFilter;
     }
     
     const query = stockSearchQuery.trim().toLowerCase();
@@ -355,7 +510,6 @@ export default function StocksTab({
       modelNom.includes(query) ||
       modelMarque.includes(query) ||
       modelCat.includes(query) ||
-      st.stockage.toLowerCase().includes(query) ||
       (st.livraisonDate && st.livraisonDate.toLowerCase().includes(query)) ||
       (st.reapprovisionnementDate && st.reapprovisionnementDate.toLowerCase().includes(query));
       
@@ -437,7 +591,7 @@ export default function StocksTab({
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="stocks-tab-title">Stocks</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="stocks-tab-title">Centrale des stocks</h2>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 bg-white">
@@ -473,14 +627,8 @@ export default function StocksTab({
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-storage-pills">
             {[
               { value: 'Tous', label: 'Tous' },
-              { value: 'Entrepôt A', label: 'Entrepôt A' },
-              { value: 'Entrepôt B', label: 'Entrepôt B' },
-              { value: 'Véhicule A', label: 'Véhicule A' },
-              { value: 'Véhicule B', label: 'Véhicule B' },
-              { value: 'Véhicule C', label: 'Véhicule C' },
-              { value: 'Non approprié', label: 'Non approprié' },
-              { value: 'ReqPrev2M', label: 'Réapprovisionnement requis prévoyance 2 mois' },
-              { value: 'ReqPrev2to6M', label: 'Réapprovisionnement requis prévoyance 2 à 6 mois' }
+              { value: 'ReqPrev2M', label: 'Besoin 2 mois' },
+              { value: 'ReqPrev2to6M', label: 'Besoin 2 à 6 mois' }
             ].map((opt) => {
               let count = 0;
               if (opt.value === 'Tous') {
@@ -497,8 +645,6 @@ export default function StocksTab({
                   const val = s.besoinProjete2a6Mois !== undefined ? Math.max(s.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
                   return val >= 1;
                 }).length;
-              } else {
-                count = stocks.filter(s => s.stockage === opt.value).length;
               }
               
               const isSelected = stockStorageFilter === opt.value;
@@ -534,22 +680,21 @@ export default function StocksTab({
               <table className="w-full text-left font-sans border-collapse text-xs" id="stocks-record-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
                 <thead>
                   <tr className="bg-transparent">
+                    <th className="px-4 py-3.5" style={thStyle}>UGS</th>
                     <th className="px-4 py-3.5" style={thStyle}>Pièce ou service.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté disponible.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté réservée.</th>
-                    <th className="px-4 py-3.5 text-center" style={thStyle}>Qté totale.</th>
-                    <th className="px-4 py-3.5 text-center" style={thStyle}>Entrant.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Besoin 2 mois.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Besoin 2 à 6 mois.</th>
                     <th className="px-4 py-3.5 text-right" style={thStyle}>Tarif fournisseur.</th>
-                    <th className="px-4 py-3.5 text-right" style={thStyle}>Marge.</th>
                     <th className="px-4 py-3.5 text-right" style={thStyle}>Tarif de vente HT.</th>
-                    <th className="px-4 py-3.5 text-center" style={thStyle}>Stockage.</th>
                     <th className="px-4 py-3.5 text-right w-24" style={thStyle}>Actions.</th>
                   </tr>
                 </thead>
                 <tbody className="text-slate-700 text-xs">
                   {filteredStocks.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
+                      <td colSpan={9} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
                         Aucun résultat.
                       </td>
                     </tr>
@@ -557,12 +702,18 @@ export default function StocksTab({
                     filteredStocks.map((st) => {
                       const vObj = variables.find(v => v.id === st.denominationPieceId);
                       const rawName = vObj ? vObj.nom : 'Modèle inconnu';
-                      const displayName = rawName.length > 20 ? rawName.slice(0, 20) + '(...)' : rawName;
+                      
+                      const prev = getPrevoianceForVariable(st.denominationPieceId, st.quantite);
+                      const besoin2M = st.besoinProjete2Mois !== undefined ? Math.max(st.besoinProjete2Mois, prev.bis2M) : prev.bis2M;
+                      const besoin2to6M = st.besoinProjete2a6Mois !== undefined ? Math.max(st.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
 
                       return (
                         <tr key={st.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
-                          <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                            {displayName}
+                          <td className="px-4 py-5 whitespace-nowrap font-mono text-xs font-bold text-slate-800 uppercase tracking-wide">
+                            {st.ugs || '0001'}
+                          </td>
+                          <td className="px-4 py-5 whitespace-nowrap">
+                            <span className="font-sans font-semibold text-[#000000] text-sm">{rawName}</span>
                           </td>
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {st.quantite}
@@ -570,43 +721,34 @@ export default function StocksTab({
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {st.quantiteReservee ?? 0}
                           </td>
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                            {st.quantite + (st.quantiteReservee ?? 0)}
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-sans font-bold text-slate-900" style={{ fontSize: '14px' }}>
+                            {besoin2M}
                           </td>
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                            {st.livraisonDate ? st.livraisonDate : '-'}
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-sans font-bold text-slate-700" style={{ fontSize: '14px' }}>
+                            {besoin2to6M}
                           </td>
                           <td className="px-4 py-5 text-right whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {(st.valeurAchat ?? 0).toFixed(2)} €
                           </td>
-                          <td className="px-4 py-5 text-right whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                            {(st.marge ?? 0).toFixed(2)} €
-                          </td>
                           <td className="px-4 py-5 text-right font-black whitespace-nowrap" style={{ fontSize: '16px', fontWeight: 105, color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {(st.prixVenteHt ?? 0).toFixed(2)} €
                           </td>
-                          <td className="px-4 py-5 text-center whitespace-nowrap">
-                            <span 
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '1000px',
-                                backgroundColor: '#ffffff',
-                                border: '1px solid rgb(231, 231, 231)',
-                                color: '#000000',
-                                fontSize: '15px',
-                                fontWeight: 100,
-                                padding: '6px 18px',
-                                whiteSpace: 'nowrap',
-                                fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
-                              }}
-                            >
-                              {st.stockage}
-                            </span>
-                          </td>
                           <td className="px-4 py-5 text-right whitespace-nowrap bg-transparent" onClick={(e) => e.stopPropagation()}>
                             <div className="inline-flex gap-2 bg-transparent">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  onNavigateToDistributedStocks?.(st.ugs || '');
+                                }}
+                                style={{
+                                  ...rowActionButtonStyle,
+                                  backgroundColor: '#fa53d5',
+                                  color: '#fff',
+                                }}
+                                className="cursor-pointer font-sans"
+                              >
+                                Distribution
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -621,6 +763,8 @@ export default function StocksTab({
                                   setNewPrixHt((st.prixVenteHt ?? 0).toString());
                                   setNewStorage(st.stockage);
                                   setNewCommentaire(st.commentaire || '');
+                                  setMouvements(st.mouvements || []);
+                                  setNewUgs(st.ugs || '');
                                   setShowStockForm(true);
                                 }}
                                 style={rowActionButtonStyle}
@@ -630,13 +774,20 @@ export default function StocksTab({
                               </button>
                               <button
                                 type="button"
+                                disabled={st.quantite > 0}
                                 onClick={() => {
+                                  if (st.quantite > 0) return;
                                   if (confirm('Retirer cet article du stock ?')) {
                                     saveStocks(stocks.filter(s => s.id !== st.id));
                                   }
                                 }}
-                                style={rowActionButtonStyle}
-                                className="cursor-pointer font-sans"
+                                style={{
+                                  ...rowActionButtonStyle,
+                                  opacity: st.quantite > 0 ? 0.35 : 1,
+                                  cursor: st.quantite > 0 ? 'not-allowed' : 'pointer'
+                                }}
+                                className="font-sans"
+                                title={st.quantite > 0 ? "Impossible de supprimer un stock dont la quantité disponible n'est pas à 0" : "Supprimer"}
                               >
                                 Supprimer
                               </button>
@@ -713,11 +864,18 @@ export default function StocksTab({
               margin: 'auto'
             }}
           >
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-5 bg-white font-sans">
               
-              {/* Lookup Dénomination variable - Full Width on 1st Row */}
-              <div className="flex flex-col gap-1 bg-white md:col-span-4">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce ou service.</label>
+              {/* Section Propriétés Capsule */}
+              <div className="flex bg-white md:col-span-4 select-none mb-1">
+                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest font-sans">
+                  Propriétés
+                </span>
+              </div>
+
+              {/* Lookup Dénomination variable - 3/4 Width on Row */}
+              <div className="flex flex-col gap-1 bg-white md:col-span-3">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce ou service *</label>
                 <select
                   value={newDenomStr}
                   onChange={(e) => setNewDenomStr(e.target.value)}
@@ -735,6 +893,20 @@ export default function StocksTab({
                     );
                   })}
                 </select>
+              </div>
+
+              {/* UGS Reference Code - 1/4 Width on Row */}
+              <div className="flex flex-col gap-1 bg-white md:col-span-1">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">UGS *</label>
+                <input
+                  type="text"
+                  value={newUgs}
+                  onChange={(e) => setNewUgs(e.target.value)}
+                  placeholder="Ex: 0001"
+                  className="focus:outline-none w-full font-sans"
+                  style={{ minHeight: '38px', padding: '0 10px', border: '1px solid #e2e8f0', borderRadius: '4px' }}
+                  required
+                />
               </div>
 
               {/* Quantities Row */}
@@ -778,63 +950,8 @@ export default function StocksTab({
                 </div>
               </div>
 
-              {/* Storage and Dates Row */}
-              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Stockage Location */}
-                <div className="flex flex-col gap-1 bg-white">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Stockage.</label>
-                  <select
-                    value={newStorage}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setNewStorage(val);
-                      if (val === 'Non approprié') {
-                        setNewLivDate('');
-                        setNewReapDate('');
-                      }
-                    }}
-                    className="focus:outline-none w-full cursor-pointer font-sans"
-                    required
-                  >
-                    <option value="" disabled hidden>Sélectionnez un stockage.</option>
-                    <option value="Entrepôt A">Entrepôt A</option>
-                    <option value="Entrepôt B">Entrepôt B</option>
-                    <option value="Véhicule A">Véhicule A</option>
-                    <option value="Véhicule B">Véhicule B</option>
-                    <option value="Véhicule C">Véhicule C</option>
-                    <option value="Non approprié">Non approprié</option>
-                  </select>
-                </div>
-
-                {/* Livraison Date */}
-                <div className="flex flex-col gap-1 bg-white">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Livraison.</label>
-                  <input
-                    type="date"
-                    value={newLivDate}
-                    onChange={(e) => setNewLivDate(e.target.value)}
-                    disabled={newStorage === 'Non approprié'}
-                    className={`focus:outline-none w-full font-sans ${newStorage === 'Non approprié' ? 'bg-slate-100 cursor-not-allowed opacity-60' : ''}`}
-                    placeholder="jj/mm.aaaa"
-                  />
-                </div>
-
-                {/* Réappro Date */}
-                <div className="flex flex-col gap-1 bg-white">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Réapprovisionnement.</label>
-                  <input
-                    type="date"
-                    value={newReapDate}
-                    onChange={(e) => setNewReapDate(e.target.value)}
-                    disabled={newStorage === 'Non approprié'}
-                    className={`focus:outline-none w-full font-sans ${newStorage === 'Non approprié' ? 'bg-slate-100 cursor-not-allowed opacity-60' : ''}`}
-                    placeholder="jj/mm.aaaa"
-                  />
-                </div>
-              </div>
-
               {/* Pricing section - 3 elegant columns spanning full row width */}
-              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-slate-100 pt-5">
                 {/* Valeur Achat */}
                 <div className="flex flex-col gap-1 bg-white">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Tarif fournisseur. (€)</label>
@@ -883,11 +1000,15 @@ export default function StocksTab({
 
               {/* Section Prévoyance. */}
               <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-1">
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2" style={{ color: '#000000', cursor: 'default' }}>Prévoyance.</h4>
+                <div className="flex bg-white mb-2 select-none">
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                    Prévoyance
+                  </span>
+                </div>
                 <div className="bg-slate-50 border border-slate-100 p-2.5 rounded text-xs text-slate-600 mb-2 font-sans">
                   Nous estimons votre besoin de trésorerie à <span className="font-bold text-slate-900">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>€, pour l'achat des stocks requis aux actions de maintenances.
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-white">
                   <div className="flex flex-col gap-1 bg-white">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Besoin projeté à 2 mois.</label>
                     <input
@@ -923,6 +1044,382 @@ export default function StocksTab({
                       className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Section Mouvements */}
+              <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-1">
+                <div className="flex justify-between items-center bg-white mb-2 select-none">
+                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                    Mouvements
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowMvForm(!showMvForm)}
+                      style={{
+                        backgroundColor: '#3556ec',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        padding: '6px 14px',
+                        fontSize: '12px'
+                      }}
+                      className="font-sans font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-all text-white cursor-pointer border-0"
+                    >
+                      + Nouveau mouvement
+                    </button>
+                    <button
+                      type="submit"
+                      form="equipement-stock-form"
+                      style={{
+                        backgroundColor: '#10b981',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                        padding: '6px 14px',
+                        fontSize: '12px'
+                      }}
+                      className="font-sans font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-all text-white cursor-pointer border-0"
+                    >
+                      Enregistrer
+                    </button>
+                  </div>
+                </div>
+
+                {/* Sub-form to add a new movement inline */}
+                {showMvForm && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 flex flex-col font-sans mb-3 text-xs">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 bg-transparent">
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type du mouvement *</label>
+                        <select
+                          value={newMvType}
+                          onChange={(e) => setNewMvType(e.target.value as any)}
+                          className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                          style={{ minHeight: '36px' }}
+                        >
+                          <option value="Réapprovisionnement fournisseur">Réapprovisionnement fournisseur</option>
+                          <option value="Distribution">Distribution</option>
+                        </select>
+                      </div>
+
+                      {/* Lookup / conditional input depending on type */}
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        {newMvType === 'Distribution' ? (
+                          <>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Envoyer à *</label>
+                            <select
+                              value={newMvEmplacement}
+                              onChange={(e) => setNewMvEmplacement(e.target.value)}
+                              className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                              style={{ minHeight: '36px' }}
+                              required
+                            >
+                              <option value="" disabled hidden>Sélectionnez un emplacement</option>
+                              {distributedStocks.map(ds => {
+                                const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
+                                const itemName = matchedVar ? matchedVar.nom : 'Pièce';
+                                const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+                                const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
+                                const labelVal = `${itemName} ${ugsCode} : ${ds.locationName}`;
+                                return (
+                                  <option key={ds.id} value={labelVal}>
+                                    {labelVal}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </>
+                        ) : newMvType === 'Rapatriement' ? (
+                          <>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Retour de *</label>
+                            <select
+                              value={newMvEmplacement}
+                              onChange={(e) => setNewMvEmplacement(e.target.value)}
+                              className="w-full bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 cursor-not-allowed"
+                              style={{ minHeight: '36px' }}
+                              disabled
+                            >
+                              <option value="" disabled hidden>Pas d'emplacement</option>
+                              {distributedStocks.map(ds => {
+                                const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
+                                const itemName = matchedVar ? matchedVar.nom : 'Pièce';
+                                const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+                                const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
+                                const labelVal = `${itemName} ${ugsCode} : ${ds.locationName}`;
+                                return (
+                                  <option key={ds.id} value={labelVal}>
+                                    {labelVal}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </>
+                        ) : (
+                          <>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provenance *</label>
+                            <input
+                              type="text"
+                              value={newMvEmplacement}
+                              onChange={(e) => setNewMvEmplacement(e.target.value)}
+                              placeholder="Fournisseur"
+                              className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs font-mono"
+                              style={{ minHeight: '36px' }}
+                              required
+                            />
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Volume *</label>
+                        <input
+                          type="number"
+                          min="1"
+                          value={newMvVolume}
+                          onChange={(e) => setNewMvVolume(Number(e.target.value))}
+                          className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                          style={{ minHeight: '36px' }}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date *</label>
+                        <input
+                          type="date"
+                          value={newMvDate}
+                          onChange={(e) => setNewMvDate(e.target.value)}
+                          className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                          style={{ minHeight: '36px' }}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bon commande</label>
+                        {availableBcs.length === 0 ? (
+                          <div className="w-full bg-slate-55 text-slate-450 border border-slate-200 rounded p-2 text-[10px] font-sans italic" style={{ minHeight: '36px' }}>
+                            Aucun BC trouvé dans Factures & Devis.
+                          </div>
+                        ) : (
+                          <select
+                            value={newMvBonCommande}
+                            onChange={(e) => setNewMvBonCommande(e.target.value)}
+                            className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                            style={{ minHeight: '36px' }}
+                          >
+                            <option value="">Sélectionner un BC...</option>
+                            {commercialDocs
+                              .filter(doc => doc.hasBonCommande && doc.bonCommandeReference && doc.bonCommandeReference.trim() !== '')
+                              .map(doc => (
+                                <option key={doc.id} value={doc.bonCommandeReference}>
+                                  {doc.bonCommandeReference} - {doc.clientDenomination} ({doc.type} {doc.ref})
+                                </option>
+                              ))
+                            }
+                          </select>
+                        )}
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Suivi colis</label>
+                        <input
+                          type="text"
+                          placeholder="Lien de suivi"
+                          value={newMvTrackingLink}
+                          onChange={(e) => setNewMvTrackingLink(e.target.value)}
+                          className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                          style={{ minHeight: '36px' }}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1 bg-transparent">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut *</label>
+                        <select
+                          value={newMvStatut}
+                          onChange={(e) => setNewMvStatut(e.target.value as any)}
+                          className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                          style={{ minHeight: '36px' }}
+                        >
+                          <option value="Préparation">Préparation</option>
+                          <option value="Expédié">Expédié</option>
+                          <option value="Terminé">Terminé</option>
+                          <option value="Annulé">Annulé</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 bg-transparent text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setShowMvForm(false)}
+                        className="bg-slate-200 text-slate-700 py-1.5 px-3 rounded-lg hover:bg-slate-300 font-semibold border-0 cursor-pointer"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAddMovementInline}
+                        className="bg-indigo-600 text-white py-1.5 px-4 rounded-lg hover:bg-indigo-700 font-semibold border-0 cursor-pointer shadow-xs"
+                      >
+                        Ajouter
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Table of movements report */}
+                <div className="overflow-x-auto border border-slate-200 rounded-xl mt-2 bg-white">
+                  <table className="w-full text-left font-sans border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
+                        <th className="px-3 py-2 font-semibold">Indicateur</th>
+                        <th className="px-3 py-2 font-semibold">Type</th>
+                        <th className="px-3 py-2 font-semibold">Provenance / Destination</th>
+                        <th className="px-3 py-2 text-center font-semibold">Volume</th>
+                        <th className="px-3 py-2 text-center font-semibold">Bon commande</th>
+                        <th className="px-3 py-2 text-center font-semibold">Suivi Colis</th>
+                        <th className="px-3 py-2 text-center font-semibold">Date</th>
+                        <th className="px-3 py-2 text-center font-semibold">Statut</th>
+                        <th className="px-3 py-2 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 bg-white">
+                      {mouvements.length === 0 ? (
+                        <tr>
+                          <td colSpan={9} className="py-6 text-center text-slate-400">
+                            Aucun mouvement enregistré pour cette pièce.
+                          </td>
+                        </tr>
+                      ) : (
+                        mouvements.map((mv) => {
+                          return (
+                            <tr key={mv.id} className="hover:bg-slate-50 transition-all font-sans bg-white text-black">
+                              {/* Indicator */}
+                              <td className="px-3 py-2 whitespace-nowrap bg-white text-black">
+                                <span className="inline-flex items-center gap-1.5 font-bold bg-white text-black">
+                                  {mv.type === 'Réapprovisionnement fournisseur' ? (
+                                    <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md text-xs border border-amber-200 inline-flex items-center gap-1">
+                                      ↓ Réappro. Fourn.
+                                    </span>
+                                  ) : mv.type === 'Distribution' ? (
+                                    <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md text-xs border border-emerald-200 inline-flex items-center gap-1">
+                                      → Cent. vers Empl.
+                                    </span>
+                                  ) : mv.type === 'Annulation' ? (
+                                    <span className="text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md text-xs border border-rose-200 inline-flex items-center gap-1 font-bold">
+                                      ↑ Annulation
+                                    </span>
+                                  ) : (
+                                    <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md text-xs border border-blue-200 inline-flex items-center gap-1">
+                                      ← Empl. vers Cent.
+                                    </span>
+                                  )}
+                                </span>
+                              </td>
+                              {/* Type */}
+                              <td className="px-3 py-2 whitespace-nowrap text-slate-800 font-medium bg-white">
+                                {mv.type}
+                              </td>
+                              {/* Provenance / Destination */}
+                              <td className="px-3 py-2 text-slate-700 bg-white font-medium">
+                                {mv.emplacement || '-'}
+                              </td>
+                              {/* Volume */}
+                              <td className="px-3 py-2 text-center font-semibold text-slate-900 bg-white">
+                                {mv.volume}
+                              </td>
+                              {/* Bon commande */}
+                              <td className="px-3 py-2 text-center bg-white text-black min-w-[150px]">
+                                {availableBcs.length === 0 ? (
+                                  <input
+                                    type="text"
+                                    value={mv.bonCommande || ''}
+                                    disabled
+                                    placeholder="Aucun BC"
+                                    className="w-full text-xs text-slate-400 border border-slate-200 rounded px-2 py-1 bg-slate-50 cursor-not-allowed"
+                                    style={{ height: '28px' }}
+                                  />
+                                ) : (
+                                  <select
+                                    value={mv.bonCommande || ''}
+                                    disabled={mv.isCanceled || mv.type === 'Annulation'}
+                                    onChange={(e) => handleUpdateMovementBonCommande(mv.id, e.target.value)}
+                                    className="w-full text-xs text-black border border-slate-200 rounded px-1 py-0.5 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed font-medium"
+                                    style={{ height: '28px' }}
+                                  >
+                                    <option value="">Aucun BC...</option>
+                                    {commercialDocs
+                                      .filter(doc => doc.hasBonCommande && doc.bonCommandeReference && doc.bonCommandeReference.trim() !== '')
+                                      .map(doc => (
+                                        <option key={doc.id} value={doc.bonCommandeReference}>
+                                          {doc.bonCommandeReference} ({doc.clientDenomination.length > 15 ? doc.clientDenomination.substring(0, 15) + '...' : doc.clientDenomination})
+                                        </option>
+                                      ))
+                                    }
+                                  </select>
+                                )}
+                              </td>
+                              {/* Suivi Colis (trackingLink) */}
+                              <td className="px-3 py-2 text-center bg-white text-black min-w-[140px]">
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={mv.trackingLink || ''}
+                                    disabled={mv.isCanceled || mv.type === 'Annulation'}
+                                    onChange={(e) => handleUpdateMovementTrackingLink(mv.id, e.target.value)}
+                                    placeholder="Lien de suivi"
+                                    className="w-full text-xs text-black border border-slate-200 rounded px-2 py-1 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                                    style={{ height: '28px' }}
+                                  />
+                                  {mv.trackingLink && (mv.trackingLink.startsWith('http') || mv.trackingLink.startsWith('www')) && (
+                                    <a
+                                      href={mv.trackingLink.startsWith('http') ? mv.trackingLink : `https://${mv.trackingLink}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-1.5 py-1 border border-slate-200 rounded bg-slate-50 hover:bg-slate-100 flex items-center justify-center cursor-pointer font-sans"
+                                      title="Suivre le colis"
+                                      style={{ height: '28px', width: '28px' }}
+                                    >
+                                      ↗
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                              {/* Date */}
+                              <td className="px-3 py-2 text-center text-slate-500 bg-white">
+                                {mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : '-'}
+                              </td>
+                              {/* Statut - dropdown enabled inline */}
+                              <td className="px-3 py-2 text-center whitespace-nowrap bg-white">
+                                <select
+                                  value={mv.statut}
+                                  disabled={mv.isCanceled || mv.type === 'Annulation'}
+                                  onChange={(e) => handleUpdateMovementStatus(mv.id, e.target.value as any)}
+                                  className="mx-auto text-xs bg-white text-black p-1 border border-slate-200 rounded min-w-[110px] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
+                                  style={{ minHeight: '28px', fontSize: '11px' }}
+                                >
+                                  <option value="Préparation">Préparation</option>
+                                  <option value="Expédié">Expédié</option>
+                                  <option value="Terminé">Terminé</option>
+                                  <option value="Annulé">Annulé</option>
+                                </select>
+                              </td>
+                              {/* Delete/Cancel option */}
+                              <td className="px-3 py-2 text-right bg-white">
+                                <button
+                                  type="button"
+                                  disabled={mv.isCanceled || mv.type === 'Annulation'}
+                                  onClick={() => handleCancelMovement(mv.id)}
+                                  className="text-red-500 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed text-[11px] font-semibold border-0 bg-transparent cursor-pointer"
+                                >
+                                  Annuler
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
 

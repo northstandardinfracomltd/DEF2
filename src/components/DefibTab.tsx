@@ -1046,7 +1046,9 @@ export default function DefibTab({
       }
 
       // 7. Contrat Match
-      const isMatchContrat = activeFilters.contrat === 'Tous' || df.contrat === activeFilters.contrat;
+      const clientObj = clientMap.get(df.clientId);
+      const activeContrat = clientObj ? (clientObj.contrat || 'Non') : (df.contrat || 'Non');
+      const isMatchContrat = activeFilters.contrat === 'Tous' || activeContrat === activeFilters.contrat;
 
       // 8. Rejeté Match
       const hasBeenRejected = (fsmTours || []).some((t: any) => 
@@ -1949,23 +1951,33 @@ export default function DefibTab({
 
                       {/* Contrat Yes/No */}
                       <td className="px-4 py-5 text-center">
-                        {df.contrat ? (
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '1000px',
-                            backgroundColor: '#ffffff',
-                            border: '1px solid rgb(231, 231, 231)',
-                            color: '#000000',
-                            fontSize: '16px',
-                            fontWeight: 100,
-                            padding: '4px 12px',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {df.contrat}
-                          </span>
-                        ) : null}
+                        {(() => {
+                          const activeContrat = linkedClient ? linkedClient.contrat : df.contrat;
+                          const activeNomContrat = linkedClient ? (linkedClient.nomContrat === 'Sans contrat de maintenance' ? '' : linkedClient.nomContrat) : df.nomContrat;
+                          const activeFinContrat = linkedClient ? linkedClient.finContrat : df.finContrat;
+                          if (!activeContrat) return null;
+                          return (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: '1000px',
+                              backgroundColor: '#ffffff',
+                              border: '1px solid rgb(231, 231, 231)',
+                              color: '#000000',
+                              fontSize: '16px',
+                              fontWeight: 100,
+                              padding: '4px 12px',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {activeContrat === 'Oui' ? (
+                                `Oui${activeNomContrat ? `, ${activeNomContrat}` : ''}${activeFinContrat ? `, Expir.${formatDateToFR(activeFinContrat)}` : ''}`
+                              ) : (
+                                activeContrat
+                              )}
+                            </span>
+                          );
+                        })()}
                       </td>
 
                       {/* Localisation (ville / cp) */}

@@ -17,6 +17,7 @@ interface GmaoCorrectionFormProps {
   initialDefibId?: string;
   stocks?: StockRecord[];
   members?: Member[];
+  forceSmartphoneLayout?: boolean;
 }
 
 const DEFAULT_DEFIB: Defibrillateur = {
@@ -256,7 +257,8 @@ export default function GmaoCorrectionForm({
   defibrillateurs,
   initialDefibId,
   stocks = [],
-  members = []
+  members = [],
+  forceSmartphoneLayout = false
 }: GmaoCorrectionFormProps) {
 
   const availableMembers = React.useMemo<Member[]>(() => {
@@ -910,7 +912,7 @@ export default function GmaoCorrectionForm({
   };
 
   return (
-    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto text-black" id="gmao-correction-layout">
+    <div className={`w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto text-black ${forceSmartphoneLayout ? 'force-smartphone-layout' : ''}`} id="gmao-correction-layout">
       {/* Header section identical in looks to Defibrillateurs with limited width */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"

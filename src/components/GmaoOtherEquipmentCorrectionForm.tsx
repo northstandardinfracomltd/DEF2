@@ -6,6 +6,7 @@ interface GmaoOtherEquipmentCorrectionFormProps {
   clients: Client[];
   onCancel: () => void;
   onSave: (payload: any) => void;
+  forceSmartphoneLayout?: boolean;
 }
 
 // Custom Pink Radio Component
@@ -53,7 +54,8 @@ export default function GmaoOtherEquipmentCorrectionForm({
   otherEquipment,
   clients,
   onCancel,
-  onSave
+  onSave,
+  forceSmartphoneLayout = false
 }: GmaoOtherEquipmentCorrectionFormProps) {
   // Section 1 - Client fields
   const [clientId, setClientId] = useState(otherEquipment?.clientId || '');
@@ -332,7 +334,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   };
 
   return (
-    <div className="w-full space-y-6 font-sans animate-fadeIn text-black pb-12" id="gmao-other-eq-correction-layout">
+    <div className={`w-full space-y-6 font-sans animate-fadeIn text-black pb-12 ${forceSmartphoneLayout ? 'force-smartphone-layout' : ''}`} id="gmao-other-eq-correction-layout">
       {/* Header */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"

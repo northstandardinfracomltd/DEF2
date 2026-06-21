@@ -70,3 +70,26 @@ html, body {
   transform: translateY(0);
 }
 
+/* Forcer l'affichage smartphone même sur tablette/écran large */
+.force-smartphone-layout .grid,
+.force-smartphone-layout [class*="grid-cols-"] {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+
+.force-smartphone-layout [class*="col-span-"],
+.force-smartphone-layout [class*="md:col-span-"],
+.force-smartphone-layout [class*="lg:col-span-"] {
+  grid-column: span 1 / span 1 !important;
+}
+
+.force-smartphone-layout .md\:flex-row,
+.force-smartphone-layout .flex-row {
+  flex-direction: column !important;
+}
+
+.force-smartphone-layout .md\:items-center,
+.force-smartphone-layout .items-center {
+  align-items: stretch !important;
+}
+
+

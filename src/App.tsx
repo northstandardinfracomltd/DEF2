@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
   INITIAL_DEFIBRILLATEURS,
   generateRandomPin,
+  formatDateToFR,
+  computeProchaineMaintenance,
 } from './utils';
 import {
   triggerEmail4Signalement,
@@ -25,7 +27,9 @@ import PublicPortal from './components/PublicPortal';
 import ClientPortal from './components/ClientPortal';
 import Login from './components/Login';
 import StocksTab from './components/StocksTab';
+import StocksDistribuesTab from './components/StocksDistribuesTab';
 import GedTab from './components/GedTab';
+import AchatsFournisseursTab from './components/AchatsFournisseursTab';
 import TicketsCaisseTab from './components/TicketsCaisseTab';
 import TempsTab from './components/TempsTab';
 import LocalisationsTab from './components/LocalisationsTab';
@@ -75,7 +79,8 @@ import {
   LogOut,
   Download,
   Eye,
-  ChevronDown
+  ChevronDown,
+  ShoppingBag
 } from 'lucide-react';
 
 export type AppTab = 
@@ -88,6 +93,8 @@ export type AppTab =
   | 'crm'
   | 'devis'
   | 'stocks'
+  | 'stocks-distribues'
+  | 'achats-fournisseurs'
   | 'ged'
   | 'tickets'
   | 'temps'
@@ -415,6 +422,8 @@ export default function App() {
 
   // Tab Routing
   const [activeTab, setActiveTab ] = useState<AppTab>('defibrillateurs');
+  const [distributedStocksSearchQuery, setDistributedStocksSearchQuery] = useState('');
+  const [stockSearchQuery, setStockSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isPublicPortalOpen, setIsPublicPortalOpen] = useState(false);
@@ -528,11 +537,62 @@ export default function App() {
     }
   }, [activeTab, tenantId]);
 
+  const [distributedStocks, setDistributedStocks] = useState<DistributedStockLocation[]>([]);
+
+  useEffect(() => {
+    const key = `defib_${tenantId}_distributed_stocks`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setDistributedStocks(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      const defaultDistrib: DistributedStockLocation[] = tenantId === 'demo' ? [
+        {
+          id: 'ds_1',
+          denominationPieceId: 'v_el_1',
+          locationName: 'Entrepôt A',
+          volumeDisponible: 15,
+          volumeReserve: 5,
+          volumeEntrant: 2,
+        },
+        {
+          id: 'ds_2',
+          denominationPieceId: 'v_el_p_1',
+          locationName: 'Véhicule A',
+          volumeDisponible: 8,
+          volumeReserve: 2,
+          volumeEntrant: 0,
+        },
+        {
+          id: 'ds_3',
+          denominationPieceId: 'v_bat_1',
+          locationName: 'Véhicule B',
+          volumeDisponible: 5,
+          volumeReserve: 1,
+          volumeEntrant: 3,
+        }
+      ] : [];
+      setDistributedStocks(defaultDistrib);
+      localStorage.setItem(key, JSON.stringify(defaultDistrib));
+    }
+  }, [activeTab, tenantId]);
+
   const saveStocks = (updated: StockRecord[]) => {
     setStocks(updated);
     localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(updated));
     if (isFirebaseLoaded && tenantId) {
       saveCollectionToFirestore('stocks', updated);
+    }
+  };
+
+  const saveDistributedStocks = (updated: DistributedStockLocation[]) => {
+    setDistributedStocks(updated);
+    localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('distributed_stocks', updated);
     }
   };
   
@@ -561,6 +621,11 @@ export default function App() {
   const [docStatus, setDocStatus] = useState<'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé'>('Brouillon');
   const [docItems, setDocItems] = useState<CommercialDocItem[]>([]);
   const [docCommentaire, setDocCommentaire] = useState('');
+  const [docAssignedMemberName, setDocAssignedMemberName] = useState('');
+  const [docHasBonCommande, setDocHasBonCommande] = useState(false);
+  const [docBonCommandeReference, setDocBonCommandeReference] = useState('');
+  const [docBonCommandeLivraison, setDocBonCommandeLivraison] = useState<'Intervention d\'un technicien' | 'Transporteur'>('Transporteur');
+  const [docBonCommandeSituation, setDocBonCommandeSituation] = useState<'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé'>('Ouvert');
 
   const [selectedDocPieceId, setSelectedDocPieceId] = useState('');
   const [customDocPiecePrice, setCustomDocPiecePrice] = useState(0);
@@ -569,6 +634,16 @@ export default function App() {
   const [docTypeFilter, setDocTypeFilter] = useState<'Tous' | 'Devis' | 'Facture'>('Tous');
 
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
+
+  const [achatsFournisseurs, setAchatsFournisseurs] = useState<AchatFournisseur[]>([]);
+
+  const saveAchatsFournisseurs = (updated: AchatFournisseur[]) => {
+    setAchatsFournisseurs(updated);
+    localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('achats_fournisseurs', updated);
+    }
+  };
 
   const [gedDocs, setGedDocs] = useState<GedDocument[]>([]);
   const [isGedFormOpen, setIsGedFormOpen] = useState(false);
@@ -1979,7 +2054,8 @@ export default function App() {
         const [
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
-          fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance
+          fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance,
+          fDistributedStocks, fAchatsFournisseurs
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -1997,7 +2073,9 @@ export default function App() {
           fetchCollectionFromFirestore<any[]>('fsmTours'),
           fetchCollectionFromFirestore<Memo[]>('memos'),
           fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments'),
-          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance')
+          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance'),
+          fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks'),
+          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs')
         ]);
 
         // Handlers to apply state or write if empty
@@ -2140,6 +2218,20 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(defaultStocks));
         }
 
+        if (fDistributedStocks !== null) {
+          setDistributedStocks(fDistributedStocks);
+          localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify(fDistributedStocks));
+        } else {
+          const defaultDistrib = tenantId === 'demo' ? [
+            { id: 'ds_1', denominationPieceId: 'v_el_1', locationName: 'Entrepôt A' as const, volumeDisponible: 15, volumeReserve: 5, volumeEntrant: 2 },
+            { id: 'ds_2', denominationPieceId: 'v_el_p_1', locationName: 'Véhicule A' as const, volumeDisponible: 8, volumeReserve: 2, volumeEntrant: 0 },
+            { id: 'ds_3', denominationPieceId: 'v_bat_1', locationName: 'Véhicule B' as const, volumeDisponible: 5, volumeReserve: 1, volumeEntrant: 3 }
+          ] : [];
+          setDistributedStocks(defaultDistrib);
+          await saveCollectionToFirestore('distributed_stocks', defaultDistrib);
+          localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify(defaultDistrib));
+        }
+
         if (fReviews !== null) {
           setCustomerReviews(fReviews);
           localStorage.setItem(`defib_${tenantId}_customer_reviews`, JSON.stringify(fReviews));
@@ -2240,6 +2332,15 @@ export default function App() {
           localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify([]));
         }
 
+        if (fAchatsFournisseurs !== null) {
+          setAchatsFournisseurs(fAchatsFournisseurs);
+          localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify(fAchatsFournisseurs));
+        } else {
+          setAchatsFournisseurs([]);
+          await saveCollectionToFirestore('achats_fournisseurs', []);
+          localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify([]));
+        }
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       } catch (err) {
@@ -2313,6 +2414,10 @@ export default function App() {
         const savedPointagesAutoVigilance = localStorage.getItem(`defib_${tenantId}_pointages_auto_vigilance`);
         if (savedPointagesAutoVigilance) setPointagesAutoVigilance(JSON.parse(savedPointagesAutoVigilance));
         else setPointagesAutoVigilance([]);
+
+        const savedAchatsFournisseurs = localStorage.getItem(`defib_${tenantId}_achats_fournisseurs`);
+        if (savedAchatsFournisseurs) setAchatsFournisseurs(JSON.parse(savedAchatsFournisseurs));
+        else setAchatsFournisseurs([]);
 
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
@@ -2464,6 +2569,17 @@ export default function App() {
       }
     }
   }, [otherEquipments, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('achats_fournisseurs', achatsFournisseurs);
+      try {
+        localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify(achatsFournisseurs));
+      } catch (e) {
+        console.warn('Storage quota exceeded for achatsFournisseurs:', e);
+      }
+    }
+  }, [achatsFournisseurs, isFirebaseLoaded, tenantId]);
 
   const saveGedDocs = (newGed: GedDocument[]) => {
     setGedDocs(newGed);
@@ -2692,6 +2808,195 @@ export default function App() {
     window.open(url, '_blank');
   };
 
+  const handleDownloadBonCommande = (doc: CommercialDoc) => {
+    if (!doc.hasBonCommande) {
+      alert("Cette pièce comptable ne possède pas de Bon de commande. Veuillez modifier la pièce pour cocher 'Bon de commande: Oui'.");
+      return;
+    }
+
+    const totalTva = doc.totalHt * 0.20;
+    const totalTtc = doc.totalHt * 1.20;
+    
+    const formatDateStr = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+      const parts = dateStr.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+
+    const itemsHtml = doc.items.map((item, idx) => {
+      const isLast = idx === doc.items.length - 1;
+      return `
+        <tr style="${isLast ? '' : 'border-bottom: 1px solid #dcdcdc;'}">
+          <td style="padding: 12px 8px;">${item.nomPiece}</td>
+          <td style="padding: 12px 8px; text-align: right;">${item.prixVenteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+          <td style="padding: 12px 8px; text-align: center;">${item.quantite}</td>
+          <td style="padding: 12px 8px; text-align: right;">${(item.prixVenteHt * item.quantite).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+        </tr>
+      `;
+    }).join('');
+
+    const clientObj = clients.find(c => c.id === doc.clientId) || clients.find(c => c.denomination === doc.clientDenomination);
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Bon de commande ${doc.bonCommandeReference || 'Sans réf'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @font-face {
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: "Civilprom";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+          
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
+          body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
+            font-family: "Civilprom", sans-serif !important;
+            font-weight: 100 !important;
+            color: #000000 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            font-size: 16px !important;
+          }
+          
+          .text-large {
+            font-size: 18px !important;
+          }
+          
+          h1.doc-title {
+            font-family: "Gochi" !important;
+            font-size: 55px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+          }
+          
+          .blue-link {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+            font-weight: 100 !important;
+          }
+          
+          @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
+            .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+          }
+        </style>
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+      </head>
+      <body class="bg-white text-black p-8">
+        <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
+          
+          <!-- HAUT DE PAGE / COORDONNEES -->
+          <div class="flex justify-between items-start pb-4">
+            <div>
+              ${companyInfo.logo ? `<img src="${companyInfo.logo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">${companyInfo.name}</span>
+              <div>${companyInfo.email}</div>
+              <div>${companyInfo.phone}</div>
+              <div style="margin-top: 2px;"><a href="https://${companyInfo.website}" target="_blank" class="blue-link">${companyInfo.website}</a></div>
+            </div>
+            <div style="text-align: right;">
+              <div>${formatDateStr(doc.dateStr)}</div>
+            </div>
+          </div>
+
+          <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
+          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+            <div>
+              <h1 class="doc-title">BON DE COMMANDE</h1>
+              <p style="margin: 4px 0 0 0;">Référence BC : ${doc.bonCommandeReference || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Livraison : ${doc.bonCommandeLivraison || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Situation : ${doc.bonCommandeSituation || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Commentaire : ${doc.commentaire || ''}</p>
+            </div>
+            <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
+              <div style="margin-bottom: 6px;">Client.</div>
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">${clientObj ? clientObj.denomination : doc.clientDenomination}</div>
+              ${clientObj ? `
+                ${clientObj.nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact. ${clientObj.nomPrenomSite}</div>` : ''}
+                ${clientObj.siret ? `<div style="margin-bottom: 2px;">Numéro fiscal. ${clientObj.siret}</div>` : ''}
+                ${clientObj.email ? `<div style="margin-bottom: 2px;">Email. ${clientObj.email}</div>` : ''}
+                ${clientObj.phone ? `<div style="margin-bottom: 2px;">Téléphone. ${clientObj.phone}</div>` : ''}
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- TABLEAU DES PRESTATIONS / PIECES -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid #dcdcdc;">
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">Description.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Prix unitaire.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: center;">Volume.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Total ligne.</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SECTION DE COMMODITES DES CALCULS (TOTALS) -->
+          <div style="display: flex; justify-content: flex-end; padding-top: 16px;">
+            <div style="width: 256px; border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total HT.</span>
+                <span>${doc.totalHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total TVA (20%).</span>
+                <span>${totalTva.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;" class="text-large">
+                <span>Total TTC.</span>
+                <span>${totalTtc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
+              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
+            </div>
+          ` : ''}
+
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   const handleTransformDoc = (doc: CommercialDoc) => {
     const targetType = doc.type === 'Devis' ? 'Facture' : 'Devis';
     const prefix = targetType === 'Devis' ? 'DEV' : targetType === 'Facture' ? 'FACT' : 'PRO';
@@ -2734,6 +3039,11 @@ export default function App() {
     setDocStatus(doc.status);
     setDocItems(doc.items);
     setDocCommentaire(doc.commentaire || '');
+    setDocAssignedMemberName(doc.assignedMemberName || '');
+    setDocHasBonCommande(!!doc.hasBonCommande);
+    setDocBonCommandeReference(doc.bonCommandeReference || '');
+    setDocBonCommandeLivraison(doc.bonCommandeLivraison || 'Transporteur');
+    setDocBonCommandeSituation(doc.bonCommandeSituation || 'Ouvert');
     setIsDocFormOpen(true);
   };
 
@@ -2745,6 +3055,11 @@ export default function App() {
     setDocStatus('Brouillon');
     setDocItems([]);
     setDocCommentaire('');
+    setDocAssignedMemberName('');
+    setDocHasBonCommande(false);
+    setDocBonCommandeReference('');
+    setDocBonCommandeLivraison('Transporteur');
+    setDocBonCommandeSituation('Ouvert');
     setIsDocFormOpen(true);
   };
 
@@ -2763,6 +3078,26 @@ export default function App() {
 
     const calculatedTotalHt = docItems.reduce((acc, item) => acc + (item.prixVenteHt * item.quantite), 0);
 
+    let finalBcRef = docBonCommandeReference;
+    if (docHasBonCommande && !finalBcRef) {
+      const prefix = 'BL';
+      const year = '2026';
+      const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+      let maxNum = 0;
+      for (const d of commercialDocs) {
+        if (d.bonCommandeReference) {
+          const match = d.bonCommandeReference.match(pattern);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (num > maxNum) {
+              maxNum = num;
+            }
+          }
+        }
+      }
+      finalBcRef = `${prefix}-${year}-${maxNum + 1}`;
+    }
+
     if (editingDocId) {
       const updatedDocs = commercialDocs.map(d => d.id === editingDocId ? {
         ...d,
@@ -2774,7 +3109,12 @@ export default function App() {
         totalHt: calculatedTotalHt,
         status: docStatus,
         dateStr: docDateStr,
-        commentaire: docCommentaire
+        commentaire: docCommentaire,
+        assignedMemberName: docAssignedMemberName || undefined,
+        hasBonCommande: docHasBonCommande,
+        bonCommandeReference: docHasBonCommande ? finalBcRef : undefined,
+        bonCommandeLivraison: docHasBonCommande ? docBonCommandeLivraison : undefined,
+        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined
       } : d);
       saveCommercialDocs(updatedDocs);
     } else {
@@ -2788,7 +3128,12 @@ export default function App() {
         totalHt: calculatedTotalHt,
         status: docStatus,
         dateStr: docDateStr,
-        commentaire: docCommentaire
+        commentaire: docCommentaire,
+        assignedMemberName: docAssignedMemberName || undefined,
+        hasBonCommande: docHasBonCommande,
+        bonCommandeReference: docHasBonCommande ? finalBcRef : undefined,
+        bonCommandeLivraison: docHasBonCommande ? docBonCommandeLivraison : undefined,
+        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined
       };
       saveCommercialDocs([newDoc, ...commercialDocs]);
     }
@@ -3129,6 +3474,8 @@ export default function App() {
         clients={clients}
         stocks={stocks}
         onUpdateStocks={saveStocks}
+        distributedStocks={distributedStocks}
+        onUpdateDistributedStocks={saveDistributedStocks}
         fsmTours={fsmTours}
         onUpdateFsmTours={saveFsmTours}
         otherEquipments={otherEquipments}
@@ -3218,6 +3565,8 @@ export default function App() {
         clients={clients}
         stocks={stocks}
         onUpdateStocks={saveStocks}
+        distributedStocks={distributedStocks}
+        onUpdateDistributedStocks={saveDistributedStocks}
         fsmTours={fsmTours}
         onUpdateFsmTours={saveFsmTours}
         otherEquipments={otherEquipments}
@@ -3322,7 +3671,9 @@ export default function App() {
             { id: 'clients', label: 'Clients', icon: User },
             { id: 'fsm', label: 'FSM', icon: Flame },
             { id: 'gmao', label: 'GMAO', icon: Wrench },
-            { id: 'stocks', label: 'Stocks', icon: Inbox },
+            { id: 'stocks', label: 'Centrale des stocks', icon: Inbox },
+            { id: 'stocks-distribues', label: 'Stocks distribués', icon: Layers },
+            { id: 'achats-fournisseurs', label: 'Achats fournisseurs', icon: ShoppingBag },
             { id: 'devis', label: 'Devis & Factures', icon: FileSpreadsheet },
             { id: 'crm', label: 'CRM', icon: FolderSync },
             { id: 'ged', label: 'GED', icon: ClipboardList },
@@ -4078,7 +4429,7 @@ export default function App() {
                                 return (
                                   <div key={m.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans">
                                       {/* Ligne 1: Numéro de passage */}
-                                      <div className="flex items-center gap-2 bg-white pb-0.5">
+                                      <div className="flex flex-wrap items-center gap-2 bg-white pb-0.5">
                                         <div
                                           style={{
                                             backgroundColor: '#fa53d5',
@@ -4115,6 +4466,37 @@ export default function App() {
                                             return m.reason?.toLowerCase().includes('autre') ? 'Autre matériel' : 'Défibrillateur';
                                           })()}
                                         </span>
+
+                                        {(() => {
+                                          const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                          if (!matchedDefib) return null;
+                                          
+                                          const renderCapsule = (label: string, rawVal: string, colorClasses: string) => {
+                                            if (!rawVal || rawVal.trim() === '' || rawVal.trim() === '-') return null;
+                                            const formatted = formatDateToFR(rawVal);
+                                            if (!formatted || formatted === '-') return null;
+                                            return (
+                                              <span key={label} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-sans border font-medium ${colorClasses}`}>
+                                                <span className="font-extrabold mr-1">{label}</span>
+                                                {formatted}
+                                              </span>
+                                            );
+                                          };
+
+                                          const nextMaint = computeProchaineMaintenance(matchedDefib.derniereMaintenance);
+
+                                          return (
+                                            <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
+                                              {renderCapsule('Péremption A.', matchedDefib.peremptionElectrodeA, 'bg-rose-50 text-rose-700 border-rose-200')}
+                                              {renderCapsule('Péremption A.S.', matchedDefib.peremptionSecoursElectrodeA || '', 'bg-rose-50 text-rose-700 border-rose-200')}
+                                              {renderCapsule('Péremption P.', matchedDefib.peremptionElectrodeP, 'bg-purple-50 text-purple-700 border-purple-200')}
+                                              {renderCapsule('Péremption P.S.', matchedDefib.peremptionSecoursElectrodeP || '', 'bg-purple-50 text-purple-700 border-purple-200')}
+                                              {renderCapsule('Péremption B.', matchedDefib.peremptionBatterie, 'bg-amber-50 text-amber-700 border-amber-250')}
+                                              {renderCapsule('Expiration G.', matchedDefib.finGarantie, 'bg-blue-50 text-blue-700 border-blue-200')}
+                                              {renderCapsule('Prochaine V.', nextMaint, 'bg-emerald-50 text-emerald-700 border-emerald-250')}
+                                            </div>
+                                          );
+                                        })()}
                                       </div>
 
                                       {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Créneau estimé., Situation. */}
@@ -4153,6 +4535,10 @@ export default function App() {
                                           >
                                             <option value="Maintenance">Maintenance</option>
                                             <option value="Mise en service">Mise en service</option>
+                                            <option value="Installation">Installation</option>
+                                            <option value="Pose">Pose</option>
+                                            <option value="Formation">Formation</option>
+                                            <option value="Installation et formation">Installation et formation</option>
                                             <option value="Remplacement B">Remplacement B</option>
                                             <option value="Remplacer B & A">Remplacer B & A</option>
                                             <option value="Remplacer A & P">Remplacer A & P</option>
@@ -4273,20 +4659,23 @@ export default function App() {
 
                                   {/* Lookup field for required components with stock items selector */}
                                   {(() => {
-                                    const stockItems = stocks
-                                      .filter(st => {
-                                        const vObj = variables.find(v => v.id === st.denominationPieceId);
+                                    const stockItems = (distributedStocks || [])
+                                      .filter(ds => {
+                                        const vObj = variables.find(v => v.id === ds.denominationPieceId);
                                         return vObj ? vObj.category !== 'Modèle Service' : true;
                                       })
-                                      .map(st => {
-                                        const vObj = variables.find(v => v.id === st.denominationPieceId);
-                                        const name = vObj ? vObj.nom : `Pièce indéfinie (${st.id})`;
+                                      .map(ds => {
+                                        const vObj = variables.find(v => v.id === ds.denominationPieceId);
+                                        const name = vObj ? vObj.nom : `Pièce indéfinie`;
+                                        const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+                                        const ugs = matchedStock?.ugs || '';
+                                        const ugsString = ugs ? ` - UGS: ${ugs}` : '';
                                         return {
-                                          id: st.id,
+                                          id: ds.id,
                                           name: name,
-                                          stockage: st.stockage,
-                                          quantite: st.quantite,
-                                          label: `${name} (${st.stockage} - Qté: ${st.quantite})`
+                                          locationName: ds.locationName,
+                                          volumeDisponible: ds.volumeDisponible,
+                                          label: `${name} (${ds.locationName} - Qté dispo: ${ds.volumeDisponible}${ugsString})`
                                         };
                                       });
 
@@ -5694,6 +6083,19 @@ export default function App() {
                                         </button>
                                         <button
                                           type="button"
+                                          onClick={() => handleDownloadBonCommande(doc)}
+                                          style={{
+                                            ...rowActionButton18Style,
+                                            backgroundColor: doc.hasBonCommande ? 'rgba(236, 72, 153, 0.1)' : undefined,
+                                            color: doc.hasBonCommande ? '#ec4899' : undefined
+                                          }}
+                                          className="cursor-pointer font-sans"
+                                          title={doc.hasBonCommande ? `Bon de commande: ${doc.bonCommandeReference}` : 'Aucun bon de commande pour cette pièce'}
+                                        >
+                                          Bon de commande
+                                        </button>
+                                        <button
+                                          type="button"
                                           onClick={() => handleTransformDoc(doc)}
                                           style={rowActionButton18Style}
                                           className="cursor-pointer font-sans"
@@ -5789,6 +6191,26 @@ export default function App() {
                       {/* Form fields Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-white">
                         
+                        {/* Membre attribué. */}
+                        <div className="flex flex-col gap-1 bg-white col-span-1 md:col-span-3">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Membre attribué.</label>
+                          <select
+                            value={docAssignedMemberName}
+                            onChange={(e) => setDocAssignedMemberName(e.target.value)}
+                            className="focus:outline-none"
+                          >
+                            <option value="">Aucun membre attribué (Suivi libre)</option>
+                            {members
+                              .filter(m => !(m.role === 'Technicien' || m.role === 'Maintenance Terrain' || m.role?.toLowerCase().includes('tech')))
+                              .map(m => (
+                                <option key={m.name} value={m.name}>
+                                  {m.name} ({m.role})
+                                </option>
+                              ))
+                            }
+                          </select>
+                        </div>
+
                         {/* Document Type select */}
                         <div className="flex flex-col gap-1 bg-white">
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Type.</label>
@@ -5897,11 +6319,17 @@ export default function App() {
                               className="focus:outline-none w-full"
                             >
                               <option value="">Sélection d'une pièce ou service.</option>
-                              {variables.map(v => (
-                                <option key={v.id} value={v.id}>
-                                  {v.identifiant ? `[${v.identifiant}] ` : ''}[{v.category}] {v.nom} ({v.marque})
-                                </option>
-                              ))}
+                              {variables.map(v => {
+                                const matchedStock = stocks.find(s => s.denominationPieceId === v.id);
+                                const ugs = matchedStock?.ugs || '';
+                                const ugsStr = ugs ? ` [UGS: ${ugs}]` : '';
+                                const marqueStr = v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : '';
+                                return (
+                                  <option key={v.id} value={v.id}>
+                                    {v.identifiant ? `[${v.identifiant}] ` : ''}[{v.category}] {v.nom}{marqueStr}{ugsStr}
+                                  </option>
+                                );
+                              })}
                             </select>
                           </div>
 
@@ -5912,7 +6340,7 @@ export default function App() {
                               type="number"
                               step="0.01"
                               value={customDocPiecePrice}
-                              disabled
+                              onChange={(e) => setCustomDocPiecePrice(parseFloat(e.target.value) || 0)}
                               className="focus:outline-none w-full"
                             />
                           </div>
@@ -6018,6 +6446,126 @@ export default function App() {
 
                       </div>
 
+                      {/* Section Bon de commande */}
+                      <div className="border border-slate-200 rounded-2xl p-5 bg-transparent space-y-4 mt-6">
+                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider devis-label-style">
+                          Bon de commande
+                        </h4>
+                        
+                        <div className="flex flex-col gap-2 bg-transparent">
+                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">
+                            Créer un bon de commande ?
+                          </span>
+                          <div className="flex items-center gap-6 mt-1 bg-transparent">
+                            <label className="flex items-center gap-2 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
+                              <input
+                                type="radio"
+                                name="hasBonCommande"
+                                checked={docHasBonCommande === true}
+                                onChange={() => {
+                                  setDocHasBonCommande(true);
+                                  if (!docBonCommandeReference) {
+                                    const nextRef = (editingDocId && commercialDocs.find(d => d.id === editingDocId)?.bonCommandeReference) || "";
+                                    if (nextRef) {
+                                      setDocBonCommandeReference(nextRef);
+                                    } else {
+                                      const prefix = 'BL';
+                                      const year = '2026';
+                                      const pattern = new RegExp(`^${prefix}-${year}-(\\d+)$`);
+                                      let maxNum = 0;
+                                      for (const d of commercialDocs) {
+                                        if (d.bonCommandeReference) {
+                                          const match = d.bonCommandeReference.match(pattern);
+                                          if (match) {
+                                            const num = parseInt(match[1], 10);
+                                            if (num > maxNum) {
+                                              maxNum = num;
+                                            }
+                                          }
+                                        }
+                                      }
+                                      setDocBonCommandeReference(`${prefix}-${year}-${maxNum + 1}`);
+                                    }
+                                  }
+                                }}
+                                className="w-4 h-4 accent-pink-500"
+                              />
+                              Oui
+                            </label>
+                            
+                            <label className="flex items-center gap-2 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
+                              <input
+                                type="radio"
+                                name="hasBonCommande"
+                                checked={docHasBonCommande === false}
+                                onChange={() => setDocHasBonCommande(false)}
+                                className="w-4 h-4 accent-pink-500"
+                              />
+                              Non
+                            </label>
+                          </div>
+                        </div>
+
+                        {docHasBonCommande && (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3 border-t border-slate-100 bg-transparent animate-fadeIn">
+                            {/* Référence */}
+                            <div className="flex flex-col gap-1 bg-white">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Référence BC.</label>
+                              <input
+                                type="text"
+                                value={docBonCommandeReference}
+                                disabled
+                                className="focus:outline-none bg-slate-50 font-mono text-xs cursor-not-allowed"
+                                placeholder="Générée automatiquement..."
+                              />
+                            </div>
+
+                            {/* Livraison Radio buttons */}
+                            <div className="flex flex-col gap-1 bg-white">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Livraison.</label>
+                              <div className="flex items-center gap-4 mt-2 bg-transparent">
+                                <label className="flex items-center gap-1.5 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
+                                  <input
+                                    type="radio"
+                                    name="bcLivraison"
+                                    checked={docBonCommandeLivraison === 'Intervention d\'un technicien'}
+                                    onChange={() => setDocBonCommandeLivraison('Intervention d\'un technicien')}
+                                    className="w-3.5 h-3.5 accent-pink-500"
+                                  />
+                                  Intervention d’un technicien
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
+                                  <input
+                                    type="radio"
+                                    name="bcLivraison"
+                                    checked={docBonCommandeLivraison === 'Transporteur'}
+                                    onChange={() => setDocBonCommandeLivraison('Transporteur')}
+                                    className="w-3.5 h-3.5 accent-pink-500"
+                                  />
+                                  Transporteur
+                                </label>
+                              </div>
+                            </div>
+
+                            {/* Situation */}
+                            <div className="flex flex-col gap-1 bg-white">
+                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Situation.</label>
+                              <select
+                                value={docBonCommandeSituation}
+                                onChange={(e) => setDocBonCommandeSituation(e.target.value as any)}
+                                className="focus:outline-none"
+                                required
+                              >
+                                <option value="Ouvert">Ouvert</option>
+                                <option value="Envoyé Terminé">Envoyé Terminé</option>
+                                <option value="Envoyé Logistique">Envoyé Logistique</option>
+                                <option value="Terminé">Terminé</option>
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
                     </form>
                   </div>
                 )}
@@ -6036,6 +6584,44 @@ export default function App() {
               saveStocks={saveStocks}
               showStockForm={showStockForm}
               setShowStockForm={setShowStockForm}
+              distributedStocks={distributedStocks}
+              onNavigateToDistributedStocks={(ugs) => {
+                setDistributedStocksSearchQuery(ugs);
+                setActiveTab('stocks-distribues');
+              }}
+              stockSearchQuery={stockSearchQuery}
+              setStockSearchQuery={setStockSearchQuery}
+              commercialDocs={commercialDocs}
+            />
+          )}
+
+          {/* ======================================= */}
+          {/* STOCKS DISTRIBUÉS MODULE */}
+          {/* ======================================= */}
+          {activeTab === 'stocks-distribues' && (
+            <StocksDistribuesTab
+              distributedStocks={distributedStocks}
+              saveDistributedStocks={saveDistributedStocks}
+              stocks={stocks}
+              variables={variables}
+              fsmTours={fsmTours}
+              searchQuery={distributedStocksSearchQuery}
+              setSearchQuery={setDistributedStocksSearchQuery}
+              onNavigateToCentraleStocks={(ugs) => {
+                setStockSearchQuery(ugs);
+                setActiveTab('stocks');
+              }}
+            />
+          )}
+
+          {/* ======================================= */}
+          {/* ACHATS FOURNISSEURS MODULE */}
+          {/* ======================================= */}
+          {activeTab === 'achats-fournisseurs' && (
+            <AchatsFournisseursTab
+              achatsFournisseurs={achatsFournisseurs}
+              saveAchatsFournisseurs={saveAchatsFournisseurs}
+              variables={variables}
             />
           )}
 

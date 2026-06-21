@@ -19,7 +19,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { CompanyInfo, Member } from '../types';
-import { getRegisteredTenants, fetchCollectionFromFirestore, checkIfEmailExistsAnywhere } from '../firebase';
+import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere } from '../firebase';
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion } from '../utils/emailService';
 
 interface SettingsModalProps {
@@ -118,6 +118,86 @@ export default function SettingsModal({
   const [newMemberRole, setNewMemberRole] = React.useState('Administrateur');
   const [newMemberPin, setNewMemberPin] = React.useState('');
   const [newMemberLocation, setNewMemberLocation] = React.useState('');
+  const [newMemberAdminSubRole, setNewMemberAdminSubRole] = React.useState<'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité'>('Administrateur');
+
+  // LOCAL STATES FOR CONNECTORS
+  const [sageActive, setSageActive] = React.useState(false);
+  const [sageClientId, setSageClientId] = React.useState('');
+  const [sageAccessToken, setSageAccessToken] = React.useState('');
+  const [sageSecretToken, setSageSecretToken] = React.useState('');
+
+  const [pennylaneActive, setPennylaneActive] = React.useState(false);
+  const [pennylaneClientId, setPennylaneClientId] = React.useState('');
+  const [pennylaneCompanyToken, setPennylaneCompanyToken] = React.useState('');
+  const [pennylaneSecretToken, setPennylaneSecretToken] = React.useState('');
+
+  const [dropboxActive, setDropboxActive] = React.useState(false);
+  const [dropboxAccessToken, setDropboxAccessToken] = React.useState('');
+  const [dropboxAccessTokenSecret, setDropboxAccessTokenSecret] = React.useState('');
+
+  const [cegidActive, setCegidActive] = React.useState(false);
+  const [cegidApiKey, setCegidApiKey] = React.useState('');
+  const [cegidApiSecret, setCegidApiSecret] = React.useState('');
+
+  const [connectorsSaveStatus, setConnectorsSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+
+  React.useEffect(() => {
+    if (isOpen || isPage) {
+      fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+        if (data) {
+          if (data.sageActive !== undefined) setSageActive(data.sageActive);
+          if (data.sageClientId !== undefined) setSageClientId(data.sageClientId);
+          if (data.sageAccessToken !== undefined) setSageAccessToken(data.sageAccessToken);
+          if (data.sageSecretToken !== undefined) setSageSecretToken(data.sageSecretToken);
+
+          if (data.pennylaneActive !== undefined) setPennylaneActive(data.pennylaneActive);
+          if (data.pennylaneClientId !== undefined) setPennylaneClientId(data.pennylaneClientId);
+          if (data.pennylaneCompanyToken !== undefined) setPennylaneCompanyToken(data.pennylaneCompanyToken);
+          if (data.pennylaneSecretToken !== undefined) setPennylaneSecretToken(data.pennylaneSecretToken);
+
+          if (data.dropboxActive !== undefined) setDropboxActive(data.dropboxActive);
+          if (data.dropboxAccessToken !== undefined) setDropboxAccessToken(data.dropboxAccessToken);
+          if (data.dropboxAccessTokenSecret !== undefined) setDropboxAccessTokenSecret(data.dropboxAccessTokenSecret);
+
+          if (data.cegidActive !== undefined) setCegidActive(data.cegidActive);
+          if (data.cegidApiKey !== undefined) setCegidApiKey(data.cegidApiKey);
+          if (data.cegidApiSecret !== undefined) setCegidApiSecret(data.cegidApiSecret);
+        }
+      }).catch(err => {
+        console.error('Error loading API connectors from Firestore:', err);
+      });
+    }
+  }, [isOpen, isPage]);
+
+  const handleSaveConnectors = async () => {
+    setConnectorsSaveStatus('saving');
+    try {
+      const payload = {
+        sageActive,
+        sageClientId,
+        sageAccessToken,
+        sageSecretToken,
+        pennylaneActive,
+        pennylaneClientId,
+        pennylaneCompanyToken,
+        pennylaneSecretToken,
+        dropboxActive,
+        dropboxAccessToken,
+        dropboxAccessTokenSecret,
+        cegidActive,
+        cegidApiKey,
+        cegidApiSecret
+      };
+      await saveCollectionToFirestore('api_connectors', payload);
+      setConnectorsSaveStatus('saved');
+    } catch (e) {
+      console.error('Error saving API connectors to Firestore:', e);
+      setConnectorsSaveStatus('idle');
+    }
+    setTimeout(() => {
+      setConnectorsSaveStatus('idle');
+    }, 2500);
+  };
 
   if (!isPage && !isOpen) return null;
 
@@ -144,7 +224,13 @@ export default function SettingsModal({
       loggedInMember.role?.toLowerCase().includes('propriétaire') ||
       loggedInMember.role?.toLowerCase().includes('admin')
     );
-    return !!(isOwnSession || (isTech && isCurrentUserAdminOrSuperAdmin));
+    const isCurrentUserSuperAdmin = loggedInMember && (
+      loggedInMember.role === 'Super-Administrateur' || 
+      loggedInMember.role === 'Propriétaire / Admin' || 
+      loggedInMember.role?.toLowerCase().includes('super') || 
+      loggedInMember.role?.toLowerCase().includes('propriétaire')
+    );
+    return !!(isOwnSession || isCurrentUserSuperAdmin || (isTech && isCurrentUserAdminOrSuperAdmin));
   };
 
   const handlePinChange = (index: number, pinVal: string) => {
@@ -166,7 +252,8 @@ export default function SettingsModal({
         ...updated[index], 
         role: newRole,
         pin: updated[index].pin || '1234',
-        locationLink: isTech ? updated[index].locationLink : undefined
+        locationLink: isTech ? updated[index].locationLink : undefined,
+        adminSubRole: !isTech ? (updated[index].adminSubRole || 'Administrateur') : undefined
       };
       return updated;
     });
@@ -186,6 +273,24 @@ export default function SettingsModal({
     setLocalMembers(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], email: val };
+      return updated;
+    });
+  };
+
+  const handleLocationChange = (index: number, val: string) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], locationLink: val || undefined };
+      return updated;
+    });
+  };
+
+  const handleAdminSubRoleChange = (index: number, val: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité') => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], adminSubRole: val };
       return updated;
     });
   };
@@ -245,13 +350,26 @@ export default function SettingsModal({
       setIsVerifyingEmail(false);
     }
 
+    if (newMemberRole === 'Technicien' && newMemberLocation) {
+      const alreadyTaken = localMembers.some(
+        mem => mem.role === 'Technicien' && mem.locationLink === newMemberLocation
+      );
+      if (alreadyTaken) {
+        setNewMemberError(`Erreur: l'emplacement ${newMemberLocation} est déjà attribué.`);
+        setIsVerifyingEmail(false);
+        return;
+      }
+    }
+
     const m: Member = {
       name: newMemberName.trim(),
       email: newMemberEmail.trim(),
       role: newMemberRole,
       pin: newMemberPin,
       status: 'Inactif',
-      lastActive: 'Jamais'
+      lastActive: 'Jamais',
+      locationLink: newMemberRole === 'Technicien' ? (newMemberLocation || undefined) : undefined,
+      adminSubRole: newMemberRole === 'Administrateur' ? (newMemberAdminSubRole || 'Administrateur') : undefined
     };
 
     setLocalMembers(prev => [...prev, m]);
@@ -262,6 +380,7 @@ export default function SettingsModal({
     setNewMemberRole('Administrateur');
     setNewMemberPin('');
     setNewMemberLocation('');
+    setNewMemberAdminSubRole('Administrateur');
     setNewMemberError(null);
   };
 
@@ -272,6 +391,20 @@ export default function SettingsModal({
     setIsVerifyingEmail(true);
 
     try {
+      // Check for duplicate location assignments among technicians
+      const locationsAssigned = new Set<string>();
+      for (const m of localMembers) {
+        if (m.role === 'Technicien' && m.locationLink) {
+          if (locationsAssigned.has(m.locationLink)) {
+            alert(`Erreur: l'emplacement "${m.locationLink}" est attribué à plusieurs techniciens.`);
+            setIsSaving(false);
+            setIsVerifyingEmail(false);
+            return;
+          }
+          locationsAssigned.add(m.locationLink);
+        }
+      }
+
       // 1. Check local duplicates within the local list itself
       const emailsSeen = new Set<string>();
       for (const m of localMembers) {
@@ -775,7 +908,7 @@ export default function SettingsModal({
             {/* Formulaire d'ajout rapide de collaborateur */}
             <form onSubmit={handleAddMemberSubmit} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="space-y-1">
                   <label className="block text-[16px] font-bold text-black font-sans">Nom et prénom.</label>
                   <input
@@ -790,7 +923,7 @@ export default function SettingsModal({
                 <div className="space-y-1">
                   <label className="block text-[16px] font-bold text-black font-sans">Email.</label>
                   <input
-                    type="email"
+                    type="type"
                     value={newMemberEmail}
                     onChange={(e) => { setNewMemberEmail(e.target.value); setNewMemberError(null); }}
                     placeholder=""
@@ -823,6 +956,46 @@ export default function SettingsModal({
                     className="w-full text-black text-center font-mono font-bold text-xs"
                   />
                 </div>
+
+                {newMemberRole === 'Administrateur' && (
+                  <div className="space-y-1">
+                    <label className="block text-[16px] font-bold text-black font-sans">Attribuer un rôle.</label>
+                    <select
+                      value={newMemberAdminSubRole}
+                      onChange={(e) => { setNewMemberAdminSubRole(e.target.value as any); setNewMemberError(null); }}
+                      className="w-full text-black font-semibold text-xs font-sans cursor-pointer"
+                    >
+                      <option value="Administrateur">Administrateur</option>
+                      <option value="Administration">Administration</option>
+                      <option value="Planification">Planification</option>
+                      <option value="Logistique">Logistique</option>
+                      <option value="Comptabilité">Comptabilité</option>
+                    </select>
+                  </div>
+                )}
+
+                {newMemberRole === 'Technicien' && (
+                  <div className="space-y-1">
+                    <label className="block text-[16px] font-bold text-black font-sans">Emplacement.</label>
+                    <select
+                      value={newMemberLocation}
+                      onChange={(e) => { setNewMemberLocation(e.target.value); setNewMemberError(null); }}
+                      className="w-full text-black font-semibold text-xs font-sans cursor-pointer"
+                    >
+                      <option value="">Sélect. un emplacement</option>
+                      {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'] as const).map(loc => {
+                        const isTaken = localMembers.some(
+                          mem => mem.role === 'Technicien' && mem.locationLink === loc
+                        );
+                        return (
+                          <option key={loc} value={loc} disabled={isTaken}>
+                            {loc} {isTaken ? ' (Déjà attribué)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="pt-1">
@@ -859,7 +1032,13 @@ export default function SettingsModal({
                       loggedInMember.role?.toLowerCase().includes('propriétaire') ||
                       loggedInMember.role?.toLowerCase().includes('admin')
                     );
-                    const canEditThisMember = isOwnSession || (isTech && isCurrentUserAdminOrSuperAdmin);
+                    const isCurrentUserSuperAdmin = loggedInMember && (
+                      loggedInMember.role === 'Super-Administrateur' || 
+                      loggedInMember.role === 'Propriétaire / Admin' || 
+                      loggedInMember.role?.toLowerCase().includes('super') || 
+                      loggedInMember.role?.toLowerCase().includes('propriétaire')
+                    );
+                    const canEditThisMember = isOwnSession || isCurrentUserSuperAdmin || (isTech && isCurrentUserAdminOrSuperAdmin);
 
                     return (
                       <tr key={idx} className="group transition-all">
@@ -911,6 +1090,16 @@ export default function SettingsModal({
                                   textTransform: 'none',
                                   cursor: 'default'
                                 }}>Votre session en cours</span>
+                              )}
+                              {!isTech && !isSuperAdmin && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-indigo-50 text-indigo-700 font-sans text-xs font-bold px-2.5 py-1 border border-indigo-200">
+                                  {m.adminSubRole || 'Administrateur'}
+                                </span>
+                              )}
+                              {isTech && (
+                                <span className="inline-flex items-center justify-center rounded-full bg-amber-50 text-amber-700 font-sans text-xs font-bold px-2.5 py-1 border border-amber-200">
+                                  Technicien {m.locationLink ? `(${m.locationLink})` : ''}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -969,6 +1158,57 @@ export default function SettingsModal({
                               </div>
                             )}
 
+                            {/* Emplacement attribué (exclusive dropdown for Technicians) */}
+                            {isTech && !isSuperAdmin && (
+                              <div className="space-y-1 mt-1 w-full text-left">
+                                <span className="text-[16px] font-bold text-black block font-sans" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>
+                                  Emplacement attribué *
+                                </span>
+                                <select
+                                  value={m.locationLink || ''}
+                                  disabled={!canEditThisMember}
+                                  onChange={(e) => handleLocationChange(idx, e.target.value)}
+                                  className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                  style={{ height: '36px', padding: '6px 10px' }}
+                                >
+                                  <option value="">Sélect. un emplacement</option>
+                                  {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'] as const).map(loc => {
+                                    // Check if this location is taken by ANOTHER technician
+                                    const isTakenByOther = localMembers.some(
+                                      (mem, otherIdx) => otherIdx !== idx && mem.role === 'Technicien' && mem.locationLink === loc
+                                    );
+                                    return (
+                                      <option key={loc} value={loc} disabled={isTakenByOther}>
+                                        {loc} {isTakenByOther ? ' (Déjà attribué)' : ''}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </div>
+                            )}
+
+                            {/* Type de rôle (sub-role select for Administrators) */}
+                            {!isTech && !isSuperAdmin && (
+                              <div className="space-y-1 mt-1 w-full text-left">
+                                <span className="text-[16px] font-bold text-black block font-sans" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>
+                                  Type de rôle *
+                                </span>
+                                <select
+                                  value={m.adminSubRole || 'Administrateur'}
+                                  disabled={!canEditThisMember}
+                                  onChange={(e) => handleAdminSubRoleChange(idx, e.target.value as any)}
+                                  className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                  style={{ height: '36px', padding: '6px 10px' }}
+                                >
+                                  <option value="Administrateur">Administrateur</option>
+                                  <option value="Administration">Administration</option>
+                                  <option value="Planification">Planification</option>
+                                  <option value="Logistique">Logistique</option>
+                                  <option value="Comptabilité">Comptabilité</option>
+                                </select>
+                              </div>
+                            )}
+
                           </div>
                         </td>
 
@@ -995,6 +1235,309 @@ export default function SettingsModal({
                   })}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* SECTION: CONNECTEURS */}
+          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn" id="settings-section-connectors">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <LinkIcon className="w-5 h-5 text-blue-600" />
+                <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+                  Connecteurs API & Applications.
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveConnectors}
+                disabled={connectorsSaveStatus === 'saving'}
+                style={{
+                  backgroundColor: '#fa53d5',
+                  color: 'white',
+                }}
+                className="text-xs font-sans font-extrabold px-4 py-1.5 rounded-full select-none shadow-3xs transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {connectorsSaveStatus === 'saving' ? (
+                  <span>Enregistrement...</span>
+                ) : connectorsSaveStatus === 'saved' ? (
+                  <span className="flex items-center gap-1">Enregistré ! ✓</span>
+                ) : (
+                  <span>Enregistrer</span>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* SAGE */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#00746b]/10 flex items-center justify-center font-bold text-[#00746b] text-sm select-none">S</div>
+                      <div>
+                        <h5 className="font-bold font-sans text-sm text-black">Sage</h5>
+                        <div className="text-[10px] text-slate-500 select-none font-sans flex items-center gap-1.5">
+                          <span>Statut :</span>
+                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-sans text-slate-500 select-none">{sageActive ? 'Activé' : 'Désactivé'}</span>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={sageActive}
+                          onChange={(e) => {
+                            setSageActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00746b]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {sageActive && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">ID Client.</label>
+                        <input
+                          type="text"
+                          value={sageClientId}
+                          onChange={(e) => {
+                            setSageClientId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez l'ID Client."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Sage ID token d’accès.</label>
+                        <input
+                          type="text"
+                          value={sageAccessToken}
+                          onChange={(e) => {
+                            setSageAccessToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Sage ID token d’accès."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Sage ID token secret.</label>
+                        <input
+                          type="text"
+                          value={sageSecretToken}
+                          onChange={(e) => {
+                            setSageSecretToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Sage ID token secret."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* PENNYLANE */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#4f46e5]/10 flex items-center justify-center font-bold text-[#4f46e5] text-sm select-none">P</div>
+                      <div>
+                        <h5 className="font-bold font-sans text-sm text-black">Pennylane</h5>
+                        <div className="text-[10px] text-slate-500 select-none font-sans flex items-center gap-1.5">
+                          <span>Statut :</span>
+                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs font-sans text-slate-550 select-none">{pennylaneActive ? 'Activé' : 'Désactivé'}</span>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={pennylaneActive}
+                          onChange={(e) => {
+                            setPennylaneActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4f46e5]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {pennylaneActive && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">ID Client.</label>
+                        <input
+                          type="text"
+                          value={pennylaneClientId}
+                          onChange={(e) => {
+                            setPennylaneClientId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez l'ID Client."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Company API token.</label>
+                        <input
+                          type="text"
+                          value={pennylaneCompanyToken}
+                          onChange={(e) => {
+                            setPennylaneCompanyToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Company API token."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Secret API token.</label>
+                        <input
+                          type="text"
+                          value={pennylaneSecretToken}
+                          onChange={(e) => {
+                            setPennylaneSecretToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Secret API token."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* DROPBOX */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#0061ff]/10 flex items-center justify-center font-bold text-[#0061ff] text-sm select-none">D</div>
+                      <div>
+                        <h5 className="font-bold font-sans text-sm text-black">Dropbox</h5>
+                        <div className="text-[10px] text-slate-505 select-none font-sans flex items-center gap-1.5">
+                          <span>Statut :</span>
+                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs font-sans text-slate-550 select-none">{dropboxActive ? 'Activé' : 'Désactivé'}</span>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={dropboxActive}
+                          onChange={(e) => {
+                            setDropboxActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0061ff]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {dropboxActive && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Token d’accès.</label>
+                        <input
+                          type="text"
+                          value={dropboxAccessToken}
+                          onChange={(e) => {
+                            setDropboxAccessToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Token d'accès."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Token secret d’accès.</label>
+                        <input
+                          type="text"
+                          value={dropboxAccessTokenSecret}
+                          onChange={(e) => {
+                            setDropboxAccessTokenSecret(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez le Token secret d'accès."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CEGID */}
+              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#cc0000]/10 flex items-center justify-center font-bold text-[#cc0000] text-sm select-none">C</div>
+                      <div>
+                        <h5 className="font-bold font-sans text-sm text-black">Cegid</h5>
+                        <div className="text-[10px] text-slate-550 select-none font-sans flex items-center gap-1.5">
+                          <span>Statut :</span>
+                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                       <span className="text-xs font-sans text-slate-550 select-none">{cegidActive ? 'Activé' : 'Désactivé'}</span>
+                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={cegidActive}
+                          onChange={(e) => {
+                            setCegidActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#cc0000]"></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {cegidActive && (
+                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Clé d’API.</label>
+                        <input
+                          type="text"
+                          value={cegidApiKey}
+                          onChange={(e) => {
+                            setCegidApiKey(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez la Clé d’API."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">Clé secrète d’API.</label>
+                        <input
+                          type="text"
+                          value={cegidApiSecret}
+                          onChange={(e) => {
+                            setCegidApiSecret(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder="Entrez la Clé secrète d’API."
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
           </div>
 

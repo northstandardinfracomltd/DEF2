@@ -26,6 +26,7 @@ export interface Client {
   referenceContrat: string;
   debutContrat: string;
   finContrat: string;
+  numeroMarche?: string;
 
   typeContact1?: string;
   typeContact2?: string;
@@ -51,7 +52,7 @@ export interface Client {
   signatureClientContratImage?: string;
 }
 
-export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service';
+export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur';
 
 export interface Variable {
   id: string;
@@ -181,6 +182,7 @@ export interface Member {
   lastActive: string;
   pin: string;
   locationLink?: string;
+  adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité';
 }
 
 export interface CompanyInfo {
@@ -206,6 +208,28 @@ export interface PointageLog {
   comment?: string;
 }
 
+export interface StockMovement {
+  id: string;
+  type: 'Réapprovisionnement fournisseur' | 'Distribution' | 'Rapatriement' | 'Annulation';
+  volume: number;
+  date: string;
+  statut: 'Préparation' | 'Expédié' | 'Terminé' | 'Annulé';
+  bonCommande?: string;
+  trackingLink?: string;
+  emplacement?: string;
+  isCanceled?: boolean;
+}
+
+export interface DistributedStockLocation {
+  id: string;
+  denominationPieceId: string;
+  stockId?: string;
+  locationName: 'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C';
+  volumeDisponible: number;
+  volumeReserve: number;
+  volumeEntrant: number;
+}
+
 export interface StockRecord {
   id: string;
   denominationPieceId: string; // ID corresponding to a Variable
@@ -221,6 +245,8 @@ export interface StockRecord {
   besoinProjete2a6Mois?: number;
   totalACommander?: number;
   commentaire?: string;
+  mouvements?: StockMovement[];
+  ugs?: string;
 }
 
 export interface CommercialDocItem {
@@ -241,6 +267,11 @@ export interface CommercialDoc {
   status: 'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé';
   dateStr: string;
   commentaire?: string;
+  assignedMemberName?: string;
+  hasBonCommande?: boolean;
+  bonCommandeReference?: string;
+  bonCommandeLivraison?: 'Intervention d\'un technicien' | 'Transporteur';
+  bonCommandeSituation?: 'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé';
 }
 
 export interface GedDocument {
@@ -314,6 +345,18 @@ export interface PointageAutoVigilance {
   date: string;
   commentaire: 'En fonctionnement et accessible' | 'Problème résolu' | 'Problème non résolu' | 'Problème non résolu et assistance demandée';
   createdAt?: string;
+}
+
+export interface AchatFournisseur {
+  id: string;
+  reference: string; // generated code e.g. BL-2026-1
+  orderReference: string; // Commander Ref (free input)
+  supplierId: string; // lookup of Variable of type 'Fournisseur'
+  supplierName: string; // name cache or name lookup
+  comment: string; // free text one line
+  pdfUrl?: string; // base64 or file/fake url
+  pdfName?: string; // filename of PDF if uploaded
+  dateStr: string; // date of order
 }
 
 

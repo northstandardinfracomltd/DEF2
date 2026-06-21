@@ -2,7 +2,8 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // Default Apps Script URL provided by the developer
-const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNparlDkMMyWTh8hRSAPIAStMC8h9phwlUogleK6rntYwM6QUjWqQoK_Ulpzoqpd7aoQ/exec';
+const DEFAULT_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzx6ElCSC7A5dWvE5fdBJMAQOmYbsnjVs1ttQ0g9ktrJtln7ei9Pl3Em3ine99CrI0/exec';
+const DEPRECATED_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyNparlDkMMyWTh8hRSAPIAStMC8h9phwlUogleK6rntYwM6QUjWqQoK_Ulpzoqpd7aoQ/exec';
 
 // Shared cached URL
 let cachedUrl: string | null = null;
@@ -14,18 +15,18 @@ let cachedUrl: string | null = null;
 export async function getAppsScriptUrl(): Promise<string> {
   // 1. Try env variable first
   const envUrl = (import.meta as any).env?.VITE_APPS_SCRIPT_URL;
-  if (envUrl && envUrl.trim()) {
+  if (envUrl && envUrl.trim() && envUrl.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
     return envUrl.trim();
   }
 
-  if (cachedUrl) return cachedUrl;
+  if (cachedUrl && cachedUrl !== DEPRECATED_APPS_SCRIPT_URL) return cachedUrl;
   
   try {
     const docRef = doc(db, 'appData', 'global_email_config');
     const snap = await getDoc(docRef);
     if (snap.exists()) {
       const data = snap.data();
-      if (data && data.url) {
+      if (data && data.url && data.url.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
         cachedUrl = data.url;
         return data.url;
       }
@@ -35,7 +36,7 @@ export async function getAppsScriptUrl(): Promise<string> {
   }
 
   const localSaved = localStorage.getItem('defib_global_apps_script_url');
-  if (localSaved && localSaved.trim()) {
+  if (localSaved && localSaved.trim() && localSaved.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
     cachedUrl = localSaved.trim();
     return cachedUrl;
   }
@@ -109,10 +110,10 @@ export async function triggerEmail1Inscription(emailEntreprise: string, password
   const body = `Bravo pour l’ouverture de votre environnement Défibeo! Pour rappel, pour vous connecter, accédez à https://defibeo.com/ et cliquez sur Connexion, ensuite veuillez utiliser votre email ${emailEntreprise} ainsi que le mot de passe que vous avez ajouté.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${emailEntreprise}`,
+    to: `defibeo@gmail.com, ${emailEntreprise}`,
     subject,
     body,
-    replyTo: "support@defibeo.com"
+    replyTo: "defibeo@gmail.com"
   });
 }
 
@@ -130,10 +131,10 @@ export async function triggerEmail2TechnicianConnexion(
   const body = `${companyName} vous a ajouté en tant que membre technicien. Utilisez l’email ${emailTechnicien} et le mot de passe ${pinCode} pour vous connecter. Accédez à defibeo.com puis cliquez sur Connexion en tant que Technicien.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${emailTechnicien}`,
+    to: `defibeo@gmail.com, ${emailTechnicien}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -151,10 +152,10 @@ export async function triggerEmail3AdminConnexion(
   const body = `${companyName} vous a ajouté en tant que membre administrateur. Utilisez l’email ${emailAdmin} et le mot de passe ${pinCode} pour vous connecter. Accédez à defibeo.com puis cliquez sur Connexion en tant que Admin.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${emailAdmin}`,
+    to: `defibeo@gmail.com, ${emailAdmin}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -171,10 +172,10 @@ export async function triggerEmail4Signalement(
   const body = `${companyName}, vous avez reçu un signalement ou une demande d’un client ou d’un passant concernant le défibrillateur ${defibIdentifiant}, accédez à l’onglet CRM pour en savoir plus.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${companyEmail}`,
+    to: `defibeo@gmail.com, ${companyEmail}`,
     subject,
     body,
-    replyTo: "support@defibeo.com"
+    replyTo: "defibeo@gmail.com"
   });
 }
 
@@ -195,10 +196,10 @@ export async function triggerEmail5AvisageFSM(
   const body = `${companyName} a prévu une visite sur votre défibrillateur ${defibIdentifiant} sur la période du ${periodDate}.${pinText}\nSi vous souhaitez en savoir plus ou vous opposer à l’intervention, répondez simplement au présent email.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${clientEmail}`,
+    to: `defibeo@gmail.com, ${clientEmail}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -217,10 +218,10 @@ export async function triggerEmail6RapportIntervention(
   const body = `Un document a été généré pour l’intervention effectuée sur votre défibrillateur ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client https://defibeo.deroesch.com/ pour le télécharger. Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${clientEmail}`,
+    to: `defibeo@gmail.com, ${clientEmail}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -238,10 +239,10 @@ export async function triggerEmail7CrmReply(
   const body = replyText;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${crmSenderEmail}`,
+    to: `defibeo@gmail.com, ${crmSenderEmail}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -260,10 +261,10 @@ export async function triggerEmail8NouvelleTourneeTech(
   const body = `Vous avez été attribué a la tournée ${tourName} pour la période du ${periodDate} par ${companyName}, ouvrez votre webapp pour en savoir plus.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${techEmail}`,
+    to: `defibeo@gmail.com, ${techEmail}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 
@@ -281,10 +282,10 @@ export async function triggerEmail9RappelMensuelVigilance(
   const body = `Bonjour, nous vous invitons a vérifier la disponibilité technique et d’accessibilité de votre défibrillateur ${defibIdentifiant}.`;
   
   return sendScriptEmail({
-    to: `support@defibeo.com, ${clientEmail}`,
+    to: `defibeo@gmail.com, ${clientEmail}`,
     subject,
     body,
-    replyTo: companyEmail || "support@defibeo.com"
+    replyTo: companyEmail || "defibeo@gmail.com"
   });
 }
 

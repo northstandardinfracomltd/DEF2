@@ -1470,7 +1470,12 @@ export default function App() {
       `;
       const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rapport-${snapshot.identifiant || report.defibIdentifiant || 'intervention'}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       return;
     }
 
@@ -1964,7 +1969,12 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `rapport-${snapshot.identifiant || report.defibIdentifiant || 'intervention'}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleCorrectReport = (id: string, updatedFields: Partial<any>) => {
@@ -2825,7 +2835,12 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${doc.type.toLowerCase()}-${doc.ref}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleDownloadBonCommande = (doc: CommercialDoc) => {
@@ -3014,7 +3029,12 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    window.open(url, '_blank');
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bon-de-commande-${doc.bonCommandeReference || 'sans-ref'}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleTransformDoc = (doc: CommercialDoc) => {

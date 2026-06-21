@@ -2158,9 +2158,21 @@ export default function App() {
         if (fMembers !== null) {
           baseMembers = fMembers;
         } else {
-          const defaultMembers = [
+          const defaultMembers: Member[] = [
             { name: 'Ronan Roesch', role: 'Propriétaire / Admin', email: 'roesch.ronan@gmail.com', status: 'Actif', lastActive: 'En ligne', pin: '1234' },
-            { name: 'Technicien Ouest', role: 'Maintenance Terrain', email: 'tech.ouest@defibeo.com', status: 'Actif', lastActive: 'Il y a 10 min', pin: '4321' },
+            { 
+              name: 'Technicien Ouest', 
+              role: 'Maintenance Terrain', 
+              email: 'tech.ouest@defibeo.com', 
+              status: 'Actif', 
+              lastActive: 'Il y a 10 min', 
+              pin: '4321',
+              competences: [
+                "Installation et maintenance défibrillateur",
+                "Installation et maintenance extincteur",
+                "Installation et maintenance BIMP"
+              ]
+            },
             { name: 'Secrétariat Clientèle', role: 'Support & Contrats', email: 'support@defibeo.com', status: 'Inactif', lastActive: 'Hier', pin: '0000' },
           ];
           baseMembers = getFallback<Member[]>('members', defaultMembers);
@@ -4414,6 +4426,19 @@ export default function App() {
                               </div>
                             </div>
                           </div>
+
+                          {/* Technician skills line */}
+                          {(() => {
+                            const selectedMember = members.find(m => m.name === tourTechName);
+                            const comps = selectedMember?.competences || [];
+                            const compsStr = comps.length > 0 ? comps.join(', ') : 'Aucune';
+                            return (
+                              <div className="px-5 pb-1 text-sm text-slate-700 font-sans -mt-3">
+                                <span className="font-semibold text-slate-900">Compétences : </span>
+                                <span className="italic text-slate-600">{compsStr}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
 
                         {/* TOUR MISSIONS LIST */}

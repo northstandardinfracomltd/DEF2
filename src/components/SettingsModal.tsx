@@ -18,7 +18,7 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-import { CompanyInfo, Member } from '../types';
+import { CompanyInfo, Member, MemberSchedule, MemberAbsence } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere } from '../firebase';
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion } from '../utils/emailService';
 
@@ -282,6 +282,121 @@ export default function SettingsModal({
     setLocalMembers(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], locationLink: val || undefined };
+      return updated;
+    });
+  };
+
+  const handleCompetenceToggle = (index: number, comp: string) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].competences || [];
+      const newCompetences = current.includes(comp)
+        ? current.filter(c => c !== comp)
+        : [...current, comp];
+      updated[index] = { ...updated[index], competences: newCompetences };
+      return updated;
+    });
+  };
+
+  const handleAddMemberSchedule = (index: number) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].semaineTypique || [];
+      const newSchedule: MemberSchedule = {
+        days: [],
+        fermetureMidi: false,
+        openMorning: '09:00',
+        closeMorning: '12:00',
+        openAfternoon: '14:00',
+        closeAfternoon: '18:00',
+        openContinuous: '09:00',
+        closeContinuous: '17:00'
+      };
+      updated[index] = { ...updated[index], semaineTypique: [...current, newSchedule] };
+      return updated;
+    });
+  };
+
+  const handleRemoveMemberSchedule = (index: number, schIdx: number) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].semaineTypique || [];
+      const filtered = current.filter((_, i) => i !== schIdx);
+      updated[index] = { ...updated[index], semaineTypique: filtered };
+      return updated;
+    });
+  };
+
+  const handleUpdateMemberScheduleField = (index: number, schIdx: number, field: keyof MemberSchedule, val: any) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].semaineTypique || [];
+      const updatedSchedules = current.map((sch, i) => {
+        if (i !== schIdx) return sch;
+        return { ...sch, [field]: val };
+      });
+      updated[index] = { ...updated[index], semaineTypique: updatedSchedules };
+      return updated;
+    });
+  };
+
+  const handleToggleMemberScheduleDay = (index: number, schIdx: number, day: string) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].semaineTypique || [];
+      const updatedSchedules = current.map((sch, i) => {
+        if (i !== schIdx) return sch;
+        const days = sch.days.includes(day)
+          ? sch.days.filter(d => d !== day)
+          : [...sch.days, day];
+        return { ...sch, days };
+      });
+      updated[index] = { ...updated[index], semaineTypique: updatedSchedules };
+      return updated;
+    });
+  };
+
+  const handleAddMemberAbsence = (index: number) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].absences || [];
+      const newAbsence: MemberAbsence = {
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: new Date().toISOString().split('T')[0],
+        commentaire: ''
+      };
+      updated[index] = { ...updated[index], absences: [...current, newAbsence] };
+      return updated;
+    });
+  };
+
+  const handleRemoveMemberAbsence = (index: number, absIdx: number) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].absences || [];
+      const filtered = current.filter((_, i) => i !== absIdx);
+      updated[index] = { ...updated[index], absences: filtered };
+      return updated;
+    });
+  };
+
+  const handleUpdateMemberAbsenceField = (index: number, absIdx: number, field: keyof MemberAbsence, val: string) => {
+    if (!canEditMember(index)) return;
+    setLocalMembers(prev => {
+      const updated = [...prev];
+      const current = updated[index].absences || [];
+      const updatedAbsences = current.map((abs, i) => {
+        if (i !== absIdx) return abs;
+        return { ...abs, [field]: val };
+      });
+      updated[index] = { ...updated[index], absences: updatedAbsences };
       return updated;
     });
   };
@@ -1045,7 +1160,20 @@ export default function SettingsModal({
                         
                         {/* Column 1: Nom & Prenom with pills beneath */}
                         <td className="px-5 py-5 font-sans align-top" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                          <div className="flex flex-col gap-2 max-w-[280px]">
+                          <div className="flex flex-col gap-2 max-w-[340px] w-full">
+                            {/* Supprimer button placed right above Name field for quick access and extra space */}
+                            {!isSuperAdmin && canEditThisMember && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveMember(idx)}
+                                className="text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border border-red-200/60 rounded-lg px-2 py-1 text-xs font-semibold self-start flex items-center gap-1 transition-all shadow-sm cursor-pointer mb-1"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-red-500 animate-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                                Supprimer le membre
+                              </button>
+                            )}
                             <input
                               type="text"
                               value={m.name}
@@ -1107,7 +1235,7 @@ export default function SettingsModal({
 
                         {/* Column 2: Réglages with Email input, Role and PIN select */}
                         <td className="px-5 py-5 font-sans" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                          <div className="flex flex-col gap-3 max-w-[340px] w-full">
+                          <div className="flex flex-col gap-3 max-w-[420px] w-full">
                             
                             {/* Email */}
                             <div className="space-y-1">
@@ -1187,6 +1315,284 @@ export default function SettingsModal({
                               </div>
                             )}
 
+                            {/* Compétences (Checklist for Technicians) */}
+                            {isTech && (
+                              <div className="space-y-2 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                                <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
+                                  Compétences (choix multiples)
+                                </span>
+                                <div className="flex flex-col gap-2">
+                                  {[
+                                    "Formation AMD",
+                                    "Habilitation Électrique",
+                                    "Pose de coffret",
+                                    "Installation et maintenance défibrillateur",
+                                    "Installation et maintenance extincteur",
+                                    "Installation et maintenance BIMP",
+                                    "Installation et maintenance signalisation",
+                                    "Installation et maintenance éclairage de secours",
+                                    "Installation et maintenance purificateur d'air"
+                                  ].map((comp) => {
+                                    const hasComp = (m.competences || []).includes(comp);
+                                    return (
+                                      <label key={comp} className="flex items-start gap-2.5 text-xs text-black font-sans cursor-pointer select-none py-0.5">
+                                        <input
+                                          type="checkbox"
+                                          checked={hasComp}
+                                          disabled={!canEditThisMember}
+                                          onChange={() => handleCompetenceToggle(idx, comp)}
+                                          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                        />
+                                        <span className="text-slate-700 text-xs font-medium leading-tight">{comp}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Semaine typique / Horaires d'ouvertures (Checklist for Technicians) */}
+                            {isTech && (
+                              <div className="space-y-3 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
+                                    Semaine typique
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={!canEditThisMember}
+                                    onClick={() => handleAddMemberSchedule(idx)}
+                                    className="px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                                  >
+                                    + Ajouter une plage
+                                  </button>
+                                </div>
+
+                                {!(m.semaineTypique && m.semaineTypique.length > 0) ? (
+                                  <div className="text-xs text-slate-500 italic py-1">
+                                    Aucun horaire renseigné pour le moment.
+                                  </div>
+                                ) : (
+                                  (m.semaineTypique || []).map((sch, schIdx) => (
+                                    <div key={schIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-3">
+                                      <button
+                                        type="button"
+                                        disabled={!canEditThisMember}
+                                        onClick={() => handleRemoveMemberSchedule(idx, schIdx)}
+                                        className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer disabled:opacity-50"
+                                        title="Supprimer cette plage"
+                                      >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+
+                                      {/* Midi closing toggle */}
+                                      <div className="flex items-center gap-2 select-none">
+                                        <input
+                                          type="checkbox"
+                                          id={`mem-${idx}-mid-close-${schIdx}`}
+                                          checked={sch.fermetureMidi}
+                                          disabled={!canEditThisMember}
+                                          onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'fermetureMidi', e.target.checked)}
+                                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
+                                        />
+                                        <label htmlFor={`mem-${idx}-mid-close-${schIdx}`} className="text-[11px] font-semibold text-slate-700 cursor-pointer">
+                                          Fermeture le midi (4 plages)
+                                        </label>
+                                      </div>
+
+                                      {/* Time Inputs */}
+                                      <div className="grid grid-cols-2 gap-2">
+                                        {sch.fermetureMidi ? (
+                                          <>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Deb. Matin</label>
+                                              <input
+                                                type="time"
+                                                value={sch.openMorning || '09:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'openMorning', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Fin. Matin</label>
+                                              <input
+                                                type="time"
+                                                value={sch.closeMorning || '12:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'closeMorning', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Deb. Apr-M</label>
+                                              <input
+                                                type="time"
+                                                value={sch.openAfternoon || '14:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'openAfternoon', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Fin. Apr-M</label>
+                                              <input
+                                                type="time"
+                                                value={sch.closeAfternoon || '18:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'closeAfternoon', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Début</label>
+                                              <input
+                                                type="time"
+                                                value={sch.openContinuous || '09:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'openContinuous', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                            <div>
+                                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Fin</label>
+                                              <input
+                                                type="time"
+                                                value={sch.closeContinuous || '17:00'}
+                                                disabled={!canEditThisMember}
+                                                onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'closeContinuous', e.target.value)}
+                                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                              />
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+
+                                      {/* Day checkboxes (Lundi to Dimanche) */}
+                                      <div className="space-y-1">
+                                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Jours concernés</span>
+                                        <div className="flex flex-wrap gap-1">
+                                          {[
+                                            { key: 'Lundi', label: 'Lun' },
+                                            { key: 'Mardi', label: 'Mar' },
+                                            { key: 'Mercredi', label: 'Mer' },
+                                            { key: 'Jeudi', label: 'Jeu' },
+                                            { key: 'Vendredi', label: 'Ven' },
+                                            { key: 'Samedi', label: 'Sam' },
+                                            { key: 'Dimanche', label: 'Dim' }
+                                          ].map((dayObj) => {
+                                            const isChecked = sch.days.includes(dayObj.key);
+                                            const isDayTakenElsewhere = (m.semaineTypique || []).some((s, i) => i !== schIdx && s.days.includes(dayObj.key));
+                                            return (
+                                              <button
+                                                key={dayObj.key}
+                                                type="button"
+                                                disabled={isDayTakenElsewhere || !canEditThisMember}
+                                                onClick={() => handleToggleMemberScheduleDay(idx, schIdx, dayObj.key)}
+                                                className={`px-2 py-1 text-[10px] font-semibold border rounded transition-all select-none ${
+                                                  isChecked
+                                                    ? 'bg-slate-800 text-white border-slate-800 shadow-sm cursor-pointer'
+                                                    : isDayTakenElsewhere
+                                                      ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-45 cursor-not-allowed'
+                                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer'
+                                                }`}
+                                              >
+                                                {dayObj.label}
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+
+                            {/* Section Absences for Technicians */}
+                            {isTech && (
+                              <div className="space-y-3 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200 animate-none">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
+                                    Périodes d'indisponibilité
+                                  </span>
+                                  <button
+                                    type="button"
+                                    disabled={!canEditThisMember}
+                                    onClick={() => handleAddMemberAbsence(idx)}
+                                    className="px-2 py-1 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded border border-rose-200 transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2050/svg" className="w-3.5 h-3.5 animate-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                                    </svg>
+                                    Absence
+                                  </button>
+                                </div>
+
+                                {!(m.absences && m.absences.length > 0) ? (
+                                  <div className="text-xs text-slate-500 italic py-1">
+                                    Aucune indisponibilité déclarée.
+                                  </div>
+                                ) : (
+                                  (m.absences || []).map((abs, absIdx) => (
+                                    <div key={absIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-2">
+                                      <button
+                                        type="button"
+                                        disabled={!canEditThisMember}
+                                        onClick={() => handleRemoveMemberAbsence(idx, absIdx)}
+                                        className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer disabled:opacity-50"
+                                        title="Supprimer cette absence"
+                                      >
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+
+                                      <div className="grid grid-cols-2 gap-2 pt-1">
+                                        <div>
+                                          <label className="block text-[9px] font-bold text-slate-400 uppercase">Date début</label>
+                                          <input
+                                            type="date"
+                                            value={abs.startDate}
+                                            disabled={!canEditThisMember}
+                                            onChange={(e) => handleUpdateMemberAbsenceField(idx, absIdx, 'startDate', e.target.value)}
+                                            className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                          />
+                                        </div>
+                                        <div>
+                                          <label className="block text-[9px] font-bold text-slate-400 uppercase">Date fin</label>
+                                          <input
+                                            type="date"
+                                            value={abs.endDate}
+                                            disabled={!canEditThisMember}
+                                            onChange={(e) => handleUpdateMemberAbsenceField(idx, absIdx, 'endDate', e.target.value)}
+                                            className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                          />
+                                        </div>
+                                      </div>
+
+                                      <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase">Commentaire court</label>
+                                        <input
+                                          type="text"
+                                          placeholder="Ex: Congés annuels, Formation..."
+                                          value={abs.commentaire}
+                                          disabled={!canEditThisMember}
+                                          onChange={(e) => handleUpdateMemberAbsenceField(idx, absIdx, 'commentaire', e.target.value)}
+                                          className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                        />
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            )}
+
                             {/* Type de rôle (sub-role select for Administrators) */}
                             {!isTech && !isSuperAdmin && (
                               <div className="space-y-1 mt-1 w-full text-left">
@@ -1210,24 +1616,6 @@ export default function SettingsModal({
                             )}
 
                           </div>
-                        </td>
-
-                        {/* Column 3: actions */}
-                        <td className="px-5 py-5 text-right align-middle whitespace-nowrap bg-transparent" onClick={(e) => e.stopPropagation()}>
-                          {!isSuperAdmin && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveMember(idx)}
-                              style={{
-                                ...rowActionButtonStyle,
-                                padding: '8px 16px',
-                                fontSize: '18px'
-                              }}
-                              className="cursor-pointer font-sans bg-transparent hover:bg-rose-50 hover:text-rose-600"
-                            >
-                              Supprimer
-                            </button>
-                          )}
                         </td>
 
                       </tr>

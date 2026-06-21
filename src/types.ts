@@ -174,6 +174,23 @@ export interface SupportTicket {
   reponse?: string;
 }
 
+export interface MemberSchedule {
+  days: string[];
+  fermetureMidi: boolean;
+  openMorning: string;
+  closeMorning: string;
+  openAfternoon: string;
+  closeAfternoon: string;
+  openContinuous: string;
+  closeContinuous: string;
+}
+
+export interface MemberAbsence {
+  startDate: string;
+  endDate: string;
+  commentaire: string;
+}
+
 export interface Member {
   name: string;
   role: string;
@@ -183,6 +200,9 @@ export interface Member {
   pin: string;
   locationLink?: string;
   adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité';
+  competences?: string[];
+  semaineTypique?: MemberSchedule[];
+  absences?: MemberAbsence[];
 }
 
 export interface CompanyInfo {

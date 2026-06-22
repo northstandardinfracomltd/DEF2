@@ -2626,7 +2626,7 @@ export default function PublicPortal({
 
             {/* FULL WIDTH SPECIAL REPORT FORM OVERLAY */}
             {isReportOverlayOpen && (
-              <div className="absolute inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-2 py-2 sm:p-4 animate-slideUp text-black force-smartphone-layout" id="report-form-overlay">
+              <div className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-2 py-2 sm:p-4 animate-slideUp text-black force-smartphone-layout" id="report-form-overlay">
                 {selectedOtherEquipmentUnique ? (
                   <GmaoOtherEquipmentCorrectionForm
                     otherEquipment={selectedOtherEquipmentUnique}

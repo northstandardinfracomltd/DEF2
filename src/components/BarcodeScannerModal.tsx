@@ -55,8 +55,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         // By instantiating a FRESH Html5Qrcode on each attempt, we completely avoid
         // any internal state transition exceptions ("already under transition").
         const configsToTry: any[] = [
-          { facingMode: 'environment' },
-          { facingMode: 'user' }
+          { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+          { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
         ];
 
         try {
@@ -75,8 +75,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
             const selectedDevice = backCam || devices[0];
             // Insert camera hardware-specific targeting modes at the front of the list
             configsToTry.unshift(
-              { deviceId: selectedDevice.id },
-              { deviceId: { exact: selectedDevice.id } }
+              { deviceId: selectedDevice.id, width: { ideal: 1280 }, height: { ideal: 720 } },
+              { deviceId: { exact: selectedDevice.id }, width: { ideal: 1280 }, height: { ideal: 720 } }
             );
           }
         } catch (camErr) {
@@ -213,23 +213,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs" id="barcode-scanner-modal-backdrop">
       <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col" id="barcode-scanner-modal-content">
-        {/* Header */}
-        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-          <div>
-            <h3 className="text-[17px] text-slate-800 font-sans font-semibold">
-              Scannez un code-barres
-            </h3>
-          </div>
-          <button 
-            type="button"
-            onClick={onClose}
-            style={fermerButtonStyle}
-            className="font-sans hover:bg-slate-700 cursor-pointer transition-all"
-          >
-            Fermer
-          </button>
-        </div>
-
+        
         {/* Camera Viewport */}
         <div className="relative bg-black flex flex-col items-center justify-center h-72" style={{ backgroundColor: '#000' }}>
           <style>{`
@@ -250,20 +234,6 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
           `}</style>
           <div id={elementId} className="w-full h-full max-w-full overflow-hidden" />
           
-          {isCameraActive && (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none flex flex-col items-center justify-center">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-24 bg-transparent outline outline-[2000px] outline-black/65 rounded-md border-2 border-dashed border-indigo-400 shadow-inner" />
-              <div className="absolute top-[calc(50%+4rem)] left-1/2 -translate-x-1/2 w-[90%] flex flex-col items-center justify-center pointer-events-none gap-1">
-                <span className="text-[12px] text-white font-sans font-medium bg-indigo-600/95 px-4 py-1.5 rounded-full tracking-normal shadow-md text-center max-w-[90%]">
-                  Alignez le code-barres dans le cadre
-                </span>
-                <span className="text-[10px] text-slate-200 font-sans font-normal bg-black/75 px-3 py-1 rounded-md text-center mt-1 scale-95 border border-white/10">
-                  💡 Éloignez votre iPhone/iPad (15-20 cm) pour faire le focus !
-                </span>
-              </div>
-            </div>
-          )}
-
           {errorMsg && (
             <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center bg-slate-50 z-10">
               <span className="text-[14px] text-slate-700 font-sans font-medium mb-1">
@@ -282,6 +252,30 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
               </span>
             </div>
           )}
+        </div>
+
+        {/* Footer with Close Button */}
+        <div className="p-4 bg-white border-t border-slate-100 w-full">
+          <button 
+            type="button"
+            onClick={onClose}
+            style={{
+              backgroundColor: '#000000',
+              color: '#ffffff',
+              borderRadius: '13px',
+              fontSize: '18px',
+              padding: '12px 14px',
+              fontWeight: 'bold',
+              display: 'block',
+              width: '100%',
+              textAlign: 'center',
+              cursor: 'pointer',
+              border: 'none'
+            }}
+            className="font-sans hover:bg-neutral-900 cursor-pointer transition-all"
+          >
+            Fermer
+          </button>
         </div>
       </div>
     </div>

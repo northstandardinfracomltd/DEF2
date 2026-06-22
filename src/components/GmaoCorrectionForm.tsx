@@ -398,7 +398,7 @@ export default function GmaoCorrectionForm({
   const [techGuidesVocauxConformes, setTechGuidesVocauxConformes] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techGuidesVocauxConformes || ''));
   const [techNettoyage, setTechNettoyage] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techNettoyage || ''));
   const [techBranchementElectrodesConforme, setTechBranchementElectrodesConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techBranchementElectrodesConforme || ''));
-  const [techDelivranceChocConforme, setTechDelivranceChocConforme] = useState<'Oui' | 'Non' | ''>(isNew ? '' : (report?.techDelivranceChocConforme || ''));
+  const [techDelivranceChocConforme, setTechDelivranceChocConforme] = useState<'Oui' | 'Non' | 'Non approprié' | ''>(isNew ? '' : (report?.techDelivranceChocConforme || ''));
   const [techResultatJoulesElectrodeA, setTechResultatJoulesElectrodeA] = useState<string>(report?.techResultatJoulesElectrodeA || '');
   const [techResultatJoulesElectrodeA2, setTechResultatJoulesElectrodeA2] = useState<string>(report?.techResultatJoulesElectrodeA2 || '');
 
@@ -1043,6 +1043,8 @@ export default function GmaoCorrectionForm({
             outline: none !important;
             transition: all 0s !important;
             width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
           }
           #gmao-correction-form input:not([type="radio"]):not([type="checkbox"]):hover,
           #gmao-correction-form input:not([type="radio"]):not([type="checkbox"]):focus,
@@ -1071,6 +1073,10 @@ export default function GmaoCorrectionForm({
             font-family: "DefibeoMain", "Civilprom", sans-serif !important;
             cursor: not-allowed !important;
           }
+          #gmao-correction-form select#snap-contrat:disabled {
+            background-color: #ffffff !important;
+            background: #ffffff !important;
+          }
           #gmao-correction-form input:disabled:hover,
           #gmao-correction-form input:disabled:focus,
           #gmao-correction-form select:disabled:hover,
@@ -1096,6 +1102,20 @@ export default function GmaoCorrectionForm({
             background: none !important;
             width: 0 !important;
             height: 0 !important;
+          }
+          #gmao-correction-form input[type="date"] {
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            box-sizing: border-box !important;
+            display: block !important;
+            width: 100% !important;
+          }
+          #gmao-correction-form input[type="date"]::-webkit-date-and-time-value {
+            min-height: 1.5em;
+            text-align: left;
           }
           #gmao-correction-form label,
           #gmao-correction-form .section-title-label,
@@ -1326,43 +1346,16 @@ export default function GmaoCorrectionForm({
                   Site de la mission.
                 </label>
                 <div className="flex gap-6 items-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setMissionSite('DÉPLACEMENT')}
-                    className="inline-flex items-center cursor-pointer gap-2 select-none"
-                    style={{ fontSize: '16px', color: '#000000', fontWeight: 'normal' }}
-                  >
-                    <span 
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        missionSite === 'DÉPLACEMENT' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'
-                      }`}
-                      style={{ borderWidth: '2.5px' }}
-                    >
-                      {missionSite === 'DÉPLACEMENT' && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />
-                      )}
-                    </span>
-                    Déplacement.
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setMissionSite('ATELIER SAV')}
-                    className="inline-flex items-center cursor-pointer gap-2 select-none"
-                    style={{ fontSize: '16px', color: '#000000', fontWeight: 'normal' }}
-                  >
-                    <span 
-                      className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                        missionSite === 'ATELIER SAV' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'
-                      }`}
-                      style={{ borderWidth: '2.5px' }}
-                    >
-                      {missionSite === 'ATELIER SAV' && (
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />
-                      )}
-                    </span>
-                    Atelier.
-                  </button>
+                  <FormRadio
+                    label="Déplacement."
+                    checked={missionSite === 'DÉPLACEMENT'}
+                    onChange={() => setMissionSite('DÉPLACEMENT')}
+                  />
+                  <FormRadio
+                    label="Atelier."
+                    checked={missionSite === 'ATELIER SAV'}
+                    onChange={() => setMissionSite('ATELIER SAV')}
+                  />
                 </div>
               </div>
 
@@ -1401,19 +1394,6 @@ export default function GmaoCorrectionForm({
                         className="transition-colors cursor-pointer font-sans hover:bg-red-600"
                       >
                         Supprimer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (photoUrl) window.open(photoUrl, '_blank');
-                        }}
-                        style={{
-                          ...rowActionButton18Style,
-                          backgroundColor: 'rgb(53, 86, 236)',
-                        }}
-                        className="transition-colors cursor-pointer font-sans hover:bg-blue-700"
-                      >
-                        Aperçu
                       </button>
                     </>
                   )}
@@ -1627,7 +1607,7 @@ export default function GmaoCorrectionForm({
                   disabled
                   value={snapshot.contrat || 'Non'}
                   onChange={(e) => handleSnapshotChange('contrat', e.target.value as any)}
-                  className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500 cursor-not-allowed"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-500 cursor-not-allowed"
                 >
                   <option value="">Aucun contrat.</option>
                   <option value="Oui">Oui (Contrat actif)</option>
@@ -1670,31 +1650,19 @@ export default function GmaoCorrectionForm({
                   Émettre une facture brouillon.
                 </label>
                 <div className="flex items-center gap-4 text-xs mt-1">
-                  <label className="inline-flex items-center cursor-pointer gap-2">
-                    <input
-                      type="radio"
-                      name="emettreFactureBrouillon"
-                      value="Oui"
-                      checked={emettreFactureBrouillon === 'Oui'}
-                      onChange={() => setEmettreFactureBrouillon('Oui')}
-                      className="accent-indigo-600 scale-105"
-                    />
-                    <span>Oui</span>
-                  </label>
-                  <label className="inline-flex items-center cursor-pointer gap-2">
-                    <input
-                      type="radio"
-                      name="emettreFactureBrouillon"
-                      value="Non"
-                      checked={emettreFactureBrouillon === 'Non'}
-                      onChange={() => {
-                        setEmettreFactureBrouillon('Non');
-                        setServiceEmettreId('');
-                      }}
-                      className="accent-indigo-600 scale-105"
-                    />
-                    <span>Non</span>
-                  </label>
+                  <FormRadio
+                    label="Oui"
+                    checked={emettreFactureBrouillon === 'Oui'}
+                    onChange={() => setEmettreFactureBrouillon('Oui')}
+                  />
+                  <FormRadio
+                    label="Non"
+                    checked={emettreFactureBrouillon === 'Non'}
+                    onChange={() => {
+                      setEmettreFactureBrouillon('Non');
+                      setServiceEmettreId('');
+                    }}
+                  />
                 </div>
               </div>
 
@@ -2961,22 +2929,25 @@ export default function GmaoCorrectionForm({
                 <div className="flex gap-6 items-center pt-1 bg-white">
                   <FormRadio label="Oui" checked={techDelivranceChocConforme === 'Oui'} onChange={() => setTechDelivranceChocConforme('Oui')} />
                   <FormRadio label="Non" checked={techDelivranceChocConforme === 'Non'} onChange={() => setTechDelivranceChocConforme('Non')} />
+                  <FormRadio label="Non approprié" checked={techDelivranceChocConforme === 'Non approprié'} onChange={() => setTechDelivranceChocConforme('Non approprié')} />
                 </div>
               </div>
 
               {/* Spacer */}
               <div className="col-span-1 md:col-span-2 bg-white" />
 
-              <div className="col-span-1 md:col-span-2 bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 leading-relaxed space-y-2">
-                <div className="font-bold text-rose-950 flex items-start gap-1.5 home-important">
-                  <span className="text-sm">⚠️</span>
+              <div 
+                className="col-span-1 md:col-span-2 rounded-xl p-4 leading-relaxed space-y-2 text-left"
+                style={{ background: '#ffe8f6', border: 'none', fontSize: '16px', color: '#69236d' }}
+              >
+                <div className="font-bold flex items-start home-important" style={{ color: '#69236d', fontSize: '16px' }}>
                   <span>Important : Conformément aux manuels techniques des fabricants et aux recommandations de l'ANSM, la réalisation de tests de décharge de choc externe sur simulateur est proscrite ou déconseillée pour les modèles suivants :</span>
                 </div>
-                <ul className="list-disc list-inside space-y-1 font-sans text-rose-900 pl-3">
-                  <li><strong className="text-rose-950">ZOLL</strong> : AED Plus et AED 3</li>
-                  <li><strong className="text-rose-950">PHILIPS</strong> : HeartStart HS1 et FRx</li>
-                  <li><strong className="text-rose-950">CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
-                  <li><strong className="text-rose-950">LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
+                <ul className="list-disc list-inside space-y-1 pl-3" style={{ color: '#69236d', fontSize: '16px' }}>
+                  <li><strong style={{ color: '#69236d' }}>ZOLL</strong> : AED Plus et AED 3</li>
+                  <li><strong style={{ color: '#69236d' }}>PHILIPS</strong> : HeartStart HS1 et FRx</li>
+                  <li><strong style={{ color: '#69236d' }}>CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
+                  <li><strong style={{ color: '#69236d' }}>LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
                 </ul>
               </div>
 
@@ -3331,7 +3302,7 @@ export default function GmaoCorrectionForm({
 
       {/* Fixed Error Code Helper Box */}
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 space-y-3 w-full" 
+        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-4 z-40 space-y-3 w-full" 
         style={{ 
           boxShadow: 'none',
           maxWidth: '1000px',
@@ -3342,21 +3313,29 @@ export default function GmaoCorrectionForm({
         }} 
         id="error-code-helper-panel"
       >
-        <div className="flex items-center gap-3 w-full">
-          <h4 className="font-bold text-black shrink-0" style={{ fontSize: '18px' }}>Diagnostic.</h4>
-          <div className="flex-1">
-            <select
-              value={selectedErrorCode}
-              onChange={(e) => setSelectedErrorCode(e.target.value)}
-              className="w-full p-3 border border-[#dedede] rounded-xl text-black bg-white focus:outline-hidden focus:border-black cursor-pointer"
-              style={{ fontSize: '18px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
-            >
-              <option value="">Sélectionnez un code erreur.</option>
-              {ERROR_CODES_DB.map((item, idx) => (
-                <option key={idx} value={item.label}>{item.label}</option>
-              ))}
-            </select>
-          </div>
+        <div className="w-full">
+          <select
+            value={selectedErrorCode}
+            onChange={(e) => setSelectedErrorCode(e.target.value)}
+            className="w-full text-black bg-white focus:outline-none cursor-pointer"
+            style={{ 
+              fontSize: '18px', 
+              appearance: 'none', 
+              WebkitAppearance: 'none', 
+              MozAppearance: 'none',
+              border: '1.5px solid #dedede',
+              borderRadius: '13px',
+              padding: '12px 14px',
+              boxSizing: 'border-box',
+              display: 'block',
+              width: '100%'
+            }}
+          >
+            <option value="">Sélectionnez un code erreur.</option>
+            {ERROR_CODES_DB.map((item, idx) => (
+              <option key={idx} value={item.label}>{item.label}</option>
+            ))}
+          </select>
         </div>
 
         {selectedErrorCode && (
@@ -3383,7 +3362,7 @@ export default function GmaoCorrectionForm({
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
 
             {/* Map Container */}
-            <div className="relative h-80 w-full bg-slate-100">
+            <div className="relative h-56 w-full bg-slate-100">
               <MapContainer
                 center={[tempLat, tempLng]}
                 zoom={14}
@@ -3449,7 +3428,7 @@ export default function GmaoCorrectionForm({
                 style={{ borderRadius: '13px', fontSize: '18px', backgroundColor: '#2563eb' }}
                 className="flex-1 py-3 hover:bg-blue-700 text-white font-bold transition-all cursor-pointer font-sans"
               >
-                Valider la position
+                Valider
               </button>
             </div>
           </div>

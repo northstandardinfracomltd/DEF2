@@ -3236,7 +3236,7 @@ export default function GmaoCorrectionForm({
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Signature du technicien.
                 </label>
-                <div className="border border-slate-200 rounded-lg p-2 bg-white relative">
+                <div className="border rounded-lg p-2 bg-white relative" style={{ borderColor: '#DEDEDE' }}>
                   <canvas
                     ref={canvasRef}
                     width={350}
@@ -3248,12 +3248,12 @@ export default function GmaoCorrectionForm({
                     onTouchStart={startDrawing}
                     onTouchMove={draw}
                     onTouchEnd={stopDrawing}
-                    className="w-full bg-white rounded border border-slate-200 cursor-crosshair touch-none"
-                    style={{ height: '120px' }}
+                    className="w-full bg-white rounded border cursor-crosshair touch-none"
+                    style={{ height: '120px', borderColor: '#DEDEDE' }}
                   />
                   <div className="flex justify-between items-center mt-1.5">
                     <span className="text-[16px] text-black font-semibold font-sans">
-                      Dessiner votre signature ci-dessus
+                      Dessin requis.
                     </span>
                     <button
                       type="button"
@@ -3323,12 +3323,14 @@ export default function GmaoCorrectionForm({
               appearance: 'none', 
               WebkitAppearance: 'none', 
               MozAppearance: 'none',
-              border: '1.5px solid #dedede',
+              border: '1px solid #dedede',
               borderRadius: '13px',
               padding: '12px 14px',
               boxSizing: 'border-box',
               display: 'block',
-              width: '100%'
+              width: '100%',
+              textAlign: 'center',
+              textAlignLast: 'center'
             }}
           >
             <option value="">Sélectionnez un code erreur.</option>
@@ -3359,7 +3361,7 @@ export default function GmaoCorrectionForm({
 
       {isMapPickerOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+          <div className="bg-white rounded-2xl w-full max-w-lg h-fit overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
 
             {/* Map Container */}
             <div className="relative h-56 w-full bg-slate-100">

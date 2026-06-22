@@ -55,8 +55,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         // By instantiating a FRESH Html5Qrcode on each attempt, we completely avoid
         // any internal state transition exceptions ("already under transition").
         const configsToTry: any[] = [
-          { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
-          { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+          { facingMode: 'environment' },
+          { facingMode: 'user' }
         ];
 
         try {
@@ -75,8 +75,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
             const selectedDevice = backCam || devices[0];
             // Insert camera hardware-specific targeting modes at the front of the list
             configsToTry.unshift(
-              { deviceId: selectedDevice.id, width: { ideal: 1280 }, height: { ideal: 720 } },
-              { deviceId: { exact: selectedDevice.id }, width: { ideal: 1280 }, height: { ideal: 720 } }
+              { deviceId: selectedDevice.id },
+              { deviceId: { exact: selectedDevice.id } }
             );
           }
         } catch (camErr) {
@@ -212,10 +212,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-xs" id="barcode-scanner-modal-backdrop">
-      <div className="relative w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col" id="barcode-scanner-modal-content">
+      <div className="relative w-full max-w-md h-fit bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden flex flex-col" id="barcode-scanner-modal-content">
         
         {/* Camera Viewport */}
-        <div className="relative bg-black flex flex-col items-center justify-center h-72" style={{ backgroundColor: '#000' }}>
+        <div className="relative bg-black flex flex-col items-center justify-center h-48" style={{ backgroundColor: '#000' }}>
           <style>{`
             #${elementId} {
               background-color: #000 !important;

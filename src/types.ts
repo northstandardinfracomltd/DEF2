@@ -199,6 +199,7 @@ export interface Member {
   lastActive: string;
   pin: string;
   locationLink?: string;
+  gpsSharingLink?: string;
   adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité';
   competences?: string[];
   semaineTypique?: MemberSchedule[];

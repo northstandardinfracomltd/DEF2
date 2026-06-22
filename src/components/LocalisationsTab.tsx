@@ -154,7 +154,7 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
               </thead>
               <tbody className="text-slate-700 text-xs">
                 {filteredMembers.map((m) => {
-                  const locationLink = m.locationLink || localStorage.getItem(`defib_tech_location_link_${m.name}`) || "";
+                  const locationLink = m.gpsSharingLink || localStorage.getItem(`defib_tech_location_link_${m.name}`) || "";
 
                   return (
                     <tr key={m.name} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">

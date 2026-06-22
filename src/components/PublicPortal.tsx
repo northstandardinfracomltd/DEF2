@@ -300,6 +300,7 @@ export default function PublicPortal({
   const [isSyncingGoogleCal, setIsSyncingGoogleCal] = useState(false);
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [showDomainHelp, setShowDomainHelp] = useState(false);
+  const [showOperationHelp, setShowOperationHelp] = useState(false);
 
   // Selected tour ID for mobile view
   const [selectedTourId, setSelectedTourId] = useState<string>('');
@@ -314,6 +315,7 @@ export default function PublicPortal({
 
   // Localisation form states for the connected technician
   const [techLocationLink, setTechLocationLink] = useState('');
+  const [gpsSharingLink, setGpsSharingLink] = useState('');
 
   // Technician Stocks Tab States
   const [selectedTechDistributedStockId, setSelectedTechDistributedStockId] = useState<string>('');
@@ -1966,6 +1968,7 @@ export default function PublicPortal({
       const liveMember = members.find(m => m.name === authenticatedUser.name);
       if (liveMember) {
         setTechLocationLink(liveMember.locationLink || '');
+        setGpsSharingLink(liveMember.gpsSharingLink || localStorage.getItem(`defib_tech_location_link_${liveMember.name}`) || '');
       }
       
       // Load stored starting address if any
@@ -2420,7 +2423,7 @@ export default function PublicPortal({
       if (m.name === authenticatedUser.name) {
         return {
           ...m,
-          locationLink: techLocationLink
+          gpsSharingLink: gpsSharingLink
         };
       }
       return m;
@@ -2432,6 +2435,7 @@ export default function PublicPortal({
     const envId = localStorage.getItem('defib_tenant_id') || 'demo';
     localStorage.setItem(`defib_${envId}_tech_start_address_${authenticatedUser.name}`, techStartAddress);
     localStorage.setItem(`defib_${envId}_tech_optimization_${authenticatedUser.name}`, routeOptimization);
+    localStorage.setItem(`defib_tech_location_link_${authenticatedUser.name}`, gpsSharingLink);
 
     alert(`Vos préférences géographiques ont été enregistrées avec succès et le lien de live tracking a été envoyé vers le pupitre principal d'administration !`);
   };
@@ -2441,6 +2445,7 @@ export default function PublicPortal({
     setIsSyncingGoogleCal(true);
     setSyncStatusMsg(null);
     setShowDomainHelp(false);
+    setShowOperationHelp(false);
     try {
       const provider = new GoogleAuthProvider();
       provider.addScope('https://www.googleapis.com/auth/calendar');
@@ -2475,11 +2480,22 @@ export default function PublicPortal({
       const isAuthError = errorMsgStr.includes('unauthorized-domain') || 
                           (error?.code && typeof error.code === 'string' && error.code.includes('unauthorized-domain'));
       
+      const isOperationNotAllowed = errorMsgStr.includes('operation-not-allowed') || 
+                          (error?.code && typeof error.code === 'string' && error.code.includes('operation-not-allowed')) ||
+                          errorMsgStr.includes('AUTH/OPERATION_NOT_ALLOWED') ||
+                          errorMsgStr.includes('AUTH/OPERATION NOT ALLOWED');
+
       if (isAuthError) {
         setShowDomainHelp(true);
         setSyncStatusMsg({
           type: 'error',
           text: `Erreur d'autorisation : Ce domaine n'est pas autorisé dans la configuration de votre projet Firebase. Veuillez suivre les instructions ci-dessous pour l'ajouter.`
+        });
+      } else if (isOperationNotAllowed) {
+        setShowOperationHelp(true);
+        setSyncStatusMsg({
+          type: 'error',
+          text: `Erreur de configuration (auth/operation-not-allowed) : La connexion Google n'est pas activée dans votre console Firebase. Veuillez suivre les instructions ci-dessous.`
         });
       } else {
         setSyncStatusMsg({
@@ -4653,7 +4669,7 @@ export default function PublicPortal({
                     }}
                     className="font-sans font-semibold mb-2 cursor-pointer"
                   >
-                    <option value="">-- Choisir une pièce / matériel --</option>
+                    <option value="">Sélection d’un stock distribué.</option>
                     {techActiveStocks.map((item) => {
                       const matchedCentralStock = stocks.find(s => s.id === item.stockId || s.denominationPieceId === item.denominationPieceId);
                       const ugs = matchedCentralStock?.ugs || '';
@@ -4669,32 +4685,71 @@ export default function PublicPortal({
 
                   {/* Details shown ONLY when a stock is selected */}
                   {selectedTechStock ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 mt-6">
                       {/* Section 1: Volumes (3-col grid) */}
                       <div className="grid grid-cols-3 gap-2.5">
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-indigo-600 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {selectedTechStock.volumeDisponible}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Disponible
                           </div>
                         </div>
                         
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-amber-500 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {selectedTechStock.volumeReserve}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Réservé
                           </div>
                         </div>
 
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-teal-600 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {selectedTechStock.volumeEntrant}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Entrant
                           </div>
                         </div>
@@ -4702,36 +4757,75 @@ export default function PublicPortal({
 
                       {/* Section: Outgoing Stats (3-col grid below) */}
                       <div className="grid grid-cols-3 gap-2.5">
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-red-500 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {outgoingStats.week1.vol}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Sortant cette semaine
                           </div>
                         </div>
                         
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-orange-500 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {outgoingStats.week2.vol}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Sortant semaine prochaine
                           </div>
                         </div>
 
-                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
-                          <div className="text-2xl font-extrabold text-amber-600 font-sans">
+                        <div 
+                          className="p-4 text-center"
+                          style={{
+                            backgroundColor: 'rgb(53, 86, 236)',
+                            borderRadius: '13px',
+                            border: 'none',
+                            boxShadow: 'none',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            minHeight: '150px',
+                          }}
+                        >
+                          <div className="font-extrabold font-sans" style={{ fontSize: '22px', color: '#fff' }}>
                             {outgoingStats.next30.vol}
                           </div>
-                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                          <div className="font-bold mt-1 font-sans leading-tight" style={{ fontSize: '16px', color: 'rgb(255 255 255 / 45%)' }}>
                             Sortant 7 à 30 jours
                           </div>
                         </div>
                       </div>
 
                       {/* Section 2: Mouvements (Table layout with scroll horizontally) */}
-                      <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 shadow-xs">
+                      <div className="bg-white space-y-3">
                         <div className="flex bg-white select-none">
                           <span 
                             className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
@@ -4873,7 +4967,7 @@ export default function PublicPortal({
                             }}
                             className="font-sans hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center"
                           >
-                            Alert
+                            Alerter
                           </button>
                           
                           <button
@@ -5103,7 +5197,7 @@ export default function PublicPortal({
                               <input
                                 type="date"
                                 value={getIsoDate(p.startDate)}
-                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
                                 className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                 onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', p.comment, getFrenchDate(e.target.value))}
                               />
@@ -5115,7 +5209,7 @@ export default function PublicPortal({
                                 <input
                                   type="time"
                                   value={p.startTime}
-                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
                                   className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                   onChange={(e) => handleEditPointage(p.id, e.target.value, p.endTime || '12:00', p.comment, p.startDate)}
                                 />
@@ -5125,7 +5219,7 @@ export default function PublicPortal({
                                 <input
                                   type="time"
                                   value={p.endTime || ''}
-                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
                                   className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                   onChange={(e) => handleEditPointage(p.id, p.startTime, e.target.value, p.comment, p.startDate)}
                                 />
@@ -5139,7 +5233,7 @@ export default function PublicPortal({
                                 maxLength={50}
                                 placeholder="Entrez un commentaire."
                                 value={p.comment || ''}
-                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none' }}
+                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
                                 className="w-full bg-white focus:border-indigo-500"
                                 onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', e.target.value, p.startDate)}
                               />
@@ -5158,7 +5252,7 @@ export default function PublicPortal({
                                   padding: '12px 18px',
                                   border: 'none',
                                   cursor: 'pointer',
-                                  width: '50%'
+                                  flex: 1
                                 }}
                                 className="hover:opacity-90 transition-all font-bold"
                               >
@@ -5176,7 +5270,7 @@ export default function PublicPortal({
                                   padding: '12px 18px',
                                   border: 'none',
                                   cursor: 'pointer',
-                                  width: '50%'
+                                  flex: 1
                                 }}
                                 className="hover:opacity-90 transition-all font-bold"
                               >
@@ -5405,8 +5499,8 @@ export default function PublicPortal({
                         <input
                           type="text"
                           required
-                          value={techLocationLink}
-                          onChange={(e) => setTechLocationLink(e.target.value)}
+                          value={gpsSharingLink}
+                          onChange={(e) => setGpsSharingLink(e.target.value)}
                           placeholder="Collez le lien Google Maps"
                           style={{ fontSize: '16px', padding: '14px', borderRadius: '13px', border: '1px solid #dedede', outline: 'none' }}
                           className="w-full bg-white focus:border-indigo-500 font-sans"
@@ -5495,6 +5589,26 @@ export default function PublicPortal({
                           </ol>
                           <p className="text-xs text-amber-700 pt-1 font-semibold">
                             Une fois l'adresse ajoutée, recliquez sur "Synchroniser Google Calendar" !
+                          </p>
+                        </div>
+                      )}
+
+                      {showOperationHelp && (
+                        <div className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-[12px] space-y-2" id="sign-in-method-guide">
+                          <p className="font-bold text-sm">💡 Activer l'authentification Google sur votre console Firebase :</p>
+                          <p className="text-xs leading-relaxed">
+                            L'authentification Google n'est pas encore activée en tant que fournisseur d'identité sur votre base de données Firebase.
+                          </p>
+                          <ol className="text-xs list-decimal pl-4 space-y-1.5 font-medium">
+                            <li>Ouvrez la console Firebase : <a href="https://console.firebase.google.com" target="_blank" rel="noopener noreferrer" className="text-indigo-600 underline font-semibold hover:text-indigo-800">console.firebase.google.com</a></li>
+                            <li>Allez dans la section <strong>Authentication</strong> dans la barre latérale gauche.</li>
+                            <li>Allez dans l'onglet <strong>Sign-in method</strong> (ou Mode de connexion).</li>
+                            <li>Cliquez sur le bouton <strong>Ajouter un fournisseur de connexion</strong> (Add provider).</li>
+                            <li>Sélectionnez <strong>Google</strong> dans la liste.</li>
+                            <li>Basculez l'interrupteur sur <strong>Activer</strong> (Enable), renseignez l'e-mail d'assistance utilisateur du projet, puis cliquez sur <strong>Enregistrer</strong>.</li>
+                          </ol>
+                          <p className="text-xs text-amber-700 pt-1 font-semibold">
+                            Une fois la méthode Google activée, vous pourrez synchroniser votre Google Calendar en un clic !
                           </p>
                         </div>
                       )}

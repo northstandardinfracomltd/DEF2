@@ -179,8 +179,17 @@ const CustomPinkRadio = ({ value, currentValue, onChange, label }: { value: stri
       className="inline-flex items-center cursor-pointer gap-2 select-none"
       style={{ fontSize: '16px', color: '#000' }}
     >
-      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white col-span-1 ${isChecked ? 'border-[#fe4eba]' : 'border-slate-300'}`}>
-        {isChecked && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+      <span className={`w-5 h-5 rounded-full border-2 relative transition-all bg-white col-span-1 shrink-0 ${isChecked ? 'border-[#fe4eba]' : 'border-slate-300'}`}>
+        {isChecked && (
+          <span 
+            className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] absolute" 
+            style={{
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)'
+            }}
+          />
+        )}
       </span>
       {label}
     </button>

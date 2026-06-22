@@ -1538,7 +1538,9 @@ export default function App() {
     };
 
     const selElectrodeA = getStockPieceLabel(report.selectionElectrodeARemplacee);
+    const selElectrodeASecours = getStockPieceLabel(report.selectionElectrodeASecoursRemplacee);
     const selElectrodeP = getStockPieceLabel(report.selectionElectrodePRemplacee);
+    const selElectrodePSecours = getStockPieceLabel(report.selectionElectrodePSecoursRemplacee);
     const selBatterie = getStockPieceLabel(report.selectionBatterieRemplacee);
     const selKitSecours = getStockPieceLabel(report.selectionKitSecoursRemplace);
 
@@ -1811,6 +1813,10 @@ export default function App() {
                   <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode A Secours remplacée :</span> <span class="pdf-bold">${report.electrodeASecoursRemplacee || 'Non'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours A remplacée :</span> <span class="pdf-bold">${selElectrodeASecours || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode A :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeA || ''}</span></div>
                 </div>
               </div>
@@ -1830,6 +1836,10 @@ export default function App() {
                   <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode P Secours remplacée :</span> <span class="pdf-bold">${report.electrodePSecoursRemplacee || 'Non'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours P remplacée :</span> <span class="pdf-bold">${selElectrodePSecours || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode P :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeP || ''}</span></div>
                 </div>
               </div>

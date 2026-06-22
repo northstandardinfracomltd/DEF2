@@ -199,7 +199,7 @@ function FormRadio({
       style={{ fontSize: '15px', color: '#000000', fontWeight: '500' }}
     >
       <span 
-        className="rounded-full flex items-center justify-center transition-all bg-white"
+        className="rounded-full relative transition-all bg-white"
         style={{
           border: checked ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
           width: '20px',
@@ -210,7 +210,16 @@ function FormRadio({
         }}
       >
         {checked && (
-          <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+          <span 
+            className="rounded-full bg-[#fe4eba] absolute" 
+            style={{ 
+              width: '9px', 
+              height: '9px',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)'
+            }} 
+          />
         )}
       </span>
       <span className="text-[15px] font-semibold text-black">{label}</span>
@@ -363,11 +372,15 @@ export default function GmaoCorrectionForm({
   const [electrodeARemplacee, setElectrodeARemplacee] = useState<'Oui' | 'Non'>(report?.electrodeARemplacee || 'Non');
   const [selectionElectrodeARemplacee, setSelectionElectrodeARemplacee] = useState<string>(report?.selectionElectrodeARemplacee || '');
   const [electrodeAConformeSante, setElectrodeAConformeSante] = useState<'Oui' | 'Non'>(report?.electrodeAConformeSante || 'Oui');
+  const [electrodeASecoursRemplacee, setElectrodeASecoursRemplacee] = useState<'Oui' | 'Non'>(report?.electrodeASecoursRemplacee || 'Non');
+  const [selectionElectrodeASecoursRemplacee, setSelectionElectrodeASecoursRemplacee] = useState<string>(report?.selectionElectrodeASecoursRemplacee || '');
 
   // S7 Electrode P
   const [electrodePRemplacee, setElectrodePRemplacee] = useState<'Oui' | 'Non'>(report?.electrodePRemplacee || 'Non');
   const [selectionElectrodePRemplacee, setSelectionElectrodePRemplacee] = useState<string>(report?.selectionElectrodePRemplacee || '');
   const [electrodePConformeSante, setElectrodePConformeSante] = useState<'Oui' | 'Non'>(report?.electrodePConformeSante || 'Oui');
+  const [electrodePSecoursRemplacee, setElectrodePSecoursRemplacee] = useState<'Oui' | 'Non'>(report?.electrodePSecoursRemplacee || 'Non');
+  const [selectionElectrodePSecoursRemplacee, setSelectionElectrodePSecoursRemplacee] = useState<string>(report?.selectionElectrodePSecoursRemplacee || '');
 
   // S8 Batterie
   const [batterieRemplacee, setBatterieRemplacee] = useState<'Oui' | 'Non'>(report?.batterieRemplacee || 'Non');
@@ -752,8 +765,14 @@ export default function GmaoCorrectionForm({
     if (electrodeARemplacee === 'Oui' && !selectionElectrodeARemplacee) {
       errors.push("Une électrode est marquée comme remplacée (électrode A remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
     }
+    if (electrodeASecoursRemplacee === 'Oui' && !selectionElectrodeASecoursRemplacee) {
+      errors.push("Une électrode de secours est marquée comme remplacée (électrode A Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
+    }
     if (electrodePRemplacee === 'Oui' && !selectionElectrodePRemplacee) {
       errors.push("Une électrode est marquée comme remplacée (électrode P remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+    }
+    if (electrodePSecoursRemplacee === 'Oui' && !selectionElectrodePSecoursRemplacee) {
+      errors.push("Une électrode de secours est marquée comme remplacée (électrode P Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
     }
     if (batterieRemplacee === 'Oui' && !selectionBatterieRemplacee) {
       errors.push("La batterie est marquée comme remplacée (batterie remplacée), mais vous n’avez pas sélectionné de batterie en remplacement.");
@@ -810,6 +829,14 @@ export default function GmaoCorrectionForm({
       }
     }
 
+    if (electrodeASecoursRemplacee === 'Oui' && selectionElectrodeASecoursRemplacee) {
+      const st = stocks?.find(s => s.id === selectionElectrodeASecoursRemplacee);
+      if (st) {
+        finalSnapshot.modeleElectrodeASecoursId = st.denominationPieceId;
+        finalSnapshot.lotElectrodeASecours = st.id;
+      }
+    }
+
     if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee) {
       const st = stocks?.find(s => s.id === selectionElectrodePRemplacee);
       if (st) {
@@ -817,6 +844,14 @@ export default function GmaoCorrectionForm({
         finalSnapshot.lotElectrodeP = st.id;
         finalSnapshot.insertionElectrodeP = maintDate;
         finalSnapshot.situationElectrodeP = 'Vert';
+      }
+    }
+
+    if (electrodePSecoursRemplacee === 'Oui' && selectionElectrodePSecoursRemplacee) {
+      const st = stocks?.find(s => s.id === selectionElectrodePSecoursRemplacee);
+      if (st) {
+        finalSnapshot.modeleElectrodePSecoursId = st.denominationPieceId;
+        finalSnapshot.lotElectrodePSecours = st.id;
       }
     }
 
@@ -856,11 +891,15 @@ export default function GmaoCorrectionForm({
       electrodeARemplacee,
       selectionElectrodeARemplacee,
       electrodeAConformeSante,
+      electrodeASecoursRemplacee,
+      selectionElectrodeASecoursRemplacee,
 
       // Section 7 additions
       electrodePRemplacee,
       selectionElectrodePRemplacee,
       electrodePConformeSante,
+      electrodePSecoursRemplacee,
+      selectionElectrodePSecoursRemplacee,
 
       // Section 8 additions
       batterieRemplacee,
@@ -1003,6 +1042,7 @@ export default function GmaoCorrectionForm({
             box-sizing: border-box !important;
             outline: none !important;
             transition: all 0s !important;
+            width: 100% !important;
           }
           #gmao-correction-form input:not([type="radio"]):not([type="checkbox"]):hover,
           #gmao-correction-form input:not([type="radio"]):not([type="checkbox"]):focus,
@@ -1190,7 +1230,8 @@ export default function GmaoCorrectionForm({
                       setErrorText('');
                       setIsLookupScannerOpen(true);
                     }}
-                    className="shrink-0 px-4 py-1.5 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer font-sans"
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans bg-black text-white hover:bg-neutral-900"
                   >
                     Scan
                   </button>
@@ -2035,9 +2076,10 @@ export default function GmaoCorrectionForm({
                   setTempLng(savedLng);
                   setIsMapPickerOpen(true);
                 }}
-                className="w-full py-2 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                style={{ ...rowActionButton18Style, width: '100%', textTransform: 'none' }}
+                className="font-sans"
               >
-                Ajuster Position
+                Ajuster la position
               </button>
             </div>
           </div>
@@ -2209,7 +2251,7 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
+            <div className="pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
               <div className="space-y-1">
                 <label htmlFor="snap-modeleElectrodeASecoursId" className="block text-[11px] font-bold text-black uppercase">
                   Modèle d’électrode de secours.
@@ -2290,6 +2332,45 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
                   <option value="">Sélectionner l'électrode stockée...</option>
+                  {(stocks || []).map(st => {
+                    const varObj = variables.find(v => v.id === st.denominationPieceId);
+                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
+                    return (
+                      <option key={st.id} value={st.id}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
+            {/* Secours Electrode A Replacement Fields */}
+            <div className="pt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
+              <div className="space-y-1 bg-white">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Électrode A Secours remplacée.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio label="Oui" checked={electrodeASecoursRemplacee === 'Oui'} onChange={() => setElectrodeASecoursRemplacee('Oui')} />
+                  <FormRadio label="Non" checked={electrodeASecoursRemplacee === 'Non'} onChange={() => setElectrodeASecoursRemplacee('Non')} />
+                </div>
+              </div>
+            </div>
+
+            {electrodeASecoursRemplacee === 'Oui' && (
+              <div className="pt-3 space-y-1 bg-white animate-fadeIn">
+                <label htmlFor="select-electrode-a-secours-rempc" className="block text-[11px] font-bold text-black uppercase">
+                  Sélection de l'électrode Secours A remplacée.
+                </label>
+                <select
+                  id="select-electrode-a-secours-rempc"
+                  value={selectionElectrodeASecoursRemplacee}
+                  onChange={(e) => setSelectionElectrodeASecoursRemplacee(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                >
+                  <option value="">Sélectionner l'électrode de secours stockée...</option>
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
@@ -2408,7 +2489,7 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="border-t border-slate-100 pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
+            <div className="pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
               <div className="space-y-1">
                 <label htmlFor="snap-modeleElectrodePSecoursId" className="block text-[11px] font-bold text-black uppercase">
                   Modèle d’électrode de secours.
@@ -2489,6 +2570,45 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
                   <option value="">Sélectionner l'électrode stockée...</option>
+                  {(stocks || []).map(st => {
+                    const varObj = variables.find(v => v.id === st.denominationPieceId);
+                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+                    const label = `${denom}, ${st.prixVenteHt} € ht`;
+                    return (
+                      <option key={st.id} value={st.id}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+
+            {/* Secours Electrode P Replacement Fields */}
+            <div className="pt-3 grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
+              <div className="space-y-1 bg-white">
+                <label className="block text-[11px] font-bold text-black uppercase">
+                  Électrode P Secours remplacée.
+                </label>
+                <div className="flex gap-6 items-center pt-1 bg-white">
+                  <FormRadio label="Oui" checked={electrodePSecoursRemplacee === 'Oui'} onChange={() => setElectrodePSecoursRemplacee('Oui')} />
+                  <FormRadio label="Non" checked={electrodePSecoursRemplacee === 'Non'} onChange={() => setElectrodePSecoursRemplacee('Non')} />
+                </div>
+              </div>
+            </div>
+
+            {electrodePSecoursRemplacee === 'Oui' && (
+              <div className="pt-3 space-y-1 bg-white animate-fadeIn">
+                <label htmlFor="select-electrode-p-secours-rempc" className="block text-[11px] font-bold text-black uppercase">
+                  Sélection de l'électrode Secours P remplacée.
+                </label>
+                <select
+                  id="select-electrode-p-secours-rempc"
+                  value={selectionElectrodePSecoursRemplacee}
+                  onChange={(e) => setSelectionElectrodePSecoursRemplacee(e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                >
+                  <option value="">Sélectionner l'électrode de secours stockée...</option>
                   {(stocks || []).map(st => {
                     const varObj = variables.find(v => v.id === st.denominationPieceId);
                     const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
@@ -2715,7 +2835,7 @@ export default function GmaoCorrectionForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
               {/* Conforme à mon arrivée (Full width span) */}
-              <div className="col-span-1 md:col-span-2 space-y-1 bg-white border-b border-slate-100 pb-3">
+              <div className="col-span-1 md:col-span-2 space-y-1 bg-white pb-3">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Conforme à mon arrivée.
                 </label>
@@ -2734,7 +2854,7 @@ export default function GmaoCorrectionForm({
               </div>
 
               {/* Commentaire sur l'état à mon arrivée (Full width span) */}
-              <div className="col-span-1 md:col-span-2 space-y-1 bg-white border-b border-slate-100 pb-3">
+              <div className="col-span-1 md:col-span-2 space-y-1 bg-white pb-3">
                 <label htmlFor="techCommentaireArrivee" className="block text-[11px] font-bold text-black uppercase">
                   Commentaire sur l’état à mon arrivée.
                 </label>
@@ -2846,9 +2966,6 @@ export default function GmaoCorrectionForm({
 
               {/* Spacer */}
               <div className="col-span-1 md:col-span-2 bg-white" />
-
-              {/* Divider & Warning message before Electrode A test */}
-              <div className="col-span-1 md:col-span-2 border-t border-slate-200 pt-3 mt-1 bg-white" />
 
               <div className="col-span-1 md:col-span-2 bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs text-rose-800 leading-relaxed space-y-2">
                 <div className="font-bold text-rose-950 flex items-start gap-1.5 home-important">
@@ -3119,9 +3236,15 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 border border-slate-200 rounded-xl space-y-3">
+            <div 
+              className="p-4 space-y-3 bg-white"
+              style={{
+                border: '1px solid #D5D5D5',
+                borderRadius: '13px'
+              }}
+            >
               <label htmlFor="client-pin-code" className="block text-[11px] font-bold text-black uppercase tracking-wider">
-                Signature Client (Code PIN de validation) <span className="text-red-500">*</span>
+                Signature client avec PIN. <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2 max-w-sm">
                 <input
@@ -3135,9 +3258,6 @@ export default function GmaoCorrectionForm({
                   required
                 />
               </div>
-              <p className="text-[11px] text-slate-500 font-sans">
-                Entrez le code PIN à 6 caractères (3 lettres et 3 chiffres) fourni par le client pour authentifier et signer ce rapport.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3213,7 +3333,7 @@ export default function GmaoCorrectionForm({
       <div 
         className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 space-y-3 w-full" 
         style={{ 
-          boxShadow: '0 -4px 15px rgba(0,0,0,0.06), 0 -1px 2px rgba(0,0,0,0.04)',
+          boxShadow: 'none',
           maxWidth: '1000px',
           marginLeft: 'auto',
           marginRight: 'auto',
@@ -3223,12 +3343,13 @@ export default function GmaoCorrectionForm({
         id="error-code-helper-panel"
       >
         <div className="flex items-center gap-3 w-full">
-          <h4 className="text-sm font-bold text-black shrink-0">Diagnostic.</h4>
+          <h4 className="font-bold text-black shrink-0" style={{ fontSize: '18px' }}>Diagnostic.</h4>
           <div className="flex-1">
             <select
               value={selectedErrorCode}
               onChange={(e) => setSelectedErrorCode(e.target.value)}
-              className="w-full p-2 border border-[#dedede] rounded-xl text-xs text-black bg-white focus:outline-hidden focus:border-black"
+              className="w-full p-3 border border-[#dedede] rounded-xl text-black bg-white focus:outline-hidden focus:border-black cursor-pointer"
+              style={{ fontSize: '18px', appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
             >
               <option value="">Sélectionnez un code erreur.</option>
               {ERROR_CODES_DB.map((item, idx) => (
@@ -3239,15 +3360,16 @@ export default function GmaoCorrectionForm({
         </div>
 
         {selectedErrorCode && (
-          <div className="p-3 bg-white border border-[#dedede] rounded-xl space-y-3 animate-fadeIn">
-            <p className="text-sm text-black font-medium leading-relaxed">
+          <div className="bg-white space-y-3 animate-fadeIn">
+            <p className="text-black font-medium leading-relaxed" style={{ fontSize: '18px' }}>
               {ERROR_CODES_DB.find(e => e.label === selectedErrorCode)?.description}
             </p>
             <div className="pt-1">
               <button
                 type="button"
                 onClick={() => setSelectedErrorCode('')}
-                className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white text-sm font-bold rounded-xl transition-all cursor-pointer"
+                style={{ fontSize: '18px' }}
+                className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white font-bold rounded-xl transition-all cursor-pointer"
               >
                 Fermer
               </button>
@@ -3257,22 +3379,8 @@ export default function GmaoCorrectionForm({
       </div>
 
       {isMapPickerOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-black font-sans leading-tight">Ajustez la position du DAE</h3>
-                <p className="text-[11px] text-slate-500 font-sans mt-0.5">Cliquez sur la carte ou glissez le marqueur pour définir précisément son emplacement.</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsMapPickerOpen(false)}
-                className="text-slate-400 hover:text-black hover:bg-slate-100 p-1.5 rounded-lg transition-all"
-              >
-                ✕
-              </button>
-            </div>
 
             {/* Map Container */}
             <div className="relative h-80 w-full bg-slate-100">
@@ -3308,15 +3416,15 @@ export default function GmaoCorrectionForm({
             </div>
 
             {/* Live coordinates display */}
-            <div className="p-4 bg-slate-50 border-b border-slate-200">
+            <div className="p-4 bg-slate-50">
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Latitude live</span>
-                  <code className="text-black font-semibold text-xs font-mono">{tempLat.toFixed(6)}</code>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Latitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLat.toFixed(6)}</span>
                 </div>
                 <div>
-                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Longitude live</span>
-                  <code className="text-black font-semibold text-xs font-mono">{tempLng.toFixed(6)}</code>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Longitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLng.toFixed(6)}</span>
                 </div>
               </div>
             </div>
@@ -3326,7 +3434,8 @@ export default function GmaoCorrectionForm({
               <button
                 type="button"
                 onClick={() => setIsMapPickerOpen(false)}
-                className="flex-1 py-3 border border-slate-200 text-slate-700 hover:text-black hover:bg-slate-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                style={{ borderRadius: '13px', fontSize: '18px' }}
+                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white font-bold transition-all cursor-pointer font-sans"
               >
                 Annuler
               </button>
@@ -3337,7 +3446,8 @@ export default function GmaoCorrectionForm({
                   handleSnapshotChange('longitude', tempLng.toFixed(6));
                   setIsMapPickerOpen(false);
                 }}
-                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                style={{ borderRadius: '13px', fontSize: '18px', backgroundColor: '#2563eb' }}
+                className="flex-1 py-3 hover:bg-blue-700 text-white font-bold transition-all cursor-pointer font-sans"
               >
                 Valider la position
               </button>

@@ -1308,7 +1308,9 @@ export default function PublicPortal({
     };
 
     const selElectrodeA = getStockPieceLabel(report.selectionElectrodeARemplacee);
+    const selElectrodeASecours = getStockPieceLabel(report.selectionElectrodeASecoursRemplacee);
     const selElectrodeP = getStockPieceLabel(report.selectionElectrodePRemplacee);
+    const selElectrodePSecours = getStockPieceLabel(report.selectionElectrodePSecoursRemplacee);
     const selBatterie = getStockPieceLabel(report.selectionBatterieRemplacee);
     const selKitSecours = getStockPieceLabel(report.selectionKitSecoursRemplace);
 
@@ -1581,6 +1583,10 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode A Secours remplacée :</span> <span class="pdf-bold">${report.electrodeASecoursRemplacee || 'Non'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours A remplacée :</span> <span class="pdf-bold">${selElectrodeASecours || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode A :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeA || ''}</span></div>
                 </div>
               </div>
@@ -1600,6 +1606,10 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ''}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ''}</span></div>
+                  
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode P Secours remplacée :</span> <span class="pdf-bold">${report.electrodePSecoursRemplacee || 'Non'}</span></div>
+                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours P remplacée :</span> <span class="pdf-bold">${selElectrodePSecours || ''}</span></div>
+                  
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode P :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeP || ''}</span></div>
                 </div>
               </div>
@@ -2723,8 +2733,14 @@ export default function PublicPortal({
                       if (updatedReport.electrodePRemplacee === 'Oui' && updatedReport.selectionElectrodePRemplacee) {
                         toDecrementIds.push(updatedReport.selectionElectrodePRemplacee);
                       }
+                      if (updatedReport.electrodePSecoursRemplacee === 'Oui' && updatedReport.selectionElectrodePSecoursRemplacee) {
+                        toDecrementIds.push(updatedReport.selectionElectrodePSecoursRemplacee);
+                      }
                       if (updatedReport.electrodeARemplacee === 'Oui' && updatedReport.selectionElectrodeARemplacee) {
                         toDecrementIds.push(updatedReport.selectionElectrodeARemplacee);
+                      }
+                      if (updatedReport.electrodeASecoursRemplacee === 'Oui' && updatedReport.selectionElectrodeASecoursRemplacee) {
+                        toDecrementIds.push(updatedReport.selectionElectrodeASecoursRemplacee);
                       }
                       if (updatedReport.emettreFactureBrouillon === 'Oui' && updatedReport.serviceEmettreId) {
                         const matchedStock = stocks.find(s => s.id === updatedReport.serviceEmettreId || s.denominationPieceId === updatedReport.serviceEmettreId);
@@ -2844,6 +2860,34 @@ export default function PublicPortal({
                             invoiceItems.push({
                               variableId: st.denominationPieceId,
                               nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode A',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
+                        }
+
+                        // Add electrode A secours if replaced & selected
+                        if (updatedReport.electrodeASecoursRemplacee === 'Oui' && updatedReport.selectionElectrodeASecoursRemplacee) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodeASecoursRemplacee);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode Secours A',
+                              prixVenteHt: st.prixVenteHt,
+                              quantite: 1
+                            });
+                          }
+                        }
+
+                        // Add electrode P secours if replaced & selected
+                        if (updatedReport.electrodePSecoursRemplacee === 'Oui' && updatedReport.selectionElectrodePSecoursRemplacee) {
+                          const st = stocks.find((s: any) => s.id === updatedReport.selectionElectrodePSecoursRemplacee);
+                          if (st) {
+                            const matchedVar = variables.find((v: any) => v.id === st.denominationPieceId);
+                            invoiceItems.push({
+                              variableId: st.denominationPieceId,
+                              nomPiece: matchedVar ? `${matchedVar.nom} (${matchedVar.marque})` : 'Électrode Secours P',
                               prixVenteHt: st.prixVenteHt,
                               quantite: 1
                             });

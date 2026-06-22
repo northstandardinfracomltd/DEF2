@@ -5171,7 +5171,7 @@ export default function PublicPortal({
 
                     <div className="space-y-4">
                       {pointages.filter(p => p.techName === authenticatedUser?.name && !p.isOngoing).map(p => (
-                        <div key={p.id} className="p-5 bg-white rounded-[14px] space-y-4" style={{ border: '1px solid rgb(201, 190, 205)', boxShadow: 'none' }} id={`pointage-card-${p.id}`}>
+                        <div key={p.id} className="p-3.5 sm:p-5 bg-white rounded-[14px] space-y-4" style={{ border: '1px solid rgb(201, 190, 205)', boxShadow: 'none' }} id={`pointage-card-${p.id}`}>
                           
                           <div className="flex items-center justify-center pb-1">
                             <span style={{
@@ -5192,49 +5192,49 @@ export default function PublicPortal({
 
                           {/* Editable fields for past Pointages */}
                           <div className="space-y-4">
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 min-w-0">
                               <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Date.</label>
                               <input
                                 type="date"
                                 value={getIsoDate(p.startDate)}
-                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
-                                className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                style={{ fontSize: '16px', padding: '10px 12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box', width: '100%', maxWidth: '100%', minWidth: '0px' }}
+                                className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                 onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', p.comment, getFrenchDate(e.target.value))}
                               />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1.5">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="space-y-1.5 min-w-0">
                                 <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Début.</label>
                                 <input
                                   type="time"
                                   value={p.startTime}
-                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
-                                  className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                  style={{ fontSize: '16px', padding: '10px 12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box', width: '100%', maxWidth: '100%', minWidth: '0px' }}
+                                  className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                   onChange={(e) => handleEditPointage(p.id, e.target.value, p.endTime || '12:00', p.comment, p.startDate)}
                                 />
                               </div>
-                              <div className="space-y-1.5">
+                              <div className="space-y-1.5 min-w-0">
                                 <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Clôture.</label>
                                 <input
                                   type="time"
                                   value={p.endTime || ''}
-                                  style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
-                                  className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                  style={{ fontSize: '16px', padding: '10px 12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box', width: '100%', maxWidth: '100%', minWidth: '0px' }}
+                                  className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                   onChange={(e) => handleEditPointage(p.id, p.startTime, e.target.value, p.comment, p.startDate)}
                                 />
                               </div>
                             </div>
 
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 min-w-0">
                               <label style={{ fontSize: '16px' }} className="block font-bold text-black select-none">Commentaire pour la période.</label>
                               <input
                                 type="text"
                                 maxLength={50}
                                 placeholder="Entrez un commentaire."
                                 value={p.comment || ''}
-                                style={{ fontSize: '16px', padding: '12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box' }}
-                                className="w-full bg-white focus:border-indigo-500"
+                                style={{ fontSize: '16px', padding: '10px 12px', borderRadius: '13px', border: '1px solid rgb(201, 190, 205)', outline: 'none', boxSizing: 'border-box', width: '100%', maxWidth: '100%', minWidth: '0px' }}
+                                className="w-full max-w-full min-w-0 bg-white focus:border-indigo-500"
                                 onChange={(e) => handleEditPointage(p.id, p.startTime, p.endTime || '12:00', e.target.value, p.startDate)}
                               />
                             </div>

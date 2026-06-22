@@ -19,6 +19,88 @@ interface ClientPortalProps {
   onAddPointageAutoVigilance?: (newPt: PointageAutoVigilance) => void;
 }
 
+interface BarcodeProps {
+  text: string;
+}
+
+function Barcode({ text }: BarcodeProps) {
+  const sanitized = '*' + text.toUpperCase().replace(/[^0-9A-Z\-.\s]/g, '-') + '*';
+  
+  const charMap: { [key: string]: string } = {
+    '0': 'b s b S B s B s b', '1': 'B s b S b s b s B', '2': 'b s B S b s b s B',
+    '3': 'B s B S b s b s b', '4': 'b s b S B s b s B', '5': 'B s b S B s b s b',
+    '6': 'b s B S B s b s b', '7': 'b s b S b s B s B', '8': 'B s b S b s B s b',
+    '9': 'b s B S b s B s b', 'A': 'B s b s b S b s B', 'B': 'b s B s b S b s B',
+    'C': 'B s B s b S b s b', 'D': 'b s b s B S b s B', 'E': 'B s b s B S b s b',
+    'F': 'b s B s B S b s b', 'G': 'b s b s b S B s B', 'H': 'B s b s b S B s b',
+    'I': 'b s B s b S B s b', 'J': 'b s b s B S B s b', 'K': 'B s b s b s b S B',
+    'L': 'b s B s b s b S B', 'M': 'B s B s b s b S b', 'N': 'b s b s B s b S B',
+    'O': 'B s b s B s b S b', 'P': 'b s B s B s b S b', 'Q': 'b s b s b s B S B',
+    'R': 'B s b s b s B S b', 'S': 'b s B s b s B S b', 'T': 'b s b s B s B S b',
+    'U': 'B S b s b s b s B', 'V': 'b S B s b s b s B', 'W': 'B S B s b s b s b',
+    'X': 'b S b s B s b s B', 'Y': 'B S b s B s b s b', 'Z': 'b S B s B s b s b',
+    '-': 'b S b s b s B s B', '.': 'B S b s b s B s b', ' ': 'b S B s b s B s b',
+    '*': 'b S b s B s B s b'
+  };
+
+  const getWidthStr = (char: string) => {
+    return charMap[char] || charMap['-'];
+  };
+
+  let x = 10;
+  const rects: React.JSX.Element[] = [];
+  const narrowWidth = 1.8;
+  const wideWidth = 4.2;
+  const height = 55;
+
+  for (let i = 0; i < sanitized.length; i++) {
+    const pattern = getWidthStr(sanitized[i]);
+    const elements = pattern.split(' ');
+    
+    elements.forEach((el, index) => {
+      const isBar = index % 2 === 0;
+      const isWide = el === el.toUpperCase();
+      const currentWidth = isWide ? wideWidth : narrowWidth;
+      
+      if (isBar) {
+        rects.push(
+          <rect key={`${i}-${index}`} x={x} y={10} width={currentWidth} height={height} fill="black" />
+        );
+      }
+      x += currentWidth;
+    });
+    x += narrowWidth;
+  }
+
+  const svgWidth = x + 10;
+  const svgHeight = height + 30;
+
+  return (
+    <div className="flex flex-col items-center p-2 bg-white rounded border border-slate-150 max-w-xs mx-auto">
+      <svg id={`barcode-${text}`} width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mx-auto block">
+        {rects}
+        <text x={svgWidth / 2} y={height + 25} textAnchor="middle" className="font-mono text-[12px] tracking-widest font-semibold fill-black">
+          {text}
+        </text>
+      </svg>
+    </div>
+  );
+}
+
+const handleDownloadBarcode = (text: string) => {
+  const svgEl = document.getElementById(`barcode-${text}`);
+  if (!svgEl) return;
+  const svgString = new XMLSerializer().serializeToString(svgEl);
+  const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+  const svgUrl = URL.createObjectURL(svgBlob);
+  const downloadLink = document.createElement('a');
+  downloadLink.href = svgUrl;
+  downloadLink.download = `codebarre_${text}.svg`;
+  document.body.appendChild(downloadLink);
+  downloadLink.click();
+  document.body.removeChild(downloadLink);
+};
+
 export default function ClientPortal({
   clients,
   defibrillateurs,
@@ -1439,7 +1521,7 @@ export default function ClientPortal({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-white text-slate-800 flex flex-col font-sans select-none">
       {/* Top sticky navigation bar with requested maintainer title */}
       <header 
         className="sticky top-0 z-50 px-4 py-5 shrink-0 border-b border-purple-950/20 shadow-md bg-gradient-to-r from-[#7e2e86] to-[#36093a]"
@@ -1579,13 +1661,21 @@ export default function ClientPortal({
                             borderRadius: '13px',
                           }}
                         >
-                          <div className="flex items-center justify-between">
-                            <h2 className="text-[18px] font-black text-[#7e2e86] select-none" style={{ letterSpacing: 'normal' }}>
+                          <div className="flex items-center gap-3 select-none">
+                            <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
                               {df.identifiant}
                             </h2>
                             <span 
-                              className="px-3 py-1 text-xs font-bold font-sans text-[#7e2e86] bg-purple-50 border border-purple-200"
-                              style={{ borderRadius: '1000px' }}
+                              style={{ 
+                                backgroundColor: '#45114a',
+                                color: '#fff',
+                                fontSize: '18px',
+                                borderRadius: '100px',
+                                padding: '4px 14px',
+                                fontWeight: 'bold',
+                                lineHeight: 'normal'
+                              }}
+                              className="font-sans"
                             >
                               Défibrillateur
                             </span>
@@ -1646,6 +1736,19 @@ export default function ClientPortal({
                               return null;
                             })()}
                           </div>
+
+                          {/* Barcode and Download button */}
+                          <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-3">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase block">Code-barres du matériel :</span>
+                            <Barcode text={df.numeroSerie || df.identifiant || 'DEFIB'} />
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadBarcode(df.numeroSerie || df.identifiant || 'DEFIB')}
+                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white text-sm font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
+                            >
+                              Télécharger
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1669,13 +1772,21 @@ export default function ClientPortal({
                             borderRadius: '13px',
                           }}
                         >
-                          <div className="flex items-center justify-between">
-                            <h2 className="text-[18px] font-black text-[#7e2e86] select-none" style={{ letterSpacing: 'normal' }}>
+                          <div className="flex items-center gap-3 select-none">
+                            <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
                               {oth.identifiant}
                             </h2>
                             <span 
-                              className="px-3 py-1 text-xs font-bold font-sans text-rose-600 bg-rose-50 border border-rose-200"
-                              style={{ borderRadius: '1000px' }}
+                              style={{ 
+                                backgroundColor: '#45114a',
+                                color: '#fff',
+                                fontSize: '18px',
+                                borderRadius: '100px',
+                                padding: '4px 14px',
+                                fontWeight: 'bold',
+                                lineHeight: 'normal'
+                              }}
+                              className="font-sans"
                             >
                               {oth.categorie}
                             </span>
@@ -1839,7 +1950,7 @@ export default function ClientPortal({
             })()
           )}
 
-          {/* Section: Pointages auto-vigilance */}
+           {/* Section: Pointages auto-vigilance */}
           {activePortalTab === 'autovigilance' && (
             <div className="space-y-6">
               <div
@@ -1849,13 +1960,10 @@ export default function ClientPortal({
                   borderRadius: '13px',
                 }}
               >
-                <div className="border-b border-slate-100 pb-4 mb-5">
+                <div className="mb-5">
                   <h2 className="text-[20px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
                     Nouveau pointage d'auto-vigilance
                   </h2>
-                  <p className="text-xs text-slate-500 font-sans mt-1">
-                    Enregistrez périodiquement l'état et le bon fonctionnement de vos matériels de sécurité.
-                  </p>
                 </div>
 
                 {assignedEquipment.length === 0 ? (
@@ -1874,13 +1982,16 @@ export default function ClientPortal({
                           required
                           value={selectedEquipId}
                           onChange={(e) => setSelectedEquipId(e.target.value)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer"
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '42px'
+                            height: '42px',
+                            appearance: 'none',
+                            WebkitAppearance: 'none',
+                            MozAppearance: 'none'
                           }}
                         >
                           <option value="">-- Choisir un matériel --</option>
@@ -1902,7 +2013,7 @@ export default function ClientPortal({
                           required
                           value={pointageDate}
                           onChange={(e) => setPointageDate(e.target.value)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -1922,13 +2033,16 @@ export default function ClientPortal({
                           required
                           value={pointageComment}
                           onChange={(e) => setPointageComment(e.target.value as any)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer"
+                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '42px'
+                            height: '42px',
+                            appearance: 'none',
+                            WebkitAppearance: 'none',
+                            MozAppearance: 'none'
                           }}
                         >
                           <option value="En fonctionnement et accessible">En fonctionnement et accessible</option>
@@ -1949,10 +2063,12 @@ export default function ClientPortal({
                       </div>
                       <button
                         type="submit"
-                        className="px-6 py-2.5 text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none shrink-0"
+                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
                         style={{
-                          backgroundColor: '#22c55e',
-                          boxShadow: '0 4px 6px -1px rgb(34 197 94 / 0.1), 0 2px 4px -2px rgb(34 197 94 / 0.1)'
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
                         Enregistrer
@@ -1970,19 +2086,14 @@ export default function ClientPortal({
                   borderRadius: '13px',
                 }}
               >
-                <div className="border-b border-slate-100 pb-3 mb-4">
+                <div className="mb-4">
                   <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
                     Historique des pointages d'auto-vigilance
                   </h3>
-                  <p className="text-xs text-slate-500 font-sans mt-0.5">
-                    Retrouvez ci-dessous la liste de tous vos autocontrôles de vigilance déclarés.
-                  </p>
                 </div>
 
                 {!pointagesAutoVigilance || pointagesAutoVigilance.filter(p => p.clientId === authenticatedClient?.id).length === 0 ? (
-                  <div className="p-8 text-center text-slate-500 font-sans italic text-sm">
-                    Aucun pointage enregistré pour le moment.
-                  </div>
+                  null
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left font-sans text-sm border-collapse">
@@ -2166,11 +2277,17 @@ export default function ClientPortal({
                             onTouchMove={drawPortalContractSig}
                             onTouchEnd={stopDrawingPortalContractSig}
                           />
-                          <div className="flex justify-between w-full mt-2 px-1">
+                          <div className="flex justify-between items-center w-full mt-2 px-1">
                             <button
                               type="button"
                               onClick={clearPortalContractSignature}
-                              className="text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer border-0 bg-transparent"
+                              className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
+                              style={{
+                                backgroundColor: '#000000',
+                                borderRadius: '13px',
+                                fontSize: '18px',
+                                boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                              }}
                             >
                               Effacer
                             </button>
@@ -2195,13 +2312,16 @@ export default function ClientPortal({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
                     <button
                       type="button"
                       onClick={handleDownloadContractPDF}
-                      className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 border-none outline-none"
+                      className="px-6 py-3 text-white transition-all cursor-pointer flex items-center gap-2 border-none outline-none font-bold"
                       style={{
-                        backgroundColor: '#4f46e5',
+                        backgroundColor: '#000000',
+                        borderRadius: '13px',
+                        fontSize: '18px',
+                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                       }}
                     >
                       Télécharger le contrat PDF
@@ -2211,9 +2331,12 @@ export default function ClientPortal({
                       <button
                         type="button"
                         onClick={handleSavePortalContract}
-                        className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer outline-none border-none shrink-0"
+                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
                         style={{
-                          backgroundColor: '#22c55e',
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
                         Enregistrer & Signer le Contrat
@@ -2243,8 +2366,15 @@ export default function ClientPortal({
                   </div>
                   {!isEditingContacts ? (
                     <button
+                      type="button"
                       onClick={() => setIsEditingContacts(true)}
-                      className="px-4 py-2 bg-[#3556ec] hover:bg-[#2e4bcb] text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none whitespace-nowrap self-stretch sm:self-auto"
+                      className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none whitespace-nowrap self-stretch sm:self-auto font-bold animate-fadeIn"
+                      style={{
+                        backgroundColor: '#000000',
+                        borderRadius: '13px',
+                        fontSize: '18px',
+                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                      }}
                     >
                       Modifier les contacts
                     </button>
@@ -2443,11 +2573,17 @@ export default function ClientPortal({
                   </div>
 
                   <div className="flex flex-col gap-3 self-stretch justify-center">
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={clearSignatureSig}
-                        className="px-4 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold border border-slate-300 transition-all rounded-lg cursor-pointer"
+                        className="px-6 py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                        style={{
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                        }}
                       >
                         Effacer
                       </button>
@@ -2455,7 +2591,13 @@ export default function ClientPortal({
                       <button
                         type="button"
                         onClick={handleSaveSignature}
-                        className="px-4 py-2 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all border border-transparent rounded-lg cursor-pointer shadow-sm"
+                        className="px-6 py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                        style={{
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                        }}
                       >
                         Enregistrer ma signature
                       </button>

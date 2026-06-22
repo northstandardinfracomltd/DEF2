@@ -92,31 +92,98 @@ function Code39Barcode({ value }: { value: string }) {
     }
   }
 
+  const downloadSvg = () => {
+    let rectsSvg = '';
+    let currX = QUIET_ZONE;
+    for (let i = 0; i < wrappedText.length; i++) {
+      const char = wrappedText[i];
+      const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+      for (let j = 0; j < 9; j++) {
+        const isWide = pattern[j] === '1';
+        const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+        const isBar = j % 2 === 0;
+        if (isBar) {
+          rectsSvg += `<rect x="${currX}" y="8" width="${width}" height="${BAR_HEIGHT}" fill="black" />`;
+        }
+        currX += width;
+      }
+      if (i < wrappedText.length - 1) {
+        currX += GAP_WIDTH;
+      }
+    }
+
+    const svgContent = `<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} 74" width="${totalWidth}" height="74" shape-rendering="crispEdges">
+  <rect width="${totalWidth}" height="74" fill="white" />
+  ${rectsSvg}
+  <text x="${totalWidth / 2}" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-weight="bold" font-size="16px" fill="#000000">${text}</text>
+</svg>`;
+
+    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `barcode-${text}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="flex flex-col items-center bg-white border border-slate-200 p-2 rounded-xl max-w-full">
+    <div className="flex flex-col items-center justify-center w-full bg-white max-w-full p-2">
+      <style>{`
+        /* Supprimer l'icône horloge native dans les inputs de type time */
+        .no-clock-icon::-webkit-calendar-picker-indicator {
+          display: none !important;
+          -webkit-appearance: none !important;
+          background: transparent !important;
+        }
+      `}</style>
       <svg
-        viewBox={`0 0 ${totalWidth} 68`}
-        className="w-full max-h-16"
+        viewBox={`0 0 ${totalWidth} 74`}
+        className="max-h-16 mb-2"
+        style={{ display: 'block', width: '100%', maxWidth: `${totalWidth}px` }}
         shapeRendering="crispEdges"
-        style={{ display: 'block' }}
       >
-        <rect width={totalWidth} height={68} fill="white" />
+        <rect width={totalWidth} height={74} fill="white" />
         {rects}
         <text
           x={totalWidth / 2}
-          y={60}
+          y={64}
           textAnchor="middle"
           style={{
-            fontFamily: 'monospace',
+            fontFamily: 'var(--font-sans), Inter, sans-serif',
             fontWeight: 'bold',
-            fontSize: '9px',
-            letterSpacing: '2px',
+            fontSize: '16px',
             fill: '#000000'
           }}
         >
           {text}
         </text>
       </svg>
+      <button
+        type="button"
+        onClick={downloadSvg}
+        style={{
+          backgroundColor: '#000000',
+          color: '#ffffff',
+          boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+          borderRadius: '10px',
+          fontSize: '18px',
+          padding: '9px 19px',
+          fontWeight: '100',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          border: 'none',
+          fontFamily: 'var(--font-sans), Inter, sans-serif',
+        }}
+        className="active:opacity-90 transition-opacity"
+      >
+        <span>Télécharger</span>
+      </button>
     </div>
   );
 }
@@ -2368,14 +2435,15 @@ export default function DefibTab({
                       </span>
                     </div>
 
+                    {identifiant && (
+                      <div className="mb-4">
+                        <Code39Barcode value={identifiant} />
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Identifiant */}
                       <div className="space-y-1">
-                        {identifiant && (
-                          <div className="mb-2">
-                            <Code39Barcode value={identifiant} />
-                          </div>
-                        )}
                         <label htmlFor="form-identifiant" className="block text-[11px] font-bold text-slate-500 uppercase">
                           Identifiant.
                         </label>
@@ -2628,57 +2696,57 @@ export default function DefibTab({
                     </div>
 
                     {/* Enabled Contract fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1 pt-1 font-sans">
                       <div className="space-y-1">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Contrat en cours.</label>
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Contrat en cours.</label>
                         <select
                           value={contrat || 'Non'}
-                          onChange={(e) => setContrat(e.target.value as 'Oui' | 'Non')}
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 bg-white"
+                          disabled
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
                         >
                           <option value="Oui">Oui</option>
                           <option value="Non">Non</option>
                         </select>
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Titre du contrat.</label>
+                      <div className="space-y-1 font-sans">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Titre du contrat.</label>
                         <input
                           type="text"
                           value={nomContrat}
-                          onChange={(e) => setNomContrat(e.target.value)}
-                          placeholder="Nom du contrat"
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 bg-white"
+                          disabled
+                          placeholder="Automatique à la sélection"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
                         />
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Référence du contrat.</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-sans">
+                      <div className="space-y-1 font-sans">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Référence du contrat.</label>
                         <input
                           type="text"
                           value={referenceContrat}
-                          onChange={(e) => setReferenceContrat(e.target.value)}
-                          placeholder="Référence de contrat"
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                          disabled
+                          placeholder="Automatique à la sélection"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-mono"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Début du contrat.</label>
+                      <div className="space-y-1 font-sans">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Début du contrat.</label>
                         <input
                           type="date"
                           value={debutContrat}
-                          onChange={(e) => setDebutContrat(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                          disabled
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400">Expiration du contrat.</label>
+                      <div className="space-y-1 font-sans">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Expiration du contrat.</label>
                         <input
                           type="date"
                           value={finContrat}
-                          onChange={(e) => setFinContrat(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs text-slate-800 font-mono bg-white"
+                          disabled
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
                         />
                       </div>
                     </div>
@@ -2920,9 +2988,10 @@ export default function DefibTab({
                           setTempLng(savedLng);
                           setIsMapPickerOpen(true);
                         }}
-                        className="w-full py-2 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                        style={{ ...rowActionButton18Style, width: '100%', textTransform: 'none' }}
+                        className="font-sans"
                       >
-                        Ajuster Position
+                        Ajuster la position
                       </button>
                     </div>
 
@@ -2941,47 +3010,49 @@ export default function DefibTab({
                     </div>
 
                     {/* Horaires d'ouverture section */}
-                    <div className="space-y-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                        <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider font-sans">
                           Horaires d'ouverture
                         </span>
                         <button
                           type="button"
                           onClick={handleAddSchedule}
-                          className="px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-all cursor-pointer"
+                          style={{ ...rowActionButton18Style, textTransform: 'none' }}
+                          className="font-sans"
                         >
-                          + Ajouter une plage
+                          Nouvelle plage
                         </button>
                       </div>
 
                       {schedules.map((sch, schIdx) => (
-                        <div key={schIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-3">
+                        <div key={schIdx} style={{ borderRadius: '13px', border: '1px solid #d7d7d7' }} className="p-3 bg-white relative space-y-3">
                           {schedules.length > 1 && (
                             <button
                               type="button"
                               onClick={() => handleRemoveSchedule(schIdx)}
-                              className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
-                              title="Supprimer cette plage"
+                              style={{ borderRadius: '13px', fontSize: '16px' }}
+                              className="absolute top-2 right-2 px-3 py-1 font-bold text-white bg-[#991b1b] hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
+                              Supprimer
                             </button>
                           )}
 
-                          {/* Midi closing toggle */}
+                          {/* Midi closing toggle - styled as radio pink */}
                           <div className="flex items-center gap-2 select-none">
-                            <input
-                              type="checkbox"
+                            <button
+                              type="button"
                               id={`mid-close-${schIdx}`}
-                              checked={sch.fermetureMidi}
-                              onChange={(e) => handleUpdateScheduleField(schIdx, 'fermetureMidi', e.target.checked)}
-                              className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                            />
-                            <label htmlFor={`mid-close-${schIdx}`} className="text-[11px] font-semibold text-slate-700 cursor-pointer">
-                              Fermeture le midi (4 plages horaires)
-                            </label>
+                              onClick={() => handleUpdateScheduleField(schIdx, 'fermetureMidi', !sch.fermetureMidi)}
+                              className="inline-flex items-center gap-2 cursor-pointer select-none"
+                            >
+                              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${sch.fermetureMidi ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                                {sch.fermetureMidi && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                              </span>
+                              <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
+                                Fermeture le midi (4 plages horaires)
+                              </span>
+                            </button>
                           </div>
 
                           {/* Time Inputs */}
@@ -2994,7 +3065,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.openMorning}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'openMorning', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                                 <div>
@@ -3003,7 +3074,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.closeMorning}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'closeMorning', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                                 <div>
@@ -3012,7 +3083,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.openAfternoon}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'openAfternoon', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                                 <div>
@@ -3021,7 +3092,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.closeAfternoon}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'closeAfternoon', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                               </>
@@ -3033,7 +3104,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.openContinuous}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'openContinuous', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                                 <div>
@@ -3042,7 +3113,7 @@ export default function DefibTab({
                                     type="time"
                                     value={sch.closeContinuous}
                                     onChange={(e) => handleUpdateScheduleField(schIdx, 'closeContinuous', e.target.value)}
-                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500"
+                                    className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
                                   />
                                 </div>
                               </>
@@ -3051,7 +3122,7 @@ export default function DefibTab({
 
                           {/* Day checkboxes (Lundi to Dimanche) */}
                           <div className="space-y-1">
-                            <span className="block text-[9px] font-bold text-slate-400 uppercase">Jours de la semaine</span>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase font-sans">Jours de la semaine</span>
                             <div className="flex flex-wrap gap-1">
                               {[
                                 { key: 'Lundi', label: 'Lun' },
@@ -3070,12 +3141,17 @@ export default function DefibTab({
                                     type="button"
                                     disabled={isDayTakenElsewhere}
                                     onClick={() => handleToggleDay(schIdx, dayObj.key)}
-                                    className={`px-2 py-1 text-[10px] font-semibold border rounded transition-all select-none ${
+                                    style={{ 
+                                      borderRadius: '100px', 
+                                      fontSize: '16px',
+                                      borderColor: isChecked ? '#000000' : isDayTakenElsewhere ? '#e2e8f0' : '#d7d7d7' 
+                                    }}
+                                    className={`px-4 py-1.5 font-semibold border transition-all select-none font-sans ${
                                       isChecked
-                                        ? 'bg-slate-800 text-white border-slate-800 shadow-sm cursor-pointer'
+                                        ? 'bg-black text-white shadow-sm cursor-pointer'
                                         : isDayTakenElsewhere
-                                          ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-45 cursor-not-allowed'
-                                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer'
+                                          ? 'bg-slate-100 text-slate-400 opacity-40 cursor-not-allowed'
+                                          : 'bg-white text-black cursor-pointer'
                                     }`}
                                   >
                                     {dayObj.label}
@@ -3088,99 +3164,12 @@ export default function DefibTab({
                       ))}
                     </div>
 
-                    {/* Checkbox settings converted to stylized radio checks */}
-                    <div className="pt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {/* Accès 24h/24 & 7j/7 */}
-                      <div className="p-2 rounded-lg space-y-1">
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès permanent.</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setAcces247(true)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${acces247 === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {acces247 === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Oui
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAcces247(false)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${acces247 === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {acces247 === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Non
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Accès Semaine Uniquement */}
-                      <div className="p-2 rounded-lg space-y-1">
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès jours ouvrés.</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setAccesSemaine(true)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesSemaine === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {accesSemaine === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Oui
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAccesSemaine(false)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesSemaine === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {accesSemaine === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Non
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Accès Week-end Uniquement */}
-                      <div className="p-2 rounded-lg space-y-1">
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Accès week-end.</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setAccesWeekend(true)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesWeekend === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {accesWeekend === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Oui
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setAccesWeekend(false)}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${accesWeekend === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {accesWeekend === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Non
-                          </button>
-                        </div>
-                      </div>
-
+                    {/* Styled settings representing installation state without deleted access settings */}
+                    <div className="pt-2">
                       {/* Implanté en Extérieur */}
-                      <div className="p-2 rounded-lg space-y-1">
-                        <span className="block text-[10px] font-bold text-slate-400 uppercase">Installé en extérieur.</span>
-                        <div className="flex gap-2">
+                      <div className="p-2 rounded-lg space-y-1 font-sans">
+                        <span className="block text-[10px] font-bold text-slate-400 uppercase font-sans">Installé en extérieur.</span>
+                        <div className="flex gap-4">
                           <button
                             type="button"
                             onClick={() => setExterieur(true)}
@@ -4211,20 +4200,6 @@ export default function DefibTab({
       {isMapPickerOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
-            {/* Header */}
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-bold text-black font-sans leading-tight">Ajustez la position du DAE</h3>
-                <p className="text-[11px] text-slate-500 font-sans mt-0.5">Cliquez sur la carte pour définir précisément son emplacement.</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={() => setIsMapPickerOpen(false)}
-                className="text-slate-400 hover:text-black hover:bg-slate-100 p-1.5 rounded-lg transition-all"
-              >
-                ✕
-              </button>
-            </div>
 
             {/* Map Container */}
             <div className="relative h-80 w-full bg-slate-100">
@@ -4260,15 +4235,15 @@ export default function DefibTab({
             </div>
 
             {/* Live coordinates display */}
-            <div className="p-4 bg-slate-50 border-b border-slate-200">
+            <div className="p-4 bg-slate-50">
               <div className="grid grid-cols-2 gap-4 text-xs">
                 <div>
-                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Latitude live</span>
-                  <code className="text-black font-semibold text-xs font-mono">{tempLat.toFixed(6)}</code>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Latitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLat.toFixed(6)}</span>
                 </div>
                 <div>
-                  <span className="block font-bold text-slate-500 uppercase text-[9px]">Longitude live</span>
-                  <code className="text-black font-semibold text-xs font-mono">{tempLng.toFixed(6)}</code>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Longitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLng.toFixed(6)}</span>
                 </div>
               </div>
             </div>
@@ -4278,7 +4253,8 @@ export default function DefibTab({
               <button
                 type="button"
                 onClick={() => setIsMapPickerOpen(false)}
-                className="flex-1 py-3 border border-slate-200 text-slate-700 hover:text-black hover:bg-slate-100 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                style={{ borderRadius: '13px', fontSize: '18px' }}
+                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white font-bold transition-all cursor-pointer font-sans"
               >
                 Annuler
               </button>
@@ -4289,7 +4265,8 @@ export default function DefibTab({
                   setLongitude(tempLng.toFixed(6));
                   setIsMapPickerOpen(false);
                 }}
-                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
+                style={{ borderRadius: '13px', fontSize: '18px', backgroundColor: '#2563eb' }}
+                className="flex-1 py-3 hover:bg-blue-700 text-white font-bold transition-all cursor-pointer font-sans"
               >
                 Valider la position
               </button>

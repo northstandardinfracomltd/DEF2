@@ -2,6 +2,178 @@ import React, { useState, useMemo } from 'react';
 import { OtherEquipment, Client } from '../types';
 import { Plus, Search, Trash2, Edit } from 'lucide-react';
 import { generateRandomShortCode } from '../utils';
+import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const CODE39_PATTERNS: Record<string, string> = {
+  '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
+  '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
+  '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
+  'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
+  'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100',
+  'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011',
+  'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110',
+  'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001',
+  'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000',
+  '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100',
+  '$': '010101000', '/': '010100010', '+': '010010100', '%': '000101010'
+};
+
+function Code39Barcode({ value }: { value: string }) {
+  const text = (value || '').trim().toUpperCase();
+  if (!text) return null;
+
+  const NARROW_WIDTH = 1.5;
+  const WIDE_WIDTH = 3.5;
+  const GAP_WIDTH = 1.5;
+  const QUIET_ZONE = 12;
+  const BAR_HEIGHT = 38;
+
+  const cleanCharList = text.split('').filter(char => CODE39_PATTERNS[char] !== undefined);
+  if (cleanCharList.length === 0) return null;
+
+  const wrappedText = '*' + cleanCharList.join('') + '*';
+
+  let totalWidth = QUIET_ZONE * 2;
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      totalWidth += isWide ? WIDE_WIDTH : NARROW_WIDTH;
+    }
+    if (i < wrappedText.length - 1) {
+      totalWidth += GAP_WIDTH;
+    }
+  }
+
+  const rects: React.ReactNode[] = [];
+  let currentX = QUIET_ZONE;
+
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+      const isBar = j % 2 === 0;
+
+      if (isBar) {
+        rects.push(
+          <rect
+            key={`${i}-${j}`}
+            x={currentX}
+            y={8}
+            width={width}
+            height={BAR_HEIGHT}
+            fill="black"
+          />
+        );
+      }
+      currentX += width;
+    }
+    if (i < wrappedText.length - 1) {
+      currentX += GAP_WIDTH;
+    }
+  }
+
+  const downloadSvg = () => {
+    let rectsSvg = '';
+    let currX = QUIET_ZONE;
+    for (let i = 0; i < wrappedText.length; i++) {
+      const char = wrappedText[i];
+      const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+      for (let j = 0; j < 9; j++) {
+        const isWide = pattern[j] === '1';
+        const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+        const isBar = j % 2 === 0;
+        if (isBar) {
+          rectsSvg += `<rect x="${currX}" y="8" width="${width}" height="${BAR_HEIGHT}" fill="black" />`;
+        }
+        currX += width;
+      }
+      if (i < wrappedText.length - 1) {
+        currX += GAP_WIDTH;
+      }
+    }
+
+    const svgContent = `<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} 74" width="${totalWidth}" height="74" shape-rendering="crispEdges">
+  <rect width="${totalWidth}" height="74" fill="white" />
+  ${rectsSvg}
+  <text x="${totalWidth / 2}" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-weight="bold" font-size="16px" fill="#000000">${text}</text>
+</svg>`;
+
+    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `barcode-${text}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full bg-white max-w-full p-2">
+      <svg
+        viewBox={`0 0 ${totalWidth} 74`}
+        className="max-h-16 mb-2"
+        style={{ display: 'block', width: '100%', maxWidth: `${totalWidth}px` }}
+        shapeRendering="crispEdges"
+      >
+        <rect width={totalWidth} height={74} fill="white" />
+        {rects}
+        <text
+          x={totalWidth / 2}
+          y={64}
+          textAnchor="middle"
+          style={{
+            fontFamily: 'var(--font-sans), Inter, sans-serif',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            fill: '#000000'
+          }}
+        >
+          {text}
+        </text>
+      </svg>
+      <button
+        type="button"
+        onClick={downloadSvg}
+        style={{
+          backgroundColor: '#000000',
+          color: '#ffffff',
+          boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+          borderRadius: '10px',
+          fontSize: '18px',
+          padding: '9px 19px',
+          fontWeight: '100',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          border: 'none',
+          fontFamily: 'var(--font-sans), Inter, sans-serif',
+        }}
+        className="active:opacity-90 transition-opacity"
+      >
+        <span>Télécharger</span>
+      </button>
+    </div>
+  );
+}
+
+function LocationPickerEvents({ onPick }: { onPick: (lat: number, lng: number) => void }) {
+  useMapEvents({
+    click(e) {
+      onPick(e.latlng.lat, e.latlng.lng);
+    }
+  });
+  return null;
+}
 
 interface AutresMaterielsTabProps {
   otherEquipments: OtherEquipment[];
@@ -104,6 +276,72 @@ export default function AutresMaterielsTab({
   const [accesJoursOuvres, setAccesJoursOuvres] = useState<'Oui' | 'Non'>('Oui');
   const [accesWeekend, setAccesWeekend] = useState<'Oui' | 'Non'>('Non');
   const [installeExterieur, setInstalleExterieur] = useState<'Oui' | 'Non'>('Non');
+
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
+  const [tempLat, setTempLat] = useState<number>(48.8566);
+  const [tempLng, setTempLng] = useState<number>(2.3522);
+
+  const [schedules, setSchedules] = useState<{
+    days: string[];
+    fermetureMidi: boolean;
+    openMorning: string;
+    closeMorning: string;
+    openAfternoon: string;
+    closeAfternoon: string;
+    openContinuous: string;
+    closeContinuous: string;
+  }[]>([
+    {
+      days: [],
+      fermetureMidi: false,
+      openMorning: '09:00',
+      closeMorning: '12:00',
+      openAfternoon: '14:00',
+      closeAfternoon: '18:00',
+      openContinuous: '09:00',
+      closeContinuous: '17:00'
+    }
+  ]);
+
+  const handleToggleDay = (idx: number, day: string) => {
+    const isTakenElsewhere = schedules.some((s, i) => i !== idx && s.days.includes(day));
+    if (isTakenElsewhere) return;
+
+    setSchedules(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      const days = item.days.includes(day)
+        ? item.days.filter(d => d !== day)
+        : [...item.days, day];
+      return { ...item, days };
+    }));
+  };
+
+  const handleUpdateScheduleField = (idx: number, field: string, value: any) => {
+    setSchedules(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, [field]: value };
+    }));
+  };
+
+  const handleAddSchedule = () => {
+    setSchedules(prev => [
+      ...prev,
+      {
+        days: [],
+        fermetureMidi: false,
+        openMorning: '09:00',
+        closeMorning: '12:00',
+        openAfternoon: '14:00',
+        closeAfternoon: '18:00',
+        openContinuous: '09:00',
+        closeContinuous: '17:00'
+      }
+    ]);
+  };
+
+  const handleRemoveSchedule = (idx: number) => {
+    setSchedules(prev => prev.filter((_, i) => i !== idx));
+  };
 
   const [expirationGarantie, setExpirationGarantie] = useState('');
   const [fabrication, setFabrication] = useState('');
@@ -234,6 +472,18 @@ export default function AutresMaterielsTab({
     setTournee('Centre');
     setSpecifiques({});
     setClientSearchText('');
+    setSchedules([
+      {
+        days: [],
+        fermetureMidi: false,
+        openMorning: '09:00',
+        closeMorning: '12:00',
+        openAfternoon: '14:00',
+        closeAfternoon: '18:00',
+        openContinuous: '09:00',
+        closeContinuous: '17:00'
+      }
+    ]);
     setIsFormOpen(true);
   };
 
@@ -250,6 +500,37 @@ export default function AutresMaterielsTab({
     setDebutContrat(item.debutContrat);
     setFinContrat(item.finContrat);
     setNumeroVoie(item.numeroVoie);
+    if (item.horaires) {
+      try {
+        setSchedules(JSON.parse(item.horaires));
+      } catch (e) {
+        setSchedules([
+          {
+            days: [],
+            fermetureMidi: false,
+            openMorning: '09:00',
+            closeMorning: '12:00',
+            openAfternoon: '14:00',
+            closeAfternoon: '18:00',
+            openContinuous: '09:00',
+            closeContinuous: '17:00'
+          }
+        ]);
+      }
+    } else {
+      setSchedules([
+        {
+          days: [],
+          fermetureMidi: false,
+          openMorning: '09:00',
+          closeMorning: '12:00',
+          openAfternoon: '14:00',
+          closeAfternoon: '18:00',
+          openContinuous: '09:00',
+          closeContinuous: '17:00'
+        }
+      ]);
+    }
     setVille(item.ville);
     setCodePostal(item.codePostal);
     setRegion(item.region || '');
@@ -322,6 +603,7 @@ export default function AutresMaterielsTab({
       accesJoursOuvres,
       accesWeekend,
       installeExterieur,
+      horaires: JSON.stringify(schedules),
       expirationGarantie,
       fabrication,
       miseEnService,
@@ -901,30 +1183,40 @@ export default function AutresMaterielsTab({
                           <td className="px-5 py-4 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
                             {item.ville}{item.codePostal ? ` (${item.codePostal})` : ''}
                           </td>
-                          <td className="px-5 py-4 font-mono text-slate-500" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                          <td className="px-5 py-4 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
                             {item.expirationGarantie || '—'}
                           </td>
-                          <td className="px-5 py-4 font-sans" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                          <td className="px-5 py-4 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
                             {item.prochaineMaintenance || '—'}
                           </td>
                           <td className="px-5 py-4 text-center whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                            <span 
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                borderRadius: '1000px',
-                                backgroundColor: '#ffffff',
-                                border: '1px solid rgb(231, 231, 231)',
-                                color: '#000000',
-                                fontSize: '16px',
-                                fontWeight: 100,
-                                padding: '4px 12px',
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              {item.tournee || 'Centre'}
-                            </span>
+                            {(() => {
+                              const matchingTour = (fsmTours || []).find(t => 
+                                t.missions?.some((m: any) => m.defibIdentifiant === item.identifiant)
+                              );
+                              if (matchingTour) {
+                                return (
+                                  <span 
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      borderRadius: '1000px',
+                                      backgroundColor: '#ffffff',
+                                      border: '1px solid rgb(231, 231, 231)',
+                                      color: '#000000',
+                                      fontSize: '16px',
+                                      fontWeight: 100,
+                                      padding: '4px 12px',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {matchingTour.title || 'Tournée'}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
                           </td>
                           <td className="px-5 py-4 text-right space-x-2 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                             <button
@@ -1069,7 +1361,8 @@ export default function AutresMaterielsTab({
                 background: #ffffff !important;
                 font-family: "DefibeoMain", "Civilprom", sans-serif !important;
               }
-              #materiel-core-form input[type="date"]::-webkit-calendar-picker-indicator {
+              #materiel-core-form input[type="date"]::-webkit-calendar-picker-indicator,
+              .no-clock-icon::-webkit-calendar-picker-indicator {
                 display: none !important;
                 -webkit-appearance: none !important;
                 background: none !important;
@@ -1090,7 +1383,7 @@ export default function AutresMaterielsTab({
             <form onSubmit={handleFormSubmit} id="materiel-core-form">
               <div className="space-y-0" style={{ maxWidth: '98%', margin: 'auto' }}>
               
-              {/* SECTION 1 - CLIENT */}
+              {/* SECTION 1 - CATÉGORIE ET IDENTIFIANT */}
               <div 
                 className="bg-white p-5 relative space-y-3"
                 style={{
@@ -1109,7 +1402,90 @@ export default function AutresMaterielsTab({
                       textTransform: 'none',
                     }}
                   >
-                    1 — Client
+                    1 — Catégorie et identifiant
+                  </span>
+                </div>
+
+                {identifiant && (
+                  <div className="mb-4">
+                    <Code39Barcode value={identifiant} />
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Sélection de Catégorie */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Sélection d'une catégorie *</label>
+                    <select 
+                      value={categorie} 
+                      onChange={(e) => {
+                        setCategorie(e.target.value);
+                        setSpecifiques({}); // Reset fields on category switch
+                      }}
+                    >
+                      <option value="Extincteur">Extincteur</option>
+                      <option value="Boucle d'induction magnétique portable (BIMP)">Boucle d'induction magnétique portable (BIMP)</option>
+                      <option value="Purificateur d’air">Purificateur d’air</option>
+                      <option value="Signalisation">Signalisation</option>
+                      <option value="Éclairage de secours">Éclairage de secours</option>
+                      <option value="Systèmes hydrants">Systèmes hydrants</option>
+                      <option value="Détecteur de fumée">Détecteur de fumée</option>
+                      <option value="Détection incendie (SSI)">Détection incendie (SSI)</option>
+                      <option value="Désenfumage">Désenfumage</option>
+                    </select>
+                  </div>
+
+                  {/* Identifiant */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Identifiant unique.</label>
+                    <div className="flex gap-2 items-center">
+                      <input 
+                        type="text" 
+                        value={identifiant} 
+                        readOnly 
+                        className="bg-slate-50 border border-slate-200 text-slate-600 font-mono font-semibold cursor-not-allowed flex-1 rounded p-2 focus:outline-none"
+                        style={{
+                          fontSize: '15.5px'
+                        }}
+                      />
+                      {!editingItem && (
+                        <button
+                          type="button"
+                          onClick={reRollIdentifiant}
+                          title="Générer un code aléatoire libre"
+                          style={rowActionButton18Style}
+                          className="shrink-0 font-sans"
+                        >
+                          Générer
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* SECTION 2 - CLIENT */}
+              <div 
+                className="bg-white p-5 relative space-y-3"
+                style={{
+                  border: '1px solid rgb(218, 218, 218)',
+                  borderTop: 'none',
+                  borderRadius: '0px',
+                }}
+              >
+                <div className="mb-2 bg-transparent">
+                  <span 
+                    className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                    style={{
+                      backgroundColor: 'oklch(0.44 0.16 324.65)',
+                      borderRadius: '1000px',
+                      cursor: 'default',
+                      fontWeight: 100,
+                      textTransform: 'none',
+                    }}
+                  >
+                    2 — Client
                   </span>
                 </div>
 
@@ -1219,20 +1595,11 @@ export default function AutresMaterielsTab({
                   {/* Contrat en cours */}
                   <div className="space-y-1 md:w-1/3">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Contrat en cours.</label>
-                    <div className="flex items-center space-x-4 py-1">
-                      <CustomPinkRadio
-                        value="Oui"
-                        currentValue={contrat}
-                        onChange={(val) => setContrat(val as 'Oui' | 'Non')}
-                        label="Oui"
-                      />
-                      <CustomPinkRadio
-                        value="Non"
-                        currentValue={contrat}
-                        onChange={(val) => setContrat(val as 'Oui' | 'Non')}
-                        label="Non"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={contrat}
+                      disabled
+                    />
                   </div>
 
                   {/* Titre du contrat */}
@@ -1286,7 +1653,7 @@ export default function AutresMaterielsTab({
 
               </div>
 
-              {/* SECTION 2 - LOCALISATION */}
+              {/* SECTION 3 - LOCALISATION */}
               <div 
                 className="bg-white p-5 relative space-y-3"
                 style={{
@@ -1306,7 +1673,7 @@ export default function AutresMaterielsTab({
                       textTransform: 'none',
                     }}
                   >
-                    2 — Localisation
+                    3 — Localisation
                   </span>
                 </div>
 
@@ -1417,6 +1784,23 @@ export default function AutresMaterielsTab({
                   </div>
                 </div>
 
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const savedLat = parseFloat(latitude) || 48.8566;
+                      const savedLng = parseFloat(longitude) || 2.3522;
+                      setTempLat(savedLat);
+                      setTempLng(savedLng);
+                      setIsMapPickerOpen(true);
+                    }}
+                    style={{ ...rowActionButton18Style, width: '100%', textTransform: 'none' }}
+                    className="font-sans"
+                  >
+                    Ajuster la position
+                  </button>
+                </div>
+
                 {/* Aide d'accès */}
                 <div className="space-y-1">
                   <label className="block text-[11px] font-bold text-slate-500 uppercase">Aide d’accès.</label>
@@ -1428,32 +1812,163 @@ export default function AutresMaterielsTab({
                   />
                 </div>
 
+                {/* Horaires d'ouverture section */}
+                <div className="space-y-3 pt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider font-sans">
+                      Horaires d'ouverture
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleAddSchedule}
+                      style={{ ...rowActionButton18Style, textTransform: 'none' }}
+                      className="font-sans"
+                    >
+                      Nouvelle plage
+                    </button>
+                  </div>
+
+                  {schedules.map((sch, schIdx) => (
+                    <div key={schIdx} style={{ borderRadius: '13px', border: '1px solid #d7d7d7' }} className="p-3 bg-white relative space-y-3">
+                      {schedules.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSchedule(schIdx)}
+                          style={{ borderRadius: '13px', fontSize: '16px' }}
+                          className="absolute top-2 right-2 px-3 py-1 font-bold text-white bg-[#991b1b] hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans"
+                        >
+                          Supprimer
+                        </button>
+                      )}
+
+                      {/* Midi closing toggle - styled as radio pink */}
+                      <div className="flex items-center gap-2 select-none">
+                        <button
+                          type="button"
+                          id={`mid-close-${schIdx}`}
+                          onClick={() => handleUpdateScheduleField(schIdx, 'fermetureMidi', !sch.fermetureMidi)}
+                          className="inline-flex items-center gap-2 cursor-pointer select-none"
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${sch.fermetureMidi ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {sch.fermetureMidi && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
+                            Fermeture le midi (4 plages horaires)
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Time Inputs */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                        {sch.fermetureMidi ? (
+                          <>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Ouv. Matin</label>
+                              <input
+                                type="time"
+                                value={sch.openMorning}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'openMorning', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Midi</label>
+                              <input
+                                type="time"
+                                value={sch.closeMorning}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'closeMorning', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">RéOuv. Midi</label>
+                              <input
+                                type="time"
+                                value={sch.openAfternoon}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'openAfternoon', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Soir</label>
+                              <input
+                                type="time"
+                                value={sch.closeAfternoon}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'closeAfternoon', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Ouv. Général</label>
+                              <input
+                                type="time"
+                                value={sch.openContinuous}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'openContinuous', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-bold text-slate-400 uppercase">Ferm. Général</label>
+                              <input
+                                type="time"
+                                value={sch.closeContinuous}
+                                onChange={(e) => handleUpdateScheduleField(schIdx, 'closeContinuous', e.target.value)}
+                                className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 no-clock-icon"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Day checkboxes (Lundi to Dimanche) */}
+                      <div className="space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase font-sans">Jours de la semaine</span>
+                        <div className="flex flex-wrap gap-1">
+                          {[
+                            { key: 'Lundi', label: 'Lun' },
+                            { key: 'Mardi', label: 'Mar' },
+                            { key: 'Mercredi', label: 'Mer' },
+                            { key: 'Jeudi', label: 'Jeu' },
+                            { key: 'Vendredi', label: 'Ven' },
+                            { key: 'Samedi', label: 'Sam' },
+                            { key: 'Dimanche', label: 'Dim' }
+                          ].map((dayObj) => {
+                            const isChecked = sch.days.includes(dayObj.key);
+                            const isDayTakenElsewhere = schedules.some((s, i) => i !== schIdx && s.days.includes(dayObj.key));
+                            return (
+                              <button
+                                key={dayObj.key}
+                                type="button"
+                                disabled={isDayTakenElsewhere}
+                                onClick={() => handleToggleDay(schIdx, dayObj.key)}
+                                style={{ 
+                                  borderRadius: '100px', 
+                                  fontSize: '16px',
+                                  borderColor: isChecked ? '#000000' : isDayTakenElsewhere ? '#e2e8f0' : '#d7d7d7' 
+                                }}
+                                className={`px-4 py-1.5 font-semibold border transition-all select-none font-sans ${
+                                  isChecked
+                                    ? 'bg-black text-white shadow-sm cursor-pointer'
+                                    : isDayTakenElsewhere
+                                      ? 'bg-slate-100 text-slate-400 opacity-40 cursor-not-allowed'
+                                      : 'bg-white text-black cursor-pointer'
+                                }`}
+                              >
+                                {dayObj.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Localisation radio switches */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Accès permanent.</label>
-                    <div className="flex space-x-3">
-                      <CustomPinkRadio value="Oui" currentValue={accesPermanent} onChange={(v) => setAccesPermanent(v as any)} label="Oui" />
-                      <CustomPinkRadio value="Non" currentValue={accesPermanent} onChange={(v) => setAccesPermanent(v as any)} label="Non" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Accès jours ouvrés.</label>
-                    <div className="flex space-x-3">
-                      <CustomPinkRadio value="Oui" currentValue={accesJoursOuvres} onChange={(v) => setAccesJoursOuvres(v as any)} label="Oui" />
-                      <CustomPinkRadio value="Non" currentValue={accesJoursOuvres} onChange={(v) => setAccesJoursOuvres(v as any)} label="Non" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Accès week-end.</label>
-                    <div className="flex space-x-3">
-                      <CustomPinkRadio value="Oui" currentValue={accesWeekend} onChange={(v) => setAccesWeekend(v as any)} label="Oui" />
-                      <CustomPinkRadio value="Non" currentValue={accesWeekend} onChange={(v) => setAccesWeekend(v as any)} label="Non" />
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-1 gap-4 pt-2">
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Installé en extérieur.</label>
                     <div className="flex space-x-3">
@@ -1465,7 +1980,7 @@ export default function AutresMaterielsTab({
 
               </div>
 
-              {/* SECTION 3 - DATES */}
+              {/* SECTION 4 - DATES */}
               <div 
                 className="bg-white p-5 relative space-y-3"
                 style={{
@@ -1485,7 +2000,7 @@ export default function AutresMaterielsTab({
                       textTransform: 'none',
                     }}
                   >
-                    3 — Dates
+                    4 — Dates
                   </span>
                 </div>
 
@@ -1520,83 +2035,6 @@ export default function AutresMaterielsTab({
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Prochaine maintenance.</label>
                     <input type="date" value={prochaineMaintenance} onChange={(e) => setProchaineMaintenance(e.target.value)} />
-                  </div>
-                </div>
-
-              </div>
-
-              {/* SECTION 4 - CATÉGORIE D'ÉQUIPEMENT */}
-              <div 
-                className="bg-white p-5 relative space-y-3"
-                style={{
-                  border: '1px solid rgb(218, 218, 218)',
-                  borderTop: 'none',
-                  borderRadius: '0px',
-                }}
-              >
-                <div className="mb-2 bg-transparent">
-                  <span 
-                    className="text-white px-3 py-1 text-[13px] inline-block font-sans"
-                    style={{
-                      backgroundColor: 'oklch(0.44 0.16 324.65)',
-                      borderRadius: '1000px',
-                      cursor: 'default',
-                      fontWeight: 100,
-                      textTransform: 'none',
-                    }}
-                  >
-                    4 — Catégorie et identifiant
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Sélection de Catégorie */}
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Sélection d'une catégorie *</label>
-                    <select 
-                      value={categorie} 
-                      onChange={(e) => {
-                        setCategorie(e.target.value);
-                        setSpecifiques({}); // Reset fields on category switch
-                      }}
-                    >
-                      <option value="Extincteur">Extincteur</option>
-                      <option value="Boucle d'induction magnétique portable (BIMP)">Boucle d'induction magnétique portable (BIMP)</option>
-                      <option value="Purificateur d’air">Purificateur d’air</option>
-                      <option value="Signalisation">Signalisation</option>
-                      <option value="Éclairage de secours">Éclairage de secours</option>
-                      <option value="Systèmes hydrants">Systèmes hydrants</option>
-                      <option value="Détecteur de fumée">Détecteur de fumée</option>
-                      <option value="Détection incendie (SSI)">Détection incendie (SSI)</option>
-                      <option value="Désenfumage">Désenfumage</option>
-                    </select>
-                  </div>
-
-                  {/* Identifiant */}
-                  <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Identifiant unique.</label>
-                    <div className="flex gap-2 items-center">
-                      <input 
-                        type="text" 
-                        value={identifiant} 
-                        readOnly 
-                        className="bg-slate-50 border border-slate-200 text-slate-600 font-mono font-semibold cursor-not-allowed flex-1 rounded p-2 focus:outline-none"
-                        style={{
-                          fontSize: '15.5px'
-                        }}
-                      />
-                      {!editingItem && (
-                        <button
-                          type="button"
-                          onClick={reRollIdentifiant}
-                          title="Générer un code aléatoire libre"
-                          style={rowActionButton18Style}
-                          className="shrink-0 font-sans"
-                        >
-                          Générer
-                        </button>
-                      )}
-                    </div>
                   </div>
                 </div>
 
@@ -2125,6 +2563,84 @@ export default function AutresMaterielsTab({
             </form>
           </div>
 
+        </div>
+      )}
+
+      {isMapPickerOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-[100] p-4 animate-fadeIn">
+          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden flex flex-col shadow-[0_20px_50px_rgba(0,0,0,0.3)]">
+
+            {/* Map Container */}
+            <div className="relative h-80 w-full bg-slate-100">
+              <MapContainer
+                center={[tempLat, tempLng]}
+                zoom={14}
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={true}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright font-sans">OpenStreetMap</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <LocationPickerEvents onPick={(lat, lng) => {
+                  setTempLat(lat);
+                  setTempLng(lng);
+                }} />
+                <Marker 
+                  position={[tempLat, tempLng]}
+                  icon={L.divIcon({
+                    html: `
+                      <div class="relative flex items-center justify-center" style="transform: translate(-12px, -12px);">
+                        <div class="absolute w-8 h-8 rounded-full bg-black/30 animate-ping"></div>
+                        <div class="w-5 h-5 rounded-full bg-black border-2 border-white shadow-lg"></div>
+                      </div>
+                    `,
+                    className: 'custom-picker-icon',
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                  })}
+                />
+              </MapContainer>
+            </div>
+
+            {/* Live coordinates display */}
+            <div className="p-4 bg-slate-50 border-t border-slate-100">
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Latitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLat.toFixed(6)}</span>
+                </div>
+                <div>
+                  <span className="block font-semibold text-black font-sans" style={{ fontSize: '16px' }}>Longitude du point.</span>
+                  <span className="block font-bold text-black font-sans" style={{ fontSize: '18px', marginTop: '4px' }}>{tempLng.toFixed(6)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-4 flex gap-3 bg-white">
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(false)}
+                style={{ borderRadius: '13px', fontSize: '18px' }}
+                className="flex-1 py-3 bg-black hover:bg-neutral-900 text-white font-bold transition-all cursor-pointer font-sans"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLatitude(tempLat.toFixed(6));
+                  setLongitude(tempLng.toFixed(6));
+                  setIsMapPickerOpen(false);
+                }}
+                style={{ borderRadius: '13px', fontSize: '18px', backgroundColor: '#2563eb' }}
+                className="flex-1 py-3 hover:bg-blue-700 text-white font-bold transition-all cursor-pointer font-sans"
+              >
+                Valider la position
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

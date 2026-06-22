@@ -957,9 +957,10 @@ export default function ClientTab({
                       type="text"
                       id="input-client-signature-pin"
                       value={signaturePin}
-                      onChange={(e) => setSignaturePin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                      onChange={(e) => setSignaturePin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+                      maxLength={6}
                       placeholder="Entrez un code PIN de signature."
-                      className="font-mono font-bold text-indigo-600 text-center tracking-widest"
+                      className="font-mono font-bold text-indigo-600 text-center"
                     />
                   </div>
                 </div>
@@ -972,9 +973,9 @@ export default function ClientTab({
                     id="input-client-commentaire"
                     value={commentaire}
                     onChange={(e) => setCommentaire(e.target.value)}
-                    placeholder="Ajoutez un commentaire, notes particulières ou détails sur ce client..."
+                    placeholder="Entrez un commentaire."
                     rows={3}
-                    className="w-full text-sm p-3 rounded-md border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"
+                    className="font-sans"
                   />
                 </div>
               </div>
@@ -1005,8 +1006,8 @@ export default function ClientTab({
 
                 <div className="space-y-6">
                   {/* Contact 1 */}
-                  <div className="border-b border-dashed border-slate-200 pb-5 last:border-b-0 last:pb-0 space-y-2">
-                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 1</div>
+                  <div className="pb-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 1.</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <label htmlFor="input-client-site-type-1" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1070,8 +1071,8 @@ export default function ClientTab({
                   </div>
 
                   {/* Contact 2 */}
-                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
-                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 2</div>
+                  <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 2.</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <label htmlFor="input-client-site-type-2" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1135,8 +1136,8 @@ export default function ClientTab({
                   </div>
 
                   {/* Contact 3 */}
-                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
-                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 3</div>
+                  <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 3.</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <label htmlFor="input-client-site-type-3" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1200,8 +1201,8 @@ export default function ClientTab({
                   </div>
 
                   {/* Contact 4 */}
-                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
-                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 4</div>
+                  <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 4.</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <label htmlFor="input-client-site-type-4" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1265,8 +1266,8 @@ export default function ClientTab({
                   </div>
 
                   {/* Contact 5 */}
-                  <div className="border-b border-dashed border-slate-200 py-5 last:border-b-0 last:pb-0 space-y-2">
-                    <div className="text-xs font-bold text-indigo-700 tracking-wider">CONTACT 5</div>
+                  <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
+                    <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 5.</div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                       <div className="space-y-1">
                         <label htmlFor="input-client-site-type-5" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1451,14 +1452,9 @@ export default function ClientTab({
                       id="input-client-contract-redac"
                       value={redactionContrat}
                       onChange={(e) => setRedactionContrat(e.target.value)}
-                      placeholder="Contenu / Rédaction du contrat..."
+                      placeholder="Entrez le texte du contrat."
                       rows={5}
-                      className="w-full font-sans text-sm text-black bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 transition-all"
-                      style={{
-                        border: '1px solid rgb(218, 218, 218)',
-                        borderRadius: '11px',
-                        padding: '10px 14px',
-                      }}
+                      className="font-sans"
                     />
                   </div>
 
@@ -1474,13 +1470,6 @@ export default function ClientTab({
                         id="input-client-contract-sig-date"
                         value={dateSignatureContrat}
                         onChange={(e) => setDateSignatureContrat(e.target.value)}
-                        className="w-full text-sm text-black bg-white focus:outline-none"
-                        style={{
-                          border: '1px solid rgb(218, 218, 218)',
-                          borderRadius: '11px',
-                          padding: '10px 14px',
-                          height: '42px'
-                        }}
                       />
                     </div>
 
@@ -1495,13 +1484,6 @@ export default function ClientTab({
                         value={signeParContrat}
                         onChange={(e) => setSigneParContrat(e.target.value)}
                         placeholder="Nom du signataire"
-                        className="w-full text-sm text-black bg-white focus:outline-none"
-                        style={{
-                          border: '1px solid rgb(218, 218, 218)',
-                          borderRadius: '11px',
-                          padding: '10px 14px',
-                          height: '42px'
-                        }}
                       />
                     </div>
 
@@ -1513,52 +1495,35 @@ export default function ClientTab({
                       <div 
                         className="bg-slate-50/50 flex flex-col items-center justify-center p-2"
                         style={{
-                          border: '1px dashed rgb(200, 200, 200)',
-                          borderRadius: '11px',
+                          border: '1px solid rgb(218, 218, 218)',
+                          borderRadius: '13px',
+                          minHeight: '120px',
+                          boxSizing: 'border-box'
                         }}
                       >
-                        <canvas
-                          ref={contractCanvasRef}
-                          width={320}
-                          height={120}
-                          className="bg-white border border-slate-200 cursor-crosshair rounded-lg"
-                          onMouseDown={startDrawingContractSig}
-                          onMouseMove={drawContractSig}
-                          onMouseUp={stopDrawingContractSig}
-                          onMouseLeave={stopDrawingContractSig}
-                          onTouchStart={startDrawingContractSig}
-                          onTouchMove={drawContractSig}
-                          onTouchEnd={stopDrawingContractSig}
-                        />
-                        <div className="flex justify-between w-full mt-2 px-1">
-                          <button
-                            type="button"
-                            onClick={clearContractSignature}
-                            className="text-xs text-red-600 hover:text-red-700 font-semibold cursor-pointer border-0 bg-transparent"
-                          >
-                            Effacer
-                          </button>
-                          {signatureClientContratImage && (
-                            <span className="text-[10px] text-emerald-600 font-bold font-sans">
-                              ✓ Signé
-                            </span>
-                          )}
-                        </div>
+                        {signatureClientContratImage ? (
+                          <img 
+                            src={signatureClientContratImage} 
+                            alt="Signature du client" 
+                            className="max-h-[100px] object-contain"
+                          />
+                        ) : null}
                       </div>
                     </div>
                   </div>
 
                   {/* Bouton Télécharger le contrat PDF */}
-                  <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
+                  <div className="flex mt-4 w-full">
                     <button
                       type="button"
                       onClick={handleDownloadContractPDF}
-                      className="px-6 py-2.5 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-2 border-0"
+                      className="w-full py-3 text-white font-bold transition-all cursor-pointer font-sans border-0"
                       style={{
-                        backgroundColor: '#4f46e5',
+                        backgroundColor: '#000000',
+                        borderRadius: '13px',
+                        fontSize: '18px'
                       }}
                     >
-                      <Download size={15} />
                       Télécharger le contrat PDF
                     </button>
                   </div>
@@ -1566,57 +1531,6 @@ export default function ClientTab({
                 </div>
               </div>
 
-              {/* Section 4 - Unique Client Signature PIN */}
-              {editingClient && (
-                <div 
-                  className="bg-white p-5 relative space-y-3 mt-6"
-                  style={{
-                    border: '1px solid rgb(218, 218, 218)',
-                    borderRadius: '18px',
-                  }}
-                >
-                  <div className="mb-2 bg-transparent">
-                    <span 
-                      className="text-white px-3 py-1 text-[13px] inline-block font-sans animate-pulse"
-                      style={{
-                        backgroundColor: '#4f46e5',
-                        borderRadius: '1000px',
-                        cursor: 'default',
-                        fontWeight: 600,
-                        textTransform: 'none',
-                      }}
-                    >
-                      4 — Code PIN de signature unique
-                    </span>
-                  </div>
-
-                  <h4 className="text-sm font-semibold text-slate-850 font-sans">
-                    Code PIN de confiance configuré pour {editingClient.denomination}
-                  </h4>
-
-                  <div className="pt-2 bg-white space-y-2">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        value={signaturePin}
-                        onChange={(e) => setSignaturePin(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                        placeholder="Ex: ABC123"
-                        className="px-4 py-2 text-center text-lg font-mono font-bold text-indigo-600 border border-slate-305 rounded-xl bg-slate-50 w-44 tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-indigo-505"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setSignaturePin(generateRandomPin())}
-                        className="px-3 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold rounded-lg border-0 cursor-pointer transition-all"
-                      >
-                        Générer un code PIN aléatoire
-                      </button>
-                    </div>
-                    <p className="text-xs text-slate-500 font-sans max-w-xl">
-                      Ce code PIN unique sert de signature de confiance pour l'ensemble des rapports d'intervention de ce client. Le client l'utilise depuis son portail dédié pour certifier l’historique ou signer les interventions.
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
           </form>
         </div>

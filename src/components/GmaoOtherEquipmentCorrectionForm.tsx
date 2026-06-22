@@ -9,6 +9,166 @@ interface GmaoOtherEquipmentCorrectionFormProps {
   forceSmartphoneLayout?: boolean;
 }
 
+const CODE39_PATTERNS: Record<string, string> = {
+  '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
+  '4': '000110001', '5': '100110000', '6': '001110000', '7': '000100101',
+  '8': '100100100', '9': '001100100', 'A': '100001001', 'B': '001001001',
+  'C': '101001000', 'D': '000011001', 'E': '100011000', 'F': '001011000',
+  'G': '000001101', 'H': '100001100', 'I': '001001100', 'J': '000011100',
+  'K': '100000011', 'L': '001000011', 'M': '101000010', 'N': '000010011',
+  'O': '100010010', 'P': '001010010', 'Q': '000000111', 'R': '100000110',
+  'S': '001000110', 'T': '000010110', 'U': '110000001', 'V': '011000001',
+  'W': '111000000', 'X': '010010001', 'Y': '110010000', 'Z': '011010000',
+  '-': '010000101', '.': '110000100', ' ': '011000100', '*': '010010100',
+  '$': '010101000', '/': '010100010', '+': '010010100', '%': '000101010'
+};
+
+function Code39Barcode({ value }: { value: string }) {
+  const text = (value || '').trim().toUpperCase();
+  if (!text) return null;
+
+  const NARROW_WIDTH = 1.5;
+  const WIDE_WIDTH = 3.5;
+  const GAP_WIDTH = 1.5;
+  const QUIET_ZONE = 12;
+  const BAR_HEIGHT = 38;
+
+  const cleanCharList = text.split('').filter(char => CODE39_PATTERNS[char] !== undefined);
+  if (cleanCharList.length === 0) return null;
+
+  const wrappedText = '*' + cleanCharList.join('') + '*';
+
+  let totalWidth = QUIET_ZONE * 2;
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      totalWidth += isWide ? WIDE_WIDTH : NARROW_WIDTH;
+    }
+    if (i < wrappedText.length - 1) {
+      totalWidth += GAP_WIDTH;
+    }
+  }
+
+  const rects: React.ReactNode[] = [];
+  let currentX = QUIET_ZONE;
+
+  for (let i = 0; i < wrappedText.length; i++) {
+    const char = wrappedText[i];
+    const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+    for (let j = 0; j < 9; j++) {
+      const isWide = pattern[j] === '1';
+      const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+      const isBar = j % 2 === 0;
+
+      if (isBar) {
+        rects.push(
+          <rect
+            key={`${i}-${j}`}
+            x={currentX}
+            y={8}
+            width={width}
+            height={BAR_HEIGHT}
+            fill="black"
+          />
+        );
+      }
+      currentX += width;
+    }
+    if (i < wrappedText.length - 1) {
+      currentX += GAP_WIDTH;
+    }
+  }
+
+  const downloadSvg = () => {
+    let rectsSvg = '';
+    let currX = QUIET_ZONE;
+    for (let i = 0; i < wrappedText.length; i++) {
+      const char = wrappedText[i];
+      const pattern = CODE39_PATTERNS[char] || CODE39_PATTERNS[' '];
+      for (let j = 0; j < 9; j++) {
+        const isWide = pattern[j] === '1';
+        const width = isWide ? WIDE_WIDTH : NARROW_WIDTH;
+        const isBar = j % 2 === 0;
+        if (isBar) {
+          rectsSvg += `<rect x="${currX}" y="8" width="${width}" height="${BAR_HEIGHT}" fill="black" />`;
+        }
+        currX += width;
+      }
+      if (i < wrappedText.length - 1) {
+        currX += GAP_WIDTH;
+      }
+    }
+
+    const svgContent = `<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalWidth} 74" width="${totalWidth}" height="74" shape-rendering="crispEdges">
+  <rect width="${totalWidth}" height="74" fill="white" />
+  ${rectsSvg}
+  <text x="${totalWidth / 2}" y="64" text-anchor="middle" font-family="Inter, sans-serif" font-weight="bold" font-size="16px" fill="#000000">${text}</text>
+</svg>`;
+
+    const blob = new Blob([svgContent], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `barcode-${text}.svg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center w-full bg-white max-w-full p-2">
+      <svg
+        viewBox={`0 0 ${totalWidth} 74`}
+        className="max-h-16 mb-2"
+        style={{ display: 'block', width: '100%', maxWidth: `${totalWidth}px` }}
+        shapeRendering="crispEdges"
+      >
+        <rect width={totalWidth} height={74} fill="white" />
+        {rects}
+        <text
+          x={totalWidth / 2}
+          y={64}
+          textAnchor="middle"
+          style={{
+            fontFamily: 'var(--font-sans), Inter, sans-serif',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            fill: '#000000'
+          }}
+        >
+          {text}
+        </text>
+      </svg>
+      <button
+        type="button"
+        onClick={downloadSvg}
+        style={{
+          backgroundColor: '#000000',
+          color: '#ffffff',
+          boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+          borderRadius: '10px',
+          fontSize: '18px',
+          padding: '9px 19px',
+          fontWeight: '100',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          border: 'none',
+          fontFamily: 'var(--font-sans), Inter, sans-serif',
+        }}
+        className="active:opacity-90 transition-opacity"
+      >
+        <span>Télécharger</span>
+      </button>
+    </div>
+  );
+}
+
 // Custom Pink Radio Component
 const CustomPinkRadio = ({ value, currentValue, onChange, label }: { value: string, currentValue: string, onChange: (v: string) => void, label: string }) => {
   const isChecked = value === currentValue;
@@ -413,14 +573,39 @@ export default function GmaoOtherEquipmentCorrectionForm({
             -webkit-appearance: none;
           }
         `}</style>
-        
-        <form onSubmit={handleSubmit} id="other-eq-core-form" className="space-y-4">
+             <form onSubmit={handleSubmit} id="other-eq-core-form" className="space-y-4">
           
-          {/* SECTION 1 - CLIENT */}
+          {/* SECTION 1 - CATÉGORIE ET IDENTIFIANT */}
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                1 — Client
+                1 — Catégorie et identifiant
+              </span>
+            </div>
+
+            {identifiant && (
+              <div className="mb-4">
+                <Code39Barcode value={identifiant} />
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500">Catégorie.</label>
+                <input type="text" value={categorie} readOnly className="bg-slate-100 cursor-not-allowed" />
+              </div>
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-500">Identifiant unique.</label>
+                <input type="text" value={identifiant} readOnly className="bg-slate-100 cursor-not-allowed" />
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 2 - CLIENT */}
+          <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
+            <div className="mb-2">
+              <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
+                2 — Client
               </span>
             </div>
 
@@ -448,14 +633,14 @@ export default function GmaoOtherEquipmentCorrectionForm({
                       filteredClientsForDropdown.map(c => {
                         const labelStr = `${c.denomination} (${c.siret || c.id})`;
                         return (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onMouseDown={() => handleClientSelect(c.id)}
-                            className="w-full text-left px-3 py-2 text-sm text-slate-800 hover:bg-[#ffecf8] transition-colors font-semibold border-0 cursor-pointer"
-                          >
-                            {labelStr}
-                          </button>
+                           <button
+                             key={c.id}
+                             type="button"
+                             onMouseDown={() => handleClientSelect(c.id)}
+                             className="w-full text-left px-3 py-2 text-sm text-slate-800 hover:bg-[#ffecf8] transition-colors font-semibold border-0 cursor-pointer"
+                           >
+                             {labelStr}
+                           </button>
                         );
                       })
                     )}
@@ -510,11 +695,11 @@ export default function GmaoOtherEquipmentCorrectionForm({
             </div>
           </div>
 
-          {/* SECTION 2 - LOCALISATION */}
+          {/* SECTION 3 - LOCALISATION */}
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                2 — Localisation
+                3 — Localisation
               </span>
             </div>
 
@@ -610,11 +795,11 @@ export default function GmaoOtherEquipmentCorrectionForm({
             </div>
           </div>
 
-          {/* SECTION 3 - DATES */}
+          {/* SECTION 4 - DATES */}
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">
               <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                3 — Dates
+                4 — Dates
               </span>
             </div>
 
@@ -645,25 +830,6 @@ export default function GmaoOtherEquipmentCorrectionForm({
               <div className="space-y-1">
                 <label className="block text-[11px] font-bold text-slate-500">Prochaine maintenance.</label>
                 <input type="date" value={prochaineMaintenance} onChange={(e) => setProchaineMaintenance(e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* SECTION 4 - CATÉGORIE ENROULÉE */}
-          <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
-            <div className="mb-2">
-              <span className="text-white px-3 py-1 text-[13px] inline-block font-semibold" style={{ backgroundColor: 'oklch(0.44 0.16 324.65)', borderRadius: '1000px' }}>
-                4 — Catégorie et identifiant
-              </span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Catégorie.</label>
-                <input type="text" value={categorie} readOnly className="bg-slate-100 cursor-not-allowed" />
-              </div>
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-500">Identifiant unique.</label>
-                <input type="text" value={identifiant} readOnly className="bg-slate-100 cursor-not-allowed" />
               </div>
             </div>
           </div>

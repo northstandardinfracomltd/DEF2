@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc } from '../types';
+import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur } from '../types';
 
 interface StocksTabProps {
   stocks: StockRecord[];
@@ -13,6 +13,7 @@ interface StocksTabProps {
   stockSearchQuery?: string;
   setStockSearchQuery?: (q: string) => void;
   commercialDocs?: CommercialDoc[];
+  achatsFournisseurs?: AchatFournisseur[];
 }
 
 export default function StocksTab({
@@ -27,6 +28,7 @@ export default function StocksTab({
   stockSearchQuery: externalStockSearchQuery,
   setStockSearchQuery: externalSetStockSearchQuery,
   commercialDocs = [],
+  achatsFournisseurs = [],
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState('');
@@ -65,10 +67,16 @@ export default function StocksTab({
       } else {
         setNewMvEmplacement('');
       }
+    } else if (newMvType === 'Réapprovisionnement fournisseur') {
+      if (achatsFournisseurs.length > 0) {
+        setNewMvEmplacement(achatsFournisseurs[0].reference);
+      } else {
+        setNewMvEmplacement('');
+      }
     } else {
       setNewMvEmplacement('');
     }
-  }, [newMvType, distributedStocks, variables, stocks]);
+  }, [newMvType, distributedStocks, variables, stocks, achatsFournisseurs]);
 
   const handleAddMovementInline = () => {
     if (newMvVolume <= 0) {
@@ -79,13 +87,21 @@ export default function StocksTab({
       alert("La date est requise");
       return;
     }
+    if (newMvType === 'Réapprovisionnement fournisseur' && !newMvEmplacement) {
+      alert("Veuillez sélectionner un achat fournisseur (référence BL) ou en configurer un au préalable dans l'onglet des achats.");
+      return;
+    }
+    if (newMvType === 'Distribution' && !newMvEmplacement) {
+      alert("Veuillez sélectionner un emplacement.");
+      return;
+    }
     const newMv: StockMovement = {
       id: 'mv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       type: newMvType,
       volume: Number(newMvVolume),
       date: newMvDate,
       statut: newMvStatut,
-      bonCommande: newMvBonCommande,
+      bonCommande: '',
       trackingLink: newMvTrackingLink,
       emplacement: newMvEmplacement
     };
@@ -318,6 +334,16 @@ export default function StocksTab({
       return;
     }
 
+    // Check if the UGS is unique
+    const formattedUgs = (newUgs || '').trim();
+    if (formattedUgs) {
+      const isUgsAlreadyUsed = stocks.some(s => s.ugs && s.ugs.trim().toLowerCase() === formattedUgs.toLowerCase() && s.id !== editingStockId);
+      if (isUgsAlreadyUsed) {
+        alert(`Erreur : L'UGS "${formattedUgs}" est déjà associé à un autre stock. L'UGS doit être unique.`);
+        return;
+      }
+    }
+
     const finalLivDate = newLivDate;
     const finalReapDate = newReapDate;
     const finalStorage = newStorage || 'Entrepôt A';
@@ -462,6 +488,7 @@ export default function StocksTab({
     textTransform: 'none',
     color: '#000000',
     cursor: 'default',
+    whiteSpace: 'nowrap',
   };
 
   const searchInputStyle: React.CSSProperties = {
@@ -709,7 +736,7 @@ export default function StocksTab({
 
                       return (
                         <tr key={st.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
-                          <td className="px-4 py-5 whitespace-nowrap font-mono text-xs font-bold text-slate-800 uppercase tracking-wide">
+                          <td className="px-4 py-5 whitespace-nowrap font-sans text-xs font-bold text-slate-800 uppercase tracking-wide" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '15px' }}>
                             {st.ugs || '0001'}
                           </td>
                           <td className="px-4 py-5 whitespace-nowrap">
@@ -740,11 +767,7 @@ export default function StocksTab({
                                 onClick={() => {
                                   onNavigateToDistributedStocks?.(st.ugs || '');
                                 }}
-                                style={{
-                                  ...rowActionButtonStyle,
-                                  backgroundColor: '#fa53d5',
-                                  color: '#fff',
-                                }}
+                                style={rowActionButtonStyle}
                                 className="cursor-pointer font-sans"
                               >
                                 Distribution
@@ -814,7 +837,7 @@ export default function StocksTab({
           >
             <div>
               <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#000', cursor: 'default' }}>
-                {editingStockId ? 'Modification Stock' : 'Nouveau Stock'}
+                {editingStockId ? 'MODIFICATION STOCK DE LA CENTRALE' : 'NOUVEAU STOCK DE LA CENTRALE'}
               </h3>
             </div>
             
@@ -826,7 +849,10 @@ export default function StocksTab({
                   setEditingStockId(null);
                 }}
                 id="btn-close-stock-modal"
-                style={rowActionButton18Style}
+                style={{
+                  ...rowActionButton18Style,
+                  borderRadius: '13px',
+                }}
                 className="transition-colors cursor-pointer"
               >
                 <span>Annuler</span>
@@ -868,7 +894,17 @@ export default function StocksTab({
               
               {/* Section Propriétés Capsule */}
               <div className="flex bg-white md:col-span-4 select-none mb-1">
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest font-sans">
+                <span 
+                  className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                  style={{
+                    color: '#fff',
+                    backgroundColor: '#5f1f66',
+                    fontSize: '16px',
+                    border: 'none',
+                    textTransform: 'none',
+                    letterSpacing: 'normal'
+                  }}
+                >
                   Propriétés
                 </span>
               </div>
@@ -951,7 +987,7 @@ export default function StocksTab({
               </div>
 
               {/* Pricing section - 3 elegant columns spanning full row width */}
-              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5 border-t border-slate-100 pt-5">
+              <div className="md:col-span-4 bg-white grid grid-cols-1 md:grid-cols-3 gap-5 pt-5">
                 {/* Valeur Achat */}
                 <div className="flex flex-col gap-1 bg-white">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Tarif fournisseur. (€)</label>
@@ -999,14 +1035,33 @@ export default function StocksTab({
               </div>
 
               {/* Section Prévoyance. */}
-              <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-1">
+              <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+              <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-1">
                 <div className="flex bg-white mb-2 select-none">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                  <span 
+                    className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#5f1f66',
+                      fontSize: '16px',
+                      border: 'none',
+                      textTransform: 'none',
+                      letterSpacing: 'normal'
+                    }}
+                  >
                     Prévoyance
                   </span>
                 </div>
-                <div className="bg-slate-50 border border-slate-100 p-2.5 rounded text-xs text-slate-600 mb-2 font-sans">
-                  Nous estimons votre besoin de trésorerie à <span className="font-bold text-slate-900">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</span>€, pour l'achat des stocks requis aux actions de maintenances.
+                <div 
+                  style={{
+                    color: 'rgb(143 51 151)',
+                    backgroundColor: 'rgb(253 229 255)',
+                    border: 'none',
+                    fontSize: '16px'
+                  }}
+                  className="p-4 rounded-xl mb-4 font-sans font-semibold"
+                >
+                  Nous estimons votre besoin de trésorerie à <strong className="font-extrabold">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>€, pour l'achat des stocks requis aux actions de maintenances.
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-white">
                   <div className="flex flex-col gap-1 bg-white">
@@ -1048,9 +1103,20 @@ export default function StocksTab({
               </div>
 
               {/* Section Mouvements */}
-              <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-1">
+              <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+              <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-1">
                 <div className="flex justify-between items-center bg-white mb-2 select-none">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                  <span 
+                    className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#5f1f66',
+                      fontSize: '16px',
+                      border: 'none',
+                      textTransform: 'none',
+                      letterSpacing: 'normal'
+                    }}
+                  >
                     Mouvements
                   </span>
                   <div className="flex gap-2">
@@ -1058,27 +1124,27 @@ export default function StocksTab({
                       type="button"
                       onClick={() => setShowMvForm(!showMvForm)}
                       style={{
-                        backgroundColor: '#3556ec',
+                        backgroundColor: '#000000',
                         color: '#ffffff',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        padding: '6px 14px',
-                        fontSize: '12px'
+                        padding: '10px 20px',
+                        fontSize: '18px',
+                        borderRadius: '13px',
                       }}
-                      className="font-sans font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-all text-white cursor-pointer border-0"
+                      className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0 text-white"
                     >
-                      + Nouveau mouvement
+                      Nouveau mouvement
                     </button>
                     <button
                       type="submit"
                       form="equipement-stock-form"
                       style={{
-                        backgroundColor: '#10b981',
+                        backgroundColor: '#000000',
                         color: '#ffffff',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                        padding: '6px 14px',
-                        fontSize: '12px'
+                        padding: '10px 20px',
+                        fontSize: '18px',
+                        borderRadius: '13px',
                       }}
-                      className="font-sans font-bold rounded-lg flex items-center gap-1 active:scale-95 transition-all text-white cursor-pointer border-0"
+                      className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0 text-white"
                     >
                       Enregistrer
                     </button>
@@ -1088,7 +1154,7 @@ export default function StocksTab({
                 {/* Sub-form to add a new movement inline */}
                 {showMvForm && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 flex flex-col font-sans mb-3 text-xs">
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-7 gap-4 bg-transparent">
+                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 bg-transparent">
                       <div className="flex flex-col gap-1 bg-transparent">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type du mouvement *</label>
                         <select
@@ -1154,6 +1220,33 @@ export default function StocksTab({
                               })}
                             </select>
                           </>
+                        ) : newMvType === 'Réapprovisionnement fournisseur' ? (
+                          <>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provenance *</label>
+                            {achatsFournisseurs.length === 0 ? (
+                              <div className="w-full bg-slate-100 text-slate-500 border border-slate-200 rounded p-2 text-[10px] font-sans italic" style={{ minHeight: '36px', display: 'flex', alignItems: 'center' }}>
+                                Aucun achat fournisseur enregistré.
+                              </div>
+                            ) : (
+                              <select
+                                value={newMvEmplacement}
+                                onChange={(e) => setNewMvEmplacement(e.target.value)}
+                                className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                                style={{ minHeight: '36px' }}
+                                required
+                              >
+                                <option value="" disabled hidden>Sélectionnez un achat (BL)</option>
+                                {achatsFournisseurs.map(achat => {
+                                  const labelVal = `${achat.reference} - ${achat.supplierName || 'Fournisseur'}`;
+                                  return (
+                                    <option key={achat.id} value={achat.reference}>
+                                      {labelVal}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            )}
+                          </>
                         ) : (
                           <>
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Provenance *</label>
@@ -1194,32 +1287,6 @@ export default function StocksTab({
                       </div>
 
                       <div className="flex flex-col gap-1 bg-transparent">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Bon commande</label>
-                        {availableBcs.length === 0 ? (
-                          <div className="w-full bg-slate-55 text-slate-450 border border-slate-200 rounded p-2 text-[10px] font-sans italic" style={{ minHeight: '36px' }}>
-                            Aucun BC trouvé dans Factures & Devis.
-                          </div>
-                        ) : (
-                          <select
-                            value={newMvBonCommande}
-                            onChange={(e) => setNewMvBonCommande(e.target.value)}
-                            className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
-                            style={{ minHeight: '36px' }}
-                          >
-                            <option value="">Sélectionner un BC...</option>
-                            {commercialDocs
-                              .filter(doc => doc.hasBonCommande && doc.bonCommandeReference && doc.bonCommandeReference.trim() !== '')
-                              .map(doc => (
-                                <option key={doc.id} value={doc.bonCommandeReference}>
-                                  {doc.bonCommandeReference} - {doc.clientDenomination} ({doc.type} {doc.ref})
-                                </option>
-                              ))
-                            }
-                          </select>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col gap-1 bg-transparent">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Suivi colis</label>
                         <input
                           type="text"
@@ -1247,18 +1314,32 @@ export default function StocksTab({
                       </div>
                     </div>
 
-                    <div className="flex justify-end gap-2 bg-transparent text-xs">
+                    <div className="flex justify-end gap-3 bg-transparent mt-2">
                       <button
                         type="button"
                         onClick={() => setShowMvForm(false)}
-                        className="bg-slate-200 text-slate-700 py-1.5 px-3 rounded-lg hover:bg-slate-300 font-semibold border-0 cursor-pointer"
+                        style={{
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          padding: '10px 20px',
+                          fontSize: '18px',
+                          borderRadius: '13px',
+                        }}
+                        className="font-sans font-bold active:scale-95 transition-all text-white cursor-pointer border-0"
                       >
                         Annuler
                       </button>
                       <button
                         type="button"
                         onClick={handleAddMovementInline}
-                        className="bg-indigo-600 text-white py-1.5 px-4 rounded-lg hover:bg-indigo-700 font-semibold border-0 cursor-pointer shadow-xs"
+                        style={{
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          padding: '10px 20px',
+                          fontSize: '18px',
+                          borderRadius: '13px',
+                        }}
+                        className="font-sans font-bold active:scale-95 transition-all text-white cursor-pointer border-0 shadow-xs"
                       >
                         Ajouter
                       </button>
@@ -1267,125 +1348,92 @@ export default function StocksTab({
                 )}
 
                 {/* Table of movements report */}
-                <div className="overflow-x-auto border border-slate-200 rounded-xl mt-2 bg-white">
-                  <table className="w-full text-left font-sans border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
-                        <th className="px-3 py-2 font-semibold">Indicateur</th>
-                        <th className="px-3 py-2 font-semibold">Type</th>
-                        <th className="px-3 py-2 font-semibold">Provenance / Destination</th>
-                        <th className="px-3 py-2 text-center font-semibold">Volume</th>
-                        <th className="px-3 py-2 text-center font-semibold">Bon commande</th>
-                        <th className="px-3 py-2 text-center font-semibold">Suivi Colis</th>
-                        <th className="px-3 py-2 text-center font-semibold">Date</th>
-                        <th className="px-3 py-2 text-center font-semibold">Statut</th>
-                        <th className="px-3 py-2 text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {mouvements.length === 0 ? (
-                        <tr>
-                          <td colSpan={9} className="py-6 text-center text-slate-400">
-                            Aucun mouvement enregistré pour cette pièce.
-                          </td>
+                {mouvements.length > 0 && (
+                  <div 
+                    className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                    style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                  >
+                    <table className="w-full text-left font-sans border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Indicateur.</th>
+                          <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Circulation.</th>
+                          <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Raccordement.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Suivi du colis.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                          <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Action.</th>
                         </tr>
-                      ) : (
-                        mouvements.map((mv) => {
+                      </thead>
+                      <tbody className="bg-white">
+                        {mouvements.map((mv, index) => {
                           return (
-                            <tr key={mv.id} className="hover:bg-slate-50 transition-all font-sans bg-white text-black">
-                              {/* Indicator */}
-                              <td className="px-3 py-2 whitespace-nowrap bg-white text-black">
-                                <span className="inline-flex items-center gap-1.5 font-bold bg-white text-black">
-                                  {mv.type === 'Réapprovisionnement fournisseur' ? (
-                                    <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md text-xs border border-amber-200 inline-flex items-center gap-1">
-                                      ↓ Réappro. Fourn.
-                                    </span>
-                                  ) : mv.type === 'Distribution' ? (
-                                    <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md text-xs border border-emerald-200 inline-flex items-center gap-1">
-                                      → Cent. vers Empl.
-                                    </span>
-                                  ) : mv.type === 'Annulation' ? (
-                                    <span className="text-rose-700 bg-rose-50 px-2.5 py-1 rounded-md text-xs border border-rose-200 inline-flex items-center gap-1 font-bold">
-                                      ↑ Annulation
-                                    </span>
-                                  ) : (
-                                    <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md text-xs border border-blue-200 inline-flex items-center gap-1">
-                                      ← Empl. vers Cent.
-                                    </span>
-                                  )}
+                            <tr 
+                              key={mv.id} 
+                              className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                              style={{ borderBottom: index === mouvements.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                            >
+                              {/* Indicator (Pink text with 18px arrow) */}
+                              <td className="px-3 py-2 whitespace-nowrap bg-white text-center" style={{ cursor: 'default' }}>
+                                <span 
+                                  className="inline-flex items-center justify-center font-bold font-sans"
+                                  style={{ 
+                                    color: '#fa53d5',
+                                    fontSize: '18px',
+                                    lineHeight: '1',
+                                    cursor: 'default'
+                                  }}
+                                >
+                                  {mv.type === 'Réapprovisionnement fournisseur' ? '↓' : 
+                                   mv.type === 'Distribution' ? '→' : 
+                                   mv.type === 'Annulation' ? '↑' : '←'}
                                 </span>
                               </td>
-                              {/* Type */}
-                              <td className="px-3 py-2 whitespace-nowrap text-slate-800 font-medium bg-white">
+                              {/* Type / Circulation */}
+                              <td 
+                                className="px-3 py-2 bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
                                 {mv.type}
                               </td>
-                              {/* Provenance / Destination */}
-                              <td className="px-3 py-2 text-slate-700 bg-white font-medium">
+                              {/* Provenance / Destination / Raccordement */}
+                              <td 
+                                className="px-3 py-2 bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
                                 {mv.emplacement || '-'}
                               </td>
                               {/* Volume */}
-                              <td className="px-3 py-2 text-center font-semibold text-slate-900 bg-white">
+                              <td 
+                                className="px-3 py-2 text-center bg-white font-semibold text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
                                 {mv.volume}
-                              </td>
-                              {/* Bon commande */}
-                              <td className="px-3 py-2 text-center bg-white text-black min-w-[150px]">
-                                {availableBcs.length === 0 ? (
-                                  <input
-                                    type="text"
-                                    value={mv.bonCommande || ''}
-                                    disabled
-                                    placeholder="Aucun BC"
-                                    className="w-full text-xs text-slate-400 border border-slate-200 rounded px-2 py-1 bg-slate-50 cursor-not-allowed"
-                                    style={{ height: '28px' }}
-                                  />
-                                ) : (
-                                  <select
-                                    value={mv.bonCommande || ''}
-                                    disabled={mv.isCanceled || mv.type === 'Annulation'}
-                                    onChange={(e) => handleUpdateMovementBonCommande(mv.id, e.target.value)}
-                                    className="w-full text-xs text-black border border-slate-200 rounded px-1 py-0.5 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed font-medium"
-                                    style={{ height: '28px' }}
-                                  >
-                                    <option value="">Aucun BC...</option>
-                                    {commercialDocs
-                                      .filter(doc => doc.hasBonCommande && doc.bonCommandeReference && doc.bonCommandeReference.trim() !== '')
-                                      .map(doc => (
-                                        <option key={doc.id} value={doc.bonCommandeReference}>
-                                          {doc.bonCommandeReference} ({doc.clientDenomination.length > 15 ? doc.clientDenomination.substring(0, 15) + '...' : doc.clientDenomination})
-                                        </option>
-                                      ))
-                                    }
-                                  </select>
-                                )}
                               </td>
                               {/* Suivi Colis (trackingLink) */}
                               <td className="px-3 py-2 text-center bg-white text-black min-w-[140px]">
-                                <div className="flex items-center gap-1">
-                                  <input
-                                    type="text"
-                                    value={mv.trackingLink || ''}
-                                    disabled={mv.isCanceled || mv.type === 'Annulation'}
-                                    onChange={(e) => handleUpdateMovementTrackingLink(mv.id, e.target.value)}
-                                    placeholder="Lien de suivi"
-                                    className="w-full text-xs text-black border border-slate-200 rounded px-2 py-1 bg-white disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                                    style={{ height: '28px' }}
-                                  />
-                                  {mv.trackingLink && (mv.trackingLink.startsWith('http') || mv.trackingLink.startsWith('www')) && (
-                                    <a
-                                      href={mv.trackingLink.startsWith('http') ? mv.trackingLink : `https://${mv.trackingLink}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-indigo-600 hover:text-indigo-800 text-xs font-bold px-1.5 py-1 border border-slate-200 rounded bg-slate-50 hover:bg-slate-100 flex items-center justify-center cursor-pointer font-sans"
-                                      title="Suivre le colis"
-                                      style={{ height: '28px', width: '28px' }}
-                                    >
-                                      ↗
-                                    </a>
-                                  )}
-                                </div>
+                                <input
+                                  type="text"
+                                  value={mv.trackingLink || ''}
+                                  disabled={mv.isCanceled || mv.type === 'Annulation'}
+                                  onChange={(e) => handleUpdateMovementTrackingLink(mv.id, e.target.value)}
+                                  placeholder="Lien de suivi"
+                                  className="w-full bg-white text-black border px-3 disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed font-sans"
+                                  style={{ 
+                                    height: '44px', 
+                                    borderRadius: '6px', 
+                                    fontSize: '12px', 
+                                    outline: 'none',
+                                    border: '1px solid #cbd5e1'
+                                  }}
+                                />
                               </td>
                               {/* Date */}
-                              <td className="px-3 py-2 text-center text-slate-500 bg-white">
+                              <td 
+                                className="px-3 py-2 text-center bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
                                 {mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : '-'}
                               </td>
                               {/* Statut - dropdown enabled inline */}
@@ -1394,8 +1442,14 @@ export default function StocksTab({
                                   value={mv.statut}
                                   disabled={mv.isCanceled || mv.type === 'Annulation'}
                                   onChange={(e) => handleUpdateMovementStatus(mv.id, e.target.value as any)}
-                                  className="mx-auto text-xs bg-white text-black p-1 border border-slate-200 rounded min-w-[110px] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed"
-                                  style={{ minHeight: '28px', fontSize: '11px' }}
+                                  className="mx-auto bg-white text-black px-3 border min-w-[110px] disabled:bg-slate-100 disabled:text-slate-500 disabled:cursor-not-allowed font-sans"
+                                  style={{ 
+                                    height: '44px', 
+                                    fontSize: '12px', 
+                                    borderRadius: '6px', 
+                                    outline: 'none',
+                                    border: '1px solid #cbd5e1'
+                                  }}
                                 >
                                   <option value="Préparation">Préparation</option>
                                   <option value="Expédié">Expédié</option>
@@ -1409,18 +1463,26 @@ export default function StocksTab({
                                   type="button"
                                   disabled={mv.isCanceled || mv.type === 'Annulation'}
                                   onClick={() => handleCancelMovement(mv.id)}
-                                  className="text-red-500 hover:text-red-700 disabled:text-slate-300 disabled:cursor-not-allowed text-[11px] font-semibold border-0 bg-transparent cursor-pointer"
+                                  style={{
+                                    backgroundColor: (mv.isCanceled || mv.type === 'Annulation') ? '#e2e8f0' : '#000000',
+                                    color: (mv.isCanceled || mv.type === 'Annulation') ? '#94a3b8' : '#ffffff',
+                                    padding: '8px 16px',
+                                    fontSize: '16px',
+                                    borderRadius: '13px',
+                                    cursor: (mv.isCanceled || mv.type === 'Annulation') ? 'not-allowed' : 'pointer',
+                                  }}
+                                  className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
                                 >
                                   Annuler
                                 </button>
                               </td>
                             </tr>
                           );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Commentaire. */}

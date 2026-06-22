@@ -5,6 +5,7 @@ interface Review {
   clientName: string;
   comment: string;
   label: string;
+  dateStr?: string;
 }
 
 interface SatisfactionTabProps {
@@ -20,6 +21,16 @@ export default function SatisfactionTab({
   const [search, setSearch] = useState('');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Helper date formatter
+  const formatToDisplayDate = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const parts = dateStr.split('-');
+      return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+    return dateStr;
+  };
 
   const handleDeleteReview = (id: string) => {
     if (confirm('Supprimer cet avis de la liste ?')) {
@@ -156,6 +167,7 @@ export default function SatisfactionTab({
             <table className="w-full text-left font-sans border-collapse text-xs" id="satisfaction-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
+                  <th className="px-5 py-3.5 w-32 whitespace-nowrap" style={thStyle}>Date.</th>
                   <th className="px-5 py-3.5 w-1/4" style={thStyle}>Rédacteur.</th>
                   <th className="px-5 py-3.5" style={thStyle}>Évaluation.</th>
                   <th className="px-5 py-3.5 text-left w-48" style={thStyle}>Satisfaction.</th>
@@ -175,6 +187,13 @@ export default function SatisfactionTab({
                   return (
                     <tr key={rev.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
                       
+                      {/* Date of review */}
+                      <td className="px-5 py-5 font-sans align-middle cursor-default" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                        <div className="text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          {formatToDisplayDate(rev.dateStr) || '-'}
+                        </div>
+                      </td>
+
                       {/* Customer Info (Rédacteur) */}
                       <td className="px-5 py-5 font-sans align-middle cursor-default" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                         <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>

@@ -290,7 +290,7 @@ export interface CommercialDoc {
   assignedMemberName?: string;
   hasBonCommande?: boolean;
   bonCommandeReference?: string;
-  bonCommandeLivraison?: 'Intervention d\'un technicien' | 'Transporteur';
+  bonCommandeLivraison?: 'Intervention' | 'Transporteur';
   bonCommandeSituation?: 'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé';
 }
 
@@ -351,6 +351,7 @@ export interface OtherEquipment {
   // Section 4 - Catégorie
   categorie: string;
   tournee?: string;
+  horaires?: string;
 
   // Section 5 - Champs techniques spécifiques
   specifiques: Record<string, any>;

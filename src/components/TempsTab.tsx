@@ -13,6 +13,7 @@ export default function TempsTab({
 }: TempsTabProps) {
   // Search States
   const [search, setSearch] = useState('');
+  const [selectedTechFilter, setSelectedTechFilter] = useState<string>('Tous');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -157,8 +158,14 @@ export default function TempsTab({
     transition: 'all 0s',
   };
 
+  // List of unique technicians in pointages
+  const technicians = Array.from(new Set(pointages.map(p => p.techName))).filter(Boolean).sort();
+
   // Searching logic
   const filteredPointages = pointages.filter((p) => {
+    if (selectedTechFilter !== 'Tous' && p.techName !== selectedTechFilter) {
+      return false;
+    }
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -219,6 +226,20 @@ export default function TempsTab({
           </div>
 
           <div className="flex flex-wrap items-center gap-3 bg-white">
+            {selectedTechFilter !== 'Tous' && (
+              <button
+                type="button"
+                onClick={() => {}}
+                style={{
+                  ...actionButton18Style,
+                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                }}
+                className="cursor-pointer font-sans bg-black text-white rounded whitespace-nowrap"
+              >
+                Télécharger CSV
+              </button>
+            )}
+
             {/* Search Bar Input */}
             <div className="relative w-full sm:w-80 bg-white">
               <input
@@ -237,6 +258,42 @@ export default function TempsTab({
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Filters Pills Row */}
+      <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="temps-tech-pills">
+        {['Tous', ...technicians].map((filterOpt) => {
+          let count = 0;
+          if (filterOpt === 'Tous') {
+            count = pointages.length;
+          } else {
+            count = pointages.filter((p) => p.techName === filterOpt).length;
+          }
+
+          return (
+            <button
+              key={filterOpt}
+              type="button"
+              onClick={() => setSelectedTechFilter(filterOpt)}
+              style={{
+                borderRadius: '1000px',
+                padding: '10px 20px',
+                fontSize: '15px',
+                fontWeight: 100,
+                cursor: 'pointer',
+                fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                backgroundColor: selectedTechFilter === filterOpt ? '#fa53d5' : '#ffffff',
+                color: selectedTechFilter === filterOpt ? '#ffffff' : '#000000',
+                border: selectedTechFilter === filterOpt ? '1px solid #fa53d5' : '1px solid rgb(218, 218, 218)',
+                boxShadow: 'none',
+                transition: 'all 0.15s ease'
+              }}
+              className="transition-all"
+            >
+              {filterOpt} ({count})
+            </button>
+          );
+        })}
       </div>
 
       {/* Pointage Records */}

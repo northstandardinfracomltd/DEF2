@@ -23,133 +23,167 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
 
     // Timeout to make sure target container div exists in the DOM
     const timer = setTimeout(() => {
-      try {
-        html5QrcodeInstance = new Html5Qrcode(elementId);
-        qrCodeInstanceRef.current = html5QrcodeInstance;
-
-        const config = {
-          fps: 25,
-          // CRITICAL: We DO NOT pass a qrbox here. Doing so enables FULL-FRAME scanning under the hood.
-          // By scanning the entire uncropped high-resolution stream, we bypass iOS canvas cropping misalignment bugs
-          // and let the ZXing engine scan wide horizontal barcodes with 100% of the camera's resolution.
-          // Our visual CSS frame on top is purely visual, guiding the user where to align the barcode.
-          formatsToSupport: [
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39,
-            Html5QrcodeSupportedFormats.CODE_93,
-            Html5QrcodeSupportedFormats.EAN_13,
-            Html5QrcodeSupportedFormats.EAN_8,
-            Html5QrcodeSupportedFormats.UPC_A,
-            Html5QrcodeSupportedFormats.UPC_E,
-            Html5QrcodeSupportedFormats.ITF,
-            Html5QrcodeSupportedFormats.QR_CODE,
-          ],
-          experimentalFeatures: {
-            // Enabled native barcode detector! iOS 17+ supports this natively. It uses the Apple Neural Engine
-            // to spot linear barcodes instantly and flawlessly on the camera stream with zero lag.
-            useBarCodeDetectorIfSupported: true,
-          }
-        };
-
-        const tryStart = (facingModeSpec: any) => {
-          if (!html5QrcodeInstance) return Promise.reject("Instance not ready");
-          return html5QrcodeInstance.start(
-            facingModeSpec,
-            config,
-            (decodedText) => {
-              if (isMounted) {
-                onScanSuccess(decodedText);
-                stopAndUnmount();
-              }
-            },
-            () => {
-              // Silent negative frame captures
-            }
-          );
-        };
-
-        // Try high-resolution camera on environment mode FIRST to ensure razor-sharp linear barcode lines
-        tryStart({
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        })
-          .then(() => {
-            if (isMounted) setIsCameraActive(true);
-          })
-          .catch((highResErr) => {
-            console.warn("High-res camera stream start failed on iOS. Trying standard environment stream...", highResErr);
-            if (!isMounted) return;
-
-            // Fallback 1: Standard environment facing mode
-            tryStart({ facingMode: 'environment' })
-              .then(() => {
-                if (isMounted) setIsCameraActive(true);
-              })
-              .catch((firstErr) => {
-                console.warn("First fallback scanner start failed. Trying exact constraint...", firstErr);
-                if (!isMounted) return;
-
-                // Fallback 2: Try exact environment constraint
-                tryStart({ facingMode: { exact: 'environment' } })
-                  .then(() => {
-                    if (isMounted) setIsCameraActive(true);
-                  })
-                  .catch((secondErr) => {
-                    console.warn("Second fallback scanner start failed. Searching devices list...", secondErr);
-                    if (!isMounted) return;
-
-                    // Fallback 3: Query available camera devices and bind first rear camera
-                    Html5Qrcode.getCameras()
-                      .then((devices) => {
-                        if (!isMounted) return;
-                        if (devices && devices.length > 0) {
-                          const backCam = devices.find(device => 
-                            device.label.toLowerCase().includes('back') || 
-                            device.label.toLowerCase().includes('arrière') ||
-                            device.label.toLowerCase().includes('environment') ||
-                            device.label.toLowerCase().includes('cam 0')
-                          ) || devices[0];
-
-                          tryStart({ deviceId: backCam.id })
-                            .then(() => {
-                              if (isMounted) setIsCameraActive(true);
-                            })
-                            .catch((thirdErr) => {
-                              console.error("All camera active attempts failed:", thirdErr);
-                              if (isMounted) {
-                                setErrorMsg("Impossible d'activer la caméra en direct.");
-                              }
-                            });
-                        } else {
-                          if (isMounted) {
-                            setErrorMsg("Aucun périphérique de caméra détecté.");
-                          }
-                        }
-                      })
-                      .catch((camErr) => {
-                        console.error("Camera listing lookup error:", camErr);
-                        if (isMounted) {
-                          setErrorMsg("Impossible de scanner en direct.");
-                        }
-                      });
-                  });
-              });
-          });
-
-      } catch (err) {
-        console.error("Scanner setup error:", err);
-        if (isMounted) {
-          setErrorMsg("Erreur d'initialisation du scanner.");
+      const config = {
+        fps: 25,
+        // CRITICAL: We DO NOT pass a qrbox here. Doing so enables FULL-FRAME scanning under the hood.
+        // By scanning the entire uncropped high-resolution stream, we bypass iOS canvas cropping misalignment bugs
+        // and let the ZXing engine scan wide horizontal barcodes with 100% of the camera's resolution.
+        // Our visual CSS frame on top is purely visual, guiding the user where to align the barcode.
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.CODE_93,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+          Html5QrcodeSupportedFormats.ITF,
+          Html5QrcodeSupportedFormats.QR_CODE,
+        ],
+        experimentalFeatures: {
+          // Enabled native barcode detector! iOS 17+ supports this natively. It uses the Apple Neural Engine
+          // to spot linear barcodes instantly and flawlessly on the camera stream with zero lag.
+          useBarCodeDetectorIfSupported: true,
         }
-      }
+      };
+
+      const startScanner = async () => {
+        if (!isMounted) return;
+        setErrorMsg(null);
+
+        // Define our fallback sequence of camera configurations.
+        // By instantiating a FRESH Html5Qrcode on each attempt, we completely avoid
+        // any internal state transition exceptions ("already under transition").
+        const configsToTry: any[] = [
+          { facingMode: 'environment' },
+          { facingMode: 'user' }
+        ];
+
+        try {
+          const devices = await Html5Qrcode.getCameras();
+          if (isMounted && devices && devices.length > 0) {
+            const backCam = devices.find(device => {
+              const label = device.label.toLowerCase();
+              return label.includes('back') || 
+                     label.includes('arrière') ||
+                     label.includes('rear') ||
+                     label.includes('environment') ||
+                     label.includes('externe') ||
+                     label.includes('cam 1') ||
+                     label.includes('cam 2');
+            });
+            const selectedDevice = backCam || devices[0];
+            // Insert camera hardware-specific targeting modes at the front of the list
+            configsToTry.unshift(
+              { deviceId: selectedDevice.id },
+              { deviceId: { exact: selectedDevice.id } }
+            );
+          }
+        } catch (camErr) {
+          console.warn("getCameras() failed or was blocked by permissions. Using standard facing modes.", camErr);
+        }
+
+        let started = false;
+        let lastError: any = null;
+
+        for (const cameraSpec of configsToTry) {
+          if (!isMounted) return;
+
+          // Clear any stale previous instance state
+          if (html5QrcodeInstance) {
+            try {
+              if (html5QrcodeInstance.isScanning) {
+                await html5QrcodeInstance.stop();
+              }
+            } catch (err) {
+              console.warn("Silent error cleaning up previous instance scanning state:", err);
+            }
+            html5QrcodeInstance = null;
+            qrCodeInstanceRef.current = null;
+          }
+
+          // Instantiate a fresh, clean instance
+          try {
+            const container = document.getElementById(elementId);
+            if (!container && isMounted) {
+              await new Promise(resolve => setTimeout(resolve, 100));
+            }
+
+            html5QrcodeInstance = new Html5Qrcode(elementId);
+            qrCodeInstanceRef.current = html5QrcodeInstance;
+
+            await html5QrcodeInstance.start(
+              cameraSpec,
+              config,
+              (decodedText) => {
+                if (isMounted) {
+                  onScanSuccess(decodedText);
+                  stopAndUnmount();
+                }
+              },
+              () => {
+                // Silent catch for negative scan frames
+              }
+            );
+
+            started = true;
+            if (isMounted) setIsCameraActive(true);
+            break;
+          } catch (err: any) {
+            lastError = err;
+            console.warn("Failed startup attempt with spec:", cameraSpec, err);
+            // Wait 150ms to allow browser hardware locks to release
+            await new Promise(resolve => setTimeout(resolve, 150));
+          }
+        }
+
+        if (!started && isMounted) {
+          console.error("All camera start strategies exhausted. Last error:", lastError);
+          setErrorMsg("Impossible d'accéder à la caméra. Veuillez autoriser l'accès et réessayer.");
+        }
+      };
+
+      startScanner();
     }, 200);
 
     const stopAndUnmount = () => {
-      if (html5QrcodeInstance && html5QrcodeInstance.isScanning) {
-        html5QrcodeInstance.stop().then(() => {
-          if (isMounted) setIsCameraActive(false);
-        }).catch(err => console.error("Error stopping scanner on unmount:", err));
+      // 1. Ask the library instance to stop scanning recursively or clear
+      if (html5QrcodeInstance) {
+        if (html5QrcodeInstance.isScanning) {
+          html5QrcodeInstance.stop().catch(err => {
+            console.error("Failed standard stop:", err);
+          }).finally(() => {
+            if (isMounted) setIsCameraActive(false);
+          });
+        } else {
+          try {
+            html5QrcodeInstance.clear();
+          } catch (err) {
+            // Ignore
+          }
+        }
+      }
+
+      // 2. Foolproof fallback: Grab the video tag in the container and stop active hardware media tracks directly.
+      // This immediately extinguishes the green camera active hardware LED/indicator in the client browser.
+      try {
+        const container = document.getElementById(elementId);
+        const videos = container?.getElementsByTagName("video");
+        if (videos) {
+          for (let i = 0; i < videos.length; i++) {
+            const video = videos[i];
+            const stream = video.srcObject as MediaStream;
+            if (stream) {
+              stream.getTracks().forEach(track => {
+                try {
+                  track.stop();
+                } catch (e) {}
+              });
+            }
+          }
+        }
+      } catch (trackErr) {
+        console.warn("Error releasing camera tracks directly:", trackErr);
       }
     };
 

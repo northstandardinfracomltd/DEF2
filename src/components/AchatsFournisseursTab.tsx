@@ -205,10 +205,43 @@ export default function AchatsFournisseursTab({
     textTransform: 'none',
     color: '#000000',
     cursor: 'default',
+    fontSize: '16px',
+    whiteSpace: 'nowrap',
+  };
+
+  const smallBlackButtonStyle: React.CSSProperties = {
+    backgroundColor: '#000000',
+    color: '#ffffff',
+    boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+    borderRadius: '13px',
+    fontSize: '18px',
+    padding: '9px 19px',
+    fontWeight: '100',
+    fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    border: 'none',
+  };
+
+  const smallBlueButtonStyle: React.CSSProperties = {
+    ...smallBlackButtonStyle,
+    backgroundColor: 'rgb(53, 86, 236)',
+    color: '#ffffff',
+    boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
+  };
+
+  const cellStyle: React.CSSProperties = {
+    fontSize: '16px',
+    color: '#000000',
+    whiteSpace: 'nowrap',
+    fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+    cursor: 'default',
   };
 
   return (
-    <div id="achats-tab-container-harmonized" className="p-4 md:p-6 space-y-6">
+    <div id="achats-tab-container-harmonized" className="space-y-6 animate-fadeIn">
       <style>{`
         #achats-tab-container-harmonized input:not([type="radio"]):not([type="checkbox"]):not(#search-achats-input),
         #achats-tab-container-harmonized select,
@@ -264,13 +297,18 @@ export default function AchatsFournisseursTab({
           cursor: not-allowed !important;
           opacity: 0.82 !important;
         }
+        #achats-tab-container-harmonized input::placeholder,
+        #achats-tab-container-harmonized textarea::placeholder {
+          color: #000000 !important;
+          opacity: 1 !important;
+        }
       `}</style>
 
       {!isFormOpen ? (
         <>
-          {/* Header dashboard Section */}
+          {/* Header Section */}
           <div
-            className="bg-white space-y-4 shadow-sm"
+            className="bg-white space-y-4"
             style={{
               border: '1px solid #dadada',
               borderTop: 'none',
@@ -289,33 +327,9 @@ export default function AchatsFournisseursTab({
                 >
                   Achats fournisseurs
                 </h2>
-                <p className="text-xs text-slate-500 font-sans mt-0.5">
-                  Gestion et suivi des bons d'achat et des commandes fournisseurs.
-                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 bg-white">
-                {/* Supplier filter */}
-                <div className="relative">
-                  <select
-                    value={supplierFilter}
-                    onChange={(e) => setSupplierFilter(e.target.value)}
-                    className="cursor-pointer pr-8 font-sans"
-                    style={{
-                      padding: '9px 19px !important',
-                      fontSize: '15px !important',
-                      borderRadius: '13px !important',
-                    }}
-                  >
-                    <option value="">Tous les fournisseurs</option>
-                    {supplierVariables.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.nom}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
                 {/* Search query */}
                 <div className="relative bg-white">
                   <input
@@ -323,7 +337,7 @@ export default function AchatsFournisseursTab({
                     id="search-achats-input"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Rechercher..."
+                    placeholder="Rechercher."
                     className="w-48 sm:w-64 text-black placeholder-[#747474] placeholder:font-light outline-none"
                     style={searchInputStyle}
                     onMouseEnter={() => setIsSearchHovered(true)}
@@ -334,7 +348,6 @@ export default function AchatsFournisseursTab({
                 </div>
 
                 <button onClick={startNewAchat} style={customButtonStyle} className="font-sans">
-                  <Plus className="w-4 h-4" />
                   Nouveau
                 </button>
               </div>
@@ -342,50 +355,46 @@ export default function AchatsFournisseursTab({
           </div>
 
           {/* MAIN RECORDS TABLE */}
-          <div className="bg-white overflow-hidden mt-6 rounded-none shadow-xs">
+          <div className="bg-white overflow-hidden mt-6 rounded-none">
             <div className="overflow-x-auto">
-              {filteredAchats.length === 0 ? (
-                <div className="p-16 text-center font-sans lg:py-24">
-                  <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                  <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                    Aucun achat fournisseur enregistré.
-                  </p>
-                </div>
-              ) : (
-                <table
-                  className="w-full text-left font-sans border-collapse text-xs"
-                  style={{
-                    borderTop: '1px solid rgb(218, 218, 218)',
-                    borderBottom: '1px solid rgb(218, 218, 218)',
-                  }}
-                >
-                  <thead>
-                    <tr className="bg-transparent">
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Référence.
-                      </th>
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Réf. Commande.
-                      </th>
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Fournisseur.
-                      </th>
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Commentaire.
-                      </th>
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Date.
-                      </th>
-                      <th className="px-4 py-3.5" style={thStyle}>
-                        Document PDF.
-                      </th>
-                      <th className="px-4 py-3.5 text-right w-36" style={thStyle}>
-                        Actions.
-                      </th>
+              <table
+                className="w-full text-left font-sans border-collapse text-xs"
+                style={{
+                  borderTop: '1px solid rgb(218, 218, 218)',
+                  borderBottom: '1px solid rgb(218, 218, 218)',
+                }}
+              >
+                <thead>
+                  <tr className="bg-transparent">
+                    <th className="px-4 py-3.5" style={thStyle}>
+                      Référence.
+                    </th>
+                    <th className="px-4 py-3.5" style={thStyle}>
+                      Réf. Commande.
+                    </th>
+                    <th className="px-4 py-3.5" style={thStyle}>
+                      Fournisseur.
+                    </th>
+                    <th className="px-4 py-3.5" style={thStyle}>
+                      Commentaire.
+                    </th>
+                    <th className="px-4 py-3.5" style={thStyle}>
+                      Date.
+                    </th>
+                    <th className="px-4 py-3.5 text-right w-36" style={thStyle}>
+                      Actions.
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="text-slate-700 text-xs">
+                  {filteredAchats.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
+                        Aucun résultat.
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="text-slate-700 text-xs">
-                    {filteredAchats.map((achat) => {
+                  ) : (
+                    filteredAchats.map((achat) => {
                       return (
                         <tr
                           key={achat.id}
@@ -393,109 +402,146 @@ export default function AchatsFournisseursTab({
                         >
                           {/* Reference */}
                           <td
-                            className="px-4 py-4 font-mono font-bold text-slate-920"
-                            style={{ fontSize: '15px' }}
+                            className="px-4 py-4 whitespace-nowrap"
+                            style={cellStyle}
                           >
-                            {achat.reference}
+                            {achat.reference || ''}
                           </td>
 
                           {/* Order Reference */}
-                          <td className="px-4 py-4 font-sans text-slate-800" style={{ fontSize: '15px' }}>
-                            {achat.orderReference || <span className="text-slate-400 italic">Sans</span>}
+                          <td
+                            className="px-4 py-4 whitespace-nowrap"
+                            style={cellStyle}
+                          >
+                            {achat.orderReference || ''}
                           </td>
 
                           {/* Supplier */}
                           <td
-                            className="px-4 py-4 font-sans font-medium text-slate-900"
-                            style={{ fontSize: '15px' }}
+                            className="px-4 py-4 whitespace-nowrap"
+                            style={cellStyle}
                           >
-                            {achat.supplierName}
+                            {achat.supplierName || ''}
                           </td>
 
                           {/* Comment */}
-                          <td className="px-4 py-4 font-sans text-slate-600 max-w-xs truncate" style={{ fontSize: '15px' }}>
-                            {achat.comment || <span className="text-slate-450">-</span>}
+                          <td
+                            className="px-4 py-4 whitespace-nowrap"
+                            style={cellStyle}
+                          >
+                            {achat.comment || ''}
                           </td>
 
                           {/* Date */}
-                          <td className="px-4 py-4 font-sans text-slate-500" style={{ fontSize: '14px' }}>
-                            {achat.dateStr}
-                          </td>
-
-                          {/* PDF Document */}
-                          <td className="px-4 py-4 font-sans">
-                            {achat.pdfUrl ? (
-                              <button
-                                onClick={() => handleConsultPdf(achat)}
-                                className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-[#fff0f9] text-[#fa53d5] hover:bg-[#fbd3ef] transition-colors border-0 cursor-pointer text-xs font-semibold"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                                {achat.pdfName ? (
-                                  <span className="truncate max-w-[120px]" title={achat.pdfName}>
-                                    {achat.pdfName}
-                                  </span>
-                                ) : (
-                                  'Consulter'
-                                )}
-                              </button>
-                            ) : (
-                              <span className="text-slate-400 italic text-xs">Aucun</span>
-                            )}
+                          <td
+                            className="px-4 py-4 whitespace-nowrap"
+                            style={cellStyle}
+                          >
+                            {achat.dateStr || ''}
                           </td>
 
                           {/* Actions */}
-                          <td className="px-4 py-4 align-middle text-right">
+                          <td className="px-4 py-4 align-middle text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2 bg-transparent">
+                              {achat.pdfUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConsultPdf(achat)}
+                                  style={smallBlackButtonStyle}
+                                >
+                                  Télécharger
+                                </button>
+                              )}
                               <button
+                                type="button"
                                 onClick={() => startEditAchat(achat)}
-                                className="p-1 px-1.5 rounded-md hover:bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer border-0 inline-flex items-center"
-                                title="Modifier"
+                                style={smallBlackButtonStyle}
                               >
-                                <Edit className="w-4 h-4" />
+                                Modifier
                               </button>
                               <button
+                                type="button"
                                 onClick={() => handleDeleteAchat(achat.id)}
-                                className="p-1 px-1.5 rounded-md hover:bg-red-50 text-red-500 hover:text-red-700 cursor-pointer border-0 inline-flex items-center"
-                                title="Supprimer"
+                                style={smallBlackButtonStyle}
                               >
-                                <Trash2 className="w-4 h-4" />
+                                Supprimer
                               </button>
                             </div>
                           </td>
                         </tr>
                       );
-                    })}
-                  </tbody>
-                </table>
-              )}
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </>
       ) : (
         /* FORM VIEW */
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 md:p-8 space-y-6 max-w-2xl mx-auto animate-fadeIn">
-          <div className="flex items-center justify-between border-b pb-4">
+        <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="achats-form-overlay-harmonized">
+          
+          {/* Header Box styled exactly like other forms */}
+          <div
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
+            style={{
+              border: '1px solid #dadada',
+              borderTop: 'none',
+              borderRadius: '0px 0px 18px 18px',
+              width: '98%',
+              maxWidth: '98%',
+              margin: 'auto',
+              padding: '20px',
+            }}
+            id="achats-form-header-box"
+          >
             <div>
-              <h3 className="text-xl font-bold font-gochi text-slate-900" style={{ fontFamily: 'Gochi, sans-serif' }}>
+              <h3 className="text-2xl font-bold font-gochi" style={{ fontFamily: 'Gochi, sans-serif', color: '#000', cursor: 'default' }}>
                 {editingAchatId ? 'Modifier l’achat fournisseur' : 'Nouvel achat fournisseur'}
               </h3>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Veuillez renseigner les détails ci-dessous pour enregistrer ou mettre à jour la commande fournisseur.
-              </p>
             </div>
-            <button
-              onClick={() => setIsFormOpen(false)}
-              className="p-1.5 rounded-full hover:bg-slate-100 text-slate-450 hover:text-slate-700 border-0 cursor-pointer inline-flex items-center"
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setIsFormOpen(false)}
+                style={smallBlackButtonStyle}
+                className="transition-colors cursor-pointer"
+              >
+                Annuler
+              </button>
+
+              <button
+                type="submit"
+                form="achats-fournisseurs-form"
+                style={smallBlueButtonStyle}
+                className="transition-all cursor-pointer"
+              >
+                Enregistrer
+              </button>
+            </div>
           </div>
 
-          <form onSubmit={handleSaveAchat} className="space-y-5">
+          {/* Spacer block */}
+          <div style={{ height: '16px' }} className="bg-transparent" />
+
+          {/* Form container below header */}
+          <form
+            id="achats-fournisseurs-form"
+            onSubmit={handleSaveAchat}
+            className="space-y-6 bg-white p-6 border-none"
+            style={{
+              border: '1px solid rgb(218, 218, 218)',
+              borderRadius: '18px',
+              width: '98%',
+              maxWidth: '98%',
+              margin: 'auto',
+            }}
+          >
             {/* Reference */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Référence
+                Référence.
               </label>
               <input
                 type="text"
@@ -503,21 +549,18 @@ export default function AchatsFournisseursTab({
                 disabled
                 className="w-full focus:outline-none bg-slate-50 border border-slate-200 text-slate-500 rounded-md py-2 px-3 font-mono cursor-not-allowed text-sm"
               />
-              <span className="text-xs text-slate-400">
-                Garantit un ordre chronologique et réglementaire (BL-2026-X).
-              </span>
             </div>
 
             {/* Commande Reference */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Référence de commande
+                Référence de commande fournisseur.
               </label>
               <input
                 type="text"
                 value={orderReference}
                 onChange={(e) => setOrderReference(e.target.value)}
-                placeholder="Ex. CMD-99120-FR"
+                placeholder="Entrez une référence du fournisseur."
                 className="w-full"
                 required
               />
@@ -526,7 +569,7 @@ export default function AchatsFournisseursTab({
             {/* Fournisseur Selection */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Fournisseur
+                Sélection du fournisseur.
               </label>
 
               {supplierVariables.length === 0 ? (
@@ -543,7 +586,7 @@ export default function AchatsFournisseursTab({
                     className="w-full pr-10 cursor-pointer"
                     required
                   >
-                    <option value="">Sélectionner un fournisseur...</option>
+                    <option value="">Sélection d'un fournisseur.</option>
                     {supplierVariables.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nom} {s.marque ? `(${s.marque})` : ''}
@@ -557,13 +600,13 @@ export default function AchatsFournisseursTab({
             {/* Comment */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Commentaire
+                Commentaire.
               </label>
               <input
                 type="text"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Ex. Livraison prévue mardi"
+                placeholder="Entrez un commentaire."
                 className="w-full"
               />
             </div>
@@ -571,61 +614,20 @@ export default function AchatsFournisseursTab({
             {/* PDF File upload / download */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Téléchargement PDF (Rattacher un document)
+                Fichier de la commande. (PDF)
               </label>
 
-              <div className="border-2 border-dashed border-slate-200 hover:border-[#fa53d5]/50 transition-colors rounded-2xl p-6 text-center cursor-pointer bg-slate-50/50 relative">
+              <div className="border border-solid border-[#D5D5D5] hover:border-[#fa53d5]/50 transition-colors rounded-2xl p-6 text-center cursor-pointer bg-white relative">
                 <input
                   type="file"
                   accept=".pdf"
                   onChange={handleFileUpload}
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 />
-                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm text-slate-700 font-sans font-medium">
-                  {pdfName ? `Fichier : ${pdfName}` : 'Cliquez pour sélectionner un fichier PDF'}
-                </p>
-                <p className="text-xs text-slate-400 font-sans mt-0.5">
-                  Fichiers acceptés : PDF uniquement
+                <p className="font-sans font-medium" style={{ fontSize: '18px', color: '#000000' }}>
+                  {pdfName ? pdfName : "Sélection d'un fichier PDF."}
                 </p>
               </div>
-
-              {pdfUrl && (
-                <div className="mt-1 flex items-center justify-between p-2.5 rounded-xl bg-green-50 border border-green-200 text-xs text-green-800 font-sans">
-                  <span className="flex items-center gap-1.5 truncate max-w-[80%]">
-                    <FileText className="w-4 h-4 text-green-600" />
-                    <strong>{pdfName || 'Document.pdf'}</strong> (Chargé avec succès)
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPdfUrl(undefined);
-                      setPdfName(undefined);
-                    }}
-                    className="text-red-500 hover:text-red-700 font-bold border-0 cursor-pointer bg-transparent text-xs"
-                  >
-                    Supprimer
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Form actions */}
-            <div className="flex items-center justify-end gap-3 pt-4 border-t">
-              <button
-                type="button"
-                onClick={() => setIsFormOpen(false)}
-                className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all font-sans text-sm font-bold bg-white cursor-pointer"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                style={customButtonStyle}
-                className="px-5 py-2.5 text-sm font-bold font-sans"
-              >
-                Enregistrer
-              </button>
             </div>
           </form>
         </div>

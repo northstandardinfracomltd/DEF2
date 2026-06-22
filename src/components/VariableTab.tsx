@@ -501,7 +501,8 @@ export default function VariableTab({
             <table className="w-full text-left font-sans border-collapse text-xs" id="variables-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent border-b border-slate-100">
-                  <th className="px-4 py-3.5 w-28 text-left" style={thStyle}>Miniature.</th>
+                  <th className="px-4 py-3.5 w-14 text-left whitespace-nowrap" style={thStyle}>Miniature.</th>
+                  <th className="px-4 py-3.5 text-left whitespace-nowrap" style={thStyle}>Identifiant.</th>
                   <th className="px-4 py-3.5 text-left" style={thStyle}>Titre de la variable.</th>
                   <th className="px-4 py-3.5 text-left" style={thStyle}>Catégorie.</th>
                   <th className="px-4 py-3.5 text-left w-12" style={thStyle}>Action.</th>
@@ -516,19 +517,22 @@ export default function VariableTab({
                     className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
                   >
                     {/* Visual box column */}
-                    <td className="px-4 py-5 font-sans text-left" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                      {v.category === 'Modèle Défibrillateur' && v.imageUrl ? (
-                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200 overflow-hidden relative shadow-xs">
+                    <td className="px-4 py-3.5">
+                      <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center p-1.5" style={{ backgroundColor: '#ffffff' }}>
+                        {v.category === 'Modèle Défibrillateur' && v.imageUrl ? (
                           <img
                             src={v.imageUrl}
                             alt={v.nom}
-                            className="w-full h-full object-cover"
+                            className="w-full h-full object-contain"
                             referrerPolicy="no-referrer"
                           />
-                        </div>
-                      ) : (
-                        <div className="w-12 h-12 rounded-lg bg-slate-100 border border-slate-200" />
-                      )}
+                        ) : null}
+                      </div>
+                    </td>
+
+                    {/* Identifiant */}
+                    <td className="px-4 py-5 font-sans text-left whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                      {v.identifiant || ''}
                     </td>
 
                     {/* Nom de l'équipement */}
@@ -536,11 +540,6 @@ export default function VariableTab({
                       <div className="font-semibold text-slate-950">
                         {v.nom}
                       </div>
-                      {v.identifiant && (
-                        <div className="text-xs text-slate-500 font-mono mt-0.5">
-                          Identifiant: {v.identifiant}
-                        </div>
-                      )}
                     </td>
 
                     {/* Catégorie technique */}

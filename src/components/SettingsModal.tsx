@@ -793,6 +793,29 @@ export default function SettingsModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">Langue et région du logiciel.</label>
+                <select
+                  value={selectedLang || ""}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedLang(val);
+                    localStorage.setItem('defib_lang', val);
+                  }}
+                  className="w-full text-black font-sans text-sm cursor-pointer"
+                >
+                  <option value="" disabled hidden>Sélectionnez une localisation.</option>
+                  <option value="Français, France">Français, France</option>
+                  <option value="Français, Belgique">Français, Belgique</option>
+                  <option value="Français, Luxembourg">Français, Luxembourg</option>
+                  <option value="Français, Monaco">Français, Monaco</option>
+                  <option value="English, Switzerland">English, Switzerland</option>
+                  <option value="English, United Kingdom">English, United Kingdom</option>
+                  <option value="English, Spain">English, Spain</option>
+                  <option value="English, Portugal">English, Portugal</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
                 <label className="block text-[16px] font-bold text-black font-sans">Nom commercial.</label>
                 <input
                   type="text"
@@ -853,7 +876,8 @@ export default function SettingsModal({
                   type="text"
                   value={localCompany.nomLogiciel ?? ''}
                   onChange={(e) => handleCompanyChange('nomLogiciel', e.target.value)}
-                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
+                  style={{ backgroundColor: '#ffffff' }}
                   placeholder="Entrez un nom pour votre logiciel."
                 />
               </div>
@@ -864,49 +888,28 @@ export default function SettingsModal({
                   type="url"
                   value={localCompany.conditionsLegalesLink ?? ''}
                   onChange={(e) => handleCompanyChange('conditionsLegalesLink', e.target.value)}
-                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
+                  style={{ backgroundColor: '#ffffff' }}
                   placeholder="Collez le lien vers vos conditions légales."
                 />
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 md:col-span-2">
                 <label className="block text-[16px] font-bold text-black font-sans">Mentions légales pour les pièces comptables.</label>
                 <input
                   type="text"
                   value={localCompany.mentionsLegalesFactures ?? ''}
                   onChange={(e) => handleCompanyChange('mentionsLegalesFactures', e.target.value)}
-                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-grey-input"
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
+                  style={{ backgroundColor: '#ffffff' }}
                   placeholder="Saisissez les mentions légales pour vos devis et factures."
                 />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-[16px] font-bold text-black font-sans">Langue et région du logiciel.</label>
-                <select
-                  value={selectedLang || ""}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setSelectedLang(val);
-                    localStorage.setItem('defib_lang', val);
-                  }}
-                  className="w-full text-black font-sans text-sm cursor-pointer"
-                >
-                  <option value="" disabled hidden>Sélectionnez une localisation.</option>
-                  <option value="Français, France">Français, France</option>
-                  <option value="Français, Belgique">Français, Belgique</option>
-                  <option value="Français, Luxembourg">Français, Luxembourg</option>
-                  <option value="Français, Monaco">Français, Monaco</option>
-                  <option value="English, Switzerland">English, Switzerland</option>
-                  <option value="English, United Kingdom">English, United Kingdom</option>
-                  <option value="English, Spain">English, Spain</option>
-                  <option value="English, Portugal">English, Portugal</option>
-                </select>
               </div>
             </div>
           </div>
           
           {/* SECTION: OTHER EQUIPMENTS INTEGRATION */}
-          <div className="space-y-2 mt-4 text-left">
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-2 mt-4 text-left">
             <label className="block text-[16px] font-bold text-black font-sans leading-tight">
               Activer l'infogérance et la maintenance de d'autres types d'équipements.
             </label>
@@ -1166,11 +1169,17 @@ export default function SettingsModal({
                               <button
                                 type="button"
                                 onClick={() => handleRemoveMember(idx)}
-                                className="text-red-500 hover:text-red-700 bg-red-50/50 hover:bg-red-50 border border-red-200/60 rounded-lg px-2 py-1 text-xs font-semibold self-start flex items-center gap-1 transition-all shadow-sm cursor-pointer mb-1"
+                                className="cursor-pointer mb-2 inline-flex items-center justify-center font-bold text-center select-none"
+                                style={{
+                                  backgroundColor: '#8b0000',
+                                  color: '#ffffff',
+                                  border: 'none',
+                                  fontSize: '18px',
+                                  borderRadius: '13px',
+                                  padding: '11px 22px',
+                                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                }}
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 text-red-500 animate-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                </svg>
                                 Supprimer le membre
                               </button>
                             )}
@@ -1222,11 +1231,6 @@ export default function SettingsModal({
                               {!isTech && !isSuperAdmin && (
                                 <span className="inline-flex items-center justify-center rounded-full bg-indigo-50 text-indigo-700 font-sans text-xs font-bold px-2.5 py-1 border border-indigo-200">
                                   {m.adminSubRole || 'Administrateur'}
-                                </span>
-                              )}
-                              {isTech && (
-                                <span className="inline-flex items-center justify-center rounded-full bg-amber-50 text-amber-700 font-sans text-xs font-bold px-2.5 py-1 border border-amber-200">
-                                  Technicien {m.locationLink ? `(${m.locationLink})` : ''}
                                 </span>
                               )}
                             </div>
@@ -1317,10 +1321,10 @@ export default function SettingsModal({
 
                             {/* Compétences (Checklist for Technicians) */}
                             {isTech && (
-                              <div className="space-y-2 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                                <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
-                                  Compétences (choix multiples)
-                                </span>
+                              <div 
+                                className="space-y-2 mt-3 w-full text-left bg-white p-3.5"
+                                style={{ border: '1px solid #d5D5D5', borderRadius: '13px' }}
+                              >
                                 <div className="flex flex-col gap-2">
                                   {[
                                     "Formation AMD",
@@ -1335,16 +1339,32 @@ export default function SettingsModal({
                                   ].map((comp) => {
                                     const hasComp = (m.competences || []).includes(comp);
                                     return (
-                                      <label key={comp} className="flex items-start gap-2.5 text-xs text-black font-sans cursor-pointer select-none py-0.5">
-                                        <input
-                                          type="checkbox"
-                                          checked={hasComp}
-                                          disabled={!canEditThisMember}
-                                          onChange={() => handleCompetenceToggle(idx, comp)}
-                                          className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                                        />
-                                        <span className="text-slate-700 text-xs font-medium leading-tight">{comp}</span>
-                                      </label>
+                                      <div 
+                                        key={comp} 
+                                        onClick={() => {
+                                          if (canEditThisMember) {
+                                            handleCompetenceToggle(idx, comp);
+                                          }
+                                        }}
+                                        className={`flex items-center gap-2.5 cursor-pointer select-none py-1 ${!canEditThisMember ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                      >
+                                        <span 
+                                          className="rounded-full flex items-center justify-center transition-all bg-white"
+                                          style={{
+                                            border: hasComp ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                                            width: '20px',
+                                            height: '20px',
+                                            minWidth: '20px',
+                                            minHeight: '20px',
+                                            backgroundColor: '#ffffff'
+                                          }}
+                                        >
+                                          {hasComp && (
+                                            <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                                          )}
+                                        </span>
+                                        <span className="font-medium leading-tight select-none" style={{ fontSize: '16px', color: '#000000' }}>{comp}</span>
+                                      </div>
                                     );
                                   })}
                                 </div>
@@ -1353,53 +1373,62 @@ export default function SettingsModal({
 
                             {/* Semaine typique / Horaires d'ouvertures (Checklist for Technicians) */}
                             {isTech && (
-                              <div className="space-y-3 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                              <div 
+                                className="space-y-3 mt-3 w-full text-left bg-white p-3.5"
+                                style={{ border: '1px solid #d5D5D5', borderRadius: '13px' }}
+                              >
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
+                                  <span className="font-bold block font-sans text-black" style={{ textTransform: 'none', fontSize: '16px' }}>
                                     Semaine typique
                                   </span>
                                   <button
                                     type="button"
                                     disabled={!canEditThisMember}
                                     onClick={() => handleAddMemberSchedule(idx)}
-                                    className="px-2 py-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-200 transition-all cursor-pointer disabled:opacity-50"
+                                    style={{
+                                      backgroundColor: '#000000',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      fontSize: '18px',
+                                      borderRadius: '13px',
+                                      padding: '10px 20px',
+                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="font-bold transition-all disabled:opacity-50"
                                   >
-                                    + Ajouter une plage
+                                    Nouveau
                                   </button>
                                 </div>
 
-                                {!(m.semaineTypique && m.semaineTypique.length > 0) ? (
-                                  <div className="text-xs text-slate-500 italic py-1">
-                                    Aucun horaire renseigné pour le moment.
-                                  </div>
-                                ) : (
+                                {m.semaineTypique && m.semaineTypique.length > 0 && (
                                   (m.semaineTypique || []).map((sch, schIdx) => (
-                                    <div key={schIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-3">
+                                    <div key={schIdx} style={{ borderRadius: '13px', border: '1px solid #d5D5D5' }} className="p-3 bg-white relative space-y-3">
                                       <button
                                         type="button"
                                         disabled={!canEditThisMember}
                                         onClick={() => handleRemoveMemberSchedule(idx, schIdx)}
-                                        className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer disabled:opacity-50"
-                                        title="Supprimer cette plage"
+                                        style={{ borderRadius: '13px', fontSize: '16px', backgroundColor: '#991b1b', color: '#ffffff' }}
+                                        className="absolute top-2 right-2 px-3 py-1 font-bold hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans disabled:opacity-50"
                                       >
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                        Supprimer
                                       </button>
 
-                                      {/* Midi closing toggle */}
-                                      <div className="flex items-center gap-2 select-none">
-                                        <input
-                                          type="checkbox"
-                                          id={`mem-${idx}-mid-close-${schIdx}`}
-                                          checked={sch.fermetureMidi}
+                                      {/* Midi closing toggle - styled as radio pink */}
+                                      <div className="flex items-center gap-2 select-none pt-4">
+                                        <button
+                                          type="button"
                                           disabled={!canEditThisMember}
-                                          onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'fermetureMidi', e.target.checked)}
-                                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer disabled:opacity-50"
-                                        />
-                                        <label htmlFor={`mem-${idx}-mid-close-${schIdx}`} className="text-[11px] font-semibold text-slate-700 cursor-pointer">
-                                          Fermeture le midi (4 plages)
-                                        </label>
+                                          onClick={() => handleUpdateMemberScheduleField(idx, schIdx, 'fermetureMidi', !sch.fermetureMidi)}
+                                          className="inline-flex items-center gap-2 cursor-pointer select-none disabled:opacity-50"
+                                        >
+                                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white ${sch.fermetureMidi ? 'border-[#fe4eba]' : 'border-slate-300'}`}>
+                                            {sch.fermetureMidi && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                                          </span>
+                                          <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
+                                            Fermeture le midi (4 plages)
+                                          </span>
+                                        </button>
                                       </div>
 
                                       {/* Time Inputs */}
@@ -1475,7 +1504,7 @@ export default function SettingsModal({
 
                                       {/* Day checkboxes (Lundi to Dimanche) */}
                                       <div className="space-y-1">
-                                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Jours concernés</span>
+                                        <span className="block font-bold text-black font-sans" style={{ fontSize: '16px' }}>Jours concernés.</span>
                                         <div className="flex flex-wrap gap-1">
                                           {[
                                             { key: 'Lundi', label: 'Lun' },
@@ -1494,12 +1523,17 @@ export default function SettingsModal({
                                                 type="button"
                                                 disabled={isDayTakenElsewhere || !canEditThisMember}
                                                 onClick={() => handleToggleMemberScheduleDay(idx, schIdx, dayObj.key)}
-                                                className={`px-2 py-1 text-[10px] font-semibold border rounded transition-all select-none ${
+                                                style={{ 
+                                                  borderRadius: '100px', 
+                                                  fontSize: '16px',
+                                                  borderColor: isChecked ? '#000000' : isDayTakenElsewhere ? '#e2e8f0' : '#d7d7d7' 
+                                                }}
+                                                className={`px-4 py-1.5 font-semibold border transition-all select-none font-sans ${
                                                   isChecked
-                                                    ? 'bg-slate-800 text-white border-slate-800 shadow-sm cursor-pointer'
+                                                    ? 'bg-black text-white shadow-sm cursor-pointer'
                                                     : isDayTakenElsewhere
-                                                      ? 'bg-slate-100 text-slate-400 border-slate-200 opacity-45 cursor-not-allowed'
-                                                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50 cursor-pointer'
+                                                      ? 'bg-slate-100 text-slate-400 opacity-40 cursor-not-allowed'
+                                                      : 'bg-white text-black cursor-pointer'
                                                 }`}
                                               >
                                                 {dayObj.label}
@@ -1516,41 +1550,45 @@ export default function SettingsModal({
 
                             {/* Section Absences for Technicians */}
                             {isTech && (
-                              <div className="space-y-3 mt-3 w-full text-left bg-slate-50 p-3.5 rounded-xl border border-slate-200 animate-none">
+                              <div 
+                                className="space-y-3 mt-3 w-full text-left bg-white p-3.5 animate-none"
+                                style={{ border: '1px solid #d5D5D5', borderRadius: '13px' }}
+                              >
                                 <div className="flex items-center justify-between">
-                                  <span className="text-sm font-bold text-slate-800 block font-sans" style={{ textTransform: 'none' }}>
+                                  <span className="font-bold block font-sans text-black" style={{ textTransform: 'none', fontSize: '16px' }}>
                                     Périodes d'indisponibilité
                                   </span>
                                   <button
                                     type="button"
                                     disabled={!canEditThisMember}
                                     onClick={() => handleAddMemberAbsence(idx)}
-                                    className="px-2 py-1 text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 rounded border border-rose-200 transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                    style={{
+                                      backgroundColor: '#000000',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      fontSize: '18px',
+                                      borderRadius: '13px',
+                                      padding: '10px 20px',
+                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                      cursor: 'pointer'
+                                    }}
+                                    className="font-bold transition-all disabled:opacity-50"
                                   >
-                                    <svg xmlns="http://www.w3.org/2050/svg" className="w-3.5 h-3.5 animate-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                                    </svg>
-                                    Absence
+                                    Nouveau
                                   </button>
                                 </div>
 
-                                {!(m.absences && m.absences.length > 0) ? (
-                                  <div className="text-xs text-slate-500 italic py-1">
-                                    Aucune indisponibilité déclarée.
-                                  </div>
-                                ) : (
+                                {m.absences && m.absences.length > 0 && (
                                   (m.absences || []).map((abs, absIdx) => (
-                                    <div key={absIdx} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm relative space-y-2">
+                                    <div key={absIdx} style={{ borderRadius: '13px', border: '1px solid #d5D5D5' }} className="p-3 bg-white relative space-y-2 pt-6">
                                       <button
                                         type="button"
                                         disabled={!canEditThisMember}
                                         onClick={() => handleRemoveMemberAbsence(idx, absIdx)}
-                                        className="absolute top-2 right-2 text-rose-500 hover:text-rose-700 p-1 cursor-pointer disabled:opacity-50"
-                                        title="Supprimer cette absence"
+                                        style={{ borderRadius: '13px', fontSize: '16px', backgroundColor: '#991b1b', color: '#ffffff' }}
+                                        className="absolute top-2 right-2 px-3 py-1 font-bold hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans disabled:opacity-50"
                                       >
-                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                        </svg>
+                                        Supprimer
                                       </button>
 
                                       <div className="grid grid-cols-2 gap-2 pt-1">
@@ -1628,11 +1666,10 @@ export default function SettingsModal({
 
           {/* SECTION: CONNECTEURS */}
           <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn" id="settings-section-connectors">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <LinkIcon className="w-5 h-5 text-blue-600" />
                 <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-                  Connecteurs API & Applications.
+                  Connecteurs.
                 </h4>
               </div>
               <button
@@ -1640,41 +1677,51 @@ export default function SettingsModal({
                 onClick={handleSaveConnectors}
                 disabled={connectorsSaveStatus === 'saving'}
                 style={{
-                  backgroundColor: '#fa53d5',
-                  color: 'white',
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontSize: '18px',
+                  borderRadius: '13px',
+                  padding: '10px 20px',
+                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                  cursor: 'pointer',
+                  opacity: connectorsSaveStatus !== 'idle' ? 0.6 : 1
                 }}
-                className="text-xs font-sans font-extrabold px-4 py-1.5 rounded-full select-none shadow-3xs transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                className="font-bold select-none transition-all flex items-center gap-1.5"
               >
-                {connectorsSaveStatus === 'saving' ? (
-                  <span>Enregistrement...</span>
-                ) : connectorsSaveStatus === 'saved' ? (
-                  <span className="flex items-center gap-1">Enregistré ! ✓</span>
-                ) : (
-                  <span>Enregistrer</span>
-                )}
+                <span>Enregistrer</span>
               </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* SAGE */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#00746b]/10 flex items-center justify-center font-bold text-[#00746b] text-sm select-none">S</div>
                       <div>
-                        <h5 className="font-bold font-sans text-sm text-black">Sage</h5>
-                        <div className="text-[10px] text-slate-500 select-none font-sans flex items-center gap-1.5">
-                          <span>Statut :</span>
-                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Sage</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#8b0000',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            Indisponible
+                          </span>
                         </div>
                       </div>
                     </div>
                     {/* Toggle switch */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-sans text-slate-500 select-none">{sageActive ? 'Activé' : 'Désactivé'}</span>
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={sageActive}
@@ -1683,13 +1730,13 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#00746b]"></div>
+                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
 
                   {sageActive && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                    <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">ID Client.</label>
                         <input
@@ -1732,22 +1779,31 @@ export default function SettingsModal({
               </div>
 
               {/* PENNYLANE */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#4f46e5]/10 flex items-center justify-center font-bold text-[#4f46e5] text-sm select-none">P</div>
                       <div>
-                        <h5 className="font-bold font-sans text-sm text-black">Pennylane</h5>
-                        <div className="text-[10px] text-slate-500 select-none font-sans flex items-center gap-1.5">
-                          <span>Statut :</span>
-                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Pennylane</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#8b0000',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            Indisponible
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="text-xs font-sans text-slate-550 select-none">{pennylaneActive ? 'Activé' : 'Désactivé'}</span>
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={pennylaneActive}
@@ -1756,13 +1812,13 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4f46e5]"></div>
+                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
 
                   {pennylaneActive && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                    <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">ID Client.</label>
                         <input
@@ -1805,22 +1861,31 @@ export default function SettingsModal({
               </div>
 
               {/* DROPBOX */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#0061ff]/10 flex items-center justify-center font-bold text-[#0061ff] text-sm select-none">D</div>
                       <div>
-                        <h5 className="font-bold font-sans text-sm text-black">Dropbox</h5>
-                        <div className="text-[10px] text-slate-505 select-none font-sans flex items-center gap-1.5">
-                          <span>Statut :</span>
-                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Dropbox</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#8b0000',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            Indisponible
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="text-xs font-sans text-slate-550 select-none">{dropboxActive ? 'Activé' : 'Désactivé'}</span>
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={dropboxActive}
@@ -1829,13 +1894,13 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#0061ff]"></div>
+                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
 
                   {dropboxActive && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                    <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">Token d’accès.</label>
                         <input
@@ -1866,22 +1931,31 @@ export default function SettingsModal({
               </div>
 
               {/* CEGID */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50/50 space-y-3 transition-shadow hover:shadow-3xs flex flex-col justify-between">
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-[#cc0000]/10 flex items-center justify-center font-bold text-[#cc0000] text-sm select-none">C</div>
                       <div>
-                        <h5 className="font-bold font-sans text-sm text-black">Cegid</h5>
-                        <div className="text-[10px] text-slate-550 select-none font-sans flex items-center gap-1.5">
-                          <span>Statut :</span>
-                          <span className="bg-rose-100 text-rose-700 font-extrabold px-1.5 py-0.5 rounded text-[9px] select-none uppercase">Indisponible</span>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Cegid</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#8b0000',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            Indisponible
+                          </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                       <span className="text-xs font-sans text-slate-550 select-none">{cegidActive ? 'Activé' : 'Désactivé'}</span>
-                      <label className="relative inline-flex items-center cursor-pointer select-none">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
                         <input
                           type="checkbox"
                           checked={cegidActive}
@@ -1890,13 +1964,13 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#cc0000]"></div>
+                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
 
                   {cegidActive && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 space-y-3 animate-slideUp">
+                    <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">Clé d’API.</label>
                         <input

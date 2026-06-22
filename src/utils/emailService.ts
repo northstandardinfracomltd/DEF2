@@ -90,7 +90,7 @@ export async function sendScriptEmail(payload: {
 
     return true;
   } catch (error) {
-    console.error('[Email Service] Error in sendScriptEmail:', error);
+    console.warn('[Email Service] Warning: sendScriptEmail fetch completed with warning (usually due to CORS or sandbox limits):', error);
     return false;
   }
 }

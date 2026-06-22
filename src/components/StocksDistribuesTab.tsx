@@ -125,7 +125,7 @@ export default function StocksDistribuesTab({
 
   const handleOpenNewForm = () => {
     setEditingId(null);
-    setSelectedStockId(stocks[0]?.id || '');
+    setSelectedStockId('');
     setLocationName('Entrepôt A');
     setVolumeDisponible(0);
     setVolumeReserve(0);
@@ -279,6 +279,7 @@ export default function StocksDistribuesTab({
     textTransform: 'none',
     color: '#000000',
     cursor: 'default',
+    whiteSpace: 'nowrap',
   };
 
   const searchInputStyle: React.CSSProperties = {
@@ -369,7 +370,7 @@ export default function StocksDistribuesTab({
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight font-sans bg-white" style={{ color: '#000000', cursor: 'default' }} id="stocks-distribues-tab-title">Stocks distribués</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="stocks-distribues-tab-title">Stocks distribués</h2>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 bg-white">
@@ -472,17 +473,12 @@ export default function StocksDistribuesTab({
                       return (
                         <tr key={item.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
                           {/* UGS */}
-                          <td className="px-4 py-5 whitespace-nowrap font-mono text-sm text-slate-800">
+                          <td className="px-4 py-5 whitespace-nowrap font-sans text-slate-800" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '16px', color: '#000000', cursor: 'default' }}>
                             {ugsCode || '-'}
                           </td>
                           {/* Pièce ou service */}
-                          <td className="px-4 py-5 whitespace-nowrap">
-                            <div className="flex flex-col bg-transparent">
-                              <span className="font-sans font-semibold text-[#000000] text-sm">{pieceName}</span>
-                              <div className="flex items-center gap-1.5 mt-0.5 bg-transparent">
-                                <span className="text-[11px] font-sans text-slate-500">{pieceCat}</span>
-                              </div>
-                            </div>
+                          <td className="px-4 py-5 whitespace-nowrap font-sans text-black" style={{ fontSize: '16px', color: '#000000', cursor: 'default', whiteSpace: 'nowrap' }}>
+                            <span className="font-semibold">{pieceName}</span> <span className="text-black font-normal">({pieceCat})</span>
                           </td>
                           {/* Emplacement */}
                           <td className="px-4 py-5 text-center whitespace-nowrap">
@@ -506,27 +502,27 @@ export default function StocksDistribuesTab({
                             </span>
                           </td>
                           {/* Qté disponible */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {item.volumeDisponible}
                           </td>
                           {/* Qté réservée */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#6875f5', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {item.volumeReserve}
                           </td>
                           {/* Qté entrante */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#10b981', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {item.volumeEntrant}
                           </td>
                           {/* Sortant Sem */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap text-amber-600 font-semibold" style={{ fontSize: '15px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {rowStats.week1.vol}
                           </td>
                           {/* Sortant Sem Pro */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap text-amber-700" style={{ fontSize: '15px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {rowStats.week2.vol}
                           </td>
                           {/* Sortant 7 à 30 jours */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap text-amber-800" style={{ fontSize: '15px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
                             {rowStats.next30.vol}
                           </td>
                           {/* Actions */}
@@ -537,8 +533,8 @@ export default function StocksDistribuesTab({
                                 onClick={() => onNavigateToCentraleStocks?.(ugsCode)}
                                 style={{
                                   ...rowActionButtonStyle,
-                                  backgroundColor: '#fa53d5',
-                                  color: '#fff',
+                                  backgroundColor: '#000000',
+                                  color: '#ffffff',
                                 }}
                                 className="cursor-pointer font-sans"
                               >
@@ -638,9 +634,19 @@ export default function StocksDistribuesTab({
           >
             <div className="grid grid-cols-1 md:grid-cols-4 gap-5 bg-white font-sans text-sm">
               
-              {/* Section Propriété Capsule */}
+              {/* Section Propriétés Capsule */}
               <div className="flex bg-white md:col-span-4 select-none mb-1">
-                <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-widest font-sans">
+                <span 
+                  className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                  style={{
+                    color: '#fff',
+                    backgroundColor: '#5f1f66',
+                    fontSize: '16px',
+                    border: 'none',
+                    textTransform: 'none',
+                    letterSpacing: 'normal'
+                  }}
+                >
                   Propriétés
                 </span>
               </div>
@@ -651,6 +657,7 @@ export default function StocksDistribuesTab({
                 <select
                   value={selectedStockId}
                   onChange={(e) => setSelectedStockId(e.target.value)}
+                  disabled={!!selectedStockId}
                   className="w-full bg-white text-black cursor-pointer"
                   required
                 >
@@ -669,10 +676,21 @@ export default function StocksDistribuesTab({
                 </select>
               </div>
 
-              {/* Emplacement Section Capsule */}
-              <div className="md:col-span-4 border-t border-slate-100 pt-5 mt-2 bg-white flex flex-col gap-4">
+              {/* Section Emplacement */}
+              <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+              <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-4">
                 <div className="flex bg-white select-none">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                  <span 
+                    className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#5f1f66',
+                      fontSize: '16px',
+                      border: 'none',
+                      textTransform: 'none',
+                      letterSpacing: 'normal'
+                    }}
+                  >
                     Emplacement
                   </span>
                 </div>
@@ -695,10 +713,21 @@ export default function StocksDistribuesTab({
                 </div>
               </div>
 
-              {/* Volumes Section Capsule */}
-              <div className="md:col-span-4 border-t border-slate-100 pt-5 mt-2 bg-white flex flex-col gap-4">
+              {/* Section Volumes */}
+              <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+              <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-4">
                 <div className="flex bg-white select-none">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
+                  <span 
+                    className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#5f1f66',
+                      fontSize: '16px',
+                      border: 'none',
+                      textTransform: 'none',
+                      letterSpacing: 'normal'
+                    }}
+                  >
                     Volumes
                   </span>
                 </div>
@@ -722,11 +751,10 @@ export default function StocksDistribuesTab({
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Volume réservé *</label>
                     <input
                       type="number"
-                      min="0"
                       value={volumeReserve}
-                      onChange={(e) => setVolumeReserve(Number(e.target.value))}
-                      className="w-full"
-                      required
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
                     />
                   </div>
 
@@ -735,225 +763,184 @@ export default function StocksDistribuesTab({
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Volume entrant *</label>
                     <input
                       type="number"
-                      min="0"
                       value={volumeEntrant}
-                      onChange={(e) => setVolumeEntrant(Number(e.target.value))}
-                      className="w-full"
-                      required
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
                     />
                   </div>
 
                   {/* Total indicator (calculated) */}
                   <div className="flex flex-col gap-1 bg-white md:col-span-1">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Volume total</label>
-                    <div className="w-full p-2.5 border-0 bg-slate-100 rounded-xl text-[#1a202c] font-black text-sm text-left flex items-center justify-center min-h-[44px]">
-                      {volumeDisponible + volumeReserve} unités
-                    </div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Volume total</label>
+                    <input
+                      type="number"
+                      value={volumeDisponible + volumeReserve}
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
                   </div>
                 </div>
 
-                {/* Section 2: Projections volumes sortants */}
-                <div className="w-full border-t border-slate-100 pt-5 mt-2 bg-white flex flex-col gap-4">
-                  <h4 className="text-xs font-black text-slate-600 uppercase tracking-wider font-sans">
-                    Projections de volumes sortants (Tournées Brouillon, À faire ou En cours)
-                  </h4>
+                {/* Section 2: Projections volumes sortants directly under volumes as fields */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-white mt-1">
+                  {/* Sortant cette semaine */}
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sortant cette semaine.</label>
+                    <input
+                      type="number"
+                      value={outgoingStats.week1.vol}
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
+                  </div>
 
-                  <div className="grid grid-cols-1 gap-3 w-full">
-                    
-                    {/* Volume sortant prévu cette semaine. */}
-                    <div 
-                      className="p-3 bg-slate-50 border rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-2xs"
-                      style={{ borderColor: 'rgb(222, 222, 222)' }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-800 font-sans">
-                          • Volume sortant prévu cette semaine
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 items-center mt-1 bg-transparent">
-                          <span className="text-[11px] text-slate-500 font-medium">Défibrillateurs requis :</span>
-                          {outgoingStats.week1.defibs.length === 0 ? (
-                            <span className="text-[11px] text-slate-400 font-mono italic bg-transparent">Aucun</span>
-                          ) : (
-                            outgoingStats.week1.defibs.map(id => (
-                              <span 
-                                key={id} 
-                                className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold"
-                                style={{ backgroundColor: 'rgb(243, 230, 248)', color: 'rgb(108, 22, 128)', border: '1px solid rgb(231, 201, 239)' }}
-                              >
-                                {id}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                      <div className="bg-white px-3.5 py-1.5 border border-slate-200 rounded-lg text-center" style={{ minWidth: '80px' }}>
-                        <span className="text-xs font-extrabold text-indigo-700 block">{outgoingStats.week1.vol} u.</span>
-                      </div>
-                    </div>
+                  {/* Sortant semaine prochaine */}
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sortant semaine prochaine.</label>
+                    <input
+                      type="number"
+                      value={outgoingStats.week2.vol}
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
+                  </div>
 
-                    {/* Volume sortant prévu la semaine prochaine. */}
-                    <div 
-                      className="p-3 bg-slate-50 border rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-2xs"
-                      style={{ borderColor: 'rgb(222, 222, 222)' }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-800 font-sans">
-                          • Volume sortant prévu la semaine prochaine
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 items-center mt-1 bg-transparent">
-                          <span className="text-[11px] text-slate-500 font-medium">Défibrillateurs requis :</span>
-                          {outgoingStats.week2.defibs.length === 0 ? (
-                            <span className="text-[11px] text-slate-400 font-mono italic bg-transparent">Aucun</span>
-                          ) : (
-                            outgoingStats.week2.defibs.map(id => (
-                              <span 
-                                key={id} 
-                                className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold"
-                                style={{ backgroundColor: 'rgb(230, 242, 248)', color: 'rgb(20, 95, 128)', border: '1px solid rgb(201, 225, 239)' }}
-                              >
-                                {id}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                      <div className="bg-white px-3.5 py-1.5 border border-slate-200 rounded-lg text-center" style={{ minWidth: '80px' }}>
-                        <span className="text-xs font-extrabold text-teal-600 block">{outgoingStats.week2.vol} u.</span>
-                      </div>
-                    </div>
-
-                    {/* Volume sortant prévu sous 7 à 30 jours. */}
-                    <div 
-                      className="p-3 bg-slate-50 border rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-2 shadow-2xs"
-                      style={{ borderColor: 'rgb(222, 222, 222)' }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xs font-bold text-slate-800 font-sans">
-                          • Volume sortant prévu sous 7 à 30 jours
-                        </span>
-                        <div className="flex flex-wrap gap-1.5 items-center mt-1 bg-transparent">
-                          <span className="text-[11px] text-slate-500 font-medium">Défibrillateurs requis :</span>
-                          {outgoingStats.next30.defibs.length === 0 ? (
-                            <span className="text-[11px] text-slate-400 font-mono italic bg-transparent">Aucun</span>
-                          ) : (
-                            outgoingStats.next30.defibs.map(id => (
-                              <span 
-                                key={id} 
-                                className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-extrabold"
-                                style={{ backgroundColor: 'rgb(248, 238, 230)', color: 'rgb(128, 65, 20)', border: '1px solid rgb(239, 219, 201)' }}
-                              >
-                                {id}
-                              </span>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                      <div className="bg-white px-3.5 py-1.5 border border-slate-200 rounded-lg text-center" style={{ minWidth: '80px' }}>
-                        <span className="text-xs font-extrabold text-amber-600 block">{outgoingStats.next30.vol} u.</span>
-                      </div>
-                    </div>
-
+                  {/* Sortant 7 à 30 jours */}
+                  <div className="flex flex-col gap-1 bg-white">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sortant 7 à 30 jours.</label>
+                    <input
+                      type="number"
+                      value={outgoingStats.next30.vol}
+                      disabled
+                      readOnly
+                      className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
+                    />
                   </div>
                 </div>
+
               </div>
 
-              {/* Mouvements Read-Only Section */}
-              <div className="md:col-span-4 border-t border-slate-200 pt-5 mt-2 bg-white flex flex-col gap-4">
+              {/* Section Mouvements */}
+              <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+              <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-4">
                 <div className="flex bg-white select-none">
-                  <span className="inline-flex items-center px-4 py-1.5 rounded-full text-xs font-bold bg-[#edf2f7] text-[#2d3748] border border-[#cbd5e0] uppercase tracking-wider font-sans">
-                    Mouvements (Lecture Seule)
+                  <span 
+                    className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                    style={{
+                      color: '#fff',
+                      backgroundColor: '#5f1f66',
+                      fontSize: '16px',
+                      border: 'none',
+                      textTransform: 'none',
+                      letterSpacing: 'normal'
+                    }}
+                  >
+                    Mouvements
                   </span>
                 </div>
 
-                <div className="overflow-x-auto border border-slate-200 rounded-xl mt-2 bg-white">
-                  <table className="w-full text-left font-sans border-collapse text-xs">
-                    <thead>
-                      <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold uppercase">
-                        <th className="px-3 py-2.5 font-semibold">Direction</th>
-                        <th className="px-3 py-2.5 font-semibold">Type</th>
-                        <th className="px-3 py-2.5 text-center font-semibold">Volume</th>
-                        <th className="px-3 py-2.5 text-center font-semibold">Bon commande</th>
-                        <th className="px-3 py-2.5 text-center font-semibold">Suivi colis</th>
-                        <th className="px-3 py-2.5 text-center font-semibold">Date</th>
-                        <th className="px-3 py-2.5 text-center font-semibold">Statut</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {selectedPieceMovements.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="py-6 text-center text-slate-400">
-                            Aucun mouvement enregistré pour cette pièce depuis la centrale des stocks.
-                          </td>
+                {selectedPieceMovements.length > 0 && (
+                  <div 
+                    className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                    style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                  >
+                    <table className="w-full text-left font-sans border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Indicateur.</th>
+                          <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Circulation.</th>
+                          <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Raccordement.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Volume.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Suivi du colis.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Date.</th>
+                          <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Situation.</th>
                         </tr>
-                      ) : (
-                        selectedPieceMovements.map((mv) => {
+                      </thead>
+                      <tbody className="bg-white">
+                        {selectedPieceMovements.map((mv, index) => {
                           return (
-                            <tr key={mv.id} className="hover:bg-slate-50 transition-all font-sans text-xs bg-white text-black">
-                              {/* Direction arrow */}
-                              <td className="px-3 py-2.5 bg-white text-black">
-                                <span className="inline-flex items-center gap-1.5 font-bold bg-transparent">
-                                  {mv.type === 'Réapprovisionnement fournisseur' ? (
-                                    <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-200 inline-flex items-center gap-1">
-                                      ↓ Réappro. Fourn.
-                                    </span>
-                                  ) : mv.type === 'Distribution' ? (
-                                    <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 inline-flex items-center gap-1">
-                                      → Cent. vers Empl.
-                                    </span>
-                                  ) : (
-                                    <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200 inline-flex items-center gap-1">
-                                      ← Empl. vers Cent.
-                                    </span>
-                                  )}
+                            <tr 
+                              key={mv.id} 
+                              className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                              style={{ borderBottom: index === selectedPieceMovements.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                            >
+                              {/* Indicator (Pink text with 18px arrow) */}
+                              <td className="px-3 py-2 whitespace-nowrap bg-white text-center" style={{ cursor: 'default' }}>
+                                <span 
+                                  className="inline-flex items-center justify-center font-bold font-sans"
+                                  style={{ 
+                                    color: '#fa53d5',
+                                    fontSize: '18px',
+                                    lineHeight: '1',
+                                    cursor: 'default'
+                                  }}
+                                >
+                                  {mv.type === 'Réapprovisionnement fournisseur' ? '↓' : 
+                                   mv.type === 'Distribution' ? '→' : 
+                                   mv.type === 'Annulation' ? '↑' : '←'}
                                 </span>
                               </td>
-                              {/* Type */}
-                              <td className="px-3 py-2.5 text-slate-700 bg-white">
-                                {mv.type}
+                              {/* Type / Circulation */}
+                              <td 
+                                className="px-3 py-2 bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
+                                {mv.type || ''}
+                              </td>
+                              {/* Raccordement */}
+                              <td 
+                                className="px-3 py-2 bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
+                                {mv.emplacement || ''}
                               </td>
                               {/* Volume */}
-                              <td className="px-3 py-2.5 text-center font-semibold text-slate-900 bg-white">
-                                {mv.volume}
+                              <td 
+                                className="px-3 py-2 text-center bg-white font-semibold text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
+                                {mv.volume !== undefined && mv.volume !== null ? mv.volume : ''}
                               </td>
-                              {/* Bon de commande */}
-                              <td className="px-3 py-2.5 text-center text-slate-700 font-mono text-xs bg-white">
-                                {mv.bonCommande || '-'}
-                              </td>
-                              {/* Suivi Colis */}
-                              <td className="px-3 py-2.5 text-center bg-white text-black text-xs font-semibold">
+                              {/* Suivi du colis */}
+                              <td className="px-3 py-2 text-center bg-white text-black font-semibold" style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}>
                                 {mv.trackingLink ? (
                                   <a
                                     href={mv.trackingLink.startsWith('http') ? mv.trackingLink : `https://${mv.trackingLink}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="text-indigo-600 hover:text-indigo-800 hover:underline px-2.5 py-1 rounded border border-slate-200 bg-slate-50 inline-flex items-center gap-1 font-bold font-sans"
+                                    className="text-[#fa53d5] hover:underline font-bold font-sans"
+                                    style={{ cursor: 'pointer' }}
                                     title="Suivre le colis"
                                   >
-                                    Lien de suivi ↗
+                                    Ouvrir le lien
                                   </a>
                                 ) : (
-                                  <span className="text-slate-400 font-medium">-</span>
+                                  ''
                                 )}
                               </td>
                               {/* Date */}
-                              <td className="px-3 py-2.5 text-center text-slate-500 bg-white">
-                                {mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : '-'}
+                              <td 
+                                className="px-3 py-2 text-center bg-white font-medium text-black"
+                                style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                              >
+                                {mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : ''}
                               </td>
-                              {/* Statut Badge (Read-only as text badge) */}
-                              <td className="px-3 py-2.5 text-center bg-white">
-                                <span className="inline-flex px-2.5 py-1 rounded-md font-bold text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                  {mv.statut}
-                                </span>
+                              {/* Situation */}
+                              <td className="px-3 py-2 text-center bg-white font-medium text-black" style={{ fontSize: '16px', cursor: 'default' }}>
+                                {mv.statut || ''}
                               </td>
                             </tr>
                           );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-
             </div>
           </form>
         </div>

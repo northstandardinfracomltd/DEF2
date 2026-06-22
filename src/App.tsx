@@ -624,14 +624,14 @@ export default function App() {
   const [docAssignedMemberName, setDocAssignedMemberName] = useState('');
   const [docHasBonCommande, setDocHasBonCommande] = useState(false);
   const [docBonCommandeReference, setDocBonCommandeReference] = useState('');
-  const [docBonCommandeLivraison, setDocBonCommandeLivraison] = useState<'Intervention d\'un technicien' | 'Transporteur'>('Transporteur');
+  const [docBonCommandeLivraison, setDocBonCommandeLivraison] = useState<'Intervention' | 'Transporteur'>('Transporteur');
   const [docBonCommandeSituation, setDocBonCommandeSituation] = useState<'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé'>('Ouvert');
 
   const [selectedDocPieceId, setSelectedDocPieceId] = useState('');
   const [customDocPiecePrice, setCustomDocPiecePrice] = useState(0);
   const [customDocPieceQty, setCustomDocPieceQty] = useState(1);
   const [docSearchQuery, setDocSearchQuery] = useState('');
-  const [docTypeFilter, setDocTypeFilter] = useState<'Tous' | 'Devis' | 'Facture'>('Tous');
+  const [docTypeFilter, setDocTypeFilter] = useState<'Tous' | 'Devis' | 'Facture' | 'Bon de commande'>('Tous');
 
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
 
@@ -2268,11 +2268,11 @@ export default function App() {
           baseReviews = fReviews;
         } else {
           const defaultReviews = tenantId === 'demo' ? [
-            { id: 'rev-1', clientName: 'Secours Pro Ouest (Jean-Marc DUPONT)', comment: "Excellent travail ! Le technicien Thierry a été très soigné et a remplacé les piles rapidement en expliquant le fonctionnement du boîtier thermique.", label: 'Excellent' },
-            { id: 'rev-2', clientName: 'Espace Vert Bordeaux (Marc VIGNAL)', comment: "L'intervention s'est déroulée à l'heure convenue. Explications claires et professionnalisme au rendez-vous. Matériel de rechange disponible immédiatement.", label: 'Parfait' },
-            { id: 'rev-3', clientName: 'Gymnase Jean Bouin (Stéphanie LEFEVRE)', comment: "Remplacement de l'appareil effectué comme prévu. Cependant, l'un des autocollants signalétiques était légèrement corné.", label: 'Moyen' },
-            { id: 'rev-4', clientName: 'Hôtel Splendid Nantes', comment: "Le technicien a oublié de nous laisser le document papier de visite, bien que nous l'ayons reçu par e-mail peu après.", label: 'Décevant' },
-            { id: 'rev-5', clientName: 'Camping des Pins', comment: "Délai de passage non respecté deux fois de suite, aucune notification de retard reçue. Nous attendons un geste commercial.", label: 'Médiocre' }
+            { id: 'rev-1', clientName: 'Secours Pro Ouest (Jean-Marc DUPONT)', comment: "Excellent travail ! Le technicien Thierry a été très soigné et a remplacé les piles rapidement en expliquant le fonctionnement du boîtier thermique.", label: 'Excellent', dateStr: '2026-06-20' },
+            { id: 'rev-2', clientName: 'Espace Vert Bordeaux (Marc VIGNAL)', comment: "L'intervention s'est déroulée à l'heure convenue. Explications claires et professionnalisme au rendez-vous. Matériel de rechange disponible immédiatement.", label: 'Parfait', dateStr: '2026-06-19' },
+            { id: 'rev-3', clientName: 'Gymnase Jean Bouin (Stéphanie LEFEVRE)', comment: "Remplacement de l'appareil effectué comme prévu. Cependant, l'un des autocollants signalétiques était légèrement corné.", label: 'Moyen', dateStr: '2026-06-18' },
+            { id: 'rev-4', clientName: 'Hôtel Splendid Nantes', comment: "Le technicien a oublié de nous laisser le document papier de visite, bien que nous l'ayons reçu par e-mail peu après.", label: 'Décevant', dateStr: '2026-06-15' },
+            { id: 'rev-5', clientName: 'Camping des Pins', comment: "Délai de passage non respecté deux fois de suite, aucune notification de retard reçue. Nous attendons un geste commercial.", label: 'Médiocre', dateStr: '2026-06-10' }
           ] : [];
           baseReviews = getFallback<any[]>('customer_reviews', defaultReviews);
         }
@@ -3769,9 +3769,7 @@ export default function App() {
             id="sidebar-btn-settings"
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border-0 cursor-pointer text-white hover:brightness-110 active:scale-[0.98]"
             style={{
-              boxShadow: activeTab === 'parametres'
-                ? 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 10px 15px -3px rgba(53, 86, 236, 0.4), inset 0 6px 12px #ffffff1f'
-                : 'inset 0 1px 1px #fff3, 0 1px 2px #08080822, 0 2px 4px #0808080a',
+              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
               background: '#3556ec',
               fontSize: '18px',
               textTransform: 'none',
@@ -4453,9 +4451,18 @@ export default function App() {
                             const comps = selectedMember?.competences || [];
                             const compsStr = comps.length > 0 ? comps.join(', ') : 'Aucune';
                             return (
-                              <div className="px-5 pb-1 text-sm text-slate-700 font-sans -mt-3">
-                                <span className="font-semibold text-slate-900">Compétences : </span>
-                                <span className="italic text-slate-600">{compsStr}</span>
+                              <div 
+                                style={{
+                                  color: 'rgb(143 51 151)',
+                                  backgroundColor: 'rgb(253 229 255)',
+                                  border: 'none',
+                                  cursor: 'default'
+                                }}
+                                className="font-semibold text-sm px-4 py-3 rounded-xl flex items-center gap-2.5 mx-0.5"
+                              >
+                                <span>
+                                  Compétences : {compsStr}
+                                </span>
                               </div>
                             );
                           })()}
@@ -4529,7 +4536,17 @@ export default function App() {
                                             const formatted = formatDateToFR(rawVal);
                                             if (!formatted || formatted === '-') return null;
                                             return (
-                                              <span key={label} className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10.5px] font-sans border font-medium ${colorClasses}`}>
+                                              <span 
+                                                key={label}
+                                                style={{
+                                                  color: '#fff',
+                                                  fontSize: '14px',
+                                                  padding: '4.5px 15px',
+                                                  border: 'none',
+                                                  background: 'black'
+                                                }}
+                                                className="inline-flex items-center rounded-full font-sans font-medium"
+                                              >
                                                 <span className="font-extrabold mr-1">{label}</span>
                                                 {formatted}
                                               </span>
@@ -5119,47 +5136,53 @@ export default function App() {
 
                                 {/* Série */}
                                 <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                                  <div 
-                                    style={{ 
-                                      display: 'inline-flex', 
-                                      alignItems: 'center', 
-                                      gap: '8px',
-                                      border: '1px solid rgb(231, 231, 231)',
-                                      borderRadius: '1000px',
-                                      padding: '4px 12px',
-                                      backgroundColor: '#ffffff',
-                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
-                                    }} 
-                                    className="whitespace-nowrap font-medium"
-                                  >
-                                    {rep.defibSnapshot?.numeroSerie || '-'}
-                                  </div>
+                                  {rep.defibSnapshot?.numeroSerie && rep.defibSnapshot.numeroSerie.trim() ? (
+                                    <div 
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        border: '1px solid rgb(231, 231, 231)',
+                                        borderRadius: '1000px',
+                                        padding: '4px 12px',
+                                        backgroundColor: '#ffffff',
+                                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                      }} 
+                                      className="whitespace-nowrap font-medium"
+                                    >
+                                      {rep.defibSnapshot.numeroSerie}
+                                    </div>
+                                  ) : null}
                                 </td>
 
                                 {/* Identifiant */}
                                 <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                                  <div 
-                                    style={{ 
-                                      display: 'inline-flex', 
-                                      alignItems: 'center', 
-                                      gap: '8px',
-                                      border: '1px solid rgb(231, 231, 231)',
-                                      borderRadius: '1000px',
-                                      padding: '4px 12px',
-                                      backgroundColor: '#ffffff',
-                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
-                                    }} 
-                                    className="whitespace-nowrap font-medium"
-                                  >
-                                    {rep.defibIdentifiant}
-                                  </div>
+                                  {rep.defibIdentifiant && rep.defibIdentifiant.trim() ? (
+                                    <div 
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        border: '1px solid rgb(231, 231, 231)',
+                                        borderRadius: '1000px',
+                                        padding: '4px 12px',
+                                        backgroundColor: '#ffffff',
+                                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                      }} 
+                                      className="whitespace-nowrap font-medium"
+                                    >
+                                      {rep.defibIdentifiant}
+                                    </div>
+                                  ) : null}
                                 </td>
 
                                 {/* Technicien */}
-                                <td className="px-4 py-5" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                                  <div className="font-medium text-slate-800" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                                    {rep.techName}
-                                  </div>
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  {rep.techName && rep.techName.trim() ? (
+                                    <div className="font-medium text-slate-800 whitespace-nowrap" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                      {rep.techName}
+                                    </div>
+                                  ) : null}
                                 </td>
 
                                 {/* Actions */}
@@ -5175,6 +5198,7 @@ export default function App() {
                                         cursor: rep.validated ? 'not-allowed' : 'pointer',
                                         backgroundColor: rep.validated ? '#cbd5e1' : '#000000',
                                         color: rep.validated ? '#64748b' : '#ffffff',
+                                        boxShadow: rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
                                       }}
                                       className={`${rep.validated ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
@@ -5240,16 +5264,16 @@ export default function App() {
                                       }}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        backgroundColor: rep.validated ? '#f1f5f9' : '#10b981',
-                                        color: rep.validated ? '#94a3b8' : '#ffffff',
-                                        borderColor: rep.validated ? '#e2e8f0' : 'transparent',
-                                        borderWidth: rep.validated ? '1px' : '0px',
-                                        borderStyle: rep.validated ? 'solid' : 'none',
+                                        backgroundColor: rep.validated ? '#cbd5e1' : '#000000',
+                                        color: rep.validated ? '#64748b' : '#ffffff',
+                                        opacity: rep.validated ? 0.35 : 1,
+                                        boxShadow: rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
                                         cursor: rep.validated ? 'not-allowed' : 'pointer',
+                                        border: 'none',
                                       }}
-                                      className={`${rep.validated ? 'cursor-not-allowed text-slate-400' : 'cursor-pointer hover:bg-emerald-600'}`}
+                                      className={`${rep.validated ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
-                                      {rep.validated ? '✓ Validé' : 'Valider'}
+                                      {rep.validated ? 'Validé' : 'Valider'}
                                     </button>
                                     <button
                                       type="button"
@@ -5882,7 +5906,9 @@ export default function App() {
             };
 
             const filtDocs = commercialDocs.filter((doc) => {
-              const matchType = docTypeFilter === 'Tous' || doc.type === docTypeFilter;
+              const matchType =
+                docTypeFilter === 'Tous' ||
+                (docTypeFilter === 'Bon de commande' ? !!doc.hasBonCommande : doc.type === docTypeFilter);
               const query = docSearchQuery.trim().toLowerCase();
               const matchSearch =
                 !query ||
@@ -5939,6 +5965,43 @@ export default function App() {
                     background: none !important;
                     width: 0 !important;
                     height: 0 !important;
+                  }
+                   #devis-tab-container-harmonized input[type="radio"] {
+                    appearance: none !important;
+                    -webkit-appearance: none !important;
+                    width: 18px !important;
+                    height: 18px !important;
+                    border: 1px solid #dedede !important;
+                    border-radius: 50% !important;
+                    outline: none !important;
+                    background-color: #ffffff !important;
+                    cursor: pointer !important;
+                    position: relative !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    transition: all 0.2s ease !important;
+                    margin-right: 6px !important;
+                  }
+                  #devis-tab-container-harmonized input[type="radio"]:hover {
+                    border-color: oklch(0.44 0.16 324.65) !important;
+                    outline: none !important;
+                  }
+                  #devis-tab-container-harmonized input[type="radio"]:checked {
+                    border-color: oklch(0.44 0.16 324.65) !important;
+                    background-color: oklch(0.44 0.16 324.65) !important;
+                    outline: none !important;
+                  }
+                  #devis-tab-container-harmonized input[type="radio"]:checked::after {
+                    content: "" !important;
+                    position: absolute !important;
+                    top: 50% !important;
+                    left: 50% !important;
+                    transform: translate(-50%, -50%) !important;
+                    width: 8px !important;
+                    height: 8px !important;
+                    background-color: #ffffff !important;
+                    border-radius: 50% !important;
                   }
                   #devis-tab-container-harmonized label,
                   #devis-tab-container-harmonized .devis-label-style {
@@ -6008,10 +6071,12 @@ export default function App() {
 
                     {/* Filters Pills Row */}
                     <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="devis-type-pills">
-                      {(['Tous', 'Devis', 'Facture'] as const).map((filterOpt) => {
+                      {(['Tous', 'Devis', 'Facture', 'Bon de commande'] as const).map((filterOpt) => {
                         let count = 0;
                         if (filterOpt === 'Tous') {
                           count = commercialDocs.length;
+                        } else if (filterOpt === 'Bon de commande') {
+                          count = commercialDocs.filter(d => d.hasBonCommande).length;
                         } else {
                           count = commercialDocs.filter(d => d.type === filterOpt).length;
                         }
@@ -6057,10 +6122,12 @@ export default function App() {
                               <tr className="bg-transparent">
                                 <th className="px-4 py-3.5" style={thStyle}>Référence.</th>
                                 <th className="px-4 py-3.5" style={thStyle}>Client.</th>
+                                <th className="px-4 py-3.5" style={thStyle}>Membre attribué.</th>
                                 <th className="px-4 py-3.5" style={thStyle}>Objet ou commentaire.</th>
                                 <th className="px-4 py-3.5" style={thStyle}>Total HT.</th>
                                 <th className="px-4 py-3.5" style={thStyle}>Date.</th>
                                 <th className="px-4 py-3.5 text-center w-28" style={thStyle}>Situation.</th>
+                                <th className="px-4 py-3.5 text-center" style={{ ...thStyle, whiteSpace: 'nowrap' }}>Réf. Bon Comm.</th>
                                 <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions.</th>
                               </tr>
                             </thead>
@@ -6084,6 +6151,11 @@ export default function App() {
                                     {/* Client */}
                                     <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                                       {clientDisplay}
+                                    </td>
+
+                                    {/* Membre attribué. */}
+                                    <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                      {doc.assignedMemberName || ''}
                                     </td>
 
                                     {/* Objet ou commentaire */}
@@ -6123,6 +6195,11 @@ export default function App() {
                                       </span>
                                     </td>
 
+                                    {/* Réf. Bon Comm. */}
+                                    <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                      {doc.hasBonCommande ? (doc.bonCommandeReference || '') : ''}
+                                    </td>
+
                                     {/* Actions */}
                                     <td className="px-4 py-5 text-right whitespace-nowrap bg-transparent" onClick={(e) => e.stopPropagation()}>
                                       <div className="inline-flex gap-2 bg-transparent">
@@ -6136,13 +6213,14 @@ export default function App() {
                                         </button>
                                         <button
                                           type="button"
+                                          disabled={!doc.hasBonCommande}
                                           onClick={() => handleDownloadBonCommande(doc)}
                                           style={{
                                             ...rowActionButton18Style,
-                                            backgroundColor: doc.hasBonCommande ? 'rgba(236, 72, 153, 0.1)' : undefined,
-                                            color: doc.hasBonCommande ? '#ec4899' : undefined
+                                            opacity: doc.hasBonCommande ? 1 : 0.35,
+                                            cursor: doc.hasBonCommande ? 'pointer' : 'not-allowed',
                                           }}
-                                          className="cursor-pointer font-sans"
+                                          className="font-sans"
                                           title={doc.hasBonCommande ? `Bon de commande: ${doc.bonCommandeReference}` : 'Aucun bon de commande pour cette pièce'}
                                         >
                                           Bon de commande
@@ -6500,22 +6578,17 @@ export default function App() {
                       </div>
 
                       {/* Section Bon de commande */}
-                      <div className="border border-slate-200 rounded-2xl p-5 bg-transparent space-y-4 mt-6">
-                        <h4 className="text-sm font-bold text-slate-700 uppercase tracking-wider devis-label-style">
-                          Bon de commande
-                        </h4>
-                        
-                        <div className="flex flex-col gap-2 bg-transparent">
-                          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">
-                            Créer un bon de commande ?
-                          </span>
-                          <div className="flex items-center gap-6 mt-1 bg-transparent">
-                            <label className="flex items-center gap-2 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
-                              <input
-                                type="radio"
-                                name="hasBonCommande"
-                                checked={docHasBonCommande === true}
-                                onChange={() => {
+                      {docStatus !== 'Brouillon' && (
+                        <div className="border border-slate-200 rounded-2xl p-5 bg-transparent space-y-4 mt-6">
+                          
+                          <div className="flex flex-col gap-2 bg-transparent">
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">
+                              Créer un bon de commande ?
+                            </span>
+                            <div className="flex gap-4 mt-1 bg-transparent">
+                              <button
+                                type="button"
+                                onClick={() => {
                                   setDocHasBonCommande(true);
                                   if (!docBonCommandeReference) {
                                     const nextRef = (editingDocId && commercialDocs.find(d => d.id === editingDocId)?.bonCommandeReference) || "";
@@ -6541,83 +6614,90 @@ export default function App() {
                                     }
                                   }
                                 }}
-                                className="w-4 h-4 accent-pink-500"
-                              />
-                              Oui
-                            </label>
-                            
-                            <label className="flex items-center gap-2 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
-                              <input
-                                type="radio"
-                                name="hasBonCommande"
-                                checked={docHasBonCommande === false}
-                                onChange={() => setDocHasBonCommande(false)}
-                                className="w-4 h-4 accent-pink-500"
-                              />
-                              Non
-                            </label>
-                          </div>
-                        </div>
-
-                        {docHasBonCommande && (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3 border-t border-slate-100 bg-transparent animate-fadeIn">
-                            {/* Référence */}
-                            <div className="flex flex-col gap-1 bg-white">
-                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Référence BC.</label>
-                              <input
-                                type="text"
-                                value={docBonCommandeReference}
-                                disabled
-                                className="focus:outline-none bg-slate-50 font-mono text-xs cursor-not-allowed"
-                                placeholder="Générée automatiquement..."
-                              />
+                                className="inline-flex items-center cursor-pointer gap-2 select-none font-sans bg-transparent"
+                                style={{ fontSize: '16px', color: '#000000', border: 'none', padding: 0 }}
+                              >
+                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                                  {docHasBonCommande === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                                </span>
+                                Oui
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setDocHasBonCommande(false)}
+                                className="inline-flex items-center cursor-pointer gap-2 select-none font-sans bg-transparent"
+                                style={{ fontSize: '16px', color: '#000000', border: 'none', padding: 0 }}
+                              >
+                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === false ? 'border-slate-300 bg-white' : 'border-slate-300 bg-white'}`}>
+                                  {docHasBonCommande === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                                </span>
+                                Non
+                              </button>
                             </div>
+                          </div>
 
-                            {/* Livraison Radio buttons */}
-                            <div className="flex flex-col gap-1 bg-white">
-                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Livraison.</label>
-                              <div className="flex items-center gap-4 mt-2 bg-transparent">
-                                <label className="flex items-center gap-1.5 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
-                                  <input
-                                    type="radio"
-                                    name="bcLivraison"
-                                    checked={docBonCommandeLivraison === 'Intervention d\'un technicien'}
-                                    onChange={() => setDocBonCommandeLivraison('Intervention d\'un technicien')}
-                                    className="w-3.5 h-3.5 accent-pink-500"
-                                  />
-                                  Intervention d’un technicien
-                                </label>
-                                <label className="flex items-center gap-1.5 text-xs font-sans text-slate-800 cursor-pointer bg-transparent">
-                                  <input
-                                    type="radio"
-                                    name="bcLivraison"
-                                    checked={docBonCommandeLivraison === 'Transporteur'}
-                                    onChange={() => setDocBonCommandeLivraison('Transporteur')}
-                                    className="w-3.5 h-3.5 accent-pink-500"
-                                  />
-                                  Transporteur
-                                </label>
+                          {docHasBonCommande && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3 bg-transparent animate-fadeIn">
+                              {/* Référence */}
+                              <div className="flex flex-col gap-1 bg-white">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Référence BC.</label>
+                                <input
+                                  type="text"
+                                  value={docBonCommandeReference}
+                                  disabled
+                                  className="focus:outline-none bg-slate-50 font-mono text-xs cursor-not-allowed"
+                                  placeholder="Générée automatiquement..."
+                                />
+                              </div>
+
+                              {/* Livraison Radio buttons */}
+                              <div className="flex flex-col gap-1 bg-white">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Livraison.</label>
+                                <div className="flex gap-4 mt-2 bg-transparent">
+                                  <button
+                                    type="button"
+                                    onClick={() => setDocBonCommandeLivraison('Intervention')}
+                                    className="inline-flex items-center cursor-pointer gap-2 select-none font-sans bg-transparent"
+                                    style={{ fontSize: '16px', color: '#000000', border: 'none', padding: 0 }}
+                                  >
+                                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docBonCommandeLivraison === 'Intervention' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                                      {docBonCommandeLivraison === 'Intervention' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                                    </span>
+                                    Intervention
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDocBonCommandeLivraison('Transporteur')}
+                                    className="inline-flex items-center cursor-pointer gap-2 select-none font-sans bg-transparent"
+                                    style={{ fontSize: '16px', color: '#000000', border: 'none', padding: 0 }}
+                                  >
+                                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docBonCommandeLivraison === 'Transporteur' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                                      {docBonCommandeLivraison === 'Transporteur' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                                    </span>
+                                    Transporteur
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Situation */}
+                              <div className="flex flex-col gap-1 bg-white">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Situation.</label>
+                                <select
+                                  value={docBonCommandeSituation}
+                                  onChange={(e) => setDocBonCommandeSituation(e.target.value as any)}
+                                  className="focus:outline-none"
+                                  required
+                                >
+                                  <option value="Ouvert">Ouvert</option>
+                                  <option value="Envoyé Terminé">Envoyé Terminé</option>
+                                  <option value="Envoyé Logistique">Envoyé Logistique</option>
+                                  <option value="Terminé">Terminé</option>
+                                </select>
                               </div>
                             </div>
-
-                            {/* Situation */}
-                            <div className="flex flex-col gap-1 bg-white">
-                              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Situation.</label>
-                              <select
-                                value={docBonCommandeSituation}
-                                onChange={(e) => setDocBonCommandeSituation(e.target.value as any)}
-                                className="focus:outline-none"
-                                required
-                              >
-                                <option value="Ouvert">Ouvert</option>
-                                <option value="Envoyé Terminé">Envoyé Terminé</option>
-                                <option value="Envoyé Logistique">Envoyé Logistique</option>
-                                <option value="Terminé">Terminé</option>
-                              </select>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                          )}
+                        </div>
+                      )}
 
                     </form>
                   </div>
@@ -6645,6 +6725,7 @@ export default function App() {
               stockSearchQuery={stockSearchQuery}
               setStockSearchQuery={setStockSearchQuery}
               commercialDocs={commercialDocs}
+              achatsFournisseurs={achatsFournisseurs}
             />
           )}
 

@@ -345,6 +345,67 @@ export default function PublicPortal({
     return variables.find(v => v.id === selectedTechStock.denominationPieceId);
   }, [variables, selectedTechStock]);
 
+  // Dynamically calculate outgoing volumes for technician stocks (same as standard form)
+  const getPieceOutgoingStats = useMemo(() => {
+    return (denomPieceId: string) => {
+      const stats = {
+        week1: { vol: 0 },
+        week2: { vol: 0 },
+        next30: { vol: 0 }
+      };
+
+      if (!denomPieceId) return stats;
+
+      const vObj = variables.find(v => v.id === denomPieceId);
+      if (!vObj) return stats;
+
+      const pieceNameLower = vObj.nom.toLowerCase().trim();
+
+      const getDaysDiff = (dateStr: string) => {
+        if (!dateStr) return 999;
+        const base = new Date();
+        base.setHours(0,0,0,0);
+        const target = new Date(dateStr);
+        target.setHours(0,0,0,0);
+        const diffTime = target.getTime() - base.getTime();
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      };
+
+      const activeToursList = (fsmTours || []).filter((t: any) => 
+        t.status === 'Brouillon' || t.status === 'À faire' || t.status === 'En cours'
+      );
+
+      activeToursList.forEach((tour: any) => {
+        const diffDays = getDaysDiff(tour.startDate);
+        const missions = tour.missions || tour.passages || [];
+        
+        missions.forEach((m: any) => {
+          const parts = m.requiredParts || [];
+          const matchCount = parts.filter((p: string) => p && p.toLowerCase().trim() === pieceNameLower).length;
+          
+          if (matchCount > 0) {
+            if (diffDays <= 7) {
+              stats.week1.vol += matchCount;
+            } else if (diffDays > 7 && diffDays <= 14) {
+              stats.week2.vol += matchCount;
+            }
+            
+            if (diffDays > 7 && diffDays <= 30) {
+              stats.next30.vol += matchCount;
+            }
+          }
+        });
+      });
+
+      return stats;
+    };
+  }, [fsmTours, variables]);
+
+  const outgoingStats = useMemo(() => {
+    if (!selectedTechStock) return { week1: { vol: 0 }, week2: { vol: 0 }, next30: { vol: 0 } };
+    return getPieceOutgoingStats(selectedTechStock.denominationPieceId);
+  }, [getPieceOutgoingStats, selectedTechStock]);
+
   const handleAlertLogistique = async () => {
     const logisticsMember = members.find(m => m.adminSubRole === 'Logistique' || m.role?.toLowerCase().includes('logistique'));
     if (!logisticsMember) {
@@ -4542,54 +4603,69 @@ export default function PublicPortal({
               {/* ----------------- TAB: STOCKS ----------------- */}
               {activeTab === 'stocks' && (
                 <div className="space-y-4 pb-16 animate-fadeIn" id="tab-stocks-screen">
-                  {/* Title & info card */}
-                  <div className="bg-[#5d1f74] text-white p-5 rounded-2xl shadow-sm text-center">
-                    <h2 className="text-lg font-extrabold font-sans">Gestion de mon Stock</h2>
-                    <p className="text-[11px] text-white/80 font-sans mt-1">
-                      Suivi et rapatriement du matériel à l'emplacement affecté.
-                    </p>
-                  </div>
+                  {/* Info: Emplacement (Disabled Input en premier, hors d'une div) */}
+                  <input
+                    type="text"
+                    value={techLocationLink || 'Aucun emplacement spécifié'}
+                    disabled
+                    style={{
+                      color: '#000000',
+                      fontSize: '18px',
+                      textAlign: 'center',
+                      borderColor: '#D5D5D5',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderRadius: '13px',
+                      padding: '12px 14px',
+                      backgroundColor: '#ffffff',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      opacity: 1,
+                      WebkitTextFillColor: '#000000'
+                    }}
+                    className="font-sans font-semibold mb-2"
+                  />
 
-                  {/* Section: Emplacement (Disabled Field) */}
-                  <div className="flex flex-col gap-1.5 w-full bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
-                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-widest font-sans">
-                      Mon Emplacement Attribué :
-                    </label>
-                    <input
-                      type="text"
-                      value={techLocationLink || 'Aucun emplacement spécifié'}
-                      disabled
-                      className="w-full bg-slate-50 border border-slate-200 text-slate-700 font-extrabold font-sans text-sm rounded-xl px-3 py-2.5 cursor-not-allowed"
-                    />
-                  </div>
-
-                  {/* Section: Stock Lookup */}
-                  <div className="flex flex-col gap-1.5 w-full bg-white border border-slate-100 p-4 rounded-2xl shadow-xs">
-                    <label className="text-xs font-extrabold text-slate-500 uppercase tracking-widest font-sans">
-                      Sélectionner le stock distribué :
-                    </label>
-                    <select
-                      value={selectedTechDistributedStockId}
-                      onChange={(e) => {
-                        setSelectedTechDistributedStockId(e.target.value);
-                        setShowRapatriementForm(false);
-                      }}
-                      className="w-full bg-white border border-slate-250 text-black font-semibold font-sans text-sm rounded-xl px-3 py-2.5 cursor-pointer focus:border-[#fe4eba] focus:ring-1 focus:ring-[#fe4eba] outline-none"
-                    >
-                      <option value="">-- Choisir une pièce / matériel --</option>
-                      {techActiveStocks.map((item) => {
-                        const matchedCentralStock = stocks.find(s => s.id === item.stockId || s.denominationPieceId === item.denominationPieceId);
-                        const ugs = matchedCentralStock?.ugs || '';
-                        const vObj = variables.find(v => v.id === item.denominationPieceId);
-                        const pieceName = vObj ? vObj.nom : 'Pièce inconnue';
-                        return (
-                          <option key={item.id} value={item.id}>
-                            {pieceName} {ugs ? `(UGS: ${ugs})` : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </div>
+                  {/* Piece / Material Select (hors d'une div, sans titre, style text noir, 18px, center, border D5D5D5, bg white) */}
+                  <select
+                    value={selectedTechDistributedStockId}
+                    onChange={(e) => {
+                      setSelectedTechDistributedStockId(e.target.value);
+                      setShowRapatriementForm(false);
+                    }}
+                    style={{
+                      color: '#000000',
+                      fontSize: '18px',
+                      textAlign: 'center',
+                      textAlignLast: 'center',
+                      borderColor: '#D5D5D5',
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderRadius: '13px',
+                      padding: '12px 14px',
+                      backgroundColor: '#ffffff',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      outline: 'none',
+                    }}
+                    className="font-sans font-semibold mb-2 cursor-pointer"
+                  >
+                    <option value="">-- Choisir une pièce / matériel --</option>
+                    {techActiveStocks.map((item) => {
+                      const matchedCentralStock = stocks.find(s => s.id === item.stockId || s.denominationPieceId === item.denominationPieceId);
+                      const ugs = matchedCentralStock?.ugs || '';
+                      const vObj = variables.find(v => v.id === item.denominationPieceId);
+                      const pieceName = vObj ? vObj.nom : 'Pièce inconnue';
+                      return (
+                        <option key={item.id} value={item.id}>
+                          {pieceName} {ugs ? `(UGS: ${ugs})` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
 
                   {/* Details shown ONLY when a stock is selected */}
                   {selectedTechStock ? (
@@ -4624,104 +4700,180 @@ export default function PublicPortal({
                         </div>
                       </div>
 
-                      {/* Section 2: Mouvements (Logs card-based list) */}
-                      <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 shadow-xs">
-                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                          <h3 className="text-sm font-bold text-slate-800 font-sans">Mouvements de {selectedStockVariable?.nom || 'la pièce'}</h3>
-                          <span className="text-xs font-mono font-bold text-[#fe4eba]">
-                            {(matchedStockRecord?.mouvements || []).length} mvt(s)
-                          </span>
+                      {/* Section: Outgoing Stats (3-col grid below) */}
+                      <div className="grid grid-cols-3 gap-2.5">
+                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
+                          <div className="text-2xl font-extrabold text-red-500 font-sans">
+                            {outgoingStats.week1.vol}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                            Sortant cette semaine
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
+                          <div className="text-2xl font-extrabold text-orange-500 font-sans">
+                            {outgoingStats.week2.vol}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                            Sortant semaine prochaine
+                          </div>
                         </div>
 
-                        <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1 no-scrollbar col-span-full">
-                          {(matchedStockRecord?.mouvements || []).length === 0 ? (
-                            <p className="text-center text-xs text-slate-400 py-4 font-sans">Aucun mouvement enregistré pour ce stock.</p>
-                          ) : (
-                            (matchedStockRecord?.mouvements || []).map((mv) => {
-                              return (
-                                <div 
-                                  key={mv.id} 
-                                  className="p-4 bg-white border rounded-2xl shadow-xs space-y-3 font-sans text-xs text-black"
-                                  style={{ border: '1px solid rgb(201, 190, 205)' }}
-                                >
-                                  <div className="flex items-center justify-between flex-wrap gap-2">
-                                    {/* Direction Badge */}
-                                    <span className="inline-flex items-center gap-1.5 font-bold text-xs">
-                                      {mv.type === 'Réapprovisionnement fournisseur' ? (
-                                        <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
-                                          ↓ Réappro. Fourn.
-                                        </span>
-                                      ) : mv.type === 'Distribution' ? (
-                                        <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                                          → Cent. vers Empl.
-                                        </span>
-                                      ) : (
-                                        <span className="text-blue-700 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                                          ← Empl. vers Cent.
-                                        </span>
-                                      )}
-                                    </span>
-
-                                    {/* Status Badge */}
-                                    <span className={`inline-flex px-2.5 py-1 rounded-lg font-bold text-[10px] border ${
-                                      mv.statut === 'Terminé' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' :
-                                      mv.statut === 'Expédié' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                                      mv.statut === 'Annulé' ? 'bg-red-50 text-red-700 border-red-200' :
-                                      'bg-amber-50 text-amber-750 border-amber-200'
-                                    }`}>
-                                      {mv.statut}
-                                    </span>
-                                  </div>
-
-                                  {/* Table-like aligned grid of info */}
-                                  <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-1 text-slate-700">
-                                    <div>
-                                      Type : <span className="font-semibold text-slate-900">{mv.type}</span>
-                                    </div>
-                                    <div>
-                                      Volume : <span className="font-bold text-[#3556ec]">{mv.volume > 0 ? `+${mv.volume}` : mv.volume} u.</span>
-                                    </div>
-                                    <div>
-                                      Bon commande : <span className="font-mono font-semibold text-slate-900">{mv.bonCommande || '-'}</span>
-                                    </div>
-                                    <div>
-                                      Date : <span className="font-semibold text-slate-950">{mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : '-'}</span>
-                                    </div>
-                                  </div>
-
-                                  {/* Read-only tracking link section */}
-                                  <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                                    <span className="text-slate-400 font-bold uppercase text-[9px] tracking-wider">Suivi colis :</span>
-                                    {mv.trackingLink ? (
-                                      <a
-                                        href={mv.trackingLink.startsWith('http') ? mv.trackingLink : `https://${mv.trackingLink}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-white hover:opacity-90 px-3 py-1.5 rounded-lg bg-[#fe4eba] inline-flex items-center gap-1 font-bold font-sans transition-all"
-                                        title="Suivre le colis"
-                                      >
-                                        Suivre le colis ↗
-                                      </a>
-                                    ) : (
-                                      <span className="text-slate-400 font-medium font-mono">-</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })
-                          )}
+                        <div className="bg-white border border-slate-100 rounded-2xl p-4 text-center shadow-xs">
+                          <div className="text-2xl font-extrabold text-amber-600 font-sans">
+                            {outgoingStats.next30.vol}
+                          </div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase mt-1 font-sans leading-tight">
+                            Sortant 7 à 30 jours
+                          </div>
                         </div>
                       </div>
 
-                      {/* Section 3: Actions (Two side-by-side buttons & sub-form) */}
+                      {/* Section 2: Mouvements (Table layout with scroll horizontally) */}
+                      <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-3 shadow-xs">
+                        <div className="flex bg-white select-none">
+                          <span 
+                            className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                            style={{
+                              color: '#fff',
+                              backgroundColor: '#5f1f66',
+                              fontSize: '16px',
+                              border: 'none',
+                              textTransform: 'none',
+                              letterSpacing: 'normal'
+                            }}
+                          >
+                            Mouvements
+                          </span>
+                        </div>
+
+                        <div 
+                          className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                          style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                        >
+                          <table className="w-full text-left font-sans border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Indicateur.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Circulation.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Raccordement.</th>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Volume.</th>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Suivi du colis.</th>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Date.</th>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap', cursor: 'default' }}>Situation.</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                              {(matchedStockRecord?.mouvements || []).length === 0 ? (
+                                <tr>
+                                  <td colSpan={7} className="text-center text-xs text-slate-400 py-4 font-sans bg-white">
+                                    Aucun mouvement enregistré pour ce stock.
+                                  </td>
+                                </tr>
+                              ) : (
+                                (matchedStockRecord?.mouvements || []).map((mv, index, arr) => {
+                                  return (
+                                    <tr 
+                                      key={mv.id} 
+                                      className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                      style={{ borderBottom: index === arr.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                                    >
+                                      {/* Indicator (Pink text with 18px arrow) */}
+                                      <td className="px-3 py-2 whitespace-nowrap bg-white text-center" style={{ cursor: 'default' }}>
+                                        <span 
+                                          className="inline-flex items-center justify-center font-bold font-sans"
+                                          style={{ 
+                                            color: '#fa53d5',
+                                            fontSize: '18px',
+                                            lineHeight: '1',
+                                            cursor: 'default'
+                                          }}
+                                        >
+                                          {mv.type === 'Réapprovisionnement fournisseur' ? '↓' : 
+                                           mv.type === 'Distribution' ? '→' : 
+                                           mv.type === 'Annulation' ? '↑' : '←'}
+                                        </span>
+                                      </td>
+                                      {/* Type / Circulation */}
+                                      <td 
+                                        className="px-3 py-2 bg-white font-medium text-black"
+                                        style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                                      >
+                                        {mv.type || ''}
+                                      </td>
+                                      {/* Raccordement */}
+                                      <td 
+                                        className="px-3 py-2 bg-white font-medium text-black"
+                                        style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                                      >
+                                        {mv.emplacement || ''}
+                                      </td>
+                                      {/* Volume */}
+                                      <td 
+                                        className="px-3 py-2 text-center bg-white font-semibold text-black"
+                                        style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                                      >
+                                        {mv.volume !== undefined && mv.volume !== null ? mv.volume : ''}
+                                      </td>
+                                      {/* Suivi du colis */}
+                                      <td className="px-3 py-2 text-center bg-white text-black font-semibold font-sans" style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}>
+                                        {mv.trackingLink ? (
+                                          <a
+                                            href={mv.trackingLink.startsWith('http') ? mv.trackingLink : `https://${mv.trackingLink}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[#fa53d5] hover:underline font-bold font-sans"
+                                            style={{ cursor: 'pointer' }}
+                                            title="Suivre le colis"
+                                          >
+                                            Ouvrir le lien
+                                          </a>
+                                        ) : (
+                                          ''
+                                        )}
+                                      </td>
+                                      {/* Date */}
+                                      <td 
+                                        className="px-3 py-2 text-center bg-white font-medium text-black"
+                                        style={{ fontSize: '16px', whiteSpace: 'nowrap', color: '#000000', cursor: 'default' }}
+                                      >
+                                        {mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : ''}
+                                      </td>
+                                      {/* Situation */}
+                                      <td className="px-3 py-2 text-center bg-white font-medium text-black" style={{ fontSize: '16px', cursor: 'default' }}>
+                                        {mv.statut || ''}
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Section 3: Actions (Two side-by-side black styled buttons) */}
                       <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                           <button
                             type="button"
                             onClick={handleAlertLogistique}
-                            className="flex items-center justify-center gap-1.5 py-3.5 bg-red-50 text-red-700 border border-red-200 rounded-xl font-bold font-sans text-xs hover:bg-red-100 transition-colors cursor-pointer"
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#ffffff',
+                              borderRadius: '13px',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              padding: '12px 14px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              width: '100%'
+                            }}
+                            className="font-sans hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center"
                           >
-                            <span>⚠️ Alert</span>
+                            Alert
                           </button>
                           
                           <button
@@ -4733,9 +4885,21 @@ export default function PublicPortal({
                               setRapatrimentStatut('Préparation');
                               setShowRapatriementForm(true);
                             }}
-                            className="flex items-center justify-center gap-1.5 py-3.5 bg-[#e8e9fe] text-indigo-750 border border-indigo-150 rounded-xl font-bold font-sans text-xs hover:bg-indigo-100 transition-colors cursor-pointer"
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#ffffff',
+                              borderRadius: '13px',
+                              fontSize: '18px',
+                              fontWeight: 'bold',
+                              padding: '12px 14px',
+                              border: 'none',
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              width: '100%'
+                            }}
+                            className="font-sans hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center"
                           >
-                            <span>↩️ Tout retourner</span>
+                            Tout retourner
                           </button>
                         </div>
 
@@ -4805,7 +4969,7 @@ export default function PublicPortal({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 pt-2 bg-transparent">
+                            <div className="flex items-center gap-2 pt-2 bg-transparent font-sans">
                               <button
                                 type="button"
                                 onClick={() => setShowRapatriementForm(false)}
@@ -4825,11 +4989,7 @@ export default function PublicPortal({
                         )}
                       </div>
                     </div>
-                  ) : (
-                    <div className="bg-white border border-slate-100 p-8 rounded-2xl text-center shadow-xs text-slate-400 text-xs font-medium font-sans">
-                      Sélectionnez un stock ci-dessus pour afficher ses volumes, ses derniers mouvements et effectuer des opérations logistiques.
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               )}
 

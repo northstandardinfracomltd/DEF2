@@ -912,7 +912,7 @@ export default function GmaoCorrectionForm({
   };
 
   return (
-    <div className={`w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto text-black ${forceSmartphoneLayout ? 'force-smartphone-layout' : ''}`} id="gmao-correction-layout">
+    <div className={`w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto text-black pb-48 ${forceSmartphoneLayout ? 'force-smartphone-layout' : ''}`} id="gmao-correction-layout">
       {/* Header section identical in looks to Defibrillateurs with limited width */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
@@ -3209,8 +3209,19 @@ export default function GmaoCorrectionForm({
 
       </form>
 
-      {/* Sticky Error Code Helper Box */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 mt-6 space-y-3 w-full" style={{ boxShadow: 'none' }} id="error-code-helper-panel">
+      {/* Fixed Error Code Helper Box */}
+      <div 
+        className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 z-40 space-y-3 w-full" 
+        style={{ 
+          boxShadow: '0 -4px 15px rgba(0,0,0,0.06), 0 -1px 2px rgba(0,0,0,0.04)',
+          maxWidth: '1000px',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+          borderTopLeftRadius: '20px',
+          borderTopRightRadius: '20px'
+        }} 
+        id="error-code-helper-panel"
+      >
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-bold text-black">Diagnostic d'un code erreur.</h4>
         </div>

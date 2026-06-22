@@ -3224,23 +3224,17 @@ export default function GmaoCorrectionForm({
       >
         <div className="flex items-center gap-3 w-full">
           <h4 className="text-sm font-bold text-black shrink-0">Diagnostic.</h4>
-          <div className="flex-1 relative">
+          <div className="flex-1">
             <select
               value={selectedErrorCode}
               onChange={(e) => setSelectedErrorCode(e.target.value)}
-              className="w-full p-2 border border-[#dedede] rounded-xl text-xs text-black bg-white focus:outline-hidden focus:border-black pr-8"
-              style={{ appearance: 'none', WebkitAppearance: 'none', MozAppearance: 'none' }}
+              className="w-full p-2 border border-[#dedede] rounded-xl text-xs text-black bg-white focus:outline-hidden focus:border-black"
             >
               <option value="">Sélectionnez un code erreur.</option>
               {ERROR_CODES_DB.map((item, idx) => (
                 <option key={idx} value={item.label}>{item.label}</option>
               ))}
             </select>
-            <div className="absolute inset-y-0 right-2.5 flex items-center pointer-events-none text-slate-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </div>
           </div>
         </div>
 

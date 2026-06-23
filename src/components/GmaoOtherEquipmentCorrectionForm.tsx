@@ -762,7 +762,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
               </span>
             </div>
 
-            {identifiant && (
+            {!isNew && identifiant && (
               <div className="mb-4">
                 <Code39Barcode value={identifiant} />
               </div>

@@ -2701,8 +2701,9 @@ export default function DefibTab({
                         <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Contrat en cours.</label>
                         <select
                           value={contrat || 'Non'}
-                          disabled
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
+                          tabIndex={-1}
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-800 cursor-not-allowed font-sans pointer-events-none select-none"
+                          style={{ backgroundColor: '#ffffff', opacity: 1 }}
                         >
                           <option value="Oui">Oui</option>
                           <option value="Non">Non</option>

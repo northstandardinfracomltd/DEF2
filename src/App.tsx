@@ -5119,6 +5119,7 @@ export default function App() {
                           <tr className="bg-transparent">
                             <th className="px-4 py-3.5 w-10 text-center" style={thStyle}></th>
                             <th className="px-4 py-3.5" style={thStyle}>Horodatage.</th>
+                            <th className="px-4 py-3.5" style={thStyle}>Catégorie matériel.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Série.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Identifiant.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Technicien.</th>
@@ -5128,6 +5129,18 @@ export default function App() {
                         <tbody className="text-slate-700 text-xs">
                           {filteredReports.map((rep) => {
                             const isConforme = (rep.defibSnapshot?.conforme || 'Oui') === 'Oui';
+                            
+                            // Retrieve category name elegantly
+                            const getCategoryName = (r: any) => {
+                              if (r.defibSnapshot?.categorie) {
+                                return r.defibSnapshot.categorie;
+                              }
+                              if (r.title && r.title.trim().toUpperCase().startsWith("RAPPORT TECHNIQUE - ")) {
+                                const raw = r.title.trim().substring(20);
+                                return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+                              }
+                              return "Défibrillateur";
+                            };
 
                             return (
                               <tr key={rep.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
@@ -5142,6 +5155,25 @@ export default function App() {
                                 {/* Date / Horodatage */}
                                 <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                                   {rep.date}
+                                </td>
+
+                                {/* Catégorie matériel */}
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  <div 
+                                    style={{ 
+                                      display: 'inline-flex', 
+                                      alignItems: 'center', 
+                                      gap: '8px',
+                                      border: '1px solid rgb(231, 231, 231)',
+                                      borderRadius: '1000px',
+                                      padding: '4px 12px',
+                                      backgroundColor: '#ffffff',
+                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                    }} 
+                                    className="whitespace-nowrap font-medium"
+                                  >
+                                    {getCategoryName(rep)}
+                                  </div>
                                 </td>
 
                                 {/* Série */}

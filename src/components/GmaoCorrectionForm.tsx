@@ -1287,7 +1287,11 @@ export default function GmaoCorrectionForm({
                     isOpen={isLookupScannerOpen}
                     onClose={() => setIsLookupScannerOpen(false)}
                     onScanSuccess={(scannedText) => {
-                      const textUpper = scannedText.trim().toUpperCase();
+                      let cleanedText = scannedText.trim();
+                      if (cleanedText.startsWith('*') && cleanedText.endsWith('*') && cleanedText.length > 2) {
+                        cleanedText = cleanedText.slice(1, -1);
+                      }
+                      const textUpper = cleanedText.toUpperCase();
                       const matchingDefib = defibrillateurs.find(
                         d => (d.identifiant || '').toUpperCase() === textUpper || (d.numeroSerie || '').toUpperCase() === textUpper
                       );

@@ -79,7 +79,7 @@ function Barcode({ text }: BarcodeProps) {
     <div className="flex flex-col items-center p-2 bg-white max-w-xs mx-auto">
       <svg id={`barcode-${text}`} width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mx-auto block">
         {rects}
-        <text x={svgWidth / 2} y={height + 25} textAnchor="middle" className="font-mono text-[12px] tracking-widest font-semibold fill-black">
+        <text x={svgWidth / 2} y={height + 25} textAnchor="middle" className="font-sans text-[12px] tracking-widest font-semibold fill-black">
           {text}
         </text>
       </svg>

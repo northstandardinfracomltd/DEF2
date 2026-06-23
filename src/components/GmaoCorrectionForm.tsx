@@ -14,6 +14,8 @@ interface GmaoCorrectionFormProps {
   clients: Client[];
   variables: Variable[];
   defibrillateurs: Defibrillateur[];
+  otherEquipments?: any[];
+  onSelectOtherEquipment?: (otherEquipment: any) => void;
   initialDefibId?: string;
   stocks?: StockRecord[];
   members?: Member[];
@@ -264,6 +266,8 @@ export default function GmaoCorrectionForm({
   clients,
   variables,
   defibrillateurs,
+  otherEquipments = [],
+  onSelectOtherEquipment,
   initialDefibId,
   stocks = [],
   members = [],
@@ -538,9 +542,18 @@ export default function GmaoCorrectionForm({
   };
 
   // Sync snapshot when searched lookup Changes
-  const handleDefibLookupChange = (defibId: string) => {
-    setSelectedDefibId(defibId);
-    const defib = defibrillateurs.find(d => d.id === defibId);
+  const handleDefibLookupChange = (val: string) => {
+    if (val.startsWith('OTHER:')) {
+      const otherId = val.substring(6);
+      const matchedOther = otherEquipments.find(o => o.id === otherId);
+      if (matchedOther && onSelectOtherEquipment) {
+        onSelectOtherEquipment(matchedOther);
+      }
+      return;
+    }
+
+    setSelectedDefibId(val);
+    const defib = defibrillateurs.find(d => d.id === val);
     if (defib) {
       setSnapshot({
         ...DEFAULT_DEFIB,
@@ -1235,14 +1248,27 @@ export default function GmaoCorrectionForm({
                   <select
                     value={selectedDefibId}
                     onChange={(e) => handleDefibLookupChange(e.target.value)}
-                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer animate-fadeIn"
                   >
-                    <option value="">-- Choisir un DAE ou Saisir Libre --</option>
-                    {defibrillateurs.map(df => (
-                      <option key={df.id} value={df.id}>
-                        {df.identifiant} - {df.numeroSerie}
-                      </option>
-                    ))}
+                    <option value="">Sélection d'un matériel.</option>
+                    {defibrillateurs.length > 0 && (
+                      <optgroup label="DÉFIBRILLATEURS (DAE)">
+                        {defibrillateurs.map(df => (
+                          <option key={df.id} value={df.id}>
+                            Défibrillateur - {df.identifiant} - {df.numeroSerie || "Sans série"}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherEquipments.length > 0 && (
+                      <optgroup label="AUTRES MATÉRIELS">
+                        {otherEquipments.map(o => (
+                          <option key={o.id} value={`OTHER:${o.id}`}>
+                            {o.categorie || "Autre"} - {o.identifiant} - {o.id.substring(0, 8).toUpperCase()}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   <button
                     type="button"
@@ -1268,7 +1294,14 @@ export default function GmaoCorrectionForm({
                       if (matchingDefib) {
                         handleDefibLookupChange(matchingDefib.id);
                       } else {
-                        setErrorText(`Aucun équipement trouvé avec le code-barres "${scannedText}".`);
+                        const matchingOther = otherEquipments.find(
+                          o => (o.identifiant || '').toUpperCase() === textUpper || (o.id || '').toUpperCase() === textUpper
+                        );
+                        if (matchingOther) {
+                          handleDefibLookupChange(`OTHER:${matchingOther.id}`);
+                        } else {
+                          setErrorText(`Aucun équipement trouvé avec le code-barres "${scannedText}".`);
+                        }
                       }
                       setIsLookupScannerOpen(false);
                     }}

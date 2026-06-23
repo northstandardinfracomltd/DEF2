@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Client } from '../types';
+import { BarcodeScannerModal } from './BarcodeScannerModal';
 
 interface GmaoOtherEquipmentCorrectionFormProps {
   otherEquipment: any;
@@ -7,6 +8,11 @@ interface GmaoOtherEquipmentCorrectionFormProps {
   onCancel: () => void;
   onSave: (payload: any) => void;
   forceSmartphoneLayout?: boolean;
+  isNew?: boolean;
+  otherEquipments?: any[];
+  defibrillateurs?: any[];
+  onSelectDefibrillator?: (defibId: string) => void;
+  onSelectOtherEquipment?: (otherEquipment: any) => void;
 }
 
 const CODE39_PATTERNS: Record<string, string> = {
@@ -224,8 +230,16 @@ export default function GmaoOtherEquipmentCorrectionForm({
   clients,
   onCancel,
   onSave,
-  forceSmartphoneLayout = false
+  forceSmartphoneLayout = false,
+  isNew = false,
+  otherEquipments = [],
+  defibrillateurs = [],
+  onSelectDefibrillator,
+  onSelectOtherEquipment
 }: GmaoOtherEquipmentCorrectionFormProps) {
+  const [isLookupScannerOpen, setIsLookupScannerOpen] = useState(false);
+  const [errorText, setErrorText] = useState("");
+
   // Section 1 - Client fields
   const [clientId, setClientId] = useState(otherEquipment?.clientId || '');
   const [nomPrenomSite, setNomPrenomSite] = useState(otherEquipment?.nomPrenomSite || '');
@@ -277,6 +291,66 @@ export default function GmaoOtherEquipmentCorrectionForm({
   const [photoUrl, setPhotoUrl] = useState(otherEquipment?.photoUrl || '');
   const [techSignature, setTechSignature] = useState(otherEquipment?.techSignature || '');
   const [endTimeStamp, setEndTimeStamp] = useState(otherEquipment?.endTimeStamp || '');
+
+  useEffect(() => {
+    if (otherEquipment) {
+      setClientId(otherEquipment.clientId || '');
+      setNomPrenomSite(otherEquipment.nomPrenomSite || '');
+      setTelephoneSite(otherEquipment.telephoneSite || '');
+      setEmailSite(otherEquipment.emailSite || '');
+      setContrat(otherEquipment.contrat || 'Oui');
+      setNomContrat(otherEquipment.nomContrat || '');
+      setReferenceContrat(otherEquipment.referenceContrat || '');
+      setDebutContrat(otherEquipment.debutContrat || '');
+      setFinContrat(otherEquipment.finContrat || '');
+      
+      const cl = clients.find(c => c.id === (otherEquipment.clientId || ''));
+      setClientSearchText(cl ? `${cl.denomination} (${cl.siret || cl.id})` : '');
+      
+      setNumeroVoie(otherEquipment.numeroVoie || '');
+      setVille(otherEquipment.ville || '');
+      setCodePostal(otherEquipment.codePostal || '');
+      setRegion(otherEquipment.region || '');
+      setPays(otherEquipment.pays || 'France');
+      setLatitude(otherEquipment.latitude || '');
+      setLongitude(otherEquipment.longitude || '');
+      setAideAcces(otherEquipment.aideAcces || '');
+      setAccesPermanent(otherEquipment.accesPermanent || 'Oui');
+      setAccesJoursOuvres(otherEquipment.accesJoursOuvres || 'Oui');
+      setAccesWeekend(otherEquipment.accesWeekend || 'Non');
+      setInstalleExterieur(otherEquipment.installeExterieur || 'Non');
+      
+      setExpirationGarantie(otherEquipment.expirationGarantie || '');
+      setFabrication(otherEquipment.fabrication || '');
+      setMiseEnService(otherEquipment.miseEnService || '');
+      setDerniereMaintenance(otherEquipment.derniereMaintenance || '');
+      setSortieUsine(otherEquipment.sortieUsine || '');
+      setProchaineMaintenance(otherEquipment.prochaineMaintenance || '');
+      
+      setCategorie(otherEquipment.categorie || 'Extincteur');
+      setIdentifiant(otherEquipment.identifiant || '');
+      setSpecifiques(otherEquipment.specifiques || {});
+      setPhotoUrl(otherEquipment.photoUrl || '');
+      setTechSignature(otherEquipment.techSignature || '');
+      setEndTimeStamp(otherEquipment.endTimeStamp || '');
+    }
+  }, [otherEquipment, clients]);
+
+  const handleEqLookupChange = (val: string) => {
+    setErrorText('');
+    if (!val) return;
+    if (val.startsWith('OTHER:')) {
+      const otherId = val.substring(6);
+      const matchedOther = otherEquipments.find(o => o.id === otherId);
+      if (matchedOther && onSelectOtherEquipment) {
+        onSelectOtherEquipment(matchedOther);
+      }
+    } else {
+      if (onSelectDefibrillator) {
+        onSelectDefibrillator(val);
+      }
+    }
+  };
   
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -584,6 +658,98 @@ export default function GmaoOtherEquipmentCorrectionForm({
         `}</style>
              <form onSubmit={handleSubmit} id="other-eq-core-form" className="space-y-4">
           
+          {/* SECTION 0 - CONFIGURATION */}
+          {isNew && (
+            <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }} id="other-report-conf-box">
+              <div className="mb-2">
+                <span 
+                  className="text-white px-3 py-1 text-[13px] inline-block font-semibold" 
+                  style={{ 
+                    backgroundColor: 'oklch(0.44 0.16 324.65)', 
+                    borderRadius: '1000px',
+                    fontFamily: 'Inter, sans-serif',
+                    fontWeight: 100,
+                    textTransform: 'none',
+                  }}
+                >
+                  0 — Configuration
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                  Sélectionner un équipement.
+                </label>
+                <div className="flex gap-1.5 animate-fadeIn">
+                  <select
+                    value={`OTHER:${otherEquipment?.id}`}
+                    onChange={(e) => handleEqLookupChange(e.target.value)}
+                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélection d'un matériel.</option>
+                    {defibrillateurs.length > 0 && (
+                      <optgroup label="DÉFIBRILLATEURS (DAE)">
+                        {defibrillateurs.map(df => (
+                          <option key={df.id} value={df.id}>
+                            Défibrillateur - {df.identifiant} - {df.numeroSerie || "Sans série"}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                    {otherEquipments.length > 0 && (
+                      <optgroup label="AUTRES MATÉRIELS">
+                        {otherEquipments.map(o => (
+                          <option key={o.id} value={`OTHER:${o.id}`}>
+                            {o.categorie || "Autre"} - {o.identifiant} - {o.id.substring(0, 8).toUpperCase()}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setErrorText('');
+                      setIsLookupScannerOpen(true);
+                    }}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans bg-black text-white hover:bg-neutral-900"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {errorText && (
+                  <p className="text-red-500 text-xs font-bold mt-1">{errorText}</p>
+                )}
+                {isLookupScannerOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isLookupScannerOpen}
+                    onClose={() => setIsLookupScannerOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      const textUpper = scannedText.trim().toUpperCase();
+                      const matchingDefib = defibrillateurs.find(
+                        d => (d.identifiant || '').toUpperCase() === textUpper || (d.numeroSerie || '').toUpperCase() === textUpper
+                      );
+                      if (matchingDefib) {
+                        handleEqLookupChange(matchingDefib.id);
+                      } else {
+                        const matchingOther = otherEquipments.find(
+                          o => (o.identifiant || '').toUpperCase() === textUpper || (o.id || '').toUpperCase() === textUpper
+                        );
+                        if (matchingOther) {
+                          handleEqLookupChange(`OTHER:${matchingOther.id}`);
+                        } else {
+                          setErrorText(`Aucun équipement trouvé avec le code-barres "${scannedText}".`);
+                        }
+                      }
+                      setIsLookupScannerOpen(false);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* SECTION 1 - CATÉGORIE ET IDENTIFIANT */}
           <div className="bg-white p-5 space-y-3" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px' }}>
             <div className="mb-2">

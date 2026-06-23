@@ -2719,6 +2719,18 @@ export default function PublicPortal({
                     otherEquipment={selectedOtherEquipmentUnique}
                     clients={clients}
                     forceSmartphoneLayout={true}
+                    isNew={true}
+                    otherEquipments={otherEquipments}
+                    defibrillateurs={defibrillateurs}
+                    onSelectDefibrillator={(defibId) => {
+                      setSelectedOtherEquipmentUnique(null);
+                      setSelectedDefibId(defibId);
+                      const defib = defibrillateurs.find(d => d.id === defibId);
+                      if (defib) setSelectedDefibData(defib);
+                    }}
+                    onSelectOtherEquipment={(otherEq) => {
+                      setSelectedOtherEquipmentUnique(otherEq);
+                    }}
                     onCancel={() => {
                       setIsReportOverlayOpen(false);
                       setSelectedOtherEquipmentUnique(null);
@@ -2747,11 +2759,11 @@ export default function PublicPortal({
                             return {
                               ...t,
                               passages: t.passages.map(p => {
-                                if (p.num === reportActivePassageNum) {
-                                  return { ...p, status: 'Effectué' };
-                                }
-                                return p;
-                              })
+                                  if (p.num === reportActivePassageNum) {
+                                    return { ...p, status: 'Effectué' };
+                                  }
+                                  return p;
+                                })
                             };
                           }
                           return t;
@@ -2772,6 +2784,10 @@ export default function PublicPortal({
                     clients={clients}
                     variables={variables}
                     defibrillateurs={defibrillateurs}
+                    otherEquipments={otherEquipments}
+                    onSelectOtherEquipment={(otherEq) => {
+                      setSelectedOtherEquipmentUnique(otherEq);
+                    }}
                     initialDefibId={selectedDefibId}
                     stocks={stocks}
                     forceSmartphoneLayout={true}
@@ -3062,7 +3078,7 @@ export default function PublicPortal({
                       onChange={(e) => handleDefibLookupChange(e.target.value)}
                       className="w-full px-2.5 py-2.5 bg-slate-55 border border-slate-220 rounded-xl text-xs text-slate-800 font-bold cursor-pointer focus:outline-hidden focus:border-indigo-500"
                     >
-                      <option value="">-- Choisir un DAE ou Saisir Libre --</option>
+                      <option value="">Sélection d'un matériel.</option>
                       {defibrillateurs.map(df => (
                         <option key={df.id} value={df.id}>
                           {df.identifiant} - {df.numeroSerie}

@@ -977,15 +977,20 @@ export default function SettingsModal({
 
             {showDisableOtherEquipmentsConfirmation && (
               <div 
-                className="mt-3 p-4 rounded-xl space-y-3 border transition-all animate-fadeIn"
+                className="mt-3 p-5 rounded-[13px] space-y-4 transition-all animate-fadeIn"
                 style={{
-                  backgroundColor: '#fffdfd',
-                  borderColor: '#fca5a5',
+                  backgroundColor: '#fde5ff',
+                  border: 'none',
                 }}
               >
                 <p 
-                  className="font-sans font-medium text-red-600"
-                  style={{ fontSize: '15px', lineHeight: '1.4' }}
+                  style={{ 
+                    fontSize: '18px', 
+                    lineHeight: '1.4',
+                    color: '#973e9e',
+                    fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                  }}
+                  className="font-bold"
                 >
                   Souhaitez-vous faire clôture votre extension, cela engendre la suppression de ces données.
                 </p>
@@ -995,7 +1000,17 @@ export default function SettingsModal({
                     onClick={() => {
                       setShowDisableOtherEquipmentsConfirmation(false);
                     }}
-                    className="px-4 py-2 rounded-xl border border-slate-300 bg-white text-slate-700 font-semibold hover:bg-slate-50 transition-all font-sans cursor-pointer text-sm"
+                    style={{
+                      backgroundColor: '#000000',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '18px',
+                      borderRadius: '13px',
+                      padding: '10px 20px',
+                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                      cursor: 'pointer',
+                    }}
+                    className="font-bold select-none transition-all hover:opacity-90 active:scale-[0.98]"
                   >
                     Annuler
                   </button>
@@ -1008,10 +1023,17 @@ export default function SettingsModal({
                       onClearOtherEquipments?.();
                       setShowDisableOtherEquipmentsConfirmation(false);
                     }}
-                    className="px-4 py-2 rounded-xl text-white font-semibold transition-all font-sans cursor-pointer text-sm hover:opacity-90"
                     style={{
-                      backgroundColor: '#ef4444'
+                      backgroundColor: '#000000',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '18px',
+                      borderRadius: '13px',
+                      padding: '10px 20px',
+                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                      cursor: 'pointer',
                     }}
+                    className="font-bold select-none transition-all hover:opacity-90 active:scale-[0.98]"
                   >
                     Confirmer
                   </button>

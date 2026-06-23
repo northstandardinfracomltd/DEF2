@@ -589,15 +589,38 @@ export default function PublicPortal({
       (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const isAndroid = /Android/i.test(navigator.userAgent);
     const encodedAddress = encodeURIComponent(address);
-    if (isIOS) {
-      window.location.href = `maps://maps.apple.com/?q=${encodedAddress}`;
-    } else if (isAndroid) {
-      window.location.href = `geo:0,0?q=${encodedAddress}`;
+
+    const app = defaultNavApp || "apple-maps";
+
+    if (app === "waze") {
+      if (isIOS) {
+        window.location.href = `waze://?q=${encodedAddress}&navigate=yes`;
+      } else {
+        window.location.href = `https://waze.com/ul?q=${encodedAddress}&navigate=yes`;
+      }
+    } else if (app === "google-maps") {
+      if (isIOS) {
+        window.location.href = `comgooglemaps://?q=${encodedAddress}&navigate=yes`;
+      } else if (isAndroid) {
+        window.location.href = `geo:0,0?q=${encodedAddress}`;
+      } else {
+        window.open(
+          `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`,
+          "_blank",
+        );
+      }
     } else {
-      window.open(
-        `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`,
-        "_blank",
-      );
+      // Default / apple-maps
+      if (isIOS) {
+        window.location.href = `maps://maps.apple.com/?q=${encodedAddress}`;
+      } else if (isAndroid) {
+        window.location.href = `geo:0,0?q=${encodedAddress}`;
+      } else {
+        window.open(
+          `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`,
+          "_blank",
+        );
+      }
     }
   };
 
@@ -2374,6 +2397,7 @@ export default function PublicPortal({
   const [routeOptimization, setRouteOptimization] = useState(
     "Aller au plus proche d'abord",
   );
+  const [defaultNavApp, setDefaultNavApp] = useState("apple-maps");
 
   // Autopopulate technician location details on login / select tab
   useEffect(() => {
@@ -2398,8 +2422,12 @@ export default function PublicPortal({
       const savedOpt = localStorage.getItem(
         `defib_${envId}_tech_optimization_${authenticatedUser.name}`,
       );
+      const savedNavApp = localStorage.getItem(
+        `defib_${envId}_tech_nav_app_${authenticatedUser.name}`,
+      );
       if (savedStart) setTechStartAddress(savedStart);
       if (savedOpt) setRouteOptimization(savedOpt);
+      if (savedNavApp) setDefaultNavApp(savedNavApp);
     }
   }, [authenticatedUser, activeTab, members]);
 
@@ -2809,7 +2837,7 @@ export default function PublicPortal({
       };
 
       savePointages(updated);
-      alert("Pointage arrêté ! Période enregistrée dans votre historique.");
+      alert("Pointage arrêté avec succès.");
     } else {
       // Starting new Pointage
       const newLog: PointageLog = {
@@ -2824,9 +2852,7 @@ export default function PublicPortal({
       };
 
       savePointages([newLog, ...pointages]);
-      alert(
-        "Période de travail commencée. Le chronomètre est lancé ! Keep safe.",
-      );
+      alert("Pointage démarré avec succès.");
     }
   };
 
@@ -2892,7 +2918,7 @@ export default function PublicPortal({
     setExpenseHt("");
     setExpenseTva("");
     setExpensePhotoUrl("");
-    alert("Frais de ticket de caisse soumis avec succès !");
+    alert("Enregistré avec succès.");
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -2926,6 +2952,10 @@ export default function PublicPortal({
     localStorage.setItem(
       `defib_${envId}_tech_optimization_${authenticatedUser.name}`,
       routeOptimization,
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_nav_app_${authenticatedUser.name}`,
+      defaultNavApp,
     );
     localStorage.setItem(
       `defib_tech_location_link_${authenticatedUser.name}`,
@@ -5510,6 +5540,25 @@ export default function PublicPortal({
                         </div>
                       )}
 
+                      {/* Info warning if work pointage is not in progress and a tour is selected */}
+                      {selectedTourId && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
+                        <div className="px-1 animate-fadeIn">
+                          <div
+                            style={{
+                              backgroundColor: "#fde5ff",
+                              color: "#973e9e",
+                              borderRadius: "13px",
+                              fontSize: "18px",
+                              border: "none",
+                              boxShadow: "none",
+                            }}
+                            className="p-4 font-bold text-center select-none"
+                          >
+                            Attention, vous n’avez pas démarré le pointage du temps de travail.
+                          </div>
+                        </div>
+                      )}
+
                       {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
                       <div className="px-1 select-none">
                         <select
@@ -6123,7 +6172,7 @@ export default function PublicPortal({
                     }}
                     className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 font-bold"
                   >
-                    Nouveau Rapport Spontané
+                    Nouveau rapport spontané
                   </button>
 
                   <div className="space-y-4">
@@ -6366,7 +6415,7 @@ export default function PublicPortal({
                               color: "#973e9e",
                             }}
                           >
-                            Disponible
+                            Disponible et avec vous
                           </div>
                         </div>
 
@@ -6397,7 +6446,7 @@ export default function PublicPortal({
                               color: "#973e9e",
                             }}
                           >
-                            Réservé
+                            Réservé et avec vous
                           </div>
                         </div>
 
@@ -6428,7 +6477,7 @@ export default function PublicPortal({
                               color: "#973e9e",
                             }}
                           >
-                            Entrant
+                            Entrant via la centrale
                           </div>
                         </div>
 
@@ -7075,25 +7124,25 @@ export default function PublicPortal({
                         {isTracking && (
                           <div
                             style={{
-                              backgroundColor: "#f5ceff",
-                              color: "#651c78",
+                              backgroundColor: "#fde5ff",
+                              color: "#973e9e",
                             }}
-                            className="p-4 rounded-xl text-center space-y-1.5"
+                            className="p-5 rounded-2xl text-center space-y-2"
                           >
                             <span
                               style={{
-                                fontSize: "16px",
-                                color: "#651c78",
+                                fontSize: "18px",
+                                color: "#973e9e",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
-                              className="font-semibold block"
+                              className="font-normal block"
                             >
                               Calcul du temps de travail.
                             </span>
                             <div
                               style={{
-                                fontSize: "24px",
-                                color: "#651c78",
+                                fontSize: "18px",
+                                color: "#973e9e",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
                               className="font-bold"
@@ -7102,11 +7151,11 @@ export default function PublicPortal({
                             </div>
                             <p
                               style={{
-                                fontSize: "16px",
-                                color: "#651c78",
+                                fontSize: "18px",
+                                color: "#973e9e",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
-                              className="font-semibold"
+                              className="font-bold"
                             >
                               Débuté à {activePointage?.startTime}
                             </p>
@@ -7180,8 +7229,9 @@ export default function PublicPortal({
                                       outline: "none",
                                       boxSizing: "border-box",
                                       width: "100%",
-                                      maxWidth: "240px",
+                                      maxWidth: "160px",
                                       display: "block",
+                                      textAlign: "center",
                                     }}
                                     className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                     onChange={(e) =>
@@ -7195,7 +7245,7 @@ export default function PublicPortal({
                                     }
                                   />
                                 </div>
-
+ 
                                 <div className="grid grid-cols-2 gap-3 max-w-[320px] mx-auto w-full">
                                   <div className="space-y-1.5 flex flex-col items-center w-full">
                                     <label
@@ -7215,8 +7265,9 @@ export default function PublicPortal({
                                         outline: "none",
                                         boxSizing: "border-box",
                                         width: "100%",
-                                        maxWidth: "140px",
+                                        maxWidth: "100px",
                                         display: "block",
+                                        textAlign: "center",
                                       }}
                                       className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                       onChange={(e) =>
@@ -7248,8 +7299,9 @@ export default function PublicPortal({
                                         outline: "none",
                                         boxSizing: "border-box",
                                         width: "100%",
-                                        maxWidth: "140px",
+                                        maxWidth: "100px",
                                         display: "block",
+                                        textAlign: "center",
                                       }}
                                       className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                       onChange={(e) =>
@@ -7324,7 +7376,7 @@ export default function PublicPortal({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    alert("Pointage enregistré avec succès !")
+                                    alert("Pointage enregistré avec succès.")
                                   }
                                   style={{
                                     backgroundColor: "#000000",
@@ -7548,32 +7600,6 @@ export default function PublicPortal({
                             <>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const win = window.open();
-                                  if (win) {
-                                    win.document.write(
-                                      `<iframe src="${expensePhotoUrl}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`,
-                                    );
-                                  }
-                                }}
-                                style={{
-                                  backgroundColor: "#000000",
-                                  color: "#fff",
-                                  fontSize: "18px",
-                                  fontWeight: "bold",
-                                  borderRadius: "12px",
-                                  padding: "9px 18px",
-                                  border: "none",
-                                  boxShadow:
-                                    "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
-                                  cursor: "pointer",
-                                }}
-                                className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
-                              >
-                                Aperçu
-                              </button>
-                              <button
-                                type="button"
                                 onClick={() => setExpensePhotoUrl("")}
                                 style={{
                                   backgroundColor: "#dc2626",
@@ -7716,6 +7742,41 @@ export default function PublicPortal({
                           </option>
                           <option value="Aller au plus loin d'abord">
                             Se rendre d'abord au plus éloigné.
+                          </option>
+                        </select>
+                      </div>
+
+                      {/* Navigation App selector */}
+                      <div className="space-y-1.5">
+                        <label
+                          style={{ fontSize: "16px" }}
+                          className="block font-bold text-black select-none"
+                        >
+                          Application de navigation par défaut. *
+                        </label>
+                        <select
+                          value={defaultNavApp}
+                          onChange={(e) => setDefaultNavApp(e.target.value)}
+                          style={{
+                            fontSize: "16px",
+                            padding: "14px",
+                            borderRadius: "13px",
+                            border: "1px solid #dedede",
+                            outline: "none",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                            MozAppearance: "none",
+                          }}
+                          className="w-full bg-white font-semibold cursor-pointer focus:border-indigo-500"
+                        >
+                          <option value="apple-maps">
+                            Apple Maps
+                          </option>
+                          <option value="google-maps">
+                            Google Maps
+                          </option>
+                          <option value="waze">
+                            Waze
                           </option>
                         </select>
                       </div>

@@ -632,19 +632,21 @@ export default function ClientPortal({
   const renderEditField = (label: string, value: string, onChange: (val: string) => void) => {
     return (
       <div className="space-y-1">
-        <span className="block text-xs font-semibold text-slate-700 font-sans">
+        <span className="block text-[18px] font-bold text-black font-sans select-none">
           {label}
         </span>
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all"
+          placeholder={label}
+          className="w-full text-[18px] text-black bg-white focus:outline-none transition-all placeholder:text-gray-400 font-sans"
           style={{
             border: '1px solid #cfcfcf',
             borderRadius: '11px',
             padding: '10px 14px',
-            fontWeight: 100
+            fontWeight: 100,
+            height: '48px'
           }}
         />
       </div>
@@ -1496,21 +1498,24 @@ export default function ClientPortal({
     return (
       <div className="space-y-1">
         <span 
-          className="block font-semibold select-none"
-          style={{ color: 'black', fontSize: '16px', textTransform: 'none' }}
+          className="block font-bold select-none font-sans"
+          style={{ color: 'black', fontSize: '18px', textTransform: 'none' }}
         >
           {labelWithPeriod}
         </span>
         <div 
-          className="select-text"
+          className="select-text font-sans"
           style={{ 
-            fontSize: '16px', 
+            fontSize: '18px', 
             color: isMaterial ? '#772a7e' : 'black', 
             fontWeight: isMaterial ? 'bold' : 100,
             border: isMaterial ? 'none' : '1px solid #cfcfcf',
             borderRadius: '13px',
-            padding: '12px 15px',
+            padding: '10px 14px',
             cursor: 'default',
+            minHeight: '48px',
+            display: 'flex',
+            alignItems: 'center',
             backgroundColor: isMaterial ? 'rgb(253 234 255)' : '#ffffff'
           }}
         >
@@ -1851,7 +1856,6 @@ export default function ClientPortal({
                         style={{
                           backgroundColor: '#000000',
                           color: '#ffffff',
-                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                           borderRadius: '13px',
                           fontSize: '18px',
                           padding: '10px 20px',
@@ -1931,7 +1935,6 @@ export default function ClientPortal({
                             style={{
                               backgroundColor: '#3556ec',
                               color: '#ffffff',
-                              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
                               borderRadius: '13px',
                               fontSize: '18px',
                               padding: '10px 20px',
@@ -2063,20 +2066,12 @@ export default function ClientPortal({
                             borderRadius: '11px',
                             fontSize: '18px',
                             height: '48px',
-                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                           }}
                         >
                           Enregistrer
                         </button>
                       </div>
                     </div>
-                    {pointageSuccess && (
-                      <div className="mt-2 text-left">
-                        <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
-                          ✓ Pointage enregistré avec succès !
-                        </span>
-                      </div>
-                    )}
                   </form>
                 )}
               </div>
@@ -2090,13 +2085,13 @@ export default function ClientPortal({
                     <table className="w-full text-left font-sans text-sm border-collapse">
                       <thead>
                         <tr className="text-black font-bold font-sans" style={{ fontSize: '18px' }}>
-                          <th className="py-3 px-2">Date du pointage</th>
-                          <th className="py-3 px-2">Matériel concerné</th>
-                          <th className="py-3 px-2">Identifiant</th>
-                          <th className="py-3 px-2">Statut / Commentaire</th>
+                          <th className="py-3 px-2">Date.</th>
+                          <th className="py-3 px-2">Matériel.</th>
+                          <th className="py-3 px-2">Identifiant.</th>
+                          <th className="py-3 px-2">Situation.</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody>
                         {[...pointagesAutoVigilance]
                           .filter(p => p.clientId === authenticatedClient?.id)
                           .sort((a, b) => b.date.localeCompare(a.date))
@@ -2174,44 +2169,37 @@ export default function ClientPortal({
                   <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
                     Contrat.
                   </h3>
-                  <p className="text-xs text-slate-500 font-sans mt-1">
-                    Retrouvez ci-dessous les détails de votre contrat, la rédaction contractuelle de la maintenance, et signez votre contrat en ligne.
-                  </p>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                    Rédaction du contrat de maintenance.
-                  </label>
-                  <textarea
-                    value={portalRedactionContrat || "Aucun texte contractuel rédigé pour le moment."}
-                    readOnly={true}
-                    disabled={true}
-                    rows={6}
-                    className="w-full text-slate-700 bg-slate-50 p-3 text-sm focus:outline-none rounded-xl border border-slate-200"
-                  />
+                  <div 
+                    className="w-full text-black font-sans whitespace-pre-wrap select-text"
+                    style={{ fontSize: '16px' }}
+                  >
+                    {portalRedactionContrat || "Aucun texte contractuel rédigé pour le moment."}
+                  </div>
                 </div>
 
                 {/* 3 columns on desktop for Signature details */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-start">
                   {/* Date de signature */}
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Date de signature.
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      Date.
                     </label>
                     <input
                       type="date"
                       value={portalDateSignatureContrat}
                       onChange={(e) => setPortalDateSignatureContrat(e.target.value)}
                       disabled={!!authenticatedClient?.signatureClientContratImage}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                     />
                   </div>
 
                   {/* Signé par */}
                   <div className="space-y-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Signé par.
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      Signataire.
                     </label>
                     <input
                       type="text"
@@ -2219,22 +2207,16 @@ export default function ClientPortal({
                       onChange={(e) => setPortalSigneParContrat(e.target.value)}
                       disabled={!!authenticatedClient?.signatureClientContratImage}
                       placeholder="Nom du signataire"
-                      className="w-full border border-slate-200 rounded-xl p-3 text-sm text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans"
                     />
                   </div>
 
                   {/* Signature du client */}
                   <div className="space-y-1 flex flex-col">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Signature du client.
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      Signature.
                     </label>
-                    <div 
-                      className="bg-slate-50/50 flex flex-col items-center justify-center p-2"
-                      style={{
-                        border: '1px dashed rgb(200, 200, 200)',
-                        borderRadius: '11px',
-                      }}
-                    >
+                    <div className="flex flex-col items-center justify-center p-2 bg-transparent">
                       {authenticatedClient?.signatureClientContratImage ? (
                         <div className="bg-white border border-slate-200 rounded-lg p-1 w-[320px] h-[120px] flex items-center justify-center">
                           <img 
@@ -2336,14 +2318,11 @@ export default function ClientPortal({
                   borderRadius: '13px',
                 }}
               >
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
-                      Contacts de l'établissement / Site
+                    <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
+                      Contacts.
                     </h3>
-                    <p className="text-xs text-slate-500 font-sans mt-1">
-                      Retrouvez ci-dessous la liste des contacts enregistrés pour votre établissement.
-                    </p>
                   </div>
                   {!isEditingContacts ? (
                     <button
@@ -2354,7 +2333,7 @@ export default function ClientPortal({
                         backgroundColor: '#000000',
                         borderRadius: '13px',
                         fontSize: '18px',
-                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                        boxShadow: 'none',
                       }}
                     >
                       Modifier les contacts
@@ -2363,8 +2342,12 @@ export default function ClientPortal({
                     <div className="flex gap-2 self-stretch sm:self-auto justify-end">
                       <button
                         onClick={handleSaveContacts}
-                        className="px-4 py-2 text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none"
-                        style={{ backgroundColor: '#22c55e' }}
+                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
+                        style={{
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                        }}
                       >
                         Enregistrer
                       </button>
@@ -2399,7 +2382,12 @@ export default function ClientPortal({
                           }
                           setIsEditingContacts(false);
                         }}
-                        className="px-4 py-2 bg-[#ef4444] text-white text-sm font-bold rounded-xl transition-all cursor-pointer outline-none border-none"
+                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
+                        style={{
+                          backgroundColor: '#000000',
+                          borderRadius: '13px',
+                          fontSize: '18px',
+                        }}
                       >
                         Annuler
                       </button>
@@ -2410,50 +2398,65 @@ export default function ClientPortal({
                 {!isEditingContacts ? (
                   <div className="space-y-6">
                     {/* Contact 1 */}
-                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 1 {c1Type ? `(${c1Type})` : ''}</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {renderField('Contact', c1Nom || '-')}
+                    <div className="pb-4">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 1
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderField('Type du contact', c1Type || '-')}
+                        {renderField('Nom & Prénom', c1Nom || '-')}
                         {renderField('Téléphone', c1Tel || '-')}
                         {renderField('Email', c1Email || '-')}
                       </div>
                     </div>
 
                     {/* Contact 2 */}
-                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 2 {c2Type ? `(${c2Type})` : ''}</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {renderField('Contact', c2Nom || '-')}
+                    <div className="pb-4">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 2
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderField('Type du contact', c2Type || '-')}
+                        {renderField('Nom & Prénom', c2Nom || '-')}
                         {renderField('Téléphone', c2Tel || '-')}
                         {renderField('Email', c2Email || '-')}
                       </div>
                     </div>
 
                     {/* Contact 3 */}
-                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 3 {c3Type ? `(${c3Type})` : ''}</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {renderField('Contact', c3Nom || '-')}
+                    <div className="pb-4">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 3
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderField('Type du contact', c3Type || '-')}
+                        {renderField('Nom & Prénom', c3Nom || '-')}
                         {renderField('Téléphone', c3Tel || '-')}
                         {renderField('Email', c3Email || '-')}
                       </div>
                     </div>
 
                     {/* Contact 4 */}
-                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 4 {c4Type ? `(${c4Type})` : ''}</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {renderField('Contact', c4Nom || '-')}
+                    <div className="pb-4">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 4
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderField('Type du contact', c4Type || '-')}
+                        {renderField('Nom & Prénom', c4Nom || '-')}
                         {renderField('Téléphone', c4Tel || '-')}
                         {renderField('Email', c4Email || '-')}
                       </div>
                     </div>
 
                     {/* Contact 5 */}
-                    <div className="border-b border-slate-100 last:border-b-0 pb-4 last:pb-0">
-                      <div className="text-xs font-bold text-indigo-600 mb-2 font-mono uppercase">Contact 5 {c5Type ? `(${c5Type})` : ''}</div>
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        {renderField('Contact', c5Nom || '-')}
+                    <div className="pb-4">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 5
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                        {renderField('Type du contact', c5Type || '-')}
+                        {renderField('Nom & Prénom', c5Nom || '-')}
                         {renderField('Téléphone', c5Tel || '-')}
                         {renderField('Email', c5Email || '-')}
                       </div>
@@ -2462,8 +2465,10 @@ export default function ClientPortal({
                 ) : (
                   <div className="space-y-6 pt-2">
                     {/* Edit Contact 1 */}
-                    <div className="border-b border-slate-100 pb-6">
-                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 1</div>
+                    <div className="pb-6">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 1
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {renderEditField('Type du contact (ex. Direction)', c1Type, setC1Type)}
                         {renderEditField('Nom & Prénom', c1Nom, setC1Nom)}
@@ -2473,8 +2478,10 @@ export default function ClientPortal({
                     </div>
 
                     {/* Edit Contact 2 */}
-                    <div className="border-b border-slate-100 pb-6">
-                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 2</div>
+                    <div className="pb-6">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 2
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {renderEditField('Type du contact (ex. Direction)', c2Type, setC2Type)}
                         {renderEditField('Nom & Prénom', c2Nom, setC2Nom)}
@@ -2484,8 +2491,10 @@ export default function ClientPortal({
                     </div>
 
                     {/* Edit Contact 3 */}
-                    <div className="border-b border-slate-100 pb-6">
-                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 3</div>
+                    <div className="pb-6">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 3
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {renderEditField('Type du contact (ex. Direction)', c3Type, setC3Type)}
                         {renderEditField('Nom & Prénom', c3Nom, setC3Nom)}
@@ -2495,8 +2504,10 @@ export default function ClientPortal({
                     </div>
 
                     {/* Edit Contact 4 */}
-                    <div className="border-b border-slate-100 pb-6">
-                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 4</div>
+                    <div className="pb-6">
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 4
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {renderEditField('Type du contact (ex. Direction)', c4Type, setC4Type)}
                         {renderEditField('Nom & Prénom', c4Nom, setC4Nom)}
@@ -2507,7 +2518,9 @@ export default function ClientPortal({
 
                     {/* Edit Contact 5 */}
                     <div className="pb-2">
-                      <div className="text-xs font-bold text-indigo-600 mb-3 font-mono uppercase">Contact 5</div>
+                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                        Contact 5
+                      </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                         {renderEditField('Type du contact (ex. Direction)', c5Type, setC5Type)}
                         {renderEditField('Nom & Prénom', c5Nom, setC5Nom)}
@@ -2528,16 +2541,13 @@ export default function ClientPortal({
                 }}
               >
                 <div>
-                  <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
-                    Votre signature électronique client (à distance)
+                  <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
+                    Signature à distance.
                   </h3>
-                  <p className="text-xs text-slate-500 font-sans mt-1">
-                    Dessinez votre signature ci-dessous. Une fois enregistrée, elle s'affichera à l'emplacement approprié sur vos rapports d'interventions certifiés et signés de votre part.
-                  </p>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-5 items-start">
-                  <div className="border border-slate-300 rounded-xl bg-slate-50/50 overflow-hidden" style={{ width: '300px', height: '150px' }}>
+                  <div className="border border-slate-300 rounded-xl overflow-hidden" style={{ width: '300px', height: '150px' }}>
                     <canvas
                       ref={clientCanvasRef}
                       width={300}
@@ -2563,7 +2573,6 @@ export default function ClientPortal({
                           backgroundColor: '#000000',
                           borderRadius: '13px',
                           fontSize: '18px',
-                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
                         Effacer
@@ -2577,7 +2586,6 @@ export default function ClientPortal({
                           backgroundColor: '#000000',
                           borderRadius: '13px',
                           fontSize: '18px',
-                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
                         Enregistrer ma signature
@@ -2589,35 +2597,22 @@ export default function ClientPortal({
                         ✓ Signature enregistrée avec succès !
                       </span>
                     )}
-
-                    {clientSignature ? (
-                      <div className="text-[11px] text-slate-600 font-sans italic border-l-2 border-indigo-500 pl-2">
-                        Une signature est actuellement enregistrée sur votre compte.
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-amber-600 font-sans italic border-l-2 border-amber-500 pl-2">
-                        Aucune signature enregistrée pour l'instant.
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 {/* Single PIN display in disabled view */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4 pt-4 border-t border-slate-100 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
                   <div className="space-y-1 bg-white">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Votre code PIN de signature unique :
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      PIN unique de signature à communiquer au technicien.
                     </label>
                     <input
                       type="text"
                       disabled
                       value={authenticatedClient?.signaturePin || 'Non défini'}
-                      style={{ cursor: 'not-allowed', backgroundColor: '#f3f4f6', borderColor: '#e5e7eb' }}
-                      className="px-3 py-2 border text-slate-700 rounded-xl font-mono font-bold text-[14px] text-center w-40"
+                      style={{ cursor: 'not-allowed', backgroundColor: '#ffffff', borderColor: '#cfcfcf', color: 'black' }}
+                      className="px-4 py-2 border rounded-xl font-mono font-bold text-[18px] text-center w-40"
                     />
-                    <p className="text-[10.5px] text-slate-400 font-sans mt-1">
-                      Ce code PIN unique remplace les anciens codes à usage unique et est valide pour signer électroniquement tous vos rapports d'interventions.
-                    </p>
                   </div>
                 </div>
               </div>

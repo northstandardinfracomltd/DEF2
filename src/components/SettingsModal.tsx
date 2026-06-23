@@ -429,6 +429,11 @@ export default function SettingsModal({
     e.preventDefault();
     setNewMemberError(null);
 
+    if (localMembers.length >= 15) {
+      setNewMemberError("La limite maximale de 15 membres est atteinte.");
+      return;
+    }
+
     if (!newMemberName.trim()) {
       setNewMemberError("Veuillez saisir un Nom & Prénom.");
       return;
@@ -783,7 +788,7 @@ export default function SettingsModal({
 
         {/* Content Body */}
         <div 
-          className={isPage ? "py-6 pb-24 space-y-6" : "p-6 space-y-6 overflow-y-auto max-h-[75vh]"} 
+          className={isPage ? "py-6 pb-24 space-y-6 flex flex-col" : "p-6 space-y-6 overflow-y-auto max-h-[75vh] flex flex-col"} 
           id="settings-tab-container-harmonized"
           style={isPage ? { maxWidth: '98%', margin: '0 auto', width: '100%' } : {}}
         >
@@ -1043,7 +1048,7 @@ export default function SettingsModal({
           </div>
           
           {/* SECTION 1: MEMBERS LIST */}
-          <div className="space-y-4 pb-6" id="settings-section-members">
+          <div className="space-y-4 pb-6" id="settings-section-members" style={{ order: 99 }}>
 
             {/* Formulaire d'ajout rapide de collaborateur */}
             <form onSubmit={handleAddMemberSubmit} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
@@ -1181,7 +1186,7 @@ export default function SettingsModal({
                     const canEditThisMember = isOwnSession || isCurrentUserSuperAdmin || (isTech && isCurrentUserAdminOrSuperAdmin);
 
                     return (
-                      <tr key={idx} className="group transition-all">
+                      <tr key={idx} className="group transition-all border-b border-slate-200 last:border-b-0">
                         
                         {/* Column 1: Nom & Prenom with pills beneath */}
                         <td className="px-5 py-5 font-sans align-top" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
@@ -2025,6 +2030,60 @@ export default function SettingsModal({
             </div>
           </div>
 
+          {/* Ad 1: Textelp */}
+          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn">
+            <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+              Découvrez Textelp pour l’IA agentique.
+            </h4>
+            <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black">
+              Installez Textelp sur le site internet de votre entreprise pour permettre à vos clients et visiteurs d’obtenir des recommandations et des renseignements précis sur vos offres, produits et processus. Contactez Défibeo pour en savoir plus.
+            </p>
+            <div className="flex justify-start">
+              <a
+                href="mailto:support@defibeo.com"
+                className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
+                style={{
+                  backgroundColor: 'rgb(53, 86, 236)',
+                  borderRadius: '13px',
+                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                }}
+              >
+                Contacter un spécialiste
+              </a>
+            </div>
+          </div>
+
+          {/* Ad 2: Civilprom */}
+          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn">
+            <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+              Développez une marque forte avec Civilprom.
+            </h4>
+            <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black">
+              Civilprom est une agence artistique qui peut vous accompagner sur vos sujets de marque (logo, charte graphique) ainsi que sur vos supports de communication (site internet, plaquette commerciale). Contactez-nous pour en savoir plus.
+            </p>
+            <div className="flex justify-start">
+              <a
+                href="https://civilprom.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
+                style={{
+                  backgroundColor: 'rgb(53, 86, 236)',
+                  borderRadius: '13px',
+                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                }}
+              >
+                En savoir plus
+              </a>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* SECTION 2: SUBSCRIPTION */}
             <div 
@@ -2038,11 +2097,8 @@ export default function SettingsModal({
                   </h4>
                 </div>
                 <div style={{ backgroundColor: '#ffffff1c', border: 'none', padding: '20px', borderRadius: '13px' }}>
-                  <div className="font-semibold text-white text-[16px] font-sans" style={{ textTransform: 'none' }}>
+                  <div className="font-semibold text-white text-[16px] font-sans text-center" style={{ textTransform: 'none' }}>
                     Votre abonnement Défibeo.
-                  </div>
-                  <div className="text-xl text-white mt-1 font-sans" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontWeight: 100 }}>
-                    380€ Mensuel.
                   </div>
                   <div className="mt-4">
                     <a
@@ -2131,7 +2187,7 @@ export default function SettingsModal({
           </div>
 
           {onLogout && (
-            <div className="pt-4">
+            <div className="pt-4" style={{ order: 100 }}>
               <button
                 type="button"
                 onClick={onLogout}

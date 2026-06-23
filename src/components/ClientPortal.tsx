@@ -1869,11 +1869,11 @@ export default function ClientPortal({
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                      {renderField('Objet ou commentaire', doc.commentaire || doc.ref)}
-                      {renderField('Type', doc.type)}
-                      {renderField('Référence', doc.ref)}
-                      {renderField('Situation', doc.status)}
-                      {renderField('Total HT', `${doc.totalHt.toFixed(2)} €`)}
+                      {renderField('Objet ou commentaire', doc.commentaire || doc.ref, true)}
+                      {renderField('Type', doc.type, true)}
+                      {renderField('Référence', doc.ref, true)}
+                      {renderField('Situation', doc.status, true)}
+                      {renderField('Total HT', `${doc.totalHt.toFixed(2)} €`, true)}
                     </div>
                   </div>
                 ))}
@@ -1949,11 +1949,11 @@ export default function ClientPortal({
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {renderField('Référence Rapport', rep.id)}
-                          {renderField(isOther ? 'Matériel concerné' : 'Défibrillateur concerné', rep.defibIdentifiant || snap.identifiant || 'Non spécifié')}
-                          {renderField('Date d\'intervention', rep.date)}
-                          {renderField('Technicien intervenant', rep.techName)}
-                          {renderField('Site / Mission', rep.siteMission || '-')}
+                          {renderField('Référence Rapport', rep.id, true)}
+                          {renderField(isOther ? 'Matériel concerné' : 'Défibrillateur concerné', rep.defibIdentifiant || snap.identifiant || 'Non spécifié', true)}
+                          {renderField('Date d\'intervention', rep.date, true)}
+                          {renderField('Technicien intervenant', rep.techName, true)}
+                          {renderField('Site / Mission', rep.siteMission || '-', true)}
                         </div>
                       </div>
                     );
@@ -1967,12 +1967,6 @@ export default function ClientPortal({
           {activePortalTab === 'autovigilance' && (
             <div className="space-y-8">
               <div id="new-pointage-container">
-                <div className="mb-5">
-                  <h2 className="text-[20px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
-                    Nouveau pointage d'auto-vigilance
-                  </h2>
-                </div>
-
                 {assignedEquipment.length === 0 ? (
                   <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-sans">
                     Aucun matériel n'est actuellement affecté à votre établissement. Vous pourrez ajouter des pointages d'auto-vigilance dès que votre parc de matériels sera configuré.
@@ -1989,7 +1983,7 @@ export default function ClientPortal({
                           required
                           value={selectedEquipId}
                           onChange={(e) => setSelectedEquipId(e.target.value)}
-                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2020,7 +2014,7 @@ export default function ClientPortal({
                           required
                           value={pointageDate}
                           onChange={(e) => setPointageDate(e.target.value)}
-                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2040,7 +2034,7 @@ export default function ClientPortal({
                           required
                           value={pointageComment}
                           onChange={(e) => setPointageComment(e.target.value as any)}
-                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2089,19 +2083,13 @@ export default function ClientPortal({
 
               {/* Liste des pointages */}
               <div id="historique-pointage-container" className="mt-8">
-                <div className="mb-4">
-                  <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
-                    Historique des pointages d'auto-vigilance
-                  </h3>
-                </div>
-
                 {!pointagesAutoVigilance || pointagesAutoVigilance.filter(p => p.clientId === authenticatedClient?.id).length === 0 ? (
                   null
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-left font-sans text-sm border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-200 text-black font-bold font-sans" style={{ fontSize: '18px' }}>
+                        <tr className="text-black font-bold font-sans" style={{ fontSize: '18px' }}>
                           <th className="py-3 px-2">Date du pointage</th>
                           <th className="py-3 px-2">Matériel concerné</th>
                           <th className="py-3 px-2">Identifiant</th>
@@ -2113,29 +2101,19 @@ export default function ClientPortal({
                           .filter(p => p.clientId === authenticatedClient?.id)
                           .sort((a, b) => b.date.localeCompare(a.date))
                           .map((pt) => {
-                            let badgeStyle = { backgroundColor: '#e2e8f0', color: '#1e293b' };
-                            if (pt.commentaire === 'En fonctionnement et accessible' || pt.commentaire === 'Problème résolu') {
-                              badgeStyle = { backgroundColor: '#dcfce7', color: '#15803d' };
-                            } else if (pt.commentaire === 'Problème non résolu') {
-                              badgeStyle = { backgroundColor: '#fef3c7', color: '#b45309' };
-                            } else if (pt.commentaire === 'Problème non résolu et assistance demandée') {
-                              badgeStyle = { backgroundColor: '#fee2e2', color: '#b91c1c' };
-                            }
-
                             return (
                               <tr key={pt.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="py-3 px-2 font-medium text-slate-900">
+                                <td className="py-3 px-2 text-black font-sans" style={{ fontSize: '18px' }}>
                                   {formatDateToFR ? formatDateToFR(pt.date) : pt.date}
                                 </td>
-                                <td className="py-3 px-2 text-slate-700">{pt.equipementNom}</td>
-                                <td className="py-3 px-2 text-slate-500 font-sans text-[16px]">{pt.equipementIdentifiant}</td>
-                                <td className="py-3 px-2">
-                                  <span
-                                    className="inline-block px-2.5 py-1 text-xs font-bold rounded-full font-sans"
-                                    style={badgeStyle}
-                                  >
-                                    {pt.commentaire}
-                                  </span>
+                                <td className="py-3 px-2 text-black font-sans" style={{ fontSize: '18px' }}>
+                                  {pt.equipementNom}
+                                </td>
+                                <td className="py-3 px-2 text-black font-sans" style={{ fontSize: '18px' }}>
+                                  {pt.equipementIdentifiant}
+                                </td>
+                                <td className="py-3 px-2 text-black font-sans" style={{ fontSize: '18px' }}>
+                                  {pt.commentaire}
                                 </td>
                               </tr>
                             );
@@ -2159,14 +2137,14 @@ export default function ClientPortal({
                 }}
               >
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {renderField('Entreprise', authenticatedClient.denomination)}
-                  {renderField('Identifiant fiscal', authenticatedClient.siret)}
-                  {renderField('Email', authenticatedClient.email)}
-                  {renderField('Téléphone', authenticatedClient.phone)}
-                  {renderField('Contrat', authenticatedClient.contrat || 'Non')}
-                  {renderField('Référence', authenticatedClient.referenceContrat)}
-                  {renderField('Début', formatDateToFR(authenticatedClient.debutContrat) || authenticatedClient.debutContrat)}
-                  {renderField('Fin', formatDateToFR(authenticatedClient.finContrat) || authenticatedClient.finContrat)}
+                  {renderField('Entreprise', authenticatedClient.denomination, true)}
+                  {renderField('Identifiant fiscal', authenticatedClient.siret, true)}
+                  {renderField('Email', authenticatedClient.email, true)}
+                  {renderField('Téléphone', authenticatedClient.phone, true)}
+                  {renderField('Contrat', authenticatedClient.contrat || 'Non', true)}
+                  {renderField('Référence', authenticatedClient.referenceContrat, true)}
+                  {renderField('Début', formatDateToFR(authenticatedClient.debutContrat) || authenticatedClient.debutContrat, true)}
+                  {renderField('Fin', formatDateToFR(authenticatedClient.finContrat) || authenticatedClient.finContrat, true)}
                 </div>
               </div>
 

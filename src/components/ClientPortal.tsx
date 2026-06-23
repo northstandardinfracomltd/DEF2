@@ -76,7 +76,7 @@ function Barcode({ text }: BarcodeProps) {
   const svgHeight = height + 30;
 
   return (
-    <div className="flex flex-col items-center p-2 bg-white rounded border border-slate-150 max-w-xs mx-auto">
+    <div className="flex flex-col items-center p-2 bg-white max-w-xs mx-auto">
       <svg id={`barcode-${text}`} width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mx-auto block">
         {rects}
         <text x={svgWidth / 2} y={height + 25} textAnchor="middle" className="font-mono text-[12px] tracking-widest font-semibold fill-black">
@@ -1485,7 +1485,7 @@ export default function ClientPortal({
   }
 
   // Helper for displaying styled read-only attributes
-  const renderField = (label: string, value: React.ReactNode) => {
+  const renderField = (label: string, value: React.ReactNode, isMaterial: boolean = false) => {
     const trimmedLabel = label.trim();
     const labelWithPeriod = trimmedLabel.endsWith('.') ? trimmedLabel : `${trimmedLabel}.`;
     
@@ -1505,13 +1505,13 @@ export default function ClientPortal({
           className="select-text"
           style={{ 
             fontSize: '16px', 
-            color: 'black', 
-            fontWeight: 100,
-            border: '1px solid #cfcfcf',
+            color: isMaterial ? '#772a7e' : 'black', 
+            fontWeight: isMaterial ? 'bold' : 100,
+            border: isMaterial ? 'none' : '1px solid #cfcfcf',
             borderRadius: '13px',
             padding: '12px 15px',
             cursor: 'default',
-            backgroundColor: '#ffffff'
+            backgroundColor: isMaterial ? 'rgb(253 234 255)' : '#ffffff'
           }}
         >
           {displayValue}
@@ -1671,7 +1671,7 @@ export default function ClientPortal({
                                 color: '#fff',
                                 fontSize: '18px',
                                 borderRadius: '100px',
-                                padding: '4px 14px',
+                                padding: '10px 15px',
                                 fontWeight: 'bold',
                                 lineHeight: 'normal'
                               }}
@@ -1681,22 +1681,35 @@ export default function ClientPortal({
                             </span>
                           </div>
                           
+                          {/* Barcode and Download button in first place */}
+                          <div className="flex flex-col items-center gap-2">
+                            <Barcode text={df.identifiant || 'DEFIB'} />
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadBarcode(df.identifiant || 'DEFIB')}
+                              style={{ fontSize: '18px' }}
+                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
+                            >
+                              Télécharger
+                            </button>
+                          </div>
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {renderField('Identifiant', df.identifiant)}
-                            {renderField('Série', df.numeroSerie)}
-                            {renderField('Modèle', modelNom)}
-                            {renderField('Contrat en cours', df.contrat || 'Non')}
-                            {renderField('Numéro et voie', df.numVoie)}
-                            {renderField('Ville', df.ville)}
-                            {renderField('Code postal', df.cp)}
-                            {renderField('Région', df.region)}
-                            {renderField('Pays', df.pays)}
-                            {renderField('Expiration de garantie', formatDateToFR(df.finGarantie) || df.finGarantie)}
-                            {renderField('Dernière maintenance', formatDateToFR(df.derniereMaintenance) || df.derniereMaintenance)}
-                            {renderField('Prochaine maintenance indicative.', formatDateToMonthYear(computeProchaineMaintenance(df.derniereMaintenance)))}
-                            {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp)}
-                            {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp)}
-                            {renderField('Batterie, Péremption', batteriePeremp)}
+                            {renderField('Identifiant', df.identifiant, true)}
+                            {renderField('Série', df.numeroSerie, true)}
+                            {renderField('Modèle', modelNom, true)}
+                            {renderField('Contrat en cours', df.contrat || 'Non', true)}
+                            {renderField('Numéro et voie', df.numVoie, true)}
+                            {renderField('Ville', df.ville, true)}
+                            {renderField('Code postal', df.cp, true)}
+                            {renderField('Région', df.region, true)}
+                            {renderField('Pays', df.pays, true)}
+                            {renderField('Expiration de garantie', formatDateToFR(df.finGarantie) || df.finGarantie, true)}
+                            {renderField('Dernière maintenance', formatDateToFR(df.derniereMaintenance) || df.derniereMaintenance, true)}
+                            {renderField('Prochaine maintenance indicative.', formatDateToMonthYear(computeProchaineMaintenance(df.derniereMaintenance)), true)}
+                            {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp, true)}
+                            {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp, true)}
+                            {renderField('Batterie, Péremption', batteriePeremp, true)}
                             {(() => {
                               let recurrenceAutoVigilance = 'Aucune';
                               if (df.rappelMensuelAuto === 'Oui') {
@@ -1706,7 +1719,7 @@ export default function ClientPortal({
                               } else if (df.rappelJournalierAuto === 'Oui') {
                                 recurrenceAutoVigilance = 'Journalière';
                               }
-                              return renderField('Récurrence auto-vigilance', recurrenceAutoVigilance);
+                              return renderField('Récurrence auto-vigilance', recurrenceAutoVigilance, true);
                             })()}
                             
                             {df.horaires && (() => {
@@ -1735,19 +1748,6 @@ export default function ClientPortal({
                               } catch(e){}
                               return null;
                             })()}
-                          </div>
-
-                          {/* Barcode and Download button */}
-                          <div className="pt-4 border-t border-slate-100 flex flex-col items-center gap-3">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase block">Code-barres du matériel :</span>
-                            <Barcode text={df.numeroSerie || df.identifiant || 'DEFIB'} />
-                            <button
-                              type="button"
-                              onClick={() => handleDownloadBarcode(df.numeroSerie || df.identifiant || 'DEFIB')}
-                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white text-sm font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
-                            >
-                              Télécharger
-                            </button>
                           </div>
                         </div>
                       );
@@ -1782,7 +1782,7 @@ export default function ClientPortal({
                                 color: '#fff',
                                 fontSize: '18px',
                                 borderRadius: '100px',
-                                padding: '4px 14px',
+                                padding: '10px 15px',
                                 fontWeight: 'bold',
                                 lineHeight: 'normal'
                               }}
@@ -1792,20 +1792,33 @@ export default function ClientPortal({
                             </span>
                           </div>
                           
+                          {/* Barcode and Download button in first place */}
+                          <div className="flex flex-col items-center gap-2">
+                            <Barcode text={oth.identifiant || 'OTHER'} />
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadBarcode(oth.identifiant || 'OTHER')}
+                              style={{ fontSize: '18px' }}
+                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
+                            >
+                              Télécharger
+                            </button>
+                          </div>
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                            {renderField('Identifiant', oth.identifiant)}
-                            {renderField('Catégorie', oth.categorie)}
-                            {renderField('Série', oth.specifiques?.numeroSerie || '-')}
-                            {renderField('Contrat en cours', oth.contrat || 'Non')}
-                            {renderField('Numéro et voie', oth.numeroVoie)}
-                            {renderField('Ville', oth.ville)}
-                            {renderField('Code postal', oth.codePostal || '')}
-                            {renderField('Région', oth.region || '')}
-                            {renderField('Pays', oth.pays || '')}
-                            {renderField('Expiration de garantie', expireGarantie)}
-                            {renderField('Dernière maintenance', derniereMaint)}
-                            {renderField('Prochaine maintenance', prochaineMaint)}
-                            {renderField('Mise en service', miseServ)}
+                            {renderField('Identifiant', oth.identifiant, true)}
+                            {renderField('Catégorie', oth.categorie, true)}
+                            {renderField('Série', oth.specifiques?.numeroSerie || '-', true)}
+                            {renderField('Contrat en cours', oth.contrat || 'Non', true)}
+                            {renderField('Numéro et voie', oth.numeroVoie, true)}
+                            {renderField('Ville', oth.ville, true)}
+                            {renderField('Code postal', oth.codePostal || '', true)}
+                            {renderField('Région', oth.region || '', true)}
+                            {renderField('Pays', oth.pays || '', true)}
+                            {renderField('Expiration de garantie', expireGarantie, true)}
+                            {renderField('Dernière maintenance', derniereMaint, true)}
+                            {renderField('Prochaine maintenance', prochaineMaint, true)}
+                            {renderField('Mise en service', miseServ, true)}
                           </div>
                         </div>
                       );
@@ -1952,14 +1965,8 @@ export default function ClientPortal({
 
            {/* Section: Pointages auto-vigilance */}
           {activePortalTab === 'autovigilance' && (
-            <div className="space-y-6">
-              <div
-                className="bg-white p-6"
-                style={{
-                  border: '1px solid #cfcfcf',
-                  borderRadius: '13px',
-                }}
-              >
+            <div className="space-y-8">
+              <div id="new-pointage-container">
                 <div className="mb-5">
                   <h2 className="text-[20px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
                     Nouveau pointage d'auto-vigilance
@@ -1972,23 +1979,23 @@ export default function ClientPortal({
                   </div>
                 ) : (
                   <form onSubmit={handleSavePointage} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                       {/* Sélection du matériel */}
                       <div className="space-y-1">
-                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                        <label className="block text-[18px] font-bold text-black font-sans">
                           Sélection du matériel *
                         </label>
                         <select
                           required
                           value={selectedEquipId}
                           onChange={(e) => setSelectedEquipId(e.target.value)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '42px',
+                            height: '48px',
                             appearance: 'none',
                             WebkitAppearance: 'none',
                             MozAppearance: 'none'
@@ -2005,7 +2012,7 @@ export default function ClientPortal({
 
                       {/* Date */}
                       <div className="space-y-1">
-                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                        <label className="block text-[18px] font-bold text-black font-sans">
                           Date *
                         </label>
                         <input
@@ -2013,33 +2020,33 @@ export default function ClientPortal({
                           required
                           value={pointageDate}
                           onChange={(e) => setPointageDate(e.target.value)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '42px'
+                            height: '48px'
                           }}
                         />
                       </div>
 
                       {/* Commentaire */}
                       <div className="space-y-1">
-                        <label className="block text-xs font-bold text-slate-700 font-sans">
+                        <label className="block text-[18px] font-bold text-black font-sans">
                           Commentaire *
                         </label>
                         <select
                           required
                           value={pointageComment}
                           onChange={(e) => setPointageComment(e.target.value as any)}
-                          className="w-full text-sm text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white focus:ring-1 focus:ring-indigo-500 focus:outline-none transition-all cursor-pointer appearance-none"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '42px',
+                            height: '48px',
                             appearance: 'none',
                             WebkitAppearance: 'none',
                             MozAppearance: 'none'
@@ -2051,41 +2058,37 @@ export default function ClientPortal({
                           <option value="Problème non résolu et assistance demandée">Problème non résolu et assistance demandée</option>
                         </select>
                       </div>
-                    </div>
 
-                    <div className="flex items-center justify-between pt-2">
-                      <div>
-                        {pointageSuccess && (
-                          <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
-                            ✓ Pointage enregistré avec succès !
-                          </span>
-                        )}
+                      {/* Button */}
+                      <div className="w-full">
+                        <button
+                          type="submit"
+                          className="w-full text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
+                          style={{
+                            backgroundColor: '#000000',
+                            borderRadius: '11px',
+                            fontSize: '18px',
+                            height: '48px',
+                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                          }}
+                        >
+                          Enregistrer
+                        </button>
                       </div>
-                      <button
-                        type="submit"
-                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
-                        style={{
-                          backgroundColor: '#000000',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                          boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
-                        }}
-                      >
-                        Enregistrer
-                      </button>
                     </div>
+                    {pointageSuccess && (
+                      <div className="mt-2 text-left">
+                        <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
+                          ✓ Pointage enregistré avec succès !
+                        </span>
+                      </div>
+                    )}
                   </form>
                 )}
               </div>
 
               {/* Liste des pointages */}
-              <div
-                className="bg-white p-6"
-                style={{
-                  border: '1px solid #cfcfcf',
-                  borderRadius: '13px',
-                }}
-              >
+              <div id="historique-pointage-container" className="mt-8">
                 <div className="mb-4">
                   <h3 className="text-[18px] font-black text-black select-none" style={{ letterSpacing: 'normal' }}>
                     Historique des pointages d'auto-vigilance
@@ -2098,7 +2101,7 @@ export default function ClientPortal({
                   <div className="overflow-x-auto">
                     <table className="w-full text-left font-sans text-sm border-collapse">
                       <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 font-bold">
+                        <tr className="border-b border-slate-200 text-black font-bold font-sans" style={{ fontSize: '18px' }}>
                           <th className="py-3 px-2">Date du pointage</th>
                           <th className="py-3 px-2">Matériel concerné</th>
                           <th className="py-3 px-2">Identifiant</th>
@@ -2125,7 +2128,7 @@ export default function ClientPortal({
                                   {formatDateToFR ? formatDateToFR(pt.date) : pt.date}
                                 </td>
                                 <td className="py-3 px-2 text-slate-700">{pt.equipementNom}</td>
-                                <td className="py-3 px-2 text-slate-500 font-mono text-xs">{pt.equipementIdentifiant}</td>
+                                <td className="py-3 px-2 text-slate-500 font-sans text-[16px]">{pt.equipementIdentifiant}</td>
                                 <td className="py-3 px-2">
                                   <span
                                     className="inline-block px-2.5 py-1 text-xs font-bold rounded-full font-sans"

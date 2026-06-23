@@ -347,6 +347,8 @@ export default function PublicPortal({
   } | null>(null);
   const [showDomainHelp, setShowDomainHelp] = useState(false);
   const [showOperationHelp, setShowOperationHelp] = useState(false);
+  const [showCalendarApiHelp, setShowCalendarApiHelp] = useState(false);
+  const [disabledProjectNumber, setDisabledProjectNumber] = useState("");
 
   // Selected tour ID for mobile view
   const [selectedTourId, setSelectedTourId] = useState<string>("");
@@ -2941,6 +2943,7 @@ export default function PublicPortal({
     setSyncStatusMsg(null);
     setShowDomainHelp(false);
     setShowOperationHelp(false);
+    setShowCalendarApiHelp(false);
     try {
       const provider = new GoogleAuthProvider();
       provider.addScope("https://www.googleapis.com/auth/calendar");
@@ -2986,6 +2989,12 @@ export default function PublicPortal({
         errorMsgStr.includes("AUTH/OPERATION_NOT_ALLOWED") ||
         errorMsgStr.includes("AUTH/OPERATION NOT ALLOWED");
 
+      const isCalendarDisabled =
+        errorMsgStr.includes("calendar-json.googleapis.com") ||
+        errorMsgStr.includes("SERVICE_DISABLED") ||
+        errorMsgStr.includes("Calendar API") ||
+        errorMsgStr.includes("accessNotConfigured");
+
       if (isAuthError) {
         setShowDomainHelp(true);
         setSyncStatusMsg({
@@ -2997,6 +3006,15 @@ export default function PublicPortal({
         setSyncStatusMsg({
           type: "error",
           text: `Erreur de configuration (auth/operation-not-allowed) : La connexion Google n'est pas activée dans votre console Firebase. Veuillez suivre les instructions ci-dessous.`,
+        });
+      } else if (isCalendarDisabled) {
+        const pNumMatch = errorMsgStr.match(/(?:project|projects\/)(\d+)/i);
+        const pNum = pNumMatch ? pNumMatch[1] : "627487981610";
+        setDisabledProjectNumber(pNum);
+        setShowCalendarApiHelp(true);
+        setSyncStatusMsg({
+          type: "error",
+          text: `L'API Google Calendar n'est pas activée dans votre projet Google Cloud. Veuillez l'activer en un clic via le guide ci-dessous.`,
         });
       } else {
         setSyncStatusMsg({
@@ -6054,11 +6072,12 @@ export default function PublicPortal({
                                 {/* Conditional error message */}
                                 {tourErrorMap[t.id] && (
                                   <div
-                                    className="mt-2.5 p-3 rounded-lg border text-center font-semibold text-sm animate-fadeIn"
+                                    className="mt-2.5 p-3.5 rounded-lg text-center font-bold animate-fadeIn"
                                     style={{
-                                      backgroundColor: "#fff5f5",
-                                      borderColor: "#feb2b2",
-                                      color: "#c53030",
+                                      fontSize: "18px",
+                                      border: "none",
+                                      color: "#973e9e",
+                                      backgroundColor: "#fde5ff",
                                     }}
                                   >
                                     {tourErrorMap[t.id]}
@@ -6412,10 +6431,8 @@ export default function PublicPortal({
                             Entrant
                           </div>
                         </div>
-                      </div>
 
-                      {/* Section: Outgoing Stats (3-col grid below) */}
-                      <div className="grid grid-cols-3 gap-1.5">
+                        {/* Section: Outgoing Stats (3-col grid below) */}
                         <div
                           className="p-4 text-center"
                           style={{
@@ -6967,36 +6984,36 @@ export default function PublicPortal({
 
                   {/* Digital Clock Section */}
                   <div
-                    style={{ backgroundColor: "#000000" }}
+                    style={{ backgroundColor: "#fde5ff" }}
                     className="p-5 rounded-2xl text-center space-y-2"
                   >
                     <span
                       style={{
                         fontSize: "18px",
-                        color: "#ffffff",
+                        color: "#973e9e",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
-                      className="font-normal block !text-white"
+                      className="font-normal block"
                     >
                       Date et heure.
                     </span>
                     <div
                       style={{
                         fontSize: "18px",
-                        color: "#ffffff",
+                        color: "#973e9e",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
-                      className="font-bold !text-white"
+                      className="font-bold"
                     >
                       {currentTime.toLocaleTimeString("fr-FR")}
                     </div>
                     <div
                       style={{
                         fontSize: "18px",
-                        color: "#ffffff",
+                        color: "#973e9e",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
-                      className="font-bold !text-white"
+                      className="font-bold"
                     >
                       {currentTime.toLocaleDateString("fr-FR", {
                         weekday: "long",
@@ -7108,16 +7125,14 @@ export default function PublicPortal({
                             p.techName === authenticatedUser?.name &&
                             !p.isOngoing,
                         )
-                        .map((p, index) => {
-                          const isFirst = index === 0;
+                        .map((p) => {
                           return (
                             <div
                               key={p.id}
-                              className="p-3.5 sm:p-5 rounded-[14px] space-y-4"
+                              className="p-3.5 sm:p-5 rounded-[14px] space-y-4 bg-white"
                               style={{
                                 border: "1px solid rgb(201, 190, 205)",
                                 boxShadow: "none",
-                                backgroundColor: isFirst ? "#fde5ff" : "#ffffff",
                               }}
                               id={`pointage-card-${p.id}`}
                             >
@@ -7144,13 +7159,13 @@ export default function PublicPortal({
 
                               {/* Editable fields for past Pointages */}
                               <div className="space-y-4">
-                                <div className="space-y-1.5 min-w-0">
+                                <div className="space-y-1.5 flex flex-col items-center">
                                   <label
                                     style={{
                                       fontSize: "16px",
-                                      color: isFirst ? "#973e9e" : "#000000",
+                                      color: "#000000",
                                     }}
-                                    className="block font-bold select-none"
+                                    className="block font-bold select-none text-center"
                                   >
                                     Date.
                                   </label>
@@ -7165,130 +7180,127 @@ export default function PublicPortal({
                                       outline: "none",
                                       boxSizing: "border-box",
                                       width: "100%",
-                                      maxWidth: "100%",
-                                      minWidth: "0px",
+                                      maxWidth: "240px",
                                       display: "block",
                                     }}
-                                  className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
-                                  onChange={(e) =>
-                                    handleEditPointage(
-                                      p.id,
-                                      p.startTime,
-                                      p.endTime || "12:00",
-                                      p.comment,
-                                      getFrenchDate(e.target.value),
-                                    )
-                                  }
-                                />
-                              </div>
-
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="space-y-1.5 min-w-0">
-                                  <label
-                                    style={{ fontSize: "16px", color: isFirst ? "#973e9e" : "#000000" }}
-                                    className="block font-bold select-none"
-                                  >
-                                    Début.
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={p.startTime}
-                                    style={{
-                                      fontSize: "16px",
-                                      padding: "10px 12px",
-                                      borderRadius: "13px",
-                                      border: "1px solid rgb(201, 190, 205)",
-                                      outline: "none",
-                                      boxSizing: "border-box",
-                                      width: "100%",
-                                      maxWidth: "100%",
-                                      minWidth: "0px",
-                                      display: "block",
-                                    }}
-                                    className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
-                                    onChange={(e) =>
-                                      handleEditPointage(
-                                        p.id,
-                                        e.target.value,
-                                        p.endTime || "12:00",
-                                        p.comment,
-                                        p.startDate,
-                                      )
-                                    }
-                                  />
-                                </div>
-                                <div className="space-y-1.5 min-w-0">
-                                  <label
-                                    style={{ fontSize: "16px", color: isFirst ? "#973e9e" : "#000000" }}
-                                    className="block font-bold select-none"
-                                  >
-                                    Clôture.
-                                  </label>
-                                  <input
-                                    type="time"
-                                    value={p.endTime || ""}
-                                    style={{
-                                      fontSize: "16px",
-                                      padding: "10px 12px",
-                                      borderRadius: "13px",
-                                      border: "1px solid rgb(201, 190, 205)",
-                                      outline: "none",
-                                      boxSizing: "border-box",
-                                      width: "100%",
-                                      maxWidth: "100%",
-                                      minWidth: "0px",
-                                      display: "block",
-                                    }}
-                                    className="w-full max-w-full min-w-0 bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                    className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
                                     onChange={(e) =>
                                       handleEditPointage(
                                         p.id,
                                         p.startTime,
-                                        e.target.value,
+                                        p.endTime || "12:00",
                                         p.comment,
+                                        getFrenchDate(e.target.value),
+                                      )
+                                    }
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 max-w-[320px] mx-auto w-full">
+                                  <div className="space-y-1.5 flex flex-col items-center w-full">
+                                    <label
+                                      style={{ fontSize: "16px", color: "#000000" }}
+                                      className="block font-bold select-none text-center"
+                                    >
+                                      Début.
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={p.startTime}
+                                      style={{
+                                        fontSize: "16px",
+                                        padding: "10px 12px",
+                                        borderRadius: "13px",
+                                        border: "1px solid rgb(201, 190, 205)",
+                                        outline: "none",
+                                        boxSizing: "border-box",
+                                        width: "100%",
+                                        maxWidth: "140px",
+                                        display: "block",
+                                      }}
+                                      className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                      onChange={(e) =>
+                                        handleEditPointage(
+                                          p.id,
+                                          e.target.value,
+                                          p.endTime || "12:00",
+                                          p.comment,
+                                          p.startDate,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                  <div className="space-y-1.5 flex flex-col items-center w-full">
+                                    <label
+                                      style={{ fontSize: "16px", color: "#000000" }}
+                                      className="block font-bold select-none text-center"
+                                    >
+                                      Clôture.
+                                    </label>
+                                    <input
+                                      type="time"
+                                      value={p.endTime || ""}
+                                      style={{
+                                        fontSize: "16px",
+                                        padding: "10px 12px",
+                                        borderRadius: "13px",
+                                        border: "1px solid rgb(201, 190, 205)",
+                                        outline: "none",
+                                        boxSizing: "border-box",
+                                        width: "100%",
+                                        maxWidth: "140px",
+                                        display: "block",
+                                      }}
+                                      className="w-full bg-white text-slate-800 text-center font-sans focus:border-indigo-500"
+                                      onChange={(e) =>
+                                        handleEditPointage(
+                                          p.id,
+                                          p.startTime,
+                                          e.target.value,
+                                          p.comment,
+                                          p.startDate,
+                                        )
+                                      }
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1.5 min-w-0">
+                                  <label
+                                    style={{ fontSize: "16px", color: "#000000" }}
+                                    className="block font-bold select-none"
+                                  >
+                                    Commentaire pour la période.
+                                  </label>
+                                  <input
+                                    type="text"
+                                    maxLength={50}
+                                    placeholder="Entrez un commentaire."
+                                    value={p.comment || ""}
+                                    style={{
+                                      fontSize: "16px",
+                                      padding: "10px 12px",
+                                      borderRadius: "13px",
+                                      border: "1px solid rgb(201, 190, 205)",
+                                      outline: "none",
+                                      boxSizing: "border-box",
+                                      width: "100%",
+                                      maxWidth: "100%",
+                                      minWidth: "0px",
+                                      display: "block",
+                                    }}
+                                    className="w-full max-w-full min-w-0 bg-white focus:border-indigo-500"
+                                    onChange={(e) =>
+                                      handleEditPointage(
+                                        p.id,
+                                        p.startTime,
+                                        p.endTime || "12:00",
+                                        e.target.value,
                                         p.startDate,
                                       )
                                     }
                                   />
                                 </div>
-                              </div>
-
-                              <div className="space-y-1.5 min-w-0">
-                                <label
-                                  style={{ fontSize: "16px", color: isFirst ? "#973e9e" : "#000000" }}
-                                  className="block font-bold select-none"
-                                >
-                                  Commentaire pour la période.
-                                </label>
-                                <input
-                                  type="text"
-                                  maxLength={50}
-                                  placeholder="Entrez un commentaire."
-                                  value={p.comment || ""}
-                                  style={{
-                                    fontSize: "16px",
-                                    padding: "10px 12px",
-                                    borderRadius: "13px",
-                                    border: "1px solid rgb(201, 190, 205)",
-                                    outline: "none",
-                                    boxSizing: "border-box",
-                                    width: "100%",
-                                    maxWidth: "100%",
-                                    minWidth: "0px",
-                                    display: "block",
-                                  }}
-                                  className="w-full max-w-full min-w-0 bg-white focus:border-indigo-500"
-                                  onChange={(e) =>
-                                    handleEditPointage(
-                                      p.id,
-                                      p.startTime,
-                                      p.endTime || "12:00",
-                                      e.target.value,
-                                      p.startDate,
-                                    )
-                                  }
-                                />
-                              </div>
 
                               <div className="flex items-center gap-3 pt-1 w-full">
                                 <button
@@ -7853,6 +7865,44 @@ export default function PublicPortal({
                             Une fois la méthode Google activée, vous pourrez
                             synchroniser votre Google Calendar en un clic !
                           </p>
+                        </div>
+                      )}
+
+                      {showCalendarApiHelp && (
+                        <div
+                          className="p-4 bg-amber-50 text-amber-800 border border-amber-200 rounded-[12px] space-y-3"
+                          id="google-calendar-api-guide"
+                        >
+                          <p className="font-bold text-sm">
+                            💡 Activer l'API Google Calendar sur votre projet :
+                          </p>
+                          <p className="text-xs leading-relaxed">
+                            L'API Google Calendar n'est pas encore activée sur votre projet Google Cloud pour le projet numéro <strong>{disabledProjectNumber}</strong>.
+                          </p>
+                          <div className="pt-1">
+                            <a
+                              href={`https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=${disabledProjectNumber}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white font-bold text-xs rounded-xl shadow hover:bg-indigo-700 transition-colors cursor-pointer w-full text-center"
+                            >
+                              🔗 Cliquer ici pour activer l'API Google Calendar
+                            </a>
+                          </div>
+                          <ol className="text-xs list-decimal pl-4 space-y-1.5 font-medium">
+                            <li>
+                              Cliquez sur le bouton ci-dessus pour ouvrir la page d'activation de la Console Google Cloud.
+                            </li>
+                            <li>
+                              Assurez-vous d'être connecté avec le compte Google propriétaire de l'application.
+                            </li>
+                            <li>
+                              Cliquez sur le bouton bleu <strong>Activer</strong> (ou Enable).
+                            </li>
+                            <li>
+                              Attendez quelques minutes que l'activation se propage, puis réessayez la synchronisation !
+                            </li>
+                          </ol>
                         </div>
                       )}
 

@@ -6252,7 +6252,7 @@ export default function App() {
                                           fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
                                         }}
                                       >
-                                        {doc.status}
+                                        {t(doc.status)}
                                       </span>
                                     </td>
 
@@ -6461,7 +6461,7 @@ export default function App() {
 
                         {/* Status selection */}
                         <div className="flex flex-col gap-1 bg-white">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Situation.</label>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Situation.")}</label>
                           <select
                             value={docStatus}
                             onChange={(e) => setDocStatus(e.target.value as any)}
@@ -6469,23 +6469,23 @@ export default function App() {
                             className="focus:outline-none"
                             required
                           >
-                            <option value="Brouillon">Brouillon</option>
-                            <option value="Terminé">Terminé</option>
-                            <option value="Accepté">Accepté</option>
-                            <option value="Refusé">Refusé</option>
-                            <option value="Annulé">Annulé</option>
-                            <option value="Supprimé">Supprimé</option>
+                            <option value="Brouillon">{t("Brouillon")}</option>
+                            <option value="Terminé">{t("Terminé")}</option>
+                            <option value="Accepté">{t("Accepté")}</option>
+                            <option value="Refusé">{t("Refusé")}</option>
+                            <option value="Annulé">{t("Annulé")}</option>
+                            <option value="Supprimé">{t("Supprimé")}</option>
                           </select>
                         </div>
 
                         {/* Objet ou commentaire */}
                         <div className="flex flex-col gap-1 bg-white">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Objet ou commentaire.</label>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Objet ou commentaire.")}</label>
                           <input
                             type="text"
                             value={docCommentaire}
                             onChange={(e) => setDocCommentaire(e.target.value)}
-                            placeholder="Entrez un commentaire."
+                            placeholder={t("Entrez un commentaire.")}
                             className="focus:outline-none w-full animate-fadeIn"
                           />
                         </div>
@@ -6499,7 +6499,7 @@ export default function App() {
                           
                           {/* Lookup Piece */}
                           <div className="flex flex-col gap-1 bg-transparent md:col-span-5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">Pièce ou service.</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Pièce ou service.")}</label>
                             <select
                               value={selectedDocPieceId}
                               onChange={(e) => {
@@ -6510,7 +6510,7 @@ export default function App() {
                               }}
                               className="focus:outline-none w-full"
                             >
-                              <option value="">Sélection d'une pièce ou service.</option>
+                              <option value="">{t("Sélection d'une pièce ou service.")}</option>
                               {variables.map(v => {
                                 const matchedStock = stocks.find(s => s.denominationPieceId === v.id);
                                 const ugs = matchedStock?.ugs || '';
@@ -6527,7 +6527,7 @@ export default function App() {
 
                           {/* Selling price */}
                           <div className="flex flex-col gap-1 bg-transparent md:col-span-3">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">Tarif de vente. (€)</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Tarif de vente. (€)")}</label>
                             <input
                               type="number"
                               step="0.01"
@@ -6539,7 +6539,7 @@ export default function App() {
 
                           {/* Quantity */}
                           <div className="flex flex-col gap-1 bg-transparent md:col-span-2">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">Quantité.</label>
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Quantité.")}</label>
                             <input
                               type="number"
                               min="1"
@@ -6557,7 +6557,7 @@ export default function App() {
                               style={customButtonStyle}
                               className="font-sans w-full"
                             >
-                              Ajouter
+                              {t("Ajouter")}
                             </button>
                           </div>
 
@@ -6567,17 +6567,17 @@ export default function App() {
                         <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
                           {docItems.length === 0 ? (
                             <div style={itemValueStyle} className="p-6 text-center bg-white">
-                              Aucune ligne ajoutée.
+                              {t("Aucune ligne ajoutée.")}
                             </div>
                           ) : (
                             <table className="w-full text-left text-xs border-collapse font-sans bg-white">
                               <thead>
                                 <tr className="bg-transparent">
-                                  <th className="px-4 py-3" style={thStyle}>Pièce.</th>
-                                  <th className="px-4 py-3 text-right" style={thStyle}>Unité HT. (€)</th>
-                                  <th className="px-4 py-3 text-center w-24" style={thStyle}>Volume.</th>
-                                  <th className="px-4 py-3 text-right w-32" style={thStyle}>Total HT. (€)</th>
-                                  <th className="px-4 py-3 text-right w-24" style={thStyle}>Action.</th>
+                                  <th className="px-4 py-3" style={thStyle}>{t("Pièce.")}</th>
+                                  <th className="px-4 py-3 text-right" style={thStyle}>{t("Unité HT. (€)")}</th>
+                                  <th className="px-4 py-3 text-center w-24" style={thStyle}>{t("Volume.")}</th>
+                                  <th className="px-4 py-3 text-right w-32" style={thStyle}>{t("Total HT. (€)")}</th>
+                                  <th className="px-4 py-3 text-right w-24" style={thStyle}>{t("Action.")}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-slate-650 bg-white">
@@ -6600,7 +6600,7 @@ export default function App() {
                                         }}
                                         className="cursor-pointer font-sans"
                                       >
-                                        Supprimer
+                                        {t("Supprimer")}
                                       </button>
                                     </td>
                                   </tr>
@@ -6615,19 +6615,19 @@ export default function App() {
                           <div className="flex justify-end pr-1 pt-2 bg-transparent">
                             <div className="w-80 border border-slate-200 rounded-2xl p-4 bg-white space-y-2">
                               <div className="flex justify-between items-center bg-white">
-                                <span style={itemValueStyle}>Total HT. (€)</span>
+                                <span style={itemValueStyle}>{t("Total HT. (€)")}</span>
                                 <span style={itemValueStyle}>
                                   {docItems.reduce((acc, it) => acc + (it.prixVenteHt * it.quantite), 0).toFixed(2)}€
                                 </span>
                               </div>
                               <div className="flex justify-between items-center bg-white">
-                                <span style={itemValueStyle}>Total TVA. (€)</span>
+                                <span style={itemValueStyle}>{t("Total TVA. (€)")}</span>
                                 <span style={itemValueStyle}>
                                   {(docItems.reduce((acc, it) => acc + (it.prixVenteHt * it.quantite), 0) * 0.2).toFixed(2)}€
                                 </span>
                               </div>
                               <div className="flex justify-between items-center bg-white">
-                                <span style={{ ...itemValueStyle, fontWeight: 'bold' }}>Total TTC. (€)</span>
+                                <span style={{ ...itemValueStyle, fontWeight: 'bold' }}>{t("Total TTC. (€)")}</span>
                                 <span style={{ ...itemValueStyle, fontWeight: 'bold' }}>
                                   {(docItems.reduce((acc, it) => acc + (it.prixVenteHt * it.quantite), 0) * 1.2).toFixed(2)}€
                                 </span>
@@ -6644,7 +6644,7 @@ export default function App() {
                           
                           <div className="flex flex-col gap-2 bg-transparent">
                             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">
-                              Créer un bon de commande ?
+                              {t("Créer un bon de commande ?")}
                             </span>
                             <div className="flex gap-4 mt-1 bg-transparent">
                               <button
@@ -6681,7 +6681,7 @@ export default function App() {
                                 <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === true ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
                                   {docHasBonCommande === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                                 </span>
-                                Oui
+                                {t("Oui")}
                               </button>
                               <button
                                 type="button"
@@ -6692,7 +6692,7 @@ export default function App() {
                                 <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === false ? 'border-slate-300 bg-white' : 'border-slate-300 bg-white'}`}>
                                   {docHasBonCommande === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                                 </span>
-                                Non
+                                {t("Non")}
                               </button>
                             </div>
                           </div>
@@ -6701,19 +6701,19 @@ export default function App() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3 bg-transparent animate-fadeIn">
                               {/* Référence */}
                               <div className="flex flex-col gap-1 bg-white">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Référence BC.</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Référence BC.")}</label>
                                 <input
                                   type="text"
                                   value={docBonCommandeReference}
                                   disabled
                                   className="focus:outline-none bg-slate-50 font-mono text-xs cursor-not-allowed"
-                                  placeholder="Générée automatiquement..."
+                                  placeholder={t("Générée automatiquement...")}
                                 />
                               </div>
 
                               {/* Livraison Radio buttons */}
                               <div className="flex flex-col gap-1 bg-white">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Livraison.</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Livraison.")}</label>
                                 <div className="flex gap-4 mt-2 bg-transparent">
                                   <button
                                     type="button"
@@ -6724,7 +6724,7 @@ export default function App() {
                                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docBonCommandeLivraison === 'Intervention' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
                                       {docBonCommandeLivraison === 'Intervention' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                                     </span>
-                                    Intervention
+                                    {t("Intervention")}
                                   </button>
                                   <button
                                     type="button"
@@ -6735,24 +6735,24 @@ export default function App() {
                                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docBonCommandeLivraison === 'Transporteur' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
                                       {docBonCommandeLivraison === 'Transporteur' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                                     </span>
-                                    Transporteur
+                                    {t("Transporteur")}
                                   </button>
                                 </div>
                               </div>
 
                               {/* Situation */}
                               <div className="flex flex-col gap-1 bg-white">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Situation.</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Situation.")}</label>
                                 <select
                                   value={docBonCommandeSituation}
                                   onChange={(e) => setDocBonCommandeSituation(e.target.value as any)}
                                   className="focus:outline-none"
                                   required
                                 >
-                                  <option value="Ouvert">Ouvert</option>
-                                  <option value="Envoyé Terminé">Envoyé Terminé</option>
-                                  <option value="Envoyé Logistique">Envoyé Logistique</option>
-                                  <option value="Terminé">Terminé</option>
+                                  <option value="Ouvert">{t("Ouvert")}</option>
+                                  <option value="Envoyé Terminé">{t("Envoyé Terminé")}</option>
+                                  <option value="Envoyé Logistique">{t("Envoyé Logistique")}</option>
+                                  <option value="Terminé">{t("Terminé")}</option>
                                 </select>
                               </div>
                             </div>

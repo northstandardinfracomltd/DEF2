@@ -645,6 +645,11 @@ export default function ImportExportTab({
             saveStocks([...stocks, ...parsedData]);
           }
 
+          const dExp = new Date();
+          dExp.setHours(dExp.getHours() + 48);
+          const expiresTime = dExp.getTime();
+          const expDateStr = dExp.toISOString().split('T')[0];
+
           // Add transaction list record
           const newRecord: ImportExportRecord = {
             id: 'rec_' + Date.now(),
@@ -652,6 +657,8 @@ export default function ImportExportTab({
             type: formType,
             categorie: formCategorie,
             format: 'CSV.',
+            expiresAt: expiresTime,
+            expirationDate: expDateStr
           };
 
           const updated = [newRecord, ...records];
@@ -681,11 +688,11 @@ export default function ImportExportTab({
     let expiresTime: number | undefined = undefined;
     let expDateStr: string | undefined = undefined;
 
-    // Calculate expiration: +1 day from formDate
-    const d = new Date(formDate);
-    d.setDate(d.getDate() + 1);
-    expiresTime = d.getTime();
-    expDateStr = d.toISOString().split('T')[0];
+    // Calculate expiration: 48h from now
+    const dExp = new Date();
+    dExp.setHours(dExp.getHours() + 48);
+    expiresTime = dExp.getTime();
+    expDateStr = dExp.toISOString().split('T')[0];
 
     // Generate the CSV
     csv = generateCSV(formCategorie, {
@@ -1165,10 +1172,11 @@ export default function ImportExportTab({
                 >
                   <thead>
                     <tr className="bg-transparent">
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Horodatage.")}</th>
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Circulation.")}</th>
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Compartiment.")}</th>
-                      <th className="px-4 py-3.5 w-[15%]" style={thStyle}>{t("Format.")}</th>
+                      <th className="px-4 py-3.5 w-[20%]" style={thStyle}>{t("Horodatage.")}</th>
+                      <th className="px-4 py-3.5 w-[15%]" style={thStyle}>{t("Expiration")}</th>
+                      <th className="px-4 py-3.5 w-[20%]" style={thStyle}>{t("Circulation.")}</th>
+                      <th className="px-4 py-3.5 w-[20%]" style={thStyle}>{t("Compartiment.")}</th>
+                      <th className="px-4 py-3.5 w-[10%]" style={thStyle}>{t("Format.")}</th>
                       <th className="px-4 py-3.5 text-right w-[15%]" style={thStyle}>{t("Actions.")}</th>
                     </tr>
                   </thead>
@@ -1184,6 +1192,33 @@ export default function ImportExportTab({
                           style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}
                         >
                           {formatDateToDDMMYYYY(r.date)}
+                        </td>
+
+                        {/* Expiration column */}
+                        <td 
+                          className="px-4 py-5 font-sans whitespace-nowrap"
+                          style={{ fontSize: '16px', color: '#dc2626', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}
+                        >
+                          {(() => {
+                            if (!r.expiresAt) {
+                              const d = new Date(r.date);
+                              d.setHours(d.getHours() + 48);
+                              const remainingMs = d.getTime() - Date.now();
+                              if (remainingMs <= 0) return t("Expiré");
+                              const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+                              if (remainingHours > 24) {
+                                return `${Math.floor(remainingHours / 24)}j ${remainingHours % 24}h`;
+                              }
+                              return `${remainingHours}h`;
+                            }
+                            const remainingMs = r.expiresAt - Date.now();
+                            if (remainingMs <= 0) return t("Expiré");
+                            const remainingHours = Math.ceil(remainingMs / (1000 * 60 * 60));
+                            if (remainingHours > 24) {
+                              return `${Math.floor(remainingHours / 24)}j ${remainingHours % 24}h`;
+                            }
+                            return `${remainingHours}h`;
+                          })()}
                         </td>
 
                         {/* Type badge column without color dot */}

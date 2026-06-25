@@ -334,9 +334,9 @@ export default function TicketsCaisseTab({
                         </td>
 
                         {/* Objet */}
-                        <td className="px-4 py-5 font-sans" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                          <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                            {exp.title.length > 15 ? `${exp.title.substring(0, 15)}...` : exp.title}
+                        <td className="px-4 py-5 font-sans whitespace-nowrap truncate max-w-[250px]" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                          <div className="font-bold text-black truncate" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }} title={exp.title}>
+                            {exp.title}
                           </div>
                         </td>
 

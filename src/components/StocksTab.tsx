@@ -537,6 +537,7 @@ export default function StocksTab({
       modelNom.includes(query) ||
       modelMarque.includes(query) ||
       modelCat.includes(query) ||
+      (st.ugs && st.ugs.toLowerCase().includes(query)) ||
       (st.livraisonDate && st.livraisonDate.toLowerCase().includes(query)) ||
       (st.reapprovisionnementDate && st.reapprovisionnementDate.toLowerCase().includes(query));
       

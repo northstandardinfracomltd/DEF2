@@ -202,9 +202,9 @@ export default function StocksDistribuesTab({
       const vObj = variables.find(v => v.id === item.denominationPieceId);
       const pieceName = vObj ? vObj.nom.toLowerCase() : '';
       const cat = vObj ? vObj.category.toLowerCase() : '';
-      const query = searchQuery.toLowerCase();
+      const query = searchQuery.trim().toLowerCase();
       
-      const matchesSearch = 
+      const matchesSearch = !query ||
         pieceName.includes(query) || 
         cat.includes(query) || 
         ugsVal.toLowerCase().includes(query);

@@ -18,6 +18,7 @@ interface GmaoCorrectionFormProps {
   onSelectOtherEquipment?: (otherEquipment: any) => void;
   initialDefibId?: string;
   stocks?: StockRecord[];
+  onUpdateStocks?: (updatedStocks: StockRecord[]) => void;
   members?: Member[];
   forceSmartphoneLayout?: boolean;
 }
@@ -270,6 +271,7 @@ export default function GmaoCorrectionForm({
   onSelectOtherEquipment,
   initialDefibId,
   stocks = [],
+  onUpdateStocks,
   members = [],
   forceSmartphoneLayout = false
 }: GmaoCorrectionFormProps) {
@@ -304,6 +306,82 @@ export default function GmaoCorrectionForm({
       );
     });
   }, [members]);
+
+  const getAvailableTraceabilities = React.useCallback((category?: string) => {
+    const list: {
+      stockId: string;
+      traceId: string;
+      lotOrSerial: string;
+      expirationDate?: string;
+      label: string;
+      denominationPieceId: string;
+    }[] = [];
+    
+    (stocks || []).forEach(st => {
+      const varObj = variables.find(v => v.id === st.denominationPieceId);
+      if (category && varObj?.category !== category) return;
+      
+      const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+      
+      if (st.traceabilityEnabled && st.traceabilities) {
+        st.traceabilities.forEach(trace => {
+          if (trace.situation === 'Disponible') {
+            list.push({
+              stockId: st.id,
+              traceId: trace.id,
+              lotOrSerial: trace.lotOrSerial,
+              expirationDate: trace.expirationDate,
+              denominationPieceId: st.denominationPieceId,
+              label: `${denom} - Lot/Série: ${trace.lotOrSerial}${trace.expirationDate ? ` (Pér: ${trace.expirationDate})` : ''}`
+            });
+          }
+        });
+      }
+    });
+    return list;
+  }, [stocks, variables]);
+
+  const getAvailableKitsTraceabilities = React.useCallback(() => {
+    const list: {
+      stockId: string;
+      traceId: string;
+      lotOrSerial: string;
+      expirationDate?: string;
+      label: string;
+      denominationPieceId: string;
+    }[] = [];
+    
+    (stocks || []).forEach(st => {
+      const varObj = variables.find(v => v.id === st.denominationPieceId);
+      const isElectrodeOrBatteryOrDefibOrCoffretOrService = varObj && [
+        'Modèle Défibrillateur',
+        'Modèle Coffret',
+        'Modèle Service',
+        'Modèle Électrode',
+        'Modèle Batterie'
+      ].includes(varObj.category);
+      
+      if (isElectrodeOrBatteryOrDefibOrCoffretOrService) return;
+      
+      const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+      
+      if (st.traceabilityEnabled && st.traceabilities) {
+        st.traceabilities.forEach(trace => {
+          if (trace.situation === 'Disponible') {
+            list.push({
+              stockId: st.id,
+              traceId: trace.id,
+              lotOrSerial: trace.lotOrSerial,
+              expirationDate: trace.expirationDate,
+              denominationPieceId: st.denominationPieceId,
+              label: `${denom} - Lot/Série: ${trace.lotOrSerial}${trace.expirationDate ? ` (Pér: ${trace.expirationDate})` : ''}`
+            });
+          }
+        });
+      }
+    });
+    return list;
+  }, [stocks, variables]);
 
   // Auto-determination of selected DAE
   const [selectedDefibId, setSelectedDefibId] = useState(() => {
@@ -432,6 +510,20 @@ export default function GmaoCorrectionForm({
   const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
   const [isLotPScannerOpen, setIsLotPScannerOpen] = useState(false);
   const [isLotBatScannerOpen, setIsLotBatScannerOpen] = useState(false);
+
+  const [customElectrodeARemplacee, setCustomElectrodeARemplacee] = useState<string>(report?.customElectrodeARemplacee || '');
+  const [customElectrodeASecoursRemplacee, setCustomElectrodeASecoursRemplacee] = useState<string>(report?.customElectrodeASecoursRemplacee || '');
+  const [customElectrodePRemplacee, setCustomElectrodePRemplacee] = useState<string>(report?.customElectrodePRemplacee || '');
+  const [customElectrodePSecoursRemplacee, setCustomElectrodePSecoursRemplacee] = useState<string>(report?.customElectrodePSecoursRemplacee || '');
+  const [customBatterieRemplacee, setCustomBatterieRemplacee] = useState<string>(report?.customBatterieRemplacee || '');
+  const [customKitSecoursRemplace, setCustomKitSecoursRemplace] = useState<string>(report?.customKitSecoursRemplace || '');
+
+  const [isScanElectrodeAOpen, setIsScanElectrodeAOpen] = useState(false);
+  const [isScanElectrodeASecoursOpen, setIsScanElectrodeASecoursOpen] = useState(false);
+  const [isScanElectrodePOpen, setIsScanElectrodePOpen] = useState(false);
+  const [isScanElectrodePSecoursOpen, setIsScanElectrodePSecoursOpen] = useState(false);
+  const [isScanBatterieOpen, setIsScanBatterieOpen] = useState(false);
+  const [isScanKitOpen, setIsScanKitOpen] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -672,7 +764,7 @@ export default function GmaoCorrectionForm({
       }
     }
     if (!isPinValid) {
-      errors.push("Le code PIN de signature client s'est avéré invalide pour ce client.");
+      errors.push("À la section 11, le code PIN de signature client est requis et doit être valide pour ce client.");
     }
 
     // 2. Dates validation
@@ -744,17 +836,17 @@ export default function GmaoCorrectionForm({
 
     // 4. Section 11 conforme validation (blocking)
     if (snapshot.conforme !== 'Oui' && snapshot.conforme !== 'Non') {
-      errors.push("À la section 11, vous devez choisir Oui ou Non pour le défibrillateur conforme et prêt à l’usage. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+      errors.push("À la section 11, vous devez choisir Oui ou Non pour le défibrillateur conforme et prêt à l’usage.");
     }
 
     // 5. Section 9 arrivee conforme validation (blocking)
     if (techConformeArrivee !== 'Oui' && techConformeArrivee !== 'Non') {
-      errors.push("À la section 9, vous devez choisir Oui ou Non pour (défibrillateur) conforme à mon arrivée. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+      errors.push("À la section 9, vous devez choisir Oui ou Non pour (défibrillateur) conforme à mon arrivée.");
     }
 
     // 6. Section 11 signature validation (blocking)
     if (!techSignature || !techSignature.trim()) {
-      errors.push("À la section 11, vous n’avez pas dessiné votre signature. (Attention, ça c’est vraiment champ bloquant, c’est requis.)");
+      errors.push("À la section 11, vous n’avez pas dessiné votre signature.");
     }
 
     // 7. Lot numbers but no expiration date checks
@@ -792,6 +884,25 @@ export default function GmaoCorrectionForm({
     }
     if (kitSecoursRemplaceOuAjoute === 'Oui' && !selectionKitSecoursRemplace) {
       errors.push("Le kit de secours est marqué comme remplacé (kit de secours remplacé ou ajouté), mais vous n’avez pas sélectionné de kit de secours en remplacement.");
+    }
+
+    if (electrodeARemplacee === 'Oui' && selectionElectrodeARemplacee === 'Autre' && !customElectrodeARemplacee.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour l'électrode remplacée (Section 6), mais vous n’avez pas saisi de référence.");
+    }
+    if (electrodeASecoursRemplacee === 'Oui' && selectionElectrodeASecoursRemplacee === 'Autre' && !customElectrodeASecoursRemplacee.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours A remplacée (Section 6), mais vous n’avez pas saisi de référence.");
+    }
+    if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee === 'Autre' && !customElectrodePRemplacee.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour l'électrode pédiatrique remplacée (Section 7), mais vous n’avez pas saisi de référence.");
+    }
+    if (electrodePSecoursRemplacee === 'Oui' && selectionElectrodePSecoursRemplacee === 'Autre' && !customElectrodePSecoursRemplacee.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours P remplacée (Section 7), mais vous n’avez pas saisi de référence.");
+    }
+    if (batterieRemplacee === 'Oui' && selectionBatterieRemplacee === 'Autre' && !customBatterieRemplacee.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour la batterie remplacée (Section 8), mais vous n’avez pas saisi de référence.");
+    }
+    if (kitSecoursRemplaceOuAjoute === 'Oui' && selectionKitSecoursRemplace === 'Autre' && !customKitSecoursRemplace.trim()) {
+      errors.push("Vous avez sélectionné 'Autre' pour le kit de secours (Section 10), mais vous n’avez pas saisi de référence.");
     }
 
     if (errors.length > 0) {
@@ -832,51 +943,162 @@ export default function GmaoCorrectionForm({
     };
 
     // Auto-update replacement parts details in the defibrillator snap on submit
-    if (electrodeARemplacee === 'Oui' && selectionElectrodeARemplacee) {
-      const st = stocks?.find(s => s.id === selectionElectrodeARemplacee);
-      if (st) {
-        finalSnapshot.modeleElectrodeAId = st.denominationPieceId;
-        finalSnapshot.lotElectrodeA = st.id;
+    let updatedStocks = stocks ? [...stocks] : [];
+    let stocksMutated = false;
+
+    const getTraceAndStock = (selectionId: string) => {
+      if (!selectionId || selectionId === 'Autre') return null;
+      for (const st of stocks || []) {
+        if (st.traceabilities) {
+          const trace = st.traceabilities.find(t => t.id === selectionId);
+          if (trace) return { trace, stock: st };
+        }
+      }
+      return null;
+    };
+
+    const processPieceSelection = (
+      selectionId: string, 
+      customVal: string, 
+      pieceType: 'electrodeA' | 'electrodeASecours' | 'electrodeP' | 'electrodePSecours' | 'batterie' | 'kit'
+    ) => {
+      if (!selectionId) return;
+
+      if (selectionId === 'Autre') {
+        return;
+      }
+
+      // If a specific traceability item was selected, find it
+      updatedStocks = updatedStocks.map(st => {
+        if (!st.traceabilities) return st;
+        
+        const hasTrace = st.traceabilities.some(t => t.id === selectionId);
+        if (!hasTrace) return st;
+
+        stocksMutated = true;
+
+        // Update the situation of the matched traceability item to 'Utilisé'
+        const newTraceabilities = st.traceabilities.map(t => {
+          if (t.id === selectionId) {
+            return { ...t, situation: 'Utilisé' as const };
+          }
+          return t;
+        });
+
+        // Decrement stock quantity
+        const newQuantite = Math.max(0, (st.quantite || 0) - 1);
+        const newQuantiteReservee = Math.max(0, (st.quantiteReservee || 0) - 1);
+
+        return {
+          ...st,
+          quantite: newQuantite,
+          quantiteReservee: newQuantiteReservee,
+          traceabilities: newTraceabilities
+        };
+      });
+    };
+
+    // Update finalSnapshot & final report payload based on selections
+    if (electrodeARemplacee === 'Oui') {
+      processPieceSelection(selectionElectrodeARemplacee, customElectrodeARemplacee, 'electrodeA');
+      if (selectionElectrodeARemplacee === 'Autre') {
+        finalSnapshot.lotElectrodeA = customElectrodeARemplacee;
         finalSnapshot.insertionElectrodeA = maintDate;
         finalSnapshot.situationElectrodeA = 'Vert';
+      } else {
+        const res = getTraceAndStock(selectionElectrodeARemplacee);
+        if (res) {
+          finalSnapshot.modeleElectrodeAId = res.stock.denominationPieceId;
+          finalSnapshot.lotElectrodeA = res.trace.lotOrSerial;
+          finalSnapshot.peremptionElectrodeA = res.trace.expirationDate || '';
+          finalSnapshot.insertionElectrodeA = maintDate;
+          finalSnapshot.situationElectrodeA = 'Vert';
+        }
       }
     }
 
-    if (electrodeASecoursRemplacee === 'Oui' && selectionElectrodeASecoursRemplacee) {
-      const st = stocks?.find(s => s.id === selectionElectrodeASecoursRemplacee);
-      if (st) {
-        finalSnapshot.modeleElectrodeASecoursId = st.denominationPieceId;
-        finalSnapshot.lotElectrodeASecours = st.id;
+    if (electrodeASecoursRemplacee === 'Oui') {
+      processPieceSelection(selectionElectrodeASecoursRemplacee, customElectrodeASecoursRemplacee, 'electrodeASecours');
+      if (selectionElectrodeASecoursRemplacee === 'Autre') {
+        finalSnapshot.lotElectrodeASecours = customElectrodeASecoursRemplacee;
+      } else {
+        const res = getTraceAndStock(selectionElectrodeASecoursRemplacee);
+        if (res) {
+          finalSnapshot.modeleElectrodeASecoursId = res.stock.denominationPieceId;
+          finalSnapshot.lotElectrodeASecours = res.trace.lotOrSerial;
+          finalSnapshot.peremptionSecoursElectrodeA = res.trace.expirationDate || '';
+        }
       }
     }
 
-    if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee) {
-      const st = stocks?.find(s => s.id === selectionElectrodePRemplacee);
-      if (st) {
-        finalSnapshot.modeleElectrodePId = st.denominationPieceId;
-        finalSnapshot.lotElectrodeP = st.id;
+    if (electrodePRemplacee === 'Oui') {
+      processPieceSelection(selectionElectrodePRemplacee, customElectrodePRemplacee, 'electrodeP');
+      if (selectionElectrodePRemplacee === 'Autre') {
+        finalSnapshot.lotElectrodeP = customElectrodePRemplacee;
         finalSnapshot.insertionElectrodeP = maintDate;
         finalSnapshot.situationElectrodeP = 'Vert';
+      } else {
+        const res = getTraceAndStock(selectionElectrodePRemplacee);
+        if (res) {
+          finalSnapshot.modeleElectrodePId = res.stock.denominationPieceId;
+          finalSnapshot.lotElectrodeP = res.trace.lotOrSerial;
+          finalSnapshot.peremptionElectrodeP = res.trace.expirationDate || '';
+          finalSnapshot.insertionElectrodeP = maintDate;
+          finalSnapshot.situationElectrodeP = 'Vert';
+        }
       }
     }
 
-    if (electrodePSecoursRemplacee === 'Oui' && selectionElectrodePSecoursRemplacee) {
-      const st = stocks?.find(s => s.id === selectionElectrodePSecoursRemplacee);
-      if (st) {
-        finalSnapshot.modeleElectrodePSecoursId = st.denominationPieceId;
-        finalSnapshot.lotElectrodePSecours = st.id;
+    if (electrodePSecoursRemplacee === 'Oui') {
+      processPieceSelection(selectionElectrodePSecoursRemplacee, customElectrodePSecoursRemplacee, 'electrodePSecours');
+      if (selectionElectrodePSecoursRemplacee === 'Autre') {
+        finalSnapshot.lotElectrodePSecours = customElectrodePSecoursRemplacee;
+      } else {
+        const res = getTraceAndStock(selectionElectrodePSecoursRemplacee);
+        if (res) {
+          finalSnapshot.modeleElectrodePSecoursId = res.stock.denominationPieceId;
+          finalSnapshot.lotElectrodePSecours = res.trace.lotOrSerial;
+          finalSnapshot.peremptionSecoursElectrodeP = res.trace.expirationDate || '';
+        }
       }
     }
 
-    if (batterieRemplacee === 'Oui' && selectionBatterieRemplacee) {
-      const st = stocks?.find(s => s.id === selectionBatterieRemplacee);
-      if (st) {
-        finalSnapshot.modeleBatterieId = st.denominationPieceId;
-        finalSnapshot.lotBatterie = st.id;
+    if (batterieRemplacee === 'Oui') {
+      processPieceSelection(selectionBatterieRemplacee, customBatterieRemplacee, 'batterie');
+      if (selectionBatterieRemplacee === 'Autre') {
+        finalSnapshot.lotBatterie = customBatterieRemplacee;
         finalSnapshot.insertionBatterie = maintDate;
         finalSnapshot.pourcentageBatterie = '100';
         finalSnapshot.situationBatterie = 'Vert';
+      } else {
+        const res = getTraceAndStock(selectionBatterieRemplacee);
+        if (res) {
+          finalSnapshot.modeleBatterieId = res.stock.denominationPieceId;
+          finalSnapshot.lotBatterie = res.trace.lotOrSerial;
+          finalSnapshot.peremptionBatterie = res.trace.expirationDate || '';
+          finalSnapshot.insertionBatterie = maintDate;
+          finalSnapshot.pourcentageBatterie = '100';
+          finalSnapshot.situationBatterie = 'Vert';
+        }
       }
+    }
+
+    let finalKitPeremptionMasque = kitPeremptionMasque;
+    let finalKitPeremptionServiettes = kitPeremptionServiettes;
+
+    if (kitSecoursRemplaceOuAjoute === 'Oui') {
+      processPieceSelection(selectionKitSecoursRemplace, customKitSecoursRemplace, 'kit');
+      if (selectionKitSecoursRemplace !== 'Autre') {
+        const res = getTraceAndStock(selectionKitSecoursRemplace);
+        if (res && res.trace.expirationDate) {
+          finalKitPeremptionMasque = res.trace.expirationDate;
+          finalKitPeremptionServiettes = res.trace.expirationDate;
+        }
+      }
+    }
+
+    if (stocksMutated && onUpdateStocks) {
+      onUpdateStocks(updatedStocks);
     }
 
     const savedReportPayload = {
@@ -920,8 +1142,16 @@ export default function GmaoCorrectionForm({
       batterieConformeSante,
 
       // Section 10 kit de secours additionnels
-      kitPeremptionMasque,
-      kitPeremptionServiettes,
+      kitPeremptionMasque: finalKitPeremptionMasque,
+      kitPeremptionServiettes: finalKitPeremptionServiettes,
+
+      // Custom free text selections
+      customElectrodeARemplacee,
+      customElectrodeASecoursRemplacee,
+      customElectrodePRemplacee,
+      customElectrodePSecoursRemplacee,
+      customBatterieRemplacee,
+      customKitSecoursRemplace,
 
       // Section 9 : Vérifications techniques
       techConformeArrivee,
@@ -1001,36 +1231,63 @@ export default function GmaoCorrectionForm({
         </div>
       </div>
 
-      {alertInfoErrors && alertInfoErrors.length > 0 && (
-        <div 
-          className="p-5 border rounded-2xl font-sans text-sm animate-fadeIn space-y-2" 
-          style={{ 
-            backgroundColor: '#fffdf5', 
-            borderColor: '#eab308', 
-            color: '#854d0e',
-            maxWidth: '100%',
-            margin: '12px auto'
-          }} 
-          id="custom-alert-info-box"
-        >
-          <div className="font-bold text-[15px] flex items-center gap-1.5" style={{ color: '#713f12' }}>
-            <span>⚠️</span> Potentielles erreurs détectées :
+      {alertInfoErrors && alertInfoErrors.length > 0 && (() => {
+        const isErrorBlocking = (err: string) => {
+          return err.toLowerCase().includes("bloquant") || 
+                 err.toLowerCase().includes("obligatoire") || 
+                 err.toLowerCase().includes("associer un client") || 
+                 err.toLowerCase().includes("invalide") ||
+                 err.toLowerCase().includes("requis");
+        };
+        const blockingErrors = alertInfoErrors.filter(isErrorBlocking);
+        const potentialErrors = alertInfoErrors.filter(err => !isErrorBlocking(err));
+
+        return (
+          <div 
+            className="p-5 font-sans animate-fadeIn space-y-4" 
+            style={{ 
+              backgroundColor: '#a14fa8', 
+              color: '#ffffff',
+              fontSize: '18px',
+              borderRadius: '13px',
+              border: 'none',
+              maxWidth: '100%',
+              margin: '12px auto'
+            }} 
+            id="custom-alert-info-box"
+          >
+            {blockingErrors.length > 0 && (
+              <div>
+                <div className="font-bold flex items-center gap-1.5" style={{ color: '#ffffff', fontSize: '18px' }}>
+                  Veuillez corriger le(s) erreur(s) bloquante(s) :
+                </div>
+                <ul className="list-disc pl-5 mt-1.5 space-y-1" style={{ color: '#ffffff', fontSize: '18px' }}>
+                  {blockingErrors.map((err, idx) => (
+                    <li key={idx}>
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {potentialErrors.length > 0 && (
+              <div className={blockingErrors.length > 0 ? "mt-4" : ""}>
+                <div className="font-bold flex items-center gap-1.5" style={{ color: '#ffffff', fontSize: '18px' }}>
+                  Potentielles erreurs détectées :
+                </div>
+                <ul className="list-disc pl-5 mt-1.5 space-y-1" style={{ color: '#ffffff', fontSize: '18px' }}>
+                  {potentialErrors.map((err, idx) => (
+                    <li key={idx}>
+                      {err}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-          <ul className="list-disc pl-5 mt-1.5 space-y-1">
-            {alertInfoErrors.map((err, idx) => {
-              const isBlocking = err.includes("Attention, ça c’est vraiment champ bloquant");
-              return (
-                <li key={idx} className={isBlocking ? "font-bold text-red-600" : ""}>
-                  {err}
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-xs pt-1 text-slate-500 italic">
-            * S'il n'y a pas d'erreur bloquante (affichée en rouge gras), vous pouvez cliquer à nouveau sur "Enregistrer" pour confirmer votre choix de l'enregistrer dans cet état.
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {errorText && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold" style={{ maxWidth: '100%', margin: 'auto' }} id="correction-error">
@@ -2330,24 +2587,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-electrode-a-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection de l'électrode remplacée.
                 </label>
-                <select
-                  id="select-electrode-a-rempc"
-                  value={selectionElectrodeARemplacee}
-                  onChange={(e) => setSelectionElectrodeARemplacee(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner l'électrode stockée...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-electrode-a-rempc"
+                    value={selectionElectrodeARemplacee}
+                    onChange={(e) => {
+                      setSelectionElectrodeARemplacee(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomElectrodeARemplacee('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner l'électrode stockée...</option>
+                    {getAvailableTraceabilities('Modèle Électrode').map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanElectrodeAOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanElectrodeAOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanElectrodeAOpen}
+                    onClose={() => setIsScanElectrodeAOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanElectrodeAOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableTraceabilities('Modèle Électrode');
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionElectrodeARemplacee(matched.traceId);
+                        setCustomElectrodeARemplacee('');
+                      } else {
+                        setSelectionElectrodeARemplacee('Autre');
+                        setCustomElectrodeARemplacee(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionElectrodeARemplacee === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customElectrodeARemplacee}
+                      onChange={(e) => setCustomElectrodeARemplacee(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -2369,24 +2667,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-electrode-a-secours-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection de l'électrode Secours A remplacée.
                 </label>
-                <select
-                  id="select-electrode-a-secours-rempc"
-                  value={selectionElectrodeASecoursRemplacee}
-                  onChange={(e) => setSelectionElectrodeASecoursRemplacee(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner l'électrode de secours stockée...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-electrode-a-secours-rempc"
+                    value={selectionElectrodeASecoursRemplacee}
+                    onChange={(e) => {
+                      setSelectionElectrodeASecoursRemplacee(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomElectrodeASecoursRemplacee('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner l'électrode de secours stockée...</option>
+                    {getAvailableTraceabilities('Modèle Électrode').map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanElectrodeASecoursOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanElectrodeASecoursOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanElectrodeASecoursOpen}
+                    onClose={() => setIsScanElectrodeASecoursOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanElectrodeASecoursOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableTraceabilities('Modèle Électrode');
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionElectrodeASecoursRemplacee(matched.traceId);
+                        setCustomElectrodeASecoursRemplacee('');
+                      } else {
+                        setSelectionElectrodeASecoursRemplacee('Autre');
+                        setCustomElectrodeASecoursRemplacee(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionElectrodeASecoursRemplacee === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customElectrodeASecoursRemplacee}
+                      onChange={(e) => setCustomElectrodeASecoursRemplacee(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -2568,24 +2907,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-electrode-p-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection de l'électrode remplacée.
                 </label>
-                <select
-                  id="select-electrode-p-rempc"
-                  value={selectionElectrodePRemplacee}
-                  onChange={(e) => setSelectionElectrodePRemplacee(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner l'électrode stockée...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-electrode-p-rempc"
+                    value={selectionElectrodePRemplacee}
+                    onChange={(e) => {
+                      setSelectionElectrodePRemplacee(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomElectrodePRemplacee('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner l'électrode stockée...</option>
+                    {getAvailableTraceabilities('Modèle Électrode').map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanElectrodePOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanElectrodePOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanElectrodePOpen}
+                    onClose={() => setIsScanElectrodePOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanElectrodePOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableTraceabilities('Modèle Électrode');
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionElectrodePRemplacee(matched.traceId);
+                        setCustomElectrodePRemplacee('');
+                      } else {
+                        setSelectionElectrodePRemplacee('Autre');
+                        setCustomElectrodePRemplacee(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionElectrodePRemplacee === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customElectrodePRemplacee}
+                      onChange={(e) => setCustomElectrodePRemplacee(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -2607,24 +2987,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-electrode-p-secours-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection de l'électrode Secours P remplacée.
                 </label>
-                <select
-                  id="select-electrode-p-secours-rempc"
-                  value={selectionElectrodePSecoursRemplacee}
-                  onChange={(e) => setSelectionElectrodePSecoursRemplacee(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner l'électrode de secours stockée...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-electrode-p-secours-rempc"
+                    value={selectionElectrodePSecoursRemplacee}
+                    onChange={(e) => {
+                      setSelectionElectrodePSecoursRemplacee(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomElectrodePSecoursRemplacee('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner l'électrode de secours stockée...</option>
+                    {getAvailableTraceabilities('Modèle Électrode').map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanElectrodePSecoursOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanElectrodePSecoursOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanElectrodePSecoursOpen}
+                    onClose={() => setIsScanElectrodePSecoursOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanElectrodePSecoursOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableTraceabilities('Modèle Électrode');
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionElectrodePSecoursRemplacee(matched.traceId);
+                        setCustomElectrodePSecoursRemplacee('');
+                      } else {
+                        setSelectionElectrodePSecoursRemplacee('Autre');
+                        setCustomElectrodePSecoursRemplacee(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionElectrodePSecoursRemplacee === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customElectrodePSecoursRemplacee}
+                      onChange={(e) => setCustomElectrodePSecoursRemplacee(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -2779,24 +3200,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-batterie-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection de la batterie.
                 </label>
-                <select
-                  id="select-batterie-rempc"
-                  value={selectionBatterieRemplacee}
-                  onChange={(e) => setSelectionBatterieRemplacee(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner la batterie stockée...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-batterie-rempc"
+                    value={selectionBatterieRemplacee}
+                    onChange={(e) => {
+                      setSelectionBatterieRemplacee(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomBatterieRemplacee('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner la batterie stockée...</option>
+                    {getAvailableTraceabilities('Modèle Batterie').map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanBatterieOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanBatterieOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanBatterieOpen}
+                    onClose={() => setIsScanBatterieOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanBatterieOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableTraceabilities('Modèle Batterie');
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionBatterieRemplacee(matched.traceId);
+                        setCustomBatterieRemplacee('');
+                      } else {
+                        setSelectionBatterieRemplacee('Autre');
+                        setCustomBatterieRemplacee(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionBatterieRemplacee === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customBatterieRemplacee}
+                      onChange={(e) => setCustomBatterieRemplacee(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -3073,24 +3535,65 @@ export default function GmaoCorrectionForm({
                 <label htmlFor="select-kit-rempc" className="block text-[11px] font-bold text-black uppercase">
                   Sélection d’un kit de secours.
                 </label>
-                <select
-                  id="select-kit-rempc"
-                  value={selectionKitSecoursRemplace}
-                  onChange={(e) => setSelectionKitSecoursRemplace(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                >
-                  <option value="">Sélectionner le kit de secours stocké...</option>
-                  {(stocks || []).map(st => {
-                    const varObj = variables.find(v => v.id === st.denominationPieceId);
-                    const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
-                    const label = `${denom}, ${st.prixVenteHt} € ht`;
-                    return (
-                      <option key={st.id} value={st.id}>
-                        {label}
+                <div className="flex gap-2">
+                  <select
+                    id="select-kit-rempc"
+                    value={selectionKitSecoursRemplace}
+                    onChange={(e) => {
+                      setSelectionKitSecoursRemplace(e.target.value);
+                      if (e.target.value !== 'Autre') {
+                        setCustomKitSecoursRemplace('');
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner le kit de secours stockée...</option>
+                    {getAvailableKitsTraceabilities().map(item => (
+                      <option key={item.traceId} value={item.traceId}>
+                        {item.label}
                       </option>
-                    );
-                  })}
-                </select>
+                    ))}
+                    <option value="Autre">Autre</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setIsScanKitOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isScanKitOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isScanKitOpen}
+                    onClose={() => setIsScanKitOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      setIsScanKitOpen(false);
+                      const cleanText = scannedText.trim();
+                      const traceList = getAvailableKitsTraceabilities();
+                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                      if (matched) {
+                        setSelectionKitSecoursRemplace(matched.traceId);
+                        setCustomKitSecoursRemplace('');
+                      } else {
+                        setSelectionKitSecoursRemplace('Autre');
+                        setCustomKitSecoursRemplace(cleanText);
+                      }
+                    }}
+                  />
+                )}
+                {selectionKitSecoursRemplace === 'Autre' && (
+                  <div className="pt-2">
+                    <input
+                      type="text"
+                      placeholder="Référence libre (Référence ou Lot/Série)"
+                      value={customKitSecoursRemplace}
+                      onChange={(e) => setCustomKitSecoursRemplace(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                    />
+                  </div>
+                )}
               </div>
             )}
 

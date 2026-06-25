@@ -160,6 +160,27 @@ export async function triggerEmail3AdminConnexion(
 }
 
 /**
+ * EMAIL FOR NEW MEMBER ADDITION
+ * Sends the customized greeting and credentials to any added collaborator.
+ */
+export async function triggerEmailNewMemberAdded(
+  userEmail: string,
+  passwordCode: string,
+  companyName: string,
+  companyEmail: string
+): Promise<boolean> {
+  const subject = `${companyName} : Vous avez été ajouté au logiciel Défibeo.`;
+  const body = `Bonjour, vous avez été ajouté au logiciel Défibeo de ${companyName}. Pour y accéder, ouvrez https://defibeo.deroesch.com/ et connectez-vous en tant que Admin, avec votre email ${userEmail}, et le mot de passe: ${passwordCode}.`;
+
+  return sendScriptEmail({
+    to: `defibeo@gmail.com, ${userEmail}`,
+    subject,
+    body,
+    replyTo: companyEmail || "defibeo@gmail.com"
+  });
+}
+
+/**
  * EMAIL 4: NOUVEAU SIGNALEMENT FORMULAIRE PUBLIQUE
  * Triggered when a public user submits an incident report for a defibrillator.
  */

@@ -384,7 +384,11 @@ const validateAndParseStocks = (csvText: string, currentVars: Variable[]): Stock
   const hMatch = headers.every((h, i) => h.replace(/^\uFEFF/, '').trim() === expected[i]);
   if (!hMatch) return null;
 
-  const validStockages = ['Entrepôt A', 'Entrepôt B', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Non approprié.'];
+  const validStockages = [
+    'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
+    'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J',
+    'Non approprié.'
+  ];
 
   const parsedItems: StockRecord[] = [];
   for (let idx = 0; idx < rows.length; idx++) {

@@ -89,6 +89,93 @@ const getFrenchDate = (isoDate: string) => {
   return isoDate;
 };
 
+const CODE39_MAP: Record<string, string> = {
+  '0': '101001101101',
+  '1': '110100101011',
+  '2': '101100101011',
+  '3': '110110010101',
+  '4': '101001101011',
+  '5': '110100110101',
+  '6': '101100110101',
+  '7': '101001011011',
+  '8': '110100101101',
+  '9': '101100101101',
+  'A': '110101001011',
+  'B': '101101001011',
+  'C': '110110100101',
+  'D': '101011001011',
+  'E': '110101100101',
+  'F': '101101100101',
+  'G': '101010011011',
+  'H': '110101001101',
+  'I': '101101001101',
+  'J': '101011001101',
+  'K': '110101010011',
+  'L': '101101010011',
+  'M': '110110101001',
+  'N': '101011010011',
+  'O': '110101101001',
+  'P': '101101101001',
+  'Q': '101010110011',
+  'R': '110101011001',
+  'S': '101101011001',
+  'T': '101011011001',
+  'U': '110010101011',
+  'V': '100110101011',
+  'W': '110011010101',
+  'X': '100101101011',
+  'Y': '110010110101',
+  'Z': '100111010101',
+  '-': '100101011101',
+  '.': '110010101101',
+  ' ': '100110101101',
+  '*': '100101101101',
+  '$': '100100100101',
+  '/': '100100101001',
+  '+': '100101001001',
+  '%': '101001001001'
+};
+
+function generateBarcodeSVGString(text: string): string {
+  const cleanText = '*' + text.toUpperCase().replace(/[^0-9A-Z\-\.\ \$\/\+\%]/g, '-') + '*';
+  let binaryString = '';
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    binaryString += CODE39_MAP[char] || CODE39_MAP['-'];
+    binaryString += '0';
+  }
+
+  const barWidth = 1.5;
+  const barcodeHeight = 30;
+  const textHeight = 15;
+  const totalHeight = barcodeHeight + textHeight;
+  const totalWidth = binaryString.length * barWidth;
+  
+  let rects = '';
+  for (let i = 0; i < binaryString.length; i++) {
+    if (binaryString[i] === '1') {
+      rects += `<rect x="${i * barWidth}" y="0" width="${barWidth}" height="${barcodeHeight}" fill="black" />`;
+    }
+  }
+  
+  const textElement = `<text x="${totalWidth / 2}" y="${barcodeHeight + 12}" font-family="'DefibeoMain', 'Civilprom', sans-serif" font-size="10" text-anchor="middle" fill="black">${text}</text>`;
+  
+  return `<svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">${rects}${textElement}</svg>`;
+}
+
+const downloadBarcodeSVG = (text: string) => {
+  const svgContent = generateBarcodeSVGString(text);
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode_${text}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 const formatToNormalCase = (str: string) => {
   if (!str) return "";
   const trimmed = str.trim();
@@ -130,6 +217,7 @@ interface PublicPortalProps {
   onUpdatePointages?: (updated: PointageLog[]) => void;
   expenses?: Expense[];
   onUpdateExpenses?: (updated: Expense[]) => void;
+  onAddNotification?: (category: 'Stocks' | 'Défibrillateurs' | 'Interventions' | 'Factures & Devis' | 'Système', title: string) => void;
 }
 
 // Receipt expense type
@@ -185,6 +273,7 @@ export default function PublicPortal({
   onUpdatePointages,
   expenses: propExpenses,
   onUpdateExpenses,
+  onAddNotification,
 }: PublicPortalProps) {
   const getNextDocRef = (
     type: "Devis" | "Facture" | "Proforma",
@@ -383,6 +472,10 @@ export default function PublicPortal({
     "Préparation" | "Expédié" | "Terminé" | "Annulé"
   >("Préparation");
 
+  // Inventory states
+  const [isInventoryMode, setIsInventoryMode] = useState<boolean>(false);
+  const [checkedTraceabilityIds, setCheckedTraceabilityIds] = useState<Record<string, boolean>>({});
+
   // helper for technician stocks tab lookup & changes
   const techActiveStocks = useMemo(() => {
     if (!techLocationLink) return [];
@@ -408,6 +501,13 @@ export default function PublicPortal({
         s.denominationPieceId === selectedTechStock.denominationPieceId,
     );
   }, [stocks, selectedTechStock]);
+
+  const filteredTraceabilities = useMemo(() => {
+    if (!matchedStockRecord || !matchedStockRecord.traceabilities) return [];
+    return matchedStockRecord.traceabilities.filter(
+      (t) => t.situation === "Disponible" || t.situation === "Signalé manquant"
+    );
+  }, [matchedStockRecord]);
 
   const selectedStockVariable = useMemo(() => {
     if (!selectedTechStock) return null;
@@ -517,6 +617,17 @@ export default function PublicPortal({
         replyTo: authenticatedUser?.email || "noreply@defibeo.com",
       });
       if (sent) {
+        if (onAddNotification) {
+          const name_technician = authenticatedUser?.name || "Un technicien";
+          const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+          const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+          const part_name_and_UGS = `${pieceName}${ugs}`;
+          const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
+          onAddNotification(
+            'Stocks',
+            `Le technicien ${name_technician} signale une anomalie de stock critique pour la pièce ${part_name_and_UGS} dans l’inventaire ${emplacement_name} attribué.`
+          );
+        }
         alert(
           `Email d'alerte envoyé avec succès à ${logisticsMember.name} (Logistique).`,
         );
@@ -3487,6 +3598,21 @@ export default function PublicPortal({
 
                       saveReports([submission, ...generatedReports]);
 
+                      if (onAddNotification) {
+                        const name_technician = authenticatedUser?.name || "Un technicien";
+                        const defib_identifiant = updatedReport.defibSnapshot?.identifiant || updatedReport.defibId || "inconnu";
+                        const clientId = updatedReport.defibSnapshot?.clientId || "";
+                        const matchedClient = clients.find((c: any) => c.id === clientId);
+                        const client_denomination = matchedClient
+                          ? matchedClient.denomination
+                          : updatedReport.defibSnapshot?.nomPrenomSite || "Client inconnu";
+
+                        onAddNotification(
+                          'Interventions',
+                          `Le technicien ${name_technician} a validé le rapport d’intervention pour le défibrillateur ${defib_identifiant} de la société ${client_denomination}.`
+                        );
+                      }
+
                       // NOTE: Auto-update defibrillator record and email triggering are bypassed at this level
                       // They are successfully pending approval inside the GMAO tab.
 
@@ -6060,6 +6186,19 @@ export default function PublicPortal({
                                       return copy;
                                     });
 
+                                    // Generate notification for each rejected mission
+                                    if (onAddNotification) {
+                                      const name_technician = authenticatedUser?.name || "Un technicien";
+                                      uncompletedPassages.forEach((pass) => {
+                                        const mission_id = pass.identifiant || pass.num || "Mission";
+                                        const reason_text = pass.rejectionReason || "aucun motif spécifié";
+                                        onAddNotification(
+                                          'Interventions',
+                                          `Le technicien ${name_technician} rejette la mission ${mission_id} avec le motif : ${reason_text}.`
+                                        );
+                                      });
+                                    }
+
                                     // update tours state
                                     const updatedTours = tours.map((item) => {
                                       if (item.id === t.id) {
@@ -6842,6 +6981,378 @@ export default function PublicPortal({
                           </table>
                         </div>
                       </div>
+
+                      {/* Section Inventaire de traçabilité */}
+                      {matchedStockRecord?.traceabilityEnabled && (
+                        <div className="bg-white space-y-4 mt-4">
+                          <div className="flex bg-white select-none">
+                            <span
+                              className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                              style={{
+                                color: "#fff",
+                                backgroundColor: "#5f1f66",
+                                fontSize: "16px",
+                                border: "none",
+                                textTransform: "none",
+                                letterSpacing: "normal",
+                              }}
+                            >
+                              Inventaire de traçabilité
+                            </span>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (isInventoryMode) {
+                                // CONFIRM
+                                if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
+                                let hasPassedToMissing = false;
+                                const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
+                                  if (t.situation === "Disponible" || t.situation === "Signalé manquant") {
+                                    const isChecked = checkedTraceabilityIds[t.id];
+                                    let newSituation = t.situation;
+                                    if (isChecked) {
+                                      if (t.situation === "Disponible") {
+                                        // do nothing
+                                      } else if (t.situation === "Signalé manquant") {
+                                        newSituation = "Disponible";
+                                      }
+                                    } else {
+                                      if (t.situation === "Disponible") {
+                                        newSituation = "Signalé manquant";
+                                        hasPassedToMissing = true;
+                                      } else if (t.situation === "Signalé manquant") {
+                                        newSituation = "Signalé manquant";
+                                      }
+                                    }
+                                    return { ...t, situation: newSituation };
+                                  }
+                                  return t;
+                                });
+
+                                if (hasPassedToMissing && onAddNotification) {
+                                  const name_technician = authenticatedUser?.name || "Un technicien";
+                                  const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+                                  const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+                                  const part_name_and_UGS = `${pieceName}${ugs}`;
+                                  const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
+                                  onAddNotification(
+                                    'Stocks',
+                                    `Le technicien ${name_technician} signale que la pièce ${part_name_and_UGS} est manquante dans l’inventaire ${emplacement_name} attribué.`
+                                  );
+                                }
+
+                                const updatedStocks = stocks.map((st) => {
+                                  if (st.id === matchedStockRecord.id) {
+                                    return { ...st, traceabilities: updatedTraceabilities };
+                                  }
+                                  return st;
+                                });
+                                onUpdateStocks(updatedStocks);
+                                setIsInventoryMode(false);
+                              } else {
+                                // PROCEED
+                                const initialChecked: Record<string, boolean> = {};
+                                filteredTraceabilities.forEach((t) => {
+                                  initialChecked[t.id] = false;
+                                });
+                                setCheckedTraceabilityIds(initialChecked);
+                                setIsInventoryMode(true);
+                              }
+                            }}
+                            style={{
+                              width: "100%",
+                              backgroundColor: isInventoryMode ? "#2563eb" : "#000000",
+                              color: "#ffffff",
+                              borderRadius: "13px",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                              padding: "12px 16px",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                            className="font-sans active:scale-[0.98] transition-all block"
+                          >
+                            {isInventoryMode ? "Confirmer l’inventaire" : "Procéder à l’inventaire"}
+                          </button>
+
+                          {isInventoryMode && (
+                            <p className="font-sans font-medium" style={{ color: "#000000", fontSize: "18px" }}>
+                              Cochez les lignes des matériels dont vous disposez dans votre emplacement.
+                            </p>
+                          )}
+
+                          <div
+                            className="overflow-x-auto border rounded-xl mt-2 bg-white"
+                            style={{
+                              borderColor: "oklch(0.88 0 0)",
+                              borderWidth: "1px",
+                            }}
+                          >
+                            <table className="w-full text-left font-sans border-collapse text-xs">
+                              <thead>
+                                <tr
+                                  className="bg-white"
+                                  style={{
+                                    borderBottom: "1px solid oklch(0.88 0 0)",
+                                  }}
+                                >
+                                  {isInventoryMode && (
+                                    <th
+                                      className="px-3 py-3 font-semibold text-black font-sans text-center"
+                                      style={{ fontSize: "16px", color: "#000000", width: "60px" }}
+                                    >
+                                      Select.
+                                    </th>
+                                  )}
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Barre-code.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Mouvement.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Numéro de lot ou série.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Date de péremption.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 text-center font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Volume.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Situation.
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white">
+                                {filteredTraceabilities.length === 0 ? (
+                                  <tr>
+                                    <td
+                                      colSpan={isInventoryMode ? 7 : 6}
+                                      className="text-center text-xs text-slate-400 py-4 font-sans bg-white"
+                                    >
+                                      Aucun matériel de traçabilité enregistré.
+                                    </td>
+                                  </tr>
+                                ) : (
+                                  filteredTraceabilities.map((trace, idx) => {
+                                    return (
+                                      <tr
+                                        key={trace.id}
+                                        className="hover:bg-slate-50 transition-all font-sans bg-white text-black"
+                                        style={{
+                                          borderBottom:
+                                            idx === filteredTraceabilities.length - 1
+                                              ? "none"
+                                              : "1px solid oklch(0.88 0 0)",
+                                        }}
+                                      >
+                                        {isInventoryMode && (
+                                          <td className="px-3 py-2 text-center bg-white align-middle">
+                                            <div
+                                              onClick={() => {
+                                                setCheckedTraceabilityIds((prev) => ({
+                                                  ...prev,
+                                                  [trace.id]: !prev[trace.id],
+                                                }));
+                                              }}
+                                              className="cursor-pointer flex items-center justify-center mx-auto"
+                                              style={{ width: "28px", height: "28px" }}
+                                            >
+                                              <div
+                                                className="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all bg-white"
+                                                style={{
+                                                  borderColor: checkedTraceabilityIds[trace.id] ? "#fe4eba" : "#cbd5e1",
+                                                  borderWidth: "2px",
+                                                }}
+                                              >
+                                                {checkedTraceabilityIds[trace.id] && (
+                                                  <div
+                                                    className="w-3 h-3 rounded-full"
+                                                    style={{ backgroundColor: "#fe4eba" }}
+                                                  />
+                                                )}
+                                              </div>
+                                            </div>
+                                          </td>
+                                        )}
+                                        {/* Code-barres */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <div className="flex items-center gap-2">
+                                            <div
+                                              className="inline-block"
+                                              dangerouslySetInnerHTML={{
+                                                __html: generateBarcodeSVGString(trace.lotOrSerial),
+                                              }}
+                                            />
+                                            <button
+                                              type="button"
+                                              onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
+                                              style={{
+                                                backgroundColor: "#000000",
+                                                color: "#ffffff",
+                                                padding: "10px 20px",
+                                                fontSize: "18px",
+                                                borderRadius: "13px",
+                                              }}
+                                              className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                              title="Imprimer / Télécharger"
+                                            >
+                                              Imprimer
+                                            </button>
+                                          </div>
+                                        </td>
+                                        {/* Mouvement */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <select
+                                            value={trace.movementId}
+                                            disabled
+                                            className="w-full font-sans cursor-not-allowed appearance-none"
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              minWidth: "280px",
+                                              opacity: 1, // ensure fully visible when disabled
+                                              WebkitTextFillColor: "#000000",
+                                              appearance: "none",
+                                              WebkitAppearance: "none",
+                                              MozAppearance: "none",
+                                              backgroundImage: "none",
+                                            }}
+                                          >
+                                            <option value="" disabled hidden>
+                                              Sélectionnez un mouvement
+                                            </option>
+                                            <option value="Autre">Autre (Aucun mouvement)</option>
+                                            {(matchedStockRecord?.mouvements || [])
+                                              .filter((mv) => mv.type !== "Annulation")
+                                              .map((mv) => (
+                                                <option key={mv.id} value={mv.id}>
+                                                  {mv.date} - {mv.type} (Vol: {mv.volume})
+                                                </option>
+                                              ))}
+                                          </select>
+                                        </td>
+                                        {/* Numéro de lot ou série */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <input
+                                            type="text"
+                                            value={trace.lotOrSerial}
+                                            disabled
+                                            readOnly
+                                            className="w-full font-semibold font-sans cursor-not-allowed"
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                            }}
+                                          />
+                                        </td>
+                                        {/* Date de péremption */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <input
+                                            type="date"
+                                            value={trace.expirationDate || ""}
+                                            disabled
+                                            readOnly
+                                            className="w-full font-sans cursor-not-allowed"
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                            }}
+                                          />
+                                        </td>
+                                        {/* Volume */}
+                                        <td className="px-3 py-2 bg-white text-center align-middle">
+                                          <input
+                                            type="number"
+                                            value={trace.volume}
+                                            disabled
+                                            readOnly
+                                            className="text-center font-sans cursor-not-allowed"
+                                            style={{
+                                              width: "80px",
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                            }}
+                                          />
+                                        </td>
+                                        {/* Situation */}
+                                        <td className="px-3 py-2 bg-white font-medium align-middle">
+                                          <input
+                                            type="text"
+                                            value={trace.situation}
+                                            disabled
+                                            readOnly
+                                            className="w-full text-center font-bold font-sans cursor-not-allowed"
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              minWidth: "220px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                            }}
+                                          />
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Section 3: Actions (Two side-by-side black styled buttons) */}
                       <div className="space-y-3">

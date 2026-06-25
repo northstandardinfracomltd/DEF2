@@ -245,7 +245,7 @@ export interface DistributedStockLocation {
   id: string;
   denominationPieceId: string;
   stockId?: string;
-  locationName: 'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C';
+  locationName: 'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Entrepôt D' | 'Entrepôt E' | 'Entrepôt F' | 'Entrepôt G' | 'Entrepôt H' | 'Entrepôt I' | 'Entrepôt J' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Véhicule D' | 'Véhicule E' | 'Véhicule F' | 'Véhicule G' | 'Véhicule H' | 'Véhicule I' | 'Véhicule J';
   volumeDisponible: number;
   volumeReserve: number;
   volumeEntrant: number;
@@ -390,6 +390,14 @@ export interface AchatFournisseur {
   pdfUrl?: string; // base64 or file/fake url
   pdfName?: string; // filename of PDF if uploaded
   dateStr: string; // date of order
+}
+
+export interface AppNotification {
+  id: string;
+  category: 'Stocks' | 'Défibrillateurs' | 'Interventions' | 'Factures & Devis' | 'Système';
+  title: string;
+  timestamp: string; // YYYY-MM-DD HH:mm:ss
+  situation: 'Nouveau' | 'En cours' | 'Terminé';
 }
 
 

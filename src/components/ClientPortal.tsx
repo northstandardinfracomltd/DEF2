@@ -80,7 +80,7 @@ function Barcode({ text }: BarcodeProps) {
     <div className="flex flex-col items-center p-2 bg-white max-w-xs mx-auto">
       <svg id={`barcode-${text}`} width="100%" height={svgHeight} viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="mx-auto block">
         {rects}
-        <text x={svgWidth / 2} y={height + 25} textAnchor="middle" className="font-sans text-[12px] tracking-widest font-semibold fill-black">
+        <text x={svgWidth / 2} y={height + 25} textAnchor="middle" style={{ fontSize: '18px', letterSpacing: 'normal' }} className="font-sans font-semibold fill-black">
           {text}
         </text>
       </svg>
@@ -411,7 +411,7 @@ export default function ClientPortal({
               \${authenticatedClient.siret ? \`<div style="margin-bottom: 2px;">SIRET. \${authenticatedClient.siret}</div>\` : ''}
               \${authenticatedClient.nomPrenomSite ? \`<div style="margin-bottom: 2px;">Contact site. \${authenticatedClient.nomPrenomSite}</div>\` : ''}
               \${authenticatedClient.email ? \`<div style="margin-bottom: 2px;">Email. \${authenticatedClient.email}</div>\` : ''}
-              \${authenticatedClient.phone ? \`<div style="margin-bottom: 2px;">Téléphone. \${authenticatedClient.phone}</div>\` : ''}
+              \${authenticatedClient.phone ? \`<div style="margin-bottom: 2px;">\${t("Téléphone.")} \${authenticatedClient.phone}</div>\` : ''}
             </div>
           </div>
 
@@ -850,7 +850,7 @@ export default function ClientPortal({
                 ${clientObj.nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact. ${clientObj.nomPrenomSite}</div>` : ''}
                 ${clientObj.siret ? `<div style="margin-bottom: 2px;">Numéro fiscal. ${clientObj.siret}</div>` : ''}
                 ${clientObj.email ? `<div style="margin-bottom: 2px;">Email. ${clientObj.email}</div>` : ''}
-                ${clientObj.phone ? `<div style="margin-bottom: 2px;">Téléphone. ${clientObj.phone}</div>` : ''}
+                ${clientObj.phone ? `<div style="margin-bottom: 2px;">${t("Téléphone.")} ${clientObj.phone}</div>` : ''}
               ` : ''}
             </div>
           </div>
@@ -1699,7 +1699,7 @@ export default function ClientPortal({
                               type="button"
                               onClick={() => handleDownloadBarcode(df.identifiant || 'DEFIB')}
                               style={{ fontSize: '18px' }}
-                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
+                              className="px-6 py-2 bg-black text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
                             >
                               Télécharger
                             </button>
@@ -1810,7 +1810,7 @@ export default function ClientPortal({
                               type="button"
                               onClick={() => handleDownloadBarcode(oth.identifiant || 'OTHER')}
                               style={{ fontSize: '18px' }}
-                              className="px-6 py-2 bg-black hover:bg-slate-900 text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
+                              className="px-6 py-2 bg-black text-white font-bold rounded-xl transition-all cursor-pointer shadow-sm border-none outline-none"
                             >
                               Télécharger
                             </button>
@@ -1939,7 +1939,7 @@ export default function ClientPortal({
                           <button
                             onClick={() => handleDownloadReport(rep)}
                             style={{
-                              backgroundColor: '#3556ec',
+                              backgroundColor: '#000000',
                               color: '#ffffff',
                               borderRadius: '13px',
                               fontSize: '18px',
@@ -1959,7 +1959,7 @@ export default function ClientPortal({
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                           {renderField('Référence Rapport', rep.id, true)}
-                          {renderField(isOther ? 'Matériel concerné' : 'Défibrillateur concerné', rep.defibIdentifiant || snap.identifiant || 'Non spécifié', true)}
+                          {renderField('Identifiant.', rep.defibIdentifiant || snap.identifiant || 'Non spécifié', true)}
                           {renderField('Date d\'intervention', rep.date, true)}
                           {renderField('Technicien intervenant', rep.techName, true)}
                           {renderField('Site / Mission', rep.siteMission || '-', true)}
@@ -2164,143 +2164,124 @@ export default function ClientPortal({
               )}
 
               {/* Card Contrat */}
-              <div
-                className="bg-white p-5 list-none space-y-4"
-                style={{
-                  border: '1px solid #cfcfcf',
-                  borderRadius: '13px',
-                }}
-              >
-                <div>
-                  <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
-                    Contrat.
-                  </h3>
-                </div>
-
-                <div className="space-y-1">
-                  <div 
-                    className="w-full text-black font-sans whitespace-pre-wrap select-text"
-                    style={{ fontSize: '16px' }}
-                  >
-                    {portalRedactionContrat || "Aucun texte contractuel rédigé pour le moment."}
+              {portalRedactionContrat && portalRedactionContrat.trim() !== '' && (
+                <div
+                  className="bg-white p-5 list-none space-y-4"
+                  style={{
+                    border: '1px solid #cfcfcf',
+                    borderRadius: '13px',
+                  }}
+                >
+                  <div>
+                    <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
+                      Contrat.
+                    </h3>
                   </div>
-                </div>
 
-                {/* 3 columns on desktop for Signature details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-start">
-                  {/* Date de signature */}
                   <div className="space-y-1">
-                    <label className="block text-[18px] font-bold text-black font-sans select-none">
-                      Date.
-                    </label>
-                    <input
-                      type="date"
-                      value={portalDateSignatureContrat}
-                      onChange={(e) => setPortalDateSignatureContrat(e.target.value)}
-                      disabled={!!authenticatedClient?.signatureClientContratImage}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
-                    />
-                  </div>
-
-                  {/* Signé par */}
-                  <div className="space-y-1">
-                    <label className="block text-[18px] font-bold text-black font-sans select-none">
-                      Signataire.
-                    </label>
-                    <input
-                      type="text"
-                      value={portalSigneParContrat}
-                      onChange={(e) => setPortalSigneParContrat(e.target.value)}
-                      disabled={!!authenticatedClient?.signatureClientContratImage}
-                      placeholder="Nom du signataire"
-                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans"
-                    />
-                  </div>
-
-                  {/* Signature du client */}
-                  <div className="space-y-1 flex flex-col">
-                    <label className="block text-[18px] font-bold text-black font-sans select-none">
-                      Signature.
-                    </label>
-                    <div className="flex flex-col items-center justify-center p-2 bg-transparent">
-                      {authenticatedClient?.signatureClientContratImage ? (
-                        <div className="bg-white border border-slate-200 rounded-lg p-1 w-[320px] h-[120px] flex items-center justify-center">
-                          <img 
-                            src={authenticatedClient.signatureClientContratImage} 
-                            alt="Signature client sous contrat" 
-                            className="max-h-full max-w-full object-contain"
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <canvas
-                            ref={portalContractCanvasRef}
-                            width={320}
-                            height={120}
-                            className="bg-white border border-slate-200 cursor-crosshair rounded-lg"
-                            onMouseDown={startDrawingPortalContractSig}
-                            onMouseMove={drawPortalContractSig}
-                            onMouseUp={stopDrawingPortalContractSig}
-                            onMouseLeave={stopDrawingPortalContractSig}
-                            onTouchStart={startDrawingPortalContractSig}
-                            onTouchMove={drawPortalContractSig}
-                            onTouchEnd={stopDrawingPortalContractSig}
-                          />
-                          <div className="flex justify-between items-center w-full mt-2 px-1">
-                            <button
-                              type="button"
-                              onClick={clearPortalContractSignature}
-                              className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
-                              style={{
-                                backgroundColor: '#000000',
-                                borderRadius: '13px',
-                                fontSize: '18px',
-                                boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
-                              }}
-                            >
-                              Effacer
-                            </button>
-                            {portalSignatureClientContratImage && (
-                              <span className="text-[10px] text-emerald-600 font-bold font-sans">
-                                ✓ Signé
-                              </span>
-                            )}
-                          </div>
-                        </>
-                      )}
+                    <div 
+                      className="w-full text-black font-sans whitespace-pre-wrap select-text"
+                      style={{ fontSize: '16px' }}
+                    >
+                      {portalRedactionContrat}
                     </div>
                   </div>
-                </div>
 
-                {/* Actions row: Download button always visible, Save button visible if not signed yet */}
-                <div className="flex flex-col sm:flex-row items-center justify-between pt-4 border-t border-slate-100 mt-2 gap-4">
-                  <div>
-                    {contractSaveSuccess && (
-                      <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
-                        ✓ Votre signature a été enregistrée avec succès !
-                      </span>
-                    )}
+                  {/* 3 columns on desktop for Signature details */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-start">
+                    {/* Date de signature */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        Date.
+                      </label>
+                      <input
+                        type="date"
+                        value={portalDateSignatureContrat}
+                        onChange={(e) => setPortalDateSignatureContrat(e.target.value)}
+                        disabled={!!authenticatedClient?.signatureClientContratImage}
+                        className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                      />
+                    </div>
+
+                    {/* Signé par */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Signataire.")}
+                      </label>
+                      <input
+                        type="text"
+                        value={portalSigneParContrat}
+                        onChange={(e) => setPortalSigneParContrat(e.target.value)}
+                        disabled={!!authenticatedClient?.signatureClientContratImage}
+                        placeholder="Nom du signataire"
+                        className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans"
+                      />
+                    </div>
+
+                    {/* Signature du client */}
+                    <div className="space-y-1 flex flex-col">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        Signature.
+                      </label>
+                      <div className="flex flex-col items-center justify-center p-2 bg-transparent">
+                        {authenticatedClient?.signatureClientContratImage ? (
+                          <div className="bg-white border border-slate-200 rounded-lg p-1 w-[320px] h-[120px] flex items-center justify-center">
+                            <img 
+                              src={authenticatedClient.signatureClientContratImage} 
+                              alt="Signature client sous contrat" 
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          </div>
+                        ) : (
+                          <>
+                            <canvas
+                              ref={portalContractCanvasRef}
+                              width={320}
+                              height={120}
+                              className="bg-white border border-slate-200 cursor-crosshair rounded-lg"
+                              onMouseDown={startDrawingPortalContractSig}
+                              onMouseMove={drawPortalContractSig}
+                              onMouseUp={stopDrawingPortalContractSig}
+                              onMouseLeave={stopDrawingPortalContractSig}
+                              onTouchStart={startDrawingPortalContractSig}
+                              onTouchMove={drawPortalContractSig}
+                              onTouchEnd={stopDrawingPortalContractSig}
+                            />
+                            <div className="flex justify-between items-center w-full mt-2 px-1">
+                              <button
+                                type="button"
+                                onClick={clearPortalContractSignature}
+                                className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
+                                style={{
+                                  backgroundColor: '#000000',
+                                  borderRadius: '13px',
+                                  fontSize: '18px',
+                                  boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                                }}
+                              >
+                                {t("Effacer")}
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
-                    <button
-                      type="button"
-                      onClick={handleDownloadContractPDF}
-                      className="px-6 py-3 text-white transition-all cursor-pointer flex items-center gap-2 border-none outline-none font-bold"
-                      style={{
-                        backgroundColor: '#000000',
-                        borderRadius: '13px',
-                        fontSize: '18px',
-                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
-                      }}
-                    >
-                      Télécharger le contrat PDF
-                    </button>
 
-                    {!authenticatedClient?.signatureClientContratImage && (
+                  {/* Actions row: Download button always visible, Save button visible if not signed yet */}
+                  <div className="flex flex-col sm:flex-row items-center justify-between pt-4 mt-2 gap-4">
+                    <div>
+                      {contractSaveSuccess && (
+                        <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
+                          ✓ Votre signature a été enregistrée avec succès !
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
                       <button
                         type="button"
-                        onClick={handleSavePortalContract}
-                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
+                        onClick={handleDownloadContractPDF}
+                        className="px-6 py-3 text-white transition-all cursor-pointer flex items-center gap-2 border-none outline-none font-bold"
                         style={{
                           backgroundColor: '#000000',
                           borderRadius: '13px',
@@ -2308,13 +2289,29 @@ export default function ClientPortal({
                           boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
-                        Enregistrer & Signer le Contrat
+                        {t("Télécharger le contrat PDF")}
                       </button>
-                    )}
-                  </div>
-                </div>
 
-              </div>
+                      {!authenticatedClient?.signatureClientContratImage && (
+                        <button
+                          type="button"
+                          onClick={handleSavePortalContract}
+                          className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
+                          style={{
+                            backgroundColor: '#000000',
+                            borderRadius: '13px',
+                            fontSize: '18px',
+                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                          }}
+                        >
+                          {t("Enregistrer & Signer le Contrat")}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              )}
 
               {/* Card Contacts de l'Établissement */}
               <div
@@ -2342,7 +2339,7 @@ export default function ClientPortal({
                         boxShadow: 'none',
                       }}
                     >
-                      Modifier les contacts
+                      {t("Modifier les contacts")}
                     </button>
                   ) : (
                     <div className="flex gap-2 self-stretch sm:self-auto justify-end">
@@ -2355,7 +2352,7 @@ export default function ClientPortal({
                           fontSize: '18px',
                         }}
                       >
-                        Enregistrer
+                        {t("Enregistrer")}
                       </button>
                       <button
                         onClick={() => {
@@ -2395,7 +2392,7 @@ export default function ClientPortal({
                           fontSize: '18px',
                         }}
                       >
-                        Annuler
+                        {t("Annuler")}
                       </button>
                     </div>
                   )}
@@ -2405,7 +2402,7 @@ export default function ClientPortal({
                   <div className="space-y-6">
                     {/* Contact 1 */}
                     <div className="pb-4">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 1
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2418,7 +2415,7 @@ export default function ClientPortal({
 
                     {/* Contact 2 */}
                     <div className="pb-4">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 2
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2431,7 +2428,7 @@ export default function ClientPortal({
 
                     {/* Contact 3 */}
                     <div className="pb-4">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 3
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2444,7 +2441,7 @@ export default function ClientPortal({
 
                     {/* Contact 4 */}
                     <div className="pb-4">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 4
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2457,7 +2454,7 @@ export default function ClientPortal({
 
                     {/* Contact 5 */}
                     <div className="pb-4">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 5
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2472,7 +2469,7 @@ export default function ClientPortal({
                   <div className="space-y-6 pt-2">
                     {/* Edit Contact 1 */}
                     <div className="pb-6">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 1
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2485,7 +2482,7 @@ export default function ClientPortal({
 
                     {/* Edit Contact 2 */}
                     <div className="pb-6">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 2
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2498,7 +2495,7 @@ export default function ClientPortal({
 
                     {/* Edit Contact 3 */}
                     <div className="pb-6">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 3
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2511,7 +2508,7 @@ export default function ClientPortal({
 
                     {/* Edit Contact 4 */}
                     <div className="pb-6">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 4
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2524,7 +2521,7 @@ export default function ClientPortal({
 
                     {/* Edit Contact 5 */}
                     <div className="pb-2">
-                      <div className="inline-block px-3 py-1 bg-slate-100 text-black text-[14px] font-bold rounded-full font-sans select-none mb-3">
+                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                         Contact 5
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -2548,7 +2545,7 @@ export default function ClientPortal({
               >
                 <div>
                   <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
-                    Signature à distance.
+                    {t("Signature à distance.")}
                   </h3>
                 </div>
 
@@ -2581,7 +2578,7 @@ export default function ClientPortal({
                           fontSize: '18px',
                         }}
                       >
-                        Effacer
+                        {t("Effacer")}
                       </button>
                       
                       <button
@@ -2594,13 +2591,13 @@ export default function ClientPortal({
                           fontSize: '18px',
                         }}
                       >
-                        Enregistrer ma signature
+                        {t("Enregistrer ma signature")}
                       </button>
                     </div>
 
                     {saveSuccess && (
                       <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn flex items-center gap-1">
-                        ✓ Signature enregistrée avec succès !
+                        ✓ {t("Signature enregistrée avec succès !")}
                       </span>
                     )}
                   </div>
@@ -2610,14 +2607,14 @@ export default function ClientPortal({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
                   <div className="space-y-1 bg-white">
                     <label className="block text-[18px] font-bold text-black font-sans select-none">
-                      PIN unique de signature à communiquer au technicien.
+                      {t("PIN unique de signature à communiquer au technicien.")}
                     </label>
                     <input
                       type="text"
                       disabled
                       value={authenticatedClient?.signaturePin || 'Non défini'}
-                      style={{ cursor: 'not-allowed', backgroundColor: '#ffffff', borderColor: '#cfcfcf', color: 'black' }}
-                      className="px-4 py-2 border rounded-xl font-mono font-bold text-[18px] text-center w-40"
+                      style={{ cursor: 'not-allowed', backgroundColor: '#ffffff', borderColor: '#cfcfcf', color: 'black', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '18px' }}
+                      className="px-4 py-2 border rounded-xl font-bold text-center w-40 font-sans"
                     />
                   </div>
                 </div>

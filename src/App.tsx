@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -38,6 +38,7 @@ import SatisfactionTab from './components/SatisfactionTab';
 import GmaoCorrectionForm from './components/GmaoCorrectionForm';
 import ImportExportTab from './components/ImportExportTab';
 import SatisfactionFormPage from './components/SatisfactionFormPage';
+import NotificationsTab from './components/NotificationsTab';
 
 import {
   Heart,
@@ -81,7 +82,8 @@ import {
   Download,
   Eye,
   ChevronDown,
-  ShoppingBag
+  ShoppingBag,
+  Bell
 } from 'lucide-react';
 
 export type AppTab = 
@@ -102,6 +104,7 @@ export type AppTab =
   | 'localisations'
   | 'satisfaction'
   | 'statistiques'
+  | 'notifications'
   | 'parametres'
   | 'import-export';
 
@@ -652,6 +655,41 @@ export default function App() {
   const [docTypeFilter, setDocTypeFilter] = useState<'Tous' | 'Devis' | 'Facture' | 'Bon de commande'>('Tous');
 
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
+
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  const saveNotifications = (updated: AppNotification[]) => {
+    setNotifications(updated);
+    localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('notifications', updated);
+    }
+  };
+
+  const addNotification = (category: AppNotification['category'], title: string) => {
+    const newNotif: AppNotification = {
+      id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      category,
+      title,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      situation: 'Nouveau',
+    };
+    // Fetch latest notifications from current state to prevent stale state issues
+    setNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(updated));
+      if (isFirebaseLoaded && tenantId) {
+        saveCollectionToFirestore('notifications', updated);
+      }
+      return updated;
+    });
+  };
+
+  const handleUpdateOtherEquipments = (val: string) => {
+    setEnableOtherEquipments(val);
+    localStorage.setItem('defib_enable_other_equipments', val);
+    addNotification('Système', 'Un utilisateur vient de modifier les préférences pour les autres types d’équipements.');
+  };
 
   const [achatsFournisseurs, setAchatsFournisseurs] = useState<AchatFournisseur[]>([]);
 
@@ -2093,7 +2131,7 @@ export default function App() {
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
           fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance,
-          fDistributedStocks, fAchatsFournisseurs
+          fDistributedStocks, fAchatsFournisseurs, fNotifications
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -2113,7 +2151,8 @@ export default function App() {
           fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments'),
           fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance'),
           fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks'),
-          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs')
+          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs'),
+          fetchCollectionFromFirestore<AppNotification[]>('notifications')
         ]);
 
         // Helper block to query local storage fallback safely when firestore responds with null/error
@@ -2399,6 +2438,15 @@ export default function App() {
         setAchatsFournisseurs(baseAchats);
         localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify(baseAchats));
 
+        let baseNotifications: AppNotification[] = [];
+        if (fNotifications !== null) {
+          baseNotifications = fNotifications;
+        } else {
+          baseNotifications = getFallback<AppNotification[]>('notifications', []);
+        }
+        setNotifications(baseNotifications);
+        localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(baseNotifications));
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       } catch (err) {
@@ -2476,6 +2524,10 @@ export default function App() {
         const savedAchatsFournisseurs = localStorage.getItem(`defib_${tenantId}_achats_fournisseurs`);
         if (savedAchatsFournisseurs) setAchatsFournisseurs(JSON.parse(savedAchatsFournisseurs));
         else setAchatsFournisseurs([]);
+
+        const savedNotifications = localStorage.getItem(`defib_${tenantId}_notifications`);
+        if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
+        else setNotifications([]);
 
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
@@ -2561,6 +2613,13 @@ export default function App() {
       localStorage.setItem(`defib_${tenantId}_customer_reviews`, JSON.stringify(customerReviews));
     }
   }, [customerReviews, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('notifications', notifications);
+      localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(notifications));
+    }
+  }, [notifications, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
@@ -3557,6 +3616,7 @@ export default function App() {
         commercialDocs={commercialDocs}
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
+        onAddNotification={addNotification}
         onClose={handleLogout}
         onOpenClientPortal={(client) => {
           setActivePortalClient(client);
@@ -3648,6 +3708,7 @@ export default function App() {
         commercialDocs={commercialDocs}
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
+        onAddNotification={addNotification}
         onClose={() => {
           const role = localStorage.getItem('defib_logged_user_role');
           if (role === 'technicien' || role === 'client') {
@@ -3752,6 +3813,7 @@ export default function App() {
             { id: 'import-export', label: t('Importer Exporter'), icon: Download },
             { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
             { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
+            { id: 'notifications', label: 'Notifications', icon: Bell },
           ].map((tab) => {
             return (
               <button
@@ -4945,6 +5007,7 @@ export default function App() {
                     variables={variables}
                     defibrillateurs={defibrillateurs}
                     stocks={stocks}
+                    onUpdateStocks={saveStocks}
                     members={members}
                   />
                 );
@@ -6798,6 +6861,7 @@ export default function App() {
               distributedStocks={distributedStocks}
               saveDistributedStocks={saveDistributedStocks}
               stocks={stocks}
+              saveStocks={saveStocks}
               variables={variables}
               fsmTours={fsmTours}
               searchQuery={distributedStocksSearchQuery}
@@ -6883,6 +6947,13 @@ export default function App() {
             />
           )}
 
+          {activeTab === 'notifications' && (
+            <NotificationsTab
+              notifications={notifications}
+              onUpdateNotifications={saveNotifications}
+            />
+          )}
+
           {activeTab === 'parametres' && (
             <SettingsModal
               isPage={true}
@@ -6901,7 +6972,7 @@ export default function App() {
               onLogout={handleLogout}
               currentUser={loggedUser}
               enableOtherEquipments={enableOtherEquipments}
-              onUpdateOtherEquipments={setEnableOtherEquipments}
+              onUpdateOtherEquipments={handleUpdateOtherEquipments}
               otherEquipments={otherEquipments}
               onClearOtherEquipments={() => saveOtherEquipments([])}
             />
@@ -6945,7 +7016,7 @@ export default function App() {
         onLogout={handleLogout}
         currentUser={loggedUser}
         enableOtherEquipments={enableOtherEquipments}
-        onUpdateOtherEquipments={setEnableOtherEquipments}
+        onUpdateOtherEquipments={handleUpdateOtherEquipments}
         otherEquipments={otherEquipments}
         onClearOtherEquipments={() => saveOtherEquipments([])}
       />

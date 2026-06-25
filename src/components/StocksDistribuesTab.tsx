@@ -88,10 +88,16 @@ const downloadBarcodeSVG = (text: string) => {
   URL.revokeObjectURL(url);
 };
 
+const ALL_LOCATIONS = [
+  'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
+  'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
+] as const;
+
 interface StocksDistribuesTabProps {
   distributedStocks: DistributedStockLocation[];
   saveDistributedStocks: (updated: DistributedStockLocation[]) => void;
   stocks: StockRecord[];
+  saveStocks?: (updated: StockRecord[]) => void;
   variables: Variable[];
   fsmTours?: any[];
   searchQuery?: string;
@@ -103,6 +109,7 @@ export default function StocksDistribuesTab({
   distributedStocks = [],
   saveDistributedStocks,
   stocks = [],
+  saveStocks,
   variables = [],
   fsmTours = [],
   searchQuery: externalSearchQuery,
@@ -112,9 +119,13 @@ export default function StocksDistribuesTab({
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Inventory states
+  const [isInventoryMode, setIsInventoryMode] = useState<boolean>(false);
+  const [checkedTraceabilityIds, setCheckedTraceabilityIds] = useState<Record<string, boolean>>({});
+
   // Form states - now maps to a StockRecord (Centrale des stocks) instead of raw variable
   const [selectedStockId, setSelectedStockId] = useState('');
-  const [locationName, setLocationName] = useState<'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C'>('Entrepôt A');
+  const [locationName, setLocationName] = useState<DistributedStockLocation['locationName']>('Entrepôt A');
   const [volumeDisponible, setVolumeDisponible] = useState<number>(0);
   const [volumeReserve, setVolumeReserve] = useState<number>(0);
   const [volumeEntrant, setVolumeEntrant] = useState<number>(0);
@@ -147,7 +158,8 @@ export default function StocksDistribuesTab({
   }, [mainStockItem]);
 
   const traceabilities = useMemo(() => {
-    return mainStockItem?.traceabilities || [];
+    const raw = mainStockItem?.traceabilities || [];
+    return raw.filter(t => t.situation === 'Disponible' || t.situation === 'Signalé manquant');
   }, [mainStockItem]);
 
   // Dynamically calculate outgoing volumes and impacted defibrillators from active tours
@@ -325,14 +337,11 @@ export default function StocksDistribuesTab({
   // Compute counts map for filter pills
   const countMap = useMemo(() => {
     const map: Record<string, number> = {
-      'Tous': distributedStocks.length,
-      'Entrepôt A': 0,
-      'Entrepôt B': 0,
-      'Entrepôt C': 0,
-      'Véhicule A': 0,
-      'Véhicule B': 0,
-      'Véhicule C': 0
+      'Tous': distributedStocks.length
     };
+    ALL_LOCATIONS.forEach(loc => {
+      map[loc] = 0;
+    });
     distributedStocks.forEach(ds => {
       if (map[ds.locationName] !== undefined) {
         map[ds.locationName]++;
@@ -546,7 +555,7 @@ export default function StocksDistribuesTab({
                         style={{ minHeight: '36px' }}
                       >
                         <option value="" disabled hidden>Choisir l'emplacement</option>
-                        {['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'].map(loc => (
+                        {ALL_LOCATIONS.map(loc => (
                           <option key={loc} value={loc}>{loc}</option>
                         ))}
                       </select>
@@ -568,7 +577,7 @@ export default function StocksDistribuesTab({
 
           {/* Filters Pills Row - identical style to Centrale des stocks */}
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-distributed-storage-pills">
-            {['Tous', 'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'].map((loc) => {
+            {['Tous', ...ALL_LOCATIONS].map((loc) => {
               const count = countMap[loc] || 0;
               const isSelected = locationFilter === loc;
               return (
@@ -866,12 +875,9 @@ export default function StocksDistribuesTab({
                     className="w-full bg-white text-black cursor-pointer"
                     required
                   >
-                    <option value="Entrepôt A">Entrepôt A</option>
-                    <option value="Entrepôt B">Entrepôt B</option>
-                    <option value="Entrepôt C">Entrepôt C</option>
-                    <option value="Véhicule A">Véhicule A</option>
-                    <option value="Véhicule B">Véhicule B</option>
-                    <option value="Véhicule C">Véhicule C</option>
+                    {ALL_LOCATIONS.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -1126,6 +1132,74 @@ export default function StocksDistribuesTab({
                       </span>
                     </div>
 
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isInventoryMode) {
+                          // CONFIRM
+                          if (!mainStockItem || !stocks || !saveStocks) return;
+                          const updatedTraceabilities = (mainStockItem.traceabilities || []).map((t) => {
+                            if (t.situation === "Disponible" || t.situation === "Signalé manquant") {
+                              const isChecked = checkedTraceabilityIds[t.id];
+                              let newSituation = t.situation;
+                              if (isChecked) {
+                                if (t.situation === "Disponible") {
+                                  // do nothing
+                                } else if (t.situation === "Signalé manquant") {
+                                  newSituation = "Disponible";
+                                }
+                              } else {
+                                if (t.situation === "Disponible") {
+                                  newSituation = "Signalé manquant";
+                                } else if (t.situation === "Signalé manquant") {
+                                  newSituation = "Signalé manquant";
+                                }
+                              }
+                              return { ...t, situation: newSituation };
+                            }
+                            return t;
+                          });
+
+                          const updatedStocks = stocks.map((st) => {
+                            if (st.id === mainStockItem.id) {
+                              return { ...st, traceabilities: updatedTraceabilities };
+                            }
+                            return st;
+                          });
+                          saveStocks(updatedStocks);
+                          setIsInventoryMode(false);
+                        } else {
+                          // PROCEED
+                          const initialChecked: Record<string, boolean> = {};
+                          traceabilities.forEach((t) => {
+                            initialChecked[t.id] = false;
+                          });
+                          setCheckedTraceabilityIds(initialChecked);
+                          setIsInventoryMode(true);
+                        }
+                      }}
+                      style={{
+                        width: "100%",
+                        backgroundColor: isInventoryMode ? "#2563eb" : "#000000",
+                        color: "#ffffff",
+                        borderRadius: "13px",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                        padding: "12px 16px",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      className="font-sans active:scale-[0.98] transition-all block"
+                    >
+                      {isInventoryMode ? "Confirmer l’inventaire" : "Procéder à l’inventaire"}
+                    </button>
+
+                    {isInventoryMode && (
+                      <p className="font-sans font-medium" style={{ color: "#000000", fontSize: "18px" }}>
+                        Cochez les lignes des matériels dont vous disposez dans votre emplacement.
+                      </p>
+                    )}
+
                     {traceabilities.length > 0 ? (
                       <div 
                         className="overflow-x-auto border rounded-xl mt-2 bg-white" 
@@ -1134,6 +1208,14 @@ export default function StocksDistribuesTab({
                         <table className="w-full text-left font-sans border-collapse text-xs">
                           <thead>
                             <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                              {isInventoryMode && (
+                                <th
+                                  className="px-3 py-3 font-semibold text-black font-sans text-center"
+                                  style={{ fontSize: '16px', color: '#000000', width: '60px' }}
+                                >
+                                  Select.
+                                </th>
+                              )}
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Barre-code.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
@@ -1150,8 +1232,37 @@ export default function StocksDistribuesTab({
                                   className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
                                   style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
                                 >
+                                  {isInventoryMode && (
+                                    <td className="px-3 py-2 text-center bg-white align-middle">
+                                      <div
+                                        onClick={() => {
+                                          setCheckedTraceabilityIds((prev) => ({
+                                            ...prev,
+                                            [trace.id]: !prev[trace.id],
+                                          }));
+                                        }}
+                                        className="cursor-pointer flex items-center justify-center mx-auto"
+                                        style={{ width: "28px", height: "28px" }}
+                                      >
+                                        <div
+                                          className="w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all bg-white"
+                                          style={{
+                                            borderColor: checkedTraceabilityIds[trace.id] ? "#fe4eba" : "#cbd5e1",
+                                            borderWidth: "2px",
+                                          }}
+                                        >
+                                          {checkedTraceabilityIds[trace.id] && (
+                                            <div
+                                              className="w-3 h-3 rounded-full"
+                                              style={{ backgroundColor: "#fe4eba" }}
+                                            />
+                                          )}
+                                        </div>
+                                      </div>
+                                    </td>
+                                  )}
                                   {/* Code-barres */}
-                                  <td className="px-3 py-2 bg-white">
+                                  <td className="px-3 py-2 bg-white align-middle">
                                     <div className="flex items-center gap-2">
                                       <div 
                                         className="inline-block"
@@ -1176,12 +1287,27 @@ export default function StocksDistribuesTab({
                                   </td>
 
                                   {/* Mouvement */}
-                                  <td className="px-3 py-2 bg-white">
+                                  <td className="px-3 py-2 bg-white align-middle">
                                     <select
                                       value={trace.movementId}
                                       disabled
-                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
+                                      className="w-full font-sans cursor-not-allowed appearance-none"
+                                      style={{
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        minWidth: "280px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                        appearance: "none",
+                                        WebkitAppearance: "none",
+                                        MozAppearance: "none",
+                                        backgroundImage: "none",
+                                      }}
                                     >
                                       <option value="" disabled hidden>Sélectionnez un mouvement</option>
                                       <option value="Autre">Autre (Aucun mouvement)</option>
@@ -1194,54 +1320,93 @@ export default function StocksDistribuesTab({
                                   </td>
 
                                   {/* Numéro de lot ou série */}
-                                  <td className="px-3 py-2 bg-white">
+                                  <td className="px-3 py-2 bg-white align-middle">
                                     <input
                                       type="text"
                                       value={trace.lotOrSerial}
                                       disabled
                                       readOnly
-                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-semibold text-xs font-mono cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
+                                      className="w-full font-semibold font-sans cursor-not-allowed"
+                                      style={{
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                      }}
                                     />
                                   </td>
 
                                   {/* Date de péremption */}
-                                  <td className="px-3 py-2 bg-white">
+                                  <td className="px-3 py-2 bg-white align-middle">
                                     <input
                                       type="date"
                                       value={trace.expirationDate || ''}
                                       disabled
                                       readOnly
-                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
+                                      className="w-full font-sans cursor-not-allowed"
+                                      style={{
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                      }}
                                     />
                                   </td>
 
                                   {/* Volume */}
-                                  <td className="px-3 py-2 bg-white text-center">
+                                  <td className="px-3 py-2 bg-white text-center align-middle">
                                     <input
                                       type="number"
                                       value={trace.volume}
                                       disabled
                                       readOnly
-                                      className="w-16 bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs text-center cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
+                                      className="text-center font-sans cursor-not-allowed"
+                                      style={{
+                                        width: "80px",
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                      }}
                                     />
                                   </td>
 
                                   {/* Situation */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <select
+                                  <td className="px-3 py-2 bg-white font-medium align-middle">
+                                    <input
+                                      type="text"
                                       value={trace.situation}
                                       disabled
-                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
-                                    >
-                                      <option value="Disponible">Disponible</option>
-                                      <option value="Utilisé">Utilisé</option>
-                                      <option value="Indisponible">Indisponible</option>
-                                      <option value="Signalé manquant">Signalé manquant</option>
-                                    </select>
+                                      readOnly
+                                      className="w-full text-center font-bold font-sans cursor-not-allowed"
+                                      style={{
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        minWidth: "220px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                      }}
+                                    />
                                   </td>
                                 </tr>
                               );

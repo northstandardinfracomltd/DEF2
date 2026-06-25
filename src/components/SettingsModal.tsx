@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { CompanyInfo, Member, MemberSchedule, MemberAbsence } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere, updateTenantLanguage } from '../firebase';
-import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion } from '../utils/emailService';
+import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded } from '../utils/emailService';
 import { setLanguage, t } from '../utils/translate';
 
 interface SettingsModalProps {
@@ -127,6 +127,11 @@ export default function SettingsModal({
   const [sageAccessToken, setSageAccessToken] = React.useState('');
   const [sageSecretToken, setSageSecretToken] = React.useState('');
 
+  const [sage4197Active, setSage4197Active] = React.useState(false);
+  const [sage4197ClientId, setSage4197ClientId] = React.useState('');
+  const [sage4197AccessToken, setSage4197AccessToken] = React.useState('');
+  const [sage4197SecretToken, setSage4197SecretToken] = React.useState('');
+
   const [pennylaneActive, setPennylaneActive] = React.useState(false);
   const [pennylaneClientId, setPennylaneClientId] = React.useState('');
   const [pennylaneCompanyToken, setPennylaneCompanyToken] = React.useState('');
@@ -150,6 +155,11 @@ export default function SettingsModal({
           if (data.sageClientId !== undefined) setSageClientId(data.sageClientId);
           if (data.sageAccessToken !== undefined) setSageAccessToken(data.sageAccessToken);
           if (data.sageSecretToken !== undefined) setSageSecretToken(data.sageSecretToken);
+
+          if (data.sage4197Active !== undefined) setSage4197Active(data.sage4197Active);
+          if (data.sage4197ClientId !== undefined) setSage4197ClientId(data.sage4197ClientId);
+          if (data.sage4197AccessToken !== undefined) setSage4197AccessToken(data.sage4197AccessToken);
+          if (data.sage4197SecretToken !== undefined) setSage4197SecretToken(data.sage4197SecretToken);
 
           if (data.pennylaneActive !== undefined) setPennylaneActive(data.pennylaneActive);
           if (data.pennylaneClientId !== undefined) setPennylaneClientId(data.pennylaneClientId);
@@ -178,6 +188,10 @@ export default function SettingsModal({
         sageClientId,
         sageAccessToken,
         sageSecretToken,
+        sage4197Active,
+        sage4197ClientId,
+        sage4197AccessToken,
+        sage4197SecretToken,
         pennylaneActive,
         pennylaneClientId,
         pennylaneCompanyToken,
@@ -574,27 +588,18 @@ export default function SettingsModal({
     onUpdateCompanyInfo(localCompany);
     onUpdateMembers(localMembers);
 
-    // Envoi des emails aux nouveaux membres (Email 2 & 3)
+    // Envoi des emails aux nouveaux membres (Email de bienvenue personnalisé)
     try {
       const originalEmails = new Set(members.map(m => m.email?.trim().toLowerCase()));
       const newMembers = localMembers.filter(m => m.email && !originalEmails.has(m.email.trim().toLowerCase()));
 
       for (const m of newMembers) {
-        if (m.role === 'Technicien') {
-          triggerEmail2TechnicianConnexion(
-            m.email.trim(),
-            m.pin,
-            localCompany.name || 'Défibeo Suite',
-            localCompany.email || ''
-          ).catch(e => console.error("Error sending tech invite:", e));
-        } else if (m.role === 'Administrateur') {
-          triggerEmail3AdminConnexion(
-            m.email.trim(),
-            m.pin,
-            localCompany.name || 'Défibeo Suite',
-            localCompany.email || ''
-          ).catch(e => console.error("Error sending admin invite:", e));
-        }
+        triggerEmailNewMemberAdded(
+          m.email.trim(),
+          m.pin,
+          localCompany.name || 'Défibeo Suite',
+          localCompany.email || ''
+        ).catch(e => console.error("Error sending new member invite:", e));
       }
     } catch (err) {
       console.error("Error dispatching member invites:", err);
@@ -1111,7 +1116,7 @@ export default function SettingsModal({
 
                 {newMemberRole === 'Administrateur' && (
                   <div className="space-y-1">
-                    <label className="block text-[16px] font-bold text-black font-sans">{t("Attribuer un rôle")}.</label>
+                    <label className="block text-[16px] font-bold text-black font-sans">{t("Métier.")}</label>
                     <select
                       value={newMemberAdminSubRole}
                       onChange={(e) => { setNewMemberAdminSubRole(e.target.value as any); setNewMemberError(null); }}
@@ -1135,7 +1140,7 @@ export default function SettingsModal({
                       className="w-full text-black font-semibold text-xs font-sans cursor-pointer"
                     >
                       <option value="">{t("Sélect. un emplacement")}</option>
-                      {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'] as const).map(loc => {
+                      {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => {
                         const isTaken = localMembers.some(
                           mem => mem.role === 'Technicien' && mem.locationLink === loc
                         );
@@ -1232,12 +1237,12 @@ export default function SettingsModal({
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   borderRadius: '1000px',
-                                  backgroundColor: 'rgb(76 20 81)',
+                                  backgroundColor: '#411046',
                                   border: 'none',
-                                  color: 'rgb(255 255 255)',
-                                  fontSize: '16px',
+                                  color: '#ffffff',
+                                  fontSize: '18px',
                                   fontWeight: '600',
-                                  padding: '4px 10px',
+                                  padding: '4px 12px',
                                   whiteSpace: 'nowrap',
                                   fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
                                   textTransform: 'none',
@@ -1263,8 +1268,43 @@ export default function SettingsModal({
                                 }}>{t("Votre session en cours")}</span>
                               )}
                               {!isTech && !isSuperAdmin && (
-                                <span className="inline-flex items-center justify-center rounded-full bg-indigo-50 text-indigo-700 font-sans text-xs font-bold px-2.5 py-1 border border-indigo-200">
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '1000px',
+                                  backgroundColor: '#411046',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  fontSize: '18px',
+                                  fontWeight: '600',
+                                  padding: '4px 12px',
+                                  whiteSpace: 'nowrap',
+                                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                  textTransform: 'none',
+                                  cursor: 'default'
+                                }}>
                                   {t(m.adminSubRole || 'Administrateur')}
+                                </span>
+                              )}
+                              {isTech && !isSuperAdmin && (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: '1000px',
+                                  backgroundColor: '#411046',
+                                  border: 'none',
+                                  color: '#ffffff',
+                                  fontSize: '18px',
+                                  fontWeight: '600',
+                                  padding: '4px 12px',
+                                  whiteSpace: 'nowrap',
+                                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                  textTransform: 'none',
+                                  cursor: 'default'
+                                }}>
+                                  {t("Technicien")}
                                 </span>
                               )}
                             </div>
@@ -1338,7 +1378,7 @@ export default function SettingsModal({
                                   style={{ height: '36px', padding: '6px 10px' }}
                                 >
                                   <option value="">{t("Sélect. un emplacement")}</option>
-                                  {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'] as const).map(loc => {
+                                  {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => {
                                     // Check if this location is taken by ANOTHER technician
                                     const isTakenByOther = localMembers.some(
                                       (mem, otherIdx) => otherIdx !== idx && mem.role === 'Technicien' && mem.locationLink === loc
@@ -1729,13 +1769,53 @@ export default function SettingsModal({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
-              {/* SAGE */}
+              {/* DEROESCH DATA */}
               <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div>
-                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Sage</h5>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Deroesch Data</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#fe4eba',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {t("Activé")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-not-allowed select-none" style={{ cursor: 'not-allowed' }}>
+                        <input
+                          type="checkbox"
+                          checked={true}
+                          disabled
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-[#fe4eba] rounded-full cursor-not-allowed peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all" style={{ cursor: 'not-allowed' }}></div>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SAGE 100 */}
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Sage 100</h5>
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
@@ -1784,7 +1864,7 @@ export default function SettingsModal({
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage ID token d’accès")}.</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage 100 ID token d’accès")}.</label>
                         <input
                           type="text"
                           value={sageAccessToken}
@@ -1792,11 +1872,11 @@ export default function SettingsModal({
                             setSageAccessToken(e.target.value);
                           }}
                           className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
-                          placeholder={t("Entrez le Sage ID token d’accès") + "."}
+                          placeholder={t("Entrez le Sage 100 ID token d’accès") + "."}
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage ID token secret")}.</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage 100 ID token secret")}.</label>
                         <input
                           type="text"
                           value={sageSecretToken}
@@ -1804,7 +1884,90 @@ export default function SettingsModal({
                             setSageSecretToken(e.target.value);
                           }}
                           className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
-                          placeholder={t("Entrez le Sage ID token secret") + "."}
+                          placeholder={t("Entrez le Sage 100 ID token secret") + "."}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* SAGE 100 4197 */}
+              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Sage 100 4197</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: '#8b0000',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {t("Indisponible")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={sage4197Active}
+                          onChange={(e) => {
+                            setSage4197Active(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {sage4197Active && (
+                    <div className="mt-4 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("ID Client.")}</label>
+                        <input
+                          type="text"
+                          value={sage4197ClientId}
+                          onChange={(e) => {
+                            setSage4197ClientId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'ID Client.")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage 100 4197 ID token d’accès")}.</label>
+                        <input
+                          type="text"
+                          value={sage4197AccessToken}
+                          onChange={(e) => {
+                            setSage4197AccessToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez le Sage 100 4197 ID token d’accès") + "."}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Sage 100 4197 ID token secret")}.</label>
+                        <input
+                          type="text"
+                          value={sage4197SecretToken}
+                          onChange={(e) => {
+                            setSage4197SecretToken(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez le Sage 100 4197 ID token secret") + "."}
                         />
                       </div>
                     </div>

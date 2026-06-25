@@ -4073,7 +4073,7 @@ export default function DefibTab({
 
                       {/* Email Mensuel Auto-Vigilence */}
                       <div className="p-2 space-y-1">
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email mensuel d'auto-vigilance.</span>
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">{t("Email mensuel d'auto-vigilance")}.</span>
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -4106,7 +4106,7 @@ export default function DefibTab({
 
                       {/* Email Hebdomadaire Auto-Vigilence */}
                       <div className="p-2 space-y-1">
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email hebdomadaire d'auto-vigilance.</span>
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">{t("Email hebdomadaire d'auto-vigilance")}.</span>
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -4139,7 +4139,7 @@ export default function DefibTab({
 
                       {/* Email Journalier Auto-Vigilence */}
                       <div className="p-2 space-y-1">
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Email journalier d'auto-vigilance.</span>
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">{t("Email journalier d'auto-vigilance")}.</span>
                         <div className="flex gap-2">
                           <button
                             type="button"
@@ -4648,7 +4648,7 @@ export default function DefibTab({
                   className="w-full flex items-center justify-between cursor-pointer focus:outline-hidden bg-transparent border-0 text-left p-0 pb-1"
                 >
                   <span className="text-[16px] text-black font-sans font-semibold" style={{ fontWeight: bulkApplyRappelMensuelAuto ? 'bold' : 100 }}>
-                    Email mensuel d'auto-vigilance.
+                    {t("Email mensuel d'auto-vigilance")}.
                   </span>
                   <div 
                     className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${

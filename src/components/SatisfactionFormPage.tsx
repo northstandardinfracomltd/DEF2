@@ -89,6 +89,31 @@ export default function SatisfactionFormPage() {
       // Update firestore doc
       await setDoc(doc(db, 'appData', key), { value: updatedList });
 
+      // Generate a corresponding notification for the tenant
+      try {
+        const notifKey = tenantId === 'demo' ? 'notifications' : `${tenantId}_notifications`;
+        const existingNotifications = await fetchRawCollectionFromFirestore<any[]>(notifKey) || [];
+        const client_denomination = nomPrenom.trim() || "Un client anonyme";
+        const label_review = mention;
+        const comment_text = commentaire.trim() ? ` (${commentaire.trim()})` : "";
+        const newNotif = {
+          id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          category: 'Système',
+          title: `Le client ${client_denomination} signale sa satisfaction avec la mention : ${label_review}${comment_text}.`,
+          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          situation: 'Nouveau',
+        };
+        const updatedNotifs = [newNotif, ...existingNotifications];
+        await setDoc(doc(db, 'appData', notifKey), { value: updatedNotifs });
+
+        const currentActiveTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+        if (currentActiveTenant === tenantId) {
+          localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(updatedNotifs));
+        }
+      } catch (notifErr) {
+        console.warn("Failed to save corresponding system notification:", notifErr);
+      }
+
       // Update local storage if the currently loaded tenant matches the target tenant
       const currentActiveTenant = localStorage.getItem('defib_tenant_id') || 'demo';
       if (currentActiveTenant === tenantId) {

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Member } from '../types';
+import { t } from '../utils/translate';
 
 interface Expense {
   id: string;
@@ -307,20 +308,20 @@ export default function TicketsCaisseTab({
               {filteredExpenses.length === 0 ? (
                 <div className="p-16 text-center font-sans lg:py-24" id="no-tickets-view">
                   <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                    Aucun résultat.
+                    {t("Aucun résultat.")}
                   </p>
                 </div>
               ) : (
                 <table className="w-full text-left font-sans border-collapse text-xs" id="tickets-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
                   <thead>
                     <tr className="bg-transparent">
-                      <th className="px-4 py-3.5" style={thStyle}>Employé.</th>
-                      <th className="px-4 py-3.5" style={thStyle}>Objet.</th>
-                      <th className="px-4 py-3.5" style={thStyle}>Date.</th>
-                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>Total HT.</th>
-                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>Total TVA.</th>
-                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>Total TTC.</th>
-                      <th className="px-4 py-3.5 text-right w-24" style={thStyle}>Actions.</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Employé.")}</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Objet.")}</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Date.")}</th>
+                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>{t("Total HT.")}</th>
+                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>{t("Total TVA.")}</th>
+                      <th className="px-4 py-3.5 text-right font-mono" style={thStyle}>{t("Total TTC.")}</th>
+                      <th className="px-4 py-3.5 text-right w-24" style={thStyle}>{t("Actions.")}</th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-700 text-xs">
@@ -464,16 +465,16 @@ export default function TicketsCaisseTab({
               
               {/* Technicien Lookup */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">Employé.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">{t("Employé.")}</label>
                 <select
                   value={techName}
                   onChange={(e) => setTechName(e.target.value)}
                   className="font-sans focus:outline-none w-full cursor-pointer"
                   required
                 >
-                  <option value="" disabled hidden>Sélectionner un employé.</option>
+                  <option value="" disabled hidden>{t("Sélectionner un employé.")}</option>
                   {members && members.map((m) => (
-                    <option key={m.pin || m.name} value={m.name}>
+                    <option key={m.email || m.name} value={m.name}>
                       {m.name}
                     </option>
                   ))}
@@ -482,13 +483,13 @@ export default function TicketsCaisseTab({
 
               {/* Title / Raison */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">Entreprise ou objet.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">{t("Entreprise ou objet.")}</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   maxLength={15}
-                  placeholder="Entrez un commentaire."
+                  placeholder={t("Entrez un commentaire.")}
                   className="font-sans focus:outline-none w-full"
                   required
                 />
@@ -496,7 +497,7 @@ export default function TicketsCaisseTab({
 
               {/* Date d'achat */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">Date du paiement.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">{t("Date du paiement.")}</label>
                 <input
                   type="text"
                   value={dateStr}
@@ -509,7 +510,7 @@ export default function TicketsCaisseTab({
 
               {/* Montant TTC */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">Total TTC (€).</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider tickets-label-style">{t("Total TTC (€).")}</label>
                 <input
                   type="number"
                   step="0.01"

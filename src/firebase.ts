@@ -1,13 +1,16 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import { INITIAL_VARIABLES } from './utils';
 import { Member, Client } from './types';
 
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager(),
+  }),
+  experimentalForceLongPolling: true,
 });
 export const auth = getAuth();
 
@@ -556,6 +559,28 @@ export async function findTenantAndDefibGlobally(identifiant: string): Promise<{
     console.error('Error finding tenant and defib globally:', error);
   }
   return null;
+}
+
+/**
+ * Updates the language of a specific tenant in the master registry.
+ */
+export async function updateTenantLanguage(tenantId: string, lang: string): Promise<void> {
+  if (tenantId === 'demo' || !tenantId) return;
+  try {
+    const tenants = await getRegisteredTenants();
+    const updated = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, lang };
+      }
+      return t;
+    });
+    const docRef = doc(db, 'appData', 'registered_tenants');
+    await setDoc(docRef, { value: updated });
+    saveToLocalCache('registered_tenants', updated);
+    console.log(`Updated tenant ${tenantId} language to ${lang} in Firestore`);
+  } catch (err) {
+    console.error(`Error updating language for tenant ${tenantId}:`, err);
+  }
 }
 
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PointageLog } from '../types';
 import { Clock } from 'lucide-react';
+import { t } from '../utils/translate';
 
 interface TempsTabProps {
   pointages: PointageLog[];
@@ -222,7 +223,7 @@ export default function TempsTab({
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="temps-tab-title">Temps</h2>
+            <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="temps-tab-title">{t("Temps")}</h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 bg-white">
@@ -236,7 +237,7 @@ export default function TempsTab({
                 }}
                 className="cursor-pointer font-sans bg-black text-white rounded whitespace-nowrap"
               >
-                Télécharger CSV
+                {t("Télécharger CSV")}
               </button>
             )}
 
@@ -247,7 +248,7 @@ export default function TempsTab({
                 id="search-temps-input"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Recherche."
+                placeholder={t("Recherche.")}
                 className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
                 style={searchInputStyle}
                 onMouseEnter={() => setIsSearchHovered(true)}
@@ -290,7 +291,7 @@ export default function TempsTab({
               }}
               className="transition-all"
             >
-              {filterOpt} ({count})
+              {t(filterOpt)} ({count})
             </button>
           );
         })}
@@ -301,7 +302,7 @@ export default function TempsTab({
         {filteredPointages.length === 0 ? (
           <div className="p-16 text-center font-sans lg:py-24 max-w-2xl mx-auto" id="no-pointage-view">
             <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-              Aucun résultat.
+              {t("Aucun résultat.")}
             </p>
           </div>
         ) : (
@@ -309,18 +310,18 @@ export default function TempsTab({
             <table className="w-full text-left font-sans border-collapse text-xs" id="temps-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
-                  <th className="px-4 py-3.5" style={thStyle}>Technicien.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Début.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Fin.</th>
-                  <th className="px-4 py-3.5" style={thStyle}>Durée totale.</th>
-                  <th className="px-4 py-3.5 text-right w-24" style={thStyle}>Actions.</th>
+                  <th className="px-4 py-3.5" style={thStyle}>{t("Technicien.")}</th>
+                  <th className="px-4 py-3.5" style={thStyle}>{t("Début.")}</th>
+                  <th className="px-4 py-3.5" style={thStyle}>{t("Fin.")}</th>
+                  <th className="px-4 py-3.5" style={thStyle}>{t("Durée totale.")}</th>
+                  <th className="px-4 py-3.5 text-right w-24" style={thStyle}>{t("Actions.")}</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs">
                 {filteredPointages.map((p) => {
                   const isEditing = editingId === p.id;
                   const formattedDur = p.isOngoing 
-                    ? 'Vacation active' 
+                    ? t("Vacation active") 
                     : `${Math.round((p.durationSeconds || 0) / 60)} min (${((p.durationSeconds || 0) / 3600).toFixed(2)} h)`;
 
                   return (
@@ -395,7 +396,7 @@ export default function TempsTab({
                             }}
                             className="animate-pulse"
                           >
-                            En cours
+                            {t("En cours")}
                           </span>
                         ) : (
                           <div style={{ color: '#000000', whiteSpace: 'nowrap' }}>
@@ -408,7 +409,7 @@ export default function TempsTab({
                       {/* Durée totale */}
                       <td className="px-4 py-5 font-mono" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                         {p.isOngoing ? (
-                          <span className="text-slate-500 italic" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>En cours...</span>
+                          <span className="text-slate-500 italic" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>{t("En cours...")}</span>
                         ) : (
                           <span className="font-bold text-black" style={{ color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>{formattedDur}</span>
                         )}
@@ -434,7 +435,7 @@ export default function TempsTab({
                               style={actionButton18Style}
                               className="cursor-pointer text-white font-sans bg-black rounded"
                             >
-                              Enregistrer
+                              {t("Enregistrer")}
                             </button>
                             <button
                               type="button"
@@ -445,7 +446,7 @@ export default function TempsTab({
                               style={actionButton18Style}
                               className="cursor-pointer text-white font-sans bg-black rounded"
                             >
-                              Annuler
+                              {t("Annuler")}
                             </button>
                           </div>
                         ) : (
@@ -464,7 +465,7 @@ export default function TempsTab({
                               style={actionButton18Style}
                               className="cursor-pointer font-sans bg-black rounded"
                             >
-                              Modifier
+                              {t("Modifier")}
                             </button>
                             <button
                               type="button"
@@ -472,7 +473,7 @@ export default function TempsTab({
                               style={actionButton18Style}
                               className="cursor-pointer font-sans bg-black rounded"
                             >
-                              Supprimer
+                              {t("Supprimer")}
                             </button>
                           </div>
                         )}

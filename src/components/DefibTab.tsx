@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Defibrillateur, Client, Variable, CompanyInfo } from '../types';
+import { t } from '../utils/translate';
 import MapModal from './MapModal';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { runMonthlyVigilanceCampaign } from '../utils/emailService';
@@ -352,6 +353,7 @@ function getDateColor(dStr: string | undefined | null): string {
 }
 
 interface DefibTabProps {
+  currentLang?: string;
   defibrillateurs: Defibrillateur[];
   clients: Client[];
   variables: Variable[];
@@ -369,6 +371,7 @@ interface DefibTabProps {
 }
 
 export default function DefibTab({
+  currentLang,
   defibrillateurs,
   clients,
   variables,
@@ -1638,7 +1641,7 @@ export default function DefibTab({
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight font-gochi" style={{ color: '#000000', cursor: 'default' }}>Défibrillateurs</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-gochi" style={{ color: '#000000', cursor: 'default' }}>{t('Défibrillateurs')}</h2>
               </div>
 
               {/* Both search and buttons are placed directly next to the title */}
@@ -1650,7 +1653,7 @@ export default function DefibTab({
                     id="search-defibs-input"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Recherche."
+                    placeholder={t('Recherche...')}
                     className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
                     style={searchInputStyle}
                     onMouseEnter={() => setIsSearchHovered(true)}
@@ -1666,7 +1669,7 @@ export default function DefibTab({
                   id="btn-trigger-filters"
                   style={customButtonStyle}
                 >
-                  <span>Filtres</span>
+                  <span>{t('Filtres')}</span>
                   {(() => {
                     const count = [
                       activeFilters.region !== 'Tous',
@@ -1690,14 +1693,14 @@ export default function DefibTab({
                   id="btn-open-map"
                   style={customButtonStyle}
                 >
-                  Plan
+                  {t('Plan')}
                 </button>
                 <button
                   onClick={() => window.location.reload()}
                   id="btn-refresh-page"
                   style={customButtonStyle}
                 >
-                  Actualiser
+                  {t('Actualiser')}
                 </button>
                 <button
                   onClick={openAddForm}
@@ -1708,7 +1711,7 @@ export default function DefibTab({
                     boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
                   }}
                 >
-                  Nouveau
+                  {t('Nouveau')}
                 </button>
               </div>
             </div>
@@ -2191,7 +2194,7 @@ export default function DefibTab({
       </div>
 
       <div style={{ fontSize: '18px', color: '#000000', fontWeight: 'bold', cursor: 'default' }} className="p-4 font-sans text-left" id="defib-tab-total-summary">
-        Total défibrillateurs (Tous): {defibrillateurs.length}.
+        {t('Total défibrillateurs (Tous)')}: {defibrillateurs.length}.
       </div>
 
       {/* Cartographie GIS Overlay */}
@@ -2301,6 +2304,12 @@ export default function DefibTab({
                 opacity: 0.95 !important;
                 font-family: "DefibeoMain", "Civilprom", sans-serif !important;
                 cursor: not-allowed !important;
+              }
+              #defibrillateur-core-form .white-disabled:disabled {
+                background-color: #ffffff !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-text-fill-color: #000000 !important;
               }
               #defibrillateur-core-form input:disabled:hover,
               #defibrillateur-core-form input:disabled:focus,
@@ -2701,9 +2710,8 @@ export default function DefibTab({
                         <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Contrat en cours.</label>
                         <select
                           value={contrat || 'Non'}
-                          tabIndex={-1}
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-800 cursor-not-allowed font-sans pointer-events-none select-none"
-                          style={{ backgroundColor: '#ffffff', opacity: 1 }}
+                          disabled
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-800 font-sans cursor-not-allowed white-disabled"
                         >
                           <option value="Oui">Oui</option>
                           <option value="Non">Non</option>

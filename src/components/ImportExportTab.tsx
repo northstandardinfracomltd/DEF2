@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Client, Defibrillateur, StockRecord, PointageLog, Variable } from '../types';
 import { saveCollectionToFirestore, fetchCollectionFromFirestore } from '../firebase';
 import { generateRandomShortCode } from '../utils';
+import { t } from '../utils/translate';
 
 export interface ImportExportRecord {
   id: string;
@@ -484,6 +485,8 @@ export default function ImportExportTab({
 
   // Import states
   const [uploadedCsvContent, setUploadedCsvContent] = useState<string>('');
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
@@ -507,6 +510,7 @@ export default function ImportExportTab({
       setFormCategorie('Défibrillateurs.');
     }
     setUploadedCsvContent('');
+    setSelectedFileName('');
     setValidationError(null);
   }, [formType, formCategorie]);
 
@@ -661,6 +665,7 @@ export default function ImportExportTab({
           setIsSaving(false);
           setShowForm(false);
           setUploadedCsvContent('');
+          setSelectedFileName('');
         } catch (err) {
           console.error(err);
           setIsSaving(false);
@@ -1026,7 +1031,7 @@ export default function ImportExportTab({
                     {/* Type select */}
                     <div className="space-y-1">
                       <label htmlFor="form-ie-type" className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
-                        Type de transfert.
+                        {t("Type de transfert.")}
                       </label>
                       <select
                         id="form-ie-type"
@@ -1037,15 +1042,15 @@ export default function ImportExportTab({
                         }}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-black cursor-pointer"
                       >
-                        <option value="Importation.">Importation.</option>
-                        <option value="Exportation.">Exportation.</option>
+                        <option value="Importation.">{t("Importation.")}</option>
+                        <option value="Exportation.">{t("Exportation.")}</option>
                       </select>
                     </div>
 
                     {/* Catégorie select */}
                     <div className="space-y-1">
                       <label htmlFor="form-ie-cat" className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
-                        Compartiment de données.
+                        {t("Compartiment de données.")}
                       </label>
                       <select
                         id="form-ie-cat"
@@ -1053,11 +1058,11 @@ export default function ImportExportTab({
                         onChange={(e) => setFormCategorie(e.target.value as any)}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-black cursor-pointer"
                       >
-                        <option value="Défibrillateurs.">Défibrillateurs.</option>
-                        <option value="Clients.">Clients.</option>
-                        <option value="Stocks.">Stocks.</option>
+                        <option value="Défibrillateurs.">{t("Défibrillateurs.")}</option>
+                        <option value="Clients.">{t("Clients.")}</option>
+                        <option value="Stocks.">{t("Stocks.")}</option>
                         {formType !== 'Importation.' && (
-                          <option value="Temps.">Temps.</option>
+                          <option value="Temps.">{t("Temps.")}</option>
                         )}
                       </select>
                     </div>
@@ -1065,7 +1070,7 @@ export default function ImportExportTab({
                     {/* Format disabled select */}
                     <div className="space-y-1">
                       <label htmlFor="form-ie-fmt" className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
-                        Format.
+                        {t("Format.")}
                       </label>
                       <select
                         id="form-ie-fmt"
@@ -1079,16 +1084,18 @@ export default function ImportExportTab({
 
                     {formType === 'Importation.' && (
                       <div className="space-y-1 sm:col-span-2">
-                        <label htmlFor="form-ie-file" className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
-                          Fichier d'importation (.csv).
+                        <label className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
+                          {t("Fichier d'importation (.csv).")}
                         </label>
                         <input
                           type="file"
+                          ref={fileInputRef}
                           id="form-ie-file"
                           accept=".csv"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) {
+                              setSelectedFileName(file.name);
                               const reader = new FileReader();
                               reader.onload = (evt) => {
                                 const text = evt.target?.result;
@@ -1098,12 +1105,25 @@ export default function ImportExportTab({
                               };
                               reader.readAsText(file, 'utf-8');
                             } else {
+                              setSelectedFileName('');
                               setUploadedCsvContent('');
                             }
                           }}
-                          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-black"
-                          required
+                          className="hidden"
+                          style={{ display: 'none' }}
                         />
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-lg text-sm font-sans cursor-pointer transition-all active:scale-95 whitespace-nowrap"
+                          >
+                            {t("Choisir un fichier")}
+                          </button>
+                          <span className="text-slate-600 text-sm font-sans truncate max-w-xs">
+                            {selectedFileName ? selectedFileName : t("Aucun fichier choisi")}
+                          </span>
+                        </div>
                       </div>
                     )}
 
@@ -1133,7 +1153,7 @@ export default function ImportExportTab({
             {filteredRecords.length === 0 ? (
               <div className="p-16 text-center font-sans lg:py-24" id="no-records-view">
                 <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                  Aucun résultat.
+                  {t("Aucun résultat.")}
                 </p>
               </div>
             ) : (
@@ -1145,11 +1165,11 @@ export default function ImportExportTab({
                 >
                   <thead>
                     <tr className="bg-transparent">
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Horodatage.</th>
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Circulation.</th>
-                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>Compartiment.</th>
-                      <th className="px-4 py-3.5 w-[15%]" style={thStyle}>Format.</th>
-                      <th className="px-4 py-3.5 text-right w-[15%]" style={thStyle}>Actions.</th>
+                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Horodatage.")}</th>
+                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Circulation.")}</th>
+                      <th className="px-4 py-3.5 w-[25%]" style={thStyle}>{t("Compartiment.")}</th>
+                      <th className="px-4 py-3.5 w-[15%]" style={thStyle}>{t("Format.")}</th>
+                      <th className="px-4 py-3.5 text-right w-[15%]" style={thStyle}>{t("Actions.")}</th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-705 text-xs text-black">
@@ -1180,7 +1200,7 @@ export default function ImportExportTab({
                             className="whitespace-nowrap"
                           >
                             <span style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                              {r.type}
+                              {t(r.type)}
                             </span>
                           </div>
                         </td>
@@ -1190,7 +1210,7 @@ export default function ImportExportTab({
                           className="px-4 py-5 font-sans whitespace-nowrap"
                           style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}
                         >
-                          {r.categorie}
+                          {t(r.categorie)}
                         </td>
 
                         {/* Format column without color dot */}
@@ -1207,7 +1227,7 @@ export default function ImportExportTab({
                             className="whitespace-nowrap"
                           >
                             <span style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                              {r.format}
+                              {t(r.format)}
                             </span>
                           </div>
                         </td>
@@ -1228,7 +1248,7 @@ export default function ImportExportTab({
                                 }}
                                 className="opacity-60"
                               >
-                                <span>Télécharger</span>
+                                <span>{t("Télécharger")}</span>
                               </button>
                             ) : (
                               <button
@@ -1257,7 +1277,7 @@ export default function ImportExportTab({
                                 }}
                                 className="transition-all hover:opacity-80"
                               >
-                                <span>Télécharger</span>
+                                <span>{t("Télécharger")}</span>
                               </button>
                             )}
                             <button
@@ -1266,7 +1286,7 @@ export default function ImportExportTab({
                               style={roundedButton18Style}
                               className="transition-all text-white bg-black rounded cursor-pointer"
                             >
-                              <span>Supprimer</span>
+                              <span>{t("Supprimer")}</span>
                             </button>
                           </div>
                         </td>

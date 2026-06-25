@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
+import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
 import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur } from './types';
 import {
   INITIAL_CLIENTS,
@@ -203,13 +204,20 @@ export default function App() {
     } else {
       getRegisteredTenants().then(tenants => {
         const found = tenants.find(t => t.id === tenantId);
-        if (found && found.shortEnvId) {
-          localStorage.setItem('defib_short_env_id', found.shortEnvId);
+        if (found) {
+          if (found.shortEnvId) {
+            localStorage.setItem('defib_short_env_id', found.shortEnvId);
+          } else {
+            localStorage.setItem('defib_short_env_id', 'D18');
+          }
+          if (found.lang) {
+            setLanguage(found.lang);
+          }
         } else {
           localStorage.setItem('defib_short_env_id', 'D18');
         }
       }).catch(err => {
-        console.error('Error fetching shortEnvId on startup/change:', err);
+        console.error('Error fetching tenant details on startup/change:', err);
       });
     }
   }, [tenantId]);
@@ -240,6 +248,7 @@ export default function App() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    startDOMTranslation();
     const handleResize = () => {
       setWindowWidth(window.innerWidth);
     };
@@ -421,6 +430,15 @@ export default function App() {
   }, []);
 
   // Tab Routing
+  const [currentLang, setCurrentLang] = useState(() => getLanguage());
+  useEffect(() => {
+    const handleLangChange = () => {
+      setCurrentLang(getLanguage());
+    };
+    window.addEventListener('defib_lang_changed', handleLangChange);
+    return () => window.removeEventListener('defib_lang_changed', handleLangChange);
+  }, []);
+
   const [activeTab, setActiveTab ] = useState<AppTab>('defibrillateurs');
   const [distributedStocksSearchQuery, setDistributedStocksSearchQuery] = useState('');
   const [stockSearchQuery, setStockSearchQuery] = useState('');
@@ -3716,24 +3734,24 @@ export default function App() {
         {/* Scrollable Navigation Items */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
           {[
-            { id: 'defibrillateurs', label: 'Défibrillateurs', icon: Heart },
-            ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: 'Autres matériels', icon: Layers }] : []),
-            { id: 'clients', label: 'Clients', icon: User },
-            { id: 'fsm', label: 'FSM', icon: Flame },
-            { id: 'gmao', label: 'GMAO', icon: Wrench },
-            { id: 'stocks', label: 'Centrale des stocks', icon: Inbox },
-            { id: 'stocks-distribues', label: 'Stocks distribués', icon: Layers },
-            { id: 'achats-fournisseurs', label: 'Achats fournisseurs', icon: ShoppingBag },
-            { id: 'devis', label: 'Devis & Factures', icon: FileSpreadsheet },
-            { id: 'crm', label: 'CRM', icon: FolderSync },
-            { id: 'ged', label: 'GED', icon: ClipboardList },
-            { id: 'temps', label: 'Temps', icon: Clock },
-            { id: 'localisations', label: 'Localisations', icon: MapPin },
-            { id: 'tickets', label: 'Tickets Caisse', icon: Ticket },
-            { id: 'variables', label: 'Variables', icon: Layers },
-            { id: 'import-export', label: 'Importer Exporter', icon: Download },
-            { id: 'satisfaction', label: 'Satisfaction', icon: ThumbsUp },
-            { id: 'statistiques', label: 'Statistiques', icon: TrendingUp },
+            { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
+            ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
+            { id: 'clients', label: t('Clients'), icon: User },
+            { id: 'fsm', label: t('FSM'), icon: Flame },
+            { id: 'gmao', label: t('GMAO'), icon: Wrench },
+            { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
+            { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
+            { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
+            { id: 'devis', label: t('Devis & Factures'), icon: FileSpreadsheet },
+            { id: 'crm', label: t('CRM'), icon: FolderSync },
+            { id: 'ged', label: t('GED'), icon: ClipboardList },
+            { id: 'temps', label: t('Temps'), icon: Clock },
+            { id: 'localisations', label: t('Localisations'), icon: MapPin },
+            { id: 'tickets', label: t('Tickets Caisse'), icon: Ticket },
+            { id: 'variables', label: t('Variables'), icon: Layers },
+            { id: 'import-export', label: t('Importer Exporter'), icon: Download },
+            { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
+            { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
           ].map((tab) => {
             return (
               <button
@@ -3788,7 +3806,7 @@ export default function App() {
               fontFamily: "DefibeoMain, Civilprom, sans-serif"
             }}
           >
-            <span>Paramètres</span>
+            <span>{t('Paramètres')}</span>
           </button>
         </div>
       </aside>
@@ -3801,6 +3819,7 @@ export default function App() {
           <section className={`${activeTab === 'parametres' ? 'bg-white' : 'pb-16'} p-0`} id="active-tab-content-wrapper">
           {activeTab === 'defibrillateurs' && (
             <DefibTab
+              currentLang={currentLang}
               defibrillateurs={defibrillateurs}
               clients={clients}
               variables={variables}
@@ -6105,7 +6124,7 @@ export default function App() {
                             style={customButtonStyle}
                             className="font-sans"
                           >
-                            Nouveau
+                            {t("Nouveau")}
                           </button>
                         </div>
                       </div>
@@ -6143,7 +6162,7 @@ export default function App() {
                             }}
                             className="transition-all"
                           >
-                            {filterOpt} ({count})
+                            {t(filterOpt)} ({count})
                           </button>
                         );
                       })}
@@ -6155,22 +6174,22 @@ export default function App() {
                         {filtDocs.length === 0 ? (
                           <div className="p-16 text-center font-sans lg:py-24" id="no-devis-view bg-white">
                             <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                              Aucun résultat.
+                              {t("Aucun résultat.")}
                             </p>
                           </div>
                         ) : (
                           <table className="w-full text-left font-sans border-collapse text-xs" id="devis-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
                             <thead>
                               <tr className="bg-transparent">
-                                <th className="px-4 py-3.5" style={thStyle}>Référence.</th>
-                                <th className="px-4 py-3.5" style={thStyle}>Client.</th>
-                                <th className="px-4 py-3.5" style={thStyle}>Membre attribué.</th>
-                                <th className="px-4 py-3.5" style={thStyle}>Objet ou commentaire.</th>
-                                <th className="px-4 py-3.5" style={thStyle}>Total HT.</th>
-                                <th className="px-4 py-3.5" style={thStyle}>Date.</th>
-                                <th className="px-4 py-3.5 text-center w-28" style={thStyle}>Situation.</th>
-                                <th className="px-4 py-3.5 text-center" style={{ ...thStyle, whiteSpace: 'nowrap' }}>Réf. Bon Comm.</th>
-                                <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions.</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Référence.")}</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Client.")}</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Membre attribué.")}</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Objet ou commentaire.")}</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Total HT.")}</th>
+                                <th className="px-4 py-3.5" style={thStyle}>{t("Date.")}</th>
+                                <th className="px-4 py-3.5 text-center w-28" style={thStyle}>{t("Situation.")}</th>
+                                <th className="px-4 py-3.5 text-center" style={{ ...thStyle, whiteSpace: 'nowrap' }}>{t("Réf. Bon Comm.")}</th>
+                                <th className="px-4 py-3.5 text-right w-12" style={thStyle}>{t("Actions.")}</th>
                               </tr>
                             </thead>
                             <tbody className="text-slate-705 text-xs">
@@ -6251,7 +6270,7 @@ export default function App() {
                                           style={rowActionButton18Style}
                                           className="cursor-pointer font-sans"
                                         >
-                                          Télécharger
+                                          {t("Télécharger")}
                                         </button>
                                         <button
                                           type="button"
@@ -6263,9 +6282,9 @@ export default function App() {
                                             cursor: doc.hasBonCommande ? 'pointer' : 'not-allowed',
                                           }}
                                           className="font-sans"
-                                          title={doc.hasBonCommande ? `Bon de commande: ${doc.bonCommandeReference}` : 'Aucun bon de commande pour cette pièce'}
+                                          title={doc.hasBonCommande ? t("Bon de commande: ") + doc.bonCommandeReference : t("Aucun bon de commande pour cette pièce")}
                                         >
-                                          Bon de commande
+                                          {t("Bon de commande")}
                                         </button>
                                         <button
                                           type="button"
@@ -6273,7 +6292,7 @@ export default function App() {
                                           style={rowActionButton18Style}
                                           className="cursor-pointer font-sans"
                                         >
-                                          Transformer
+                                          {t("Transformer")}
                                         </button>
                                         <button
                                           type="button"
@@ -6281,7 +6300,7 @@ export default function App() {
                                           style={rowActionButton18Style}
                                           className="cursor-pointer font-sans"
                                         >
-                                          Modifier
+                                          {t("Modifier")}
                                         </button>
                                       </div>
                                     </td>

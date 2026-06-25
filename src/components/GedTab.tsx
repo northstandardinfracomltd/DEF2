@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { GedDocument } from '../types';
+import { t } from '../utils/translate';
 
 interface GedTabProps {
   gedDocs: GedDocument[];
@@ -85,7 +86,7 @@ export default function GedTab({
   };
 
   const handleDeleteGed = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce document de la GED ?')) {
+    if (confirm(t('Êtes-vous sûr de vouloir supprimer ce document de la GED ?'))) {
       const updated = gedDocs.filter(d => d.id !== id);
       saveGedDocs(updated);
     }
@@ -233,7 +234,7 @@ export default function GedTab({
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
               <div>
-                <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="ged-tab-title">GED</h2>
+                <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="ged-tab-title">{t("GED")}</h2>
               </div>
 
               <div className="flex flex-wrap items-center gap-3 bg-white">
@@ -244,7 +245,7 @@ export default function GedTab({
                     id="search-ged-input"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Recherche."
+                    placeholder={t("Recherche.")}
                     className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
                     style={searchInputStyle}
                     onMouseEnter={() => setIsSearchHovered(true)}
@@ -259,7 +260,7 @@ export default function GedTab({
                   style={customButtonStyle}
                   className="font-sans"
                 >
-                  Nouveau
+                  {t("Nouveau")}
                 </button>
               </div>
             </div>
@@ -271,17 +272,17 @@ export default function GedTab({
               {filteredDocs.length === 0 ? (
                 <div className="p-16 text-center font-sans lg:py-24" id="no-ged-view">
                   <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                    Aucun résultat.
+                    {t("Aucun résultat.")}
                   </p>
                 </div>
               ) : (
                 <table className="w-full text-left font-sans border-collapse text-xs" id="ged-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
                   <thead>
                     <tr className="bg-transparent">
-                      <th className="px-4 py-3.5" style={thStyle}>Titre.</th>
-                      <th className="px-4 py-3.5" style={thStyle}>Catégorie.</th>
-                      <th className="px-4 py-3.5" style={thStyle}>Date.</th>
-                      <th className="px-4 py-3.5 text-right w-24" style={thStyle}>Actions.</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Titre.")}</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Catégorie.")}</th>
+                      <th className="px-4 py-3.5" style={thStyle}>{t("Date.")}</th>
+                      <th className="px-4 py-3.5 text-right w-24" style={thStyle}>{t("Actions.")}</th>
                     </tr>
                   </thead>
                   <tbody className="text-slate-700 text-xs">
@@ -314,7 +315,7 @@ export default function GedTab({
                                 fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
                               }}
                             >
-                              {doc.category}
+                              {t(doc.category)}
                             </span>
                           </td>
 
@@ -332,7 +333,7 @@ export default function GedTab({
                                 style={rowActionButton18Style}
                                 className="cursor-pointer font-sans"
                               >
-                                Consulter
+                                {t("Consulter")}
                               </button>
                               <button
                                 type="button"
@@ -340,7 +341,7 @@ export default function GedTab({
                                 style={rowActionButton18Style}
                                 className="cursor-pointer font-sans"
                               >
-                                Supprimer
+                                {t("Supprimer")}
                               </button>
                             </div>
                           </td>
@@ -365,8 +366,8 @@ export default function GedTab({
             id="ged-form-header-box"
           >
             <div>
-              <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#000', cursor: 'default' }}>
-                Nouveau fichier
+              <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#00', cursor: 'default' }}>
+                {t("Nouveau fichier")}
               </h3>
             </div>
             
@@ -380,7 +381,7 @@ export default function GedTab({
                 style={rowActionButton18Style}
                 className="transition-colors cursor-pointer"
               >
-                <span>Annuler</span>
+                <span>{t("Annuler")}</span>
               </button>
 
               <button
@@ -395,7 +396,7 @@ export default function GedTab({
                 }}
                 className="transition-all cursor-pointer"
               >
-                <span>Enregistrer</span>
+                <span>{t("Enregistrer")}</span>
               </button>
             </div>
           </div>
@@ -419,12 +420,12 @@ export default function GedTab({
               
               {/* Title field */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ged-label-style">Titre.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ged-label-style">{t("Titre.")}</label>
                 <input
                   type="text"
                   value={gedTitle}
                   onChange={(e) => setGedTitle(e.target.value)}
-                  placeholder="Entrez un titre pour le fichier."
+                  placeholder={t("Entrez un titre pour le fichier.")}
                   className="font-sans focus:outline-none w-full"
                   required
                 />
@@ -432,29 +433,29 @@ export default function GedTab({
 
               {/* Category field */}
               <div className="flex flex-col gap-1 bg-white">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ged-label-style">Catégorie.</label>
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ged-label-style">{t("Catégorie.")}</label>
                 <select
                   value={gedCategory}
                   onChange={(e) => setGedCategory(e.target.value)}
                   className="font-sans focus:outline-none w-full cursor-pointer"
                   required
                 >
-                  <option value="" disabled hidden>Sélectionnez une catégorie.</option>
-                  <option value="Appel d'offre.">Appel d'offre.</option>
-                  <option value="Formation.">Formation.</option>
-                  <option value="Processus.">Processus.</option>
-                  <option value="Juridique.">Juridique.</option>
-                  <option value="Maintenance.">Maintenance.</option>
-                  <option value="Veille.">Veille.</option>
-                  <option value="Lettre.">Lettre.</option>
-                  <option value="Autre.">Autre.</option>
+                  <option value="" disabled hidden>{t("Sélectionnez une catégorie.")}</option>
+                  <option value="Appel d'offre.">{t("Appel d'offre.")}</option>
+                  <option value="Formation.">{t("Formation.")}</option>
+                  <option value="Processus.">{t("Processus.")}</option>
+                  <option value="Juridique.">{t("Juridique.")}</option>
+                  <option value="Maintenance.">{t("Maintenance.")}</option>
+                  <option value="Veille.">{t("Veille.")}</option>
+                  <option value="Lettre.">{t("Lettre.")}</option>
+                  <option value="Autre.">{t("Autre.")}</option>
                 </select>
               </div>
 
               {/* Document upload zone */}
               <div className="flex flex-col gap-1 md:col-span-2 bg-white">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ged-label-style">
-                  Téléchargement du fichier.
+                  {t("Téléchargement du fichier.")}
                 </label>
                 <div 
                   onDragOver={(e) => e.preventDefault()}
@@ -464,7 +465,7 @@ export default function GedTab({
                     if (!file) return;
                     const MAX_SIZE_BYTES = 300 * 1024; // 300 Ko
                     if (file.size > MAX_SIZE_BYTES) {
-                      alert(`Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ${(file.size / 1024).toFixed(0)} Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud.`);
+                      alert(t("Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ") + (file.size / 1024).toFixed(0) + t(" Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud."));
                       return;
                     }
                     setSelectedGedFile(file);
@@ -483,7 +484,7 @@ export default function GedTab({
                       if (!file) return;
                       const MAX_SIZE_BYTES = 300 * 1024; // 300 Ko
                       if (file.size > MAX_SIZE_BYTES) {
-                        alert(`Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ${(file.size / 1024).toFixed(0)} Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud.`);
+                        alert(t("Le fichier dépasse la limite autorisée de 300 Ko (Taille du fichier sélectionné : ") + (file.size / 1024).toFixed(0) + t(" Ko). Veuillez compresser votre document pour ne pas surcharger le stockage cloud."));
                         return;
                       }
                       setSelectedGedFile(file);
@@ -494,11 +495,11 @@ export default function GedTab({
                   <div className="font-sans" style={{ fontSize: '16px', color: '#000000' }}>
                     {selectedGedFile ? (
                       <span className="font-bold inline-block" style={{ fontSize: '16px', padding: '9px 16px', backgroundColor: '#501655', border: 'none', color: '#ffffff', borderRadius: '9999px' }}>
-                        Votre fichier téléchargé : {selectedGedFile.name} ({(selectedGedFile.size / 1024).toFixed(0)} Ko)
+                        {t("Votre fichier téléchargé :")} {selectedGedFile.name} ({(selectedGedFile.size / 1024).toFixed(0)} Ko)
                       </span>
                     ) : (
                       <span style={{ color: '#000000', fontSize: '16px' }}>
-                        Cliquez dans cette zone ou glissez directement votre fichier.
+                        {t("Cliquez dans cette zone ou glissez directement votre fichier.")}
                       </span>
                     )}
                   </div>

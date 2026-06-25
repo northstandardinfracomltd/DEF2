@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Client, Defibrillateur, CommercialDoc, CompanyInfo, Variable, OtherEquipment, PointageAutoVigilance } from '../types';
 import { formatDateToFR, computeProchaineMaintenance, formatDateToMonthYear } from '../utils';
+import { t } from '../utils/translate';
 
 interface ClientPortalProps {
   clients: Client[];
@@ -1480,7 +1481,7 @@ export default function ClientPortal({
       <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
         <div className="text-center space-y-2">
           <div className="w-8 h-8 border-4 border-[#7e2e86] border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs text-slate-500 font-medium font-sans">Chargement du portail client...</p>
+          <p className="text-xs text-slate-500 font-medium font-sans">{t('Chargement du portail client...') || 'Loading client portal...'}</p>
         </div>
       </div>
     );
@@ -1488,12 +1489,17 @@ export default function ClientPortal({
 
   // Helper for displaying styled read-only attributes
   const renderField = (label: string, value: React.ReactNode, isMaterial: boolean = false) => {
-    const trimmedLabel = label.trim();
+    const translatedLabel = t(label);
+    const trimmedLabel = translatedLabel.trim();
     const labelWithPeriod = trimmedLabel.endsWith('.') ? trimmedLabel : `${trimmedLabel}.`;
     
-    const rawValStr = value !== null && value !== undefined ? String(value).trim() : '';
+    let displayValue = value;
+    if (typeof value === 'string') {
+      displayValue = t(value);
+    }
+    const rawValStr = displayValue !== null && displayValue !== undefined ? String(displayValue).trim() : '';
     const hasValue = rawValStr !== '' && rawValStr !== '-';
-    const displayValue = hasValue ? value : '-';
+    const finalValue = hasValue ? displayValue : '-';
 
     return (
       <div className="space-y-1">
@@ -1519,7 +1525,7 @@ export default function ClientPortal({
             backgroundColor: isMaterial ? 'rgb(253 234 255)' : '#ffffff'
           }}
         >
-          {displayValue}
+          {finalValue}
         </div>
       </div>
     );
@@ -1567,7 +1573,7 @@ export default function ClientPortal({
                 fontWeight: 100,
               }}
             >
-              Quitter
+              {t('Quitter')}
             </button>
           </div>
         </div>
@@ -1590,7 +1596,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Matériels
+            {t('Matériels')}
           </button>
           <button
             onClick={() => setActivePortalTab('autovigilance')}
@@ -1601,7 +1607,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Pointages auto-vigilance
+            {t('Pointages auto-vigilance')}
           </button>
           <button
             onClick={() => setActivePortalTab('bills')}
@@ -1612,7 +1618,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Devis et factures
+            {t('Devis et factures')}
           </button>
           <button
             onClick={() => setActivePortalTab('reports')}
@@ -1623,7 +1629,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Rapports PDF
+            {t('Rapports PDF')}
           </button>
           <button
             onClick={() => setActivePortalTab('info')}
@@ -1634,7 +1640,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            Informations
+            {t('Informations')}
           </button>
         </div>
 
@@ -1972,7 +1978,7 @@ export default function ClientPortal({
               <div id="new-pointage-container">
                 {assignedEquipment.length === 0 ? (
                   <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-sans">
-                    Aucun matériel n'est actuellement affecté à votre établissement. Vous pourrez ajouter des pointages d'auto-vigilance dès que votre parc de matériels sera configuré.
+                    {t("Aucun matériel n'est actuellement affecté à votre établissement. Vous pourrez ajouter des pointages d'auto-vigilance dès que votre parc de matériels sera configuré.")}
                   </div>
                 ) : (
                   <form onSubmit={handleSavePointage} className="space-y-4">
@@ -1980,7 +1986,7 @@ export default function ClientPortal({
                       {/* Sélection du matériel */}
                       <div className="space-y-1">
                         <label className="block text-[18px] font-bold text-black font-sans">
-                          Sélection du matériel *
+                          {t('Sélection du matériel *')}
                         </label>
                         <select
                           required
@@ -1998,7 +2004,7 @@ export default function ClientPortal({
                             MozAppearance: 'none'
                           }}
                         >
-                          <option value="">-- Choisir un matériel --</option>
+                          <option value="">{t('-- Choisir un matériel --')}</option>
                           {assignedEquipment.map((eq) => (
                             <option key={eq.id} value={eq.id}>
                               {eq.nom}
@@ -2010,7 +2016,7 @@ export default function ClientPortal({
                       {/* Date */}
                       <div className="space-y-1">
                         <label className="block text-[18px] font-bold text-black font-sans">
-                          Date *
+                          {t('Date *')}
                         </label>
                         <input
                           type="date"
@@ -2031,7 +2037,7 @@ export default function ClientPortal({
                       {/* Commentaire */}
                       <div className="space-y-1">
                         <label className="block text-[18px] font-bold text-black font-sans">
-                          Commentaire *
+                          {t('Commentaire *')}
                         </label>
                         <select
                           required
@@ -2049,10 +2055,10 @@ export default function ClientPortal({
                             MozAppearance: 'none'
                           }}
                         >
-                          <option value="En fonctionnement et accessible">En fonctionnement et accessible</option>
-                          <option value="Problème résolu">Problème résolu</option>
-                          <option value="Problème non résolu">Problème non résolu</option>
-                          <option value="Problème non résolu et assistance demandée">Problème non résolu et assistance demandée</option>
+                          <option value="En fonctionnement et accessible">{t('En fonctionnement et accessible')}</option>
+                          <option value="Problème résolu">{t('Problème résolu')}</option>
+                          <option value="Problème non résolu">{t('Problème non résolu')}</option>
+                          <option value="Problème non résolu et assistance demandée">{t('Problème non résolu et assistance demandée')}</option>
                         </select>
                       </div>
 
@@ -2068,7 +2074,7 @@ export default function ClientPortal({
                             height: '48px',
                           }}
                         >
-                          Enregistrer
+                          {t('Enregistrer')}
                         </button>
                       </div>
                     </div>
@@ -2085,10 +2091,10 @@ export default function ClientPortal({
                     <table className="w-full text-left font-sans text-sm border-collapse">
                       <thead>
                         <tr className="text-black font-bold font-sans" style={{ fontSize: '18px' }}>
-                          <th className="py-3 px-2">Date.</th>
-                          <th className="py-3 px-2">Matériel.</th>
-                          <th className="py-3 px-2">Identifiant.</th>
-                          <th className="py-3 px-2">Situation.</th>
+                          <th className="py-3 px-2">{t('Date.')}</th>
+                          <th className="py-3 px-2">{t('Matériel.')}</th>
+                          <th className="py-3 px-2">{t('Identifiant.')}</th>
+                          <th className="py-3 px-2">{t('Situation.')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2108,7 +2114,7 @@ export default function ClientPortal({
                                   {pt.equipementIdentifiant}
                                 </td>
                                 <td className="py-3 px-2 text-black font-sans" style={{ fontSize: '18px' }}>
-                                  {pt.commentaire}
+                                  {t(pt.commentaire)}
                                 </td>
                               </tr>
                             );

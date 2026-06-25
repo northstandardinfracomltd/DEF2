@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { t } from '../utils/translate';
 
 interface Review {
   id: string;
@@ -130,7 +131,7 @@ export default function SatisfactionTab({
       >
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="satisfaction-tab-title">Satisfaction</h2>
+            <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="satisfaction-tab-title">{t("Satisfaction")}</h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 bg-white">
@@ -141,7 +142,7 @@ export default function SatisfactionTab({
                 id="search-satisfaction-input"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Recherche."
+                placeholder={t("Recherche.")}
                 className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
                 style={searchInputStyle}
                 onMouseEnter={() => setIsSearchHovered(true)}
@@ -160,18 +161,18 @@ export default function SatisfactionTab({
           {filteredReviews.length === 0 ? (
             <div className="p-16 text-center font-sans lg:py-24" id="no-reviews-view">
               <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>
-                Aucun résultat.
+                {t("Aucun résultat.")}
               </p>
             </div>
           ) : (
             <table className="w-full text-left font-sans border-collapse text-xs" id="satisfaction-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
-                  <th className="px-5 py-3.5 w-32 whitespace-nowrap" style={thStyle}>Date.</th>
-                  <th className="px-5 py-3.5 w-1/4" style={thStyle}>Rédacteur.</th>
-                  <th className="px-5 py-3.5" style={thStyle}>Évaluation.</th>
-                  <th className="px-5 py-3.5 text-left w-48" style={thStyle}>Satisfaction.</th>
-                  <th className="px-5 py-3.5 text-right w-24" style={thStyle}>Action.</th>
+                  <th className="px-5 py-3.5 w-32 whitespace-nowrap" style={thStyle}>{t("Date.")}</th>
+                  <th className="px-5 py-3.5 w-1/4" style={thStyle}>{t("Rédacteur.")}</th>
+                  <th className="px-5 py-3.5" style={thStyle}>{t("Évaluation.")}</th>
+                  <th className="px-5 py-3.5 text-left w-48" style={thStyle}>{t("Satisfaction.")}</th>
+                  <th className="px-5 py-3.5 text-right w-24" style={thStyle}>{t("Action.")}</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs text-black">
@@ -227,7 +228,7 @@ export default function SatisfactionTab({
                             cursor: 'default'
                           }}
                         >
-                          {rev.label}
+                          {t(rev.label)}
                         </span>
                       </td>
  
@@ -239,7 +240,7 @@ export default function SatisfactionTab({
                           style={rowActionButtonStyle}
                           className="cursor-pointer font-sans bg-transparent"
                         >
-                          <span>Supprimer</span>
+                          <span>{t("Supprimer")}</span>
                         </button>
                       </td>
 

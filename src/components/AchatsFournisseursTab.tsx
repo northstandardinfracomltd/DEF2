@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AchatFournisseur, Variable } from '../types';
 import { ShoppingBag, Eye, Trash2, Edit, Plus, FileText, Upload, Search, X } from 'lucide-react';
+import { t } from '../utils/translate';
 
 interface AchatsFournisseursTabProps {
   achatsFournisseurs: AchatFournisseur[];
@@ -133,7 +134,7 @@ export default function AchatsFournisseursTab({
   };
 
   const handleDeleteAchat = (id: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer cet achat fournisseur ?')) {
+    if (confirm(t("Êtes-vous sûr de vouloir supprimer cet achat fournisseur ?"))) {
       const updated = achatsFournisseurs.filter((a) => a.id !== id);
       saveAchatsFournisseurs(updated);
     }
@@ -142,7 +143,7 @@ export default function AchatsFournisseursTab({
   // Consult uploaded PDF
   const handleConsultPdf = (achat: AchatFournisseur) => {
     if (!achat.pdfUrl) {
-      alert("Aucun fichier n'est rattaché à cet achat.");
+      alert(t("Aucun fichier n'est rattaché à cet achat."));
       return;
     }
     const a = document.createElement('a');
@@ -325,7 +326,7 @@ export default function AchatsFournisseursTab({
                   className="text-2xl font-bold tracking-tight font-gochi bg-white"
                   style={{ color: '#000000', cursor: 'default', fontFamily: 'Gochi, sans-serif' }}
                 >
-                  Achats fournisseurs
+                  {t("Achats fournisseurs")}
                 </h2>
               </div>
 
@@ -337,7 +338,7 @@ export default function AchatsFournisseursTab({
                     id="search-achats-input"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Rechercher."
+                    placeholder={t("Rechercher.")}
                     className="w-48 sm:w-64 text-black placeholder-[#747474] placeholder:font-light outline-none"
                     style={searchInputStyle}
                     onMouseEnter={() => setIsSearchHovered(true)}
@@ -348,7 +349,7 @@ export default function AchatsFournisseursTab({
                 </div>
 
                 <button onClick={startNewAchat} style={customButtonStyle} className="font-sans">
-                  Nouveau
+                  {t("Nouveau")}
                 </button>
               </div>
             </div>
@@ -367,22 +368,22 @@ export default function AchatsFournisseursTab({
                 <thead>
                   <tr className="bg-transparent">
                     <th className="px-4 py-3.5" style={thStyle}>
-                      Référence.
+                      {t("Référence.")}
                     </th>
                     <th className="px-4 py-3.5" style={thStyle}>
-                      Réf. Commande.
+                      {t("Réf. Commande.")}
                     </th>
                     <th className="px-4 py-3.5" style={thStyle}>
-                      Fournisseur.
+                      {t("Fournisseur.")}
                     </th>
                     <th className="px-4 py-3.5" style={thStyle}>
-                      Commentaire.
+                      {t("Commentaire.")}
                     </th>
                     <th className="px-4 py-3.5" style={thStyle}>
-                      Date.
+                      {t("Date.")}
                     </th>
                     <th className="px-4 py-3.5 text-right w-36" style={thStyle}>
-                      Actions.
+                      {t("Actions.")}
                     </th>
                   </tr>
                 </thead>
@@ -390,7 +391,7 @@ export default function AchatsFournisseursTab({
                   {filteredAchats.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
-                        Aucun résultat.
+                        {t("Aucun résultat.")}
                       </td>
                     </tr>
                   ) : (
@@ -449,7 +450,7 @@ export default function AchatsFournisseursTab({
                                   onClick={() => handleConsultPdf(achat)}
                                   style={smallBlackButtonStyle}
                                 >
-                                  Télécharger
+                                  {t("Télécharger")}
                                 </button>
                               )}
                               <button
@@ -457,14 +458,14 @@ export default function AchatsFournisseursTab({
                                 onClick={() => startEditAchat(achat)}
                                 style={smallBlackButtonStyle}
                               >
-                                Modifier
+                                {t("Modifier")}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteAchat(achat.id)}
                                 style={smallBlackButtonStyle}
                               >
-                                Supprimer
+                                {t("Supprimer")}
                               </button>
                             </div>
                           </td>
@@ -497,7 +498,7 @@ export default function AchatsFournisseursTab({
           >
             <div>
               <h3 className="text-2xl font-bold font-gochi" style={{ fontFamily: 'Gochi, sans-serif', color: '#000', cursor: 'default' }}>
-                {editingAchatId ? 'Modifier l’achat fournisseur' : 'Nouvel achat fournisseur'}
+                {editingAchatId ? t("Modifier l’achat fournisseur") : t("Nouvel achat fournisseur")}
               </h3>
             </div>
 
@@ -508,7 +509,7 @@ export default function AchatsFournisseursTab({
                 style={smallBlackButtonStyle}
                 className="transition-colors cursor-pointer"
               >
-                Annuler
+                {t("Annuler")}
               </button>
 
               <button
@@ -517,7 +518,7 @@ export default function AchatsFournisseursTab({
                 style={smallBlueButtonStyle}
                 className="transition-all cursor-pointer"
               >
-                Enregistrer
+                {t("Enregistrer")}
               </button>
             </div>
           </div>
@@ -541,7 +542,7 @@ export default function AchatsFournisseursTab({
             {/* Reference */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Référence.
+                {t("Référence.")}
               </label>
               <input
                 type="text"
@@ -554,13 +555,13 @@ export default function AchatsFournisseursTab({
             {/* Commande Reference */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Référence de commande fournisseur.
+                {t("Référence de commande fournisseur.")}
               </label>
               <input
                 type="text"
                 value={orderReference}
                 onChange={(e) => setOrderReference(e.target.value)}
-                placeholder="Entrez une référence du fournisseur."
+                placeholder={t("Entrez une référence du fournisseur.")}
                 className="w-full"
                 required
               />
@@ -569,14 +570,13 @@ export default function AchatsFournisseursTab({
             {/* Fournisseur Selection */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Sélection du fournisseur.
+                {t("Sélection du fournisseur.")}
               </label>
 
               {supplierVariables.length === 0 ? (
                 <div className="p-3 border border-pink-200 rounded-2xl bg-pink-50/50 text-xs text-pink-700 font-sans">
-                  <p className="font-bold mb-1">Aucun fournisseur configuré.</p>
-                  Veuillez aller dans l'onglet <strong>'Variables'</strong> et ajouter un fournisseur de catégorie
-                  'Fournisseur' d'abord pour pouvoir lier cet achat.
+                  <p className="font-bold mb-1">{t("Aucun fournisseur configuré.")}</p>
+                  {t("Veuillez aller dans l'onglet")} <strong>{t("Variables")}</strong> {t("et ajouter un fournisseur de catégorie 'Fournisseur' d'abord pour pouvoir lier cet achat.")}
                 </div>
               ) : (
                 <div className="relative">
@@ -586,7 +586,7 @@ export default function AchatsFournisseursTab({
                     className="w-full pr-10 cursor-pointer"
                     required
                   >
-                    <option value="">Sélection d'un fournisseur.</option>
+                    <option value="">{t("Sélection d'un fournisseur.")}</option>
                     {supplierVariables.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.nom} {s.marque ? `(${s.marque})` : ''}
@@ -600,13 +600,13 @@ export default function AchatsFournisseursTab({
             {/* Comment */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Commentaire.
+                {t("Commentaire.")}
               </label>
               <input
                 type="text"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Entrez un commentaire."
+                placeholder={t("Entrez un commentaire.")}
                 className="w-full"
               />
             </div>
@@ -614,7 +614,7 @@ export default function AchatsFournisseursTab({
             {/* PDF File upload / download */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-slate-700 uppercase tracking-wider achats-label-style">
-                Fichier de la commande. (PDF)
+                {t("Fichier de la commande. (PDF)")}
               </label>
 
               <div className="border border-solid border-[#D5D5D5] hover:border-[#fa53d5]/50 transition-colors rounded-2xl p-6 text-center cursor-pointer bg-white relative">
@@ -625,7 +625,7 @@ export default function AchatsFournisseursTab({
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 />
                 <p className="font-sans font-medium" style={{ fontSize: '18px', color: '#000000' }}>
-                  {pdfName ? pdfName : "Sélection d'un fichier PDF."}
+                  {pdfName ? pdfName : t("Sélection d'un fichier PDF.")}
                 </p>
               </div>
             </div>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Variable, VariableCategory } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Sliders, Box, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { t } from '../utils/translate';
 
 interface VariableTabProps {
   variables: Variable[];
@@ -390,13 +391,13 @@ export default function VariableTab({
                 {/* Commentaire sur la variable */}
                 <div className="space-y-1">
                   <label htmlFor="input-variable-desc" className="block text-[11px] font-bold text-slate-500 uppercase">
-                    Commentaire sur la variable.
+                    {t("Commentaire sur la variable.")}
                   </label>
                   <textarea
                     id="input-variable-desc"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Entrez un commentaire."
+                    placeholder={t("Entrez un commentaire.")}
                     rows={4}
                   />
                 </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 import { findTenantAndDefibGlobally, fetchRawCollectionFromFirestore, db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
+import { t } from '../utils/translate';
 
 export default function SatisfactionFormPage() {
   const [defibId, setDefibId] = useState('');
@@ -154,13 +155,13 @@ export default function SatisfactionFormPage() {
             {/* ID DEFIB FIELD */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="defib_id" className="text-sm font-bold text-slate-700 font-sans">
-                Identifiant du défibrillateur.
+                {t("Identifiant du défibrillateur.")}
               </label>
               <input
                 id="defib_id"
                 type="text"
                 required
-                placeholder="Ex: ABC-D00-123."
+                placeholder={t("Ex: ABC-D00-123.")}
                 value={defibId}
                 onChange={(e) => setDefibId(e.target.value)}
                 className="w-full text-black"
@@ -168,17 +169,17 @@ export default function SatisfactionFormPage() {
               
               {isCheckingId && (
                 <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
-                  Vérification de l'identifiant...
+                  {t("Vérification de l'identifiant...")}
                 </p>
               )}
               {!isCheckingId && isIdValid === true && (
                 <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
-                  Identifiant défibrillateur valide.
+                  {t("Identifiant défibrillateur valide.")}
                 </p>
               )}
               {!isCheckingId && isIdValid === false && (
                 <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
-                  Identifiant défibrillateur invalide.
+                  {t("Identifiant défibrillateur invalide.")}
                 </p>
               )}
             </div>
@@ -186,13 +187,13 @@ export default function SatisfactionFormPage() {
             {/* NOM PRENOM */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="nom_prenom" className="text-sm font-bold text-slate-700 font-sans">
-                Votre nom et prénom.
+                {t("Votre nom et prénom.")}
               </label>
               <input
                 id="nom_prenom"
                 type="text"
                 required
-                placeholder="Ex: Jean Dupont."
+                placeholder={t("Ex: Jean Dupont.")}
                 value={nomPrenom}
                 onChange={(e) => setNomPrenom(e.target.value)}
                 className="w-full text-black"
@@ -202,7 +203,7 @@ export default function SatisfactionFormPage() {
             {/* MENTION (RATING) EMOTIONS BUTTON PILLS */}
             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold text-slate-700 font-sans">
-                Sélectionnez une mention.
+                {t("Sélectionnez une mention.")}
               </label>
               <div className="grid grid-cols-2 gap-2 text-center">
                 {(['Excellent', 'Parfait', 'Moyen', 'Décevant', 'Médiocre'] as const).map((opt) => {
@@ -244,7 +245,7 @@ export default function SatisfactionFormPage() {
                       style={btnStyle}
                       className="active:scale-98"
                     >
-                      {opt}
+                      {t(opt)}
                     </button>
                   );
                 })}
@@ -254,13 +255,13 @@ export default function SatisfactionFormPage() {
             {/* COMMENTAIRE */}
             <div className="flex flex-col gap-1.5">
               <label htmlFor="commentaire" className="text-sm font-bold text-slate-700 font-sans">
-                Commentaire.
+                {t("Commentaire.")}
               </label>
               <textarea
                 id="commentaire"
                 required
                 rows={4}
-                placeholder="Entrez votre commentaire."
+                placeholder={t("Entrez votre commentaire.")}
                 value={commentaire}
                 onChange={(e) => setCommentaire(e.target.value)}
                 className="w-full text-black"
@@ -292,13 +293,13 @@ export default function SatisfactionFormPage() {
                 width: '100%',
               }}
             >
-              {isSubmitting ? 'Enregistrement...' : 'Valider'}
+              {isSubmitting ? t("Enregistrement...") : t("Valider")}
             </button>
 
             {/* Form submission success feedback directly below validation button */}
             {isSubmitted && (
               <p className="mt-4 text-center text-[16px] font-semibold text-red-600 font-sans">
-                Évaluation enregistrée avec succès, vous pouvez fermer la page.
+                {t("Évaluation enregistrée avec succès, vous pouvez fermer la page.")}
               </p>
             )}
           </form>

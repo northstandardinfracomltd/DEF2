@@ -356,7 +356,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
 
   // Connection & Creation language selector state
-  const [selectedLang, setSelectedLang] = useState('Français');
+  const [selectedLang, setSelectedLang] = useState(() => localStorage.getItem('defib_lang') || 'Français');
 
   // Toggle & Subscriber Creation Form states
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
@@ -494,7 +494,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   const [reqAdminName, setReqAdminName] = useState('');
   const [reqAdminEmail, setReqAdminEmail] = useState('');
   const [reqAdminPassword, setReqAdminPassword] = useState('');
-  const [reqLang, setReqLang] = useState('Français');
+  const [reqLang, setReqLang] = useState(() => localStorage.getItem('defib_lang') || 'Français');
 
   const [isReqLoading, setIsReqLoading] = useState(false);
   const [reqError, setReqError] = useState('');
@@ -897,8 +897,10 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           <select
             value={selectedLang}
             onChange={(e) => {
-              setSelectedLang(e.target.value);
-              setReqLang(e.target.value);
+              const val = e.target.value;
+              setSelectedLang(val);
+              setReqLang(val);
+              localStorage.setItem('defib_lang', val);
             }}
             className="font-sans text-white rounded-lg cursor-pointer focus:outline-hidden"
             style={{
@@ -1188,7 +1190,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                             <button
                               key={lang}
                               type="button"
-                              onClick={() => setReqLang(lang)}
+                              onClick={() => {
+                                setReqLang(lang);
+                                setSelectedLang(lang);
+                                localStorage.setItem('defib_lang', lang);
+                              }}
                               className="flex items-center gap-2 cursor-pointer"
                               style={{
                                 border: isSelected ? '2px solid rgb(53, 86, 236)' : '2px solid rgb(253, 240, 255)',

@@ -1,6 +1,93 @@
 import React, { useState, useMemo } from 'react';
 import { Variable, StockRecord, DistributedStockLocation } from '../types';
 
+const CODE39_MAP: Record<string, string> = {
+  '0': '101001101101',
+  '1': '110100101011',
+  '2': '101100101011',
+  '3': '110110010101',
+  '4': '101001101011',
+  '5': '110100110101',
+  '6': '101100110101',
+  '7': '101001011011',
+  '8': '110100101101',
+  '9': '101100101101',
+  'A': '110101001011',
+  'B': '101101001011',
+  'C': '110110100101',
+  'D': '101011001011',
+  'E': '110101100101',
+  'F': '101101100101',
+  'G': '101010011011',
+  'H': '110101001101',
+  'I': '101101001101',
+  'J': '101011001101',
+  'K': '110101010011',
+  'L': '101101010011',
+  'M': '110110101001',
+  'N': '101011010011',
+  'O': '110101101001',
+  'P': '101101101001',
+  'Q': '101010110011',
+  'R': '110101011001',
+  'S': '101101011001',
+  'T': '101011011001',
+  'U': '110010101011',
+  'V': '100110101011',
+  'W': '110011010101',
+  'X': '100101101011',
+  'Y': '110010110101',
+  'Z': '100111010101',
+  '-': '100101011101',
+  '.': '110010101101',
+  ' ': '100110101101',
+  '*': '100101101101',
+  '$': '100100100101',
+  '/': '100100101001',
+  '+': '100101001001',
+  '%': '101001001001'
+};
+
+function generateBarcodeSVGString(text: string): string {
+  const cleanText = '*' + text.toUpperCase().replace(/[^0-9A-Z\-\.\ \$\/\+\%]/g, '-') + '*';
+  let binaryString = '';
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    binaryString += CODE39_MAP[char] || CODE39_MAP['-'];
+    binaryString += '0';
+  }
+
+  const barWidth = 1.5;
+  const barcodeHeight = 30;
+  const textHeight = 15;
+  const totalHeight = barcodeHeight + textHeight;
+  const totalWidth = binaryString.length * barWidth;
+  
+  let rects = '';
+  for (let i = 0; i < binaryString.length; i++) {
+    if (binaryString[i] === '1') {
+      rects += `<rect x="${i * barWidth}" y="0" width="${barWidth}" height="${barcodeHeight}" fill="black" />`;
+    }
+  }
+  
+  const textElement = `<text x="${totalWidth / 2}" y="${barcodeHeight + 12}" font-family="'DefibeoMain', 'Civilprom', sans-serif" font-size="10" text-anchor="middle" fill="black">${text}</text>`;
+  
+  return `<svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">${rects}${textElement}</svg>`;
+}
+
+const downloadBarcodeSVG = (text: string) => {
+  const svgContent = generateBarcodeSVGString(text);
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode_${text}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 interface StocksDistribuesTabProps {
   distributedStocks: DistributedStockLocation[];
   saveDistributedStocks: (updated: DistributedStockLocation[]) => void;
@@ -39,16 +126,29 @@ export default function StocksDistribuesTab({
 
   const [locationFilter, setLocationFilter] = useState<string>('Tous');
 
+  // New Filters
+  const [attentionFilterActive, setAttentionFilterActive] = useState(false);
+  const [showExportDropdown, setShowExportDropdown] = useState(false);
+  const [exportLocation, setExportLocation] = useState('');
+
   // Search input state highlights
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
+  // Load selected stock item from Centrale des stocks
+  const mainStockItem = useMemo(() => {
+    if (!selectedStockId) return null;
+    return stocks.find(s => s.id === selectedStockId) || null;
+  }, [selectedStockId, stocks]);
+
   // Load selected stock movements from Centrale des stocks
   const selectedPieceMovements = useMemo(() => {
-    if (!selectedStockId) return [];
-    const mainStockItem = stocks.find(s => s.id === selectedStockId);
     return mainStockItem?.mouvements || [];
-  }, [selectedStockId, stocks]);
+  }, [mainStockItem]);
+
+  const traceabilities = useMemo(() => {
+    return mainStockItem?.traceabilities || [];
+  }, [mainStockItem]);
 
   // Dynamically calculate outgoing volumes and impacted defibrillators from active tours
   const getPieceOutgoingStats = useMemo(() => {
@@ -210,9 +310,17 @@ export default function StocksDistribuesTab({
         ugsVal.toLowerCase().includes(query);
         
       const matchesLoc = locationFilter === 'Tous' || item.locationName === locationFilter;
-      return matchesSearch && matchesLoc;
+      if (!matchesSearch || !matchesLoc) return false;
+
+      if (attentionFilterActive) {
+        const rowStats = getPieceOutgoingStats(item.denominationPieceId);
+        const totalNeeded = rowStats.week1.vol + rowStats.week2.vol + rowStats.next30.vol;
+        return item.volumeDisponible < totalNeeded;
+      }
+
+      return true;
     });
-  }, [distributedStocks, variables, stocks, searchQuery, locationFilter]);
+  }, [distributedStocks, variables, stocks, searchQuery, locationFilter, attentionFilterActive, getPieceOutgoingStats]);
 
   // Compute counts map for filter pills
   const countMap = useMemo(() => {
@@ -389,6 +497,61 @@ export default function StocksDistribuesTab({
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setIsSearchFocused(false)}
                   />
+                </div>
+
+                {/* Attention requise button */}
+                <button
+                  type="button"
+                  onClick={() => setAttentionFilterActive(!attentionFilterActive)}
+                  style={{
+                    ...customButtonStyle,
+                    backgroundColor: attentionFilterActive ? '#fa53d5' : '#000000',
+                    color: '#ffffff',
+                    border: 'none',
+                  }}
+                  className="font-sans transition-all select-none"
+                >
+                  Attention requise
+                </button>
+
+                {/* Export inv. traça. button with dropdown lookup */}
+                <div className="relative bg-white flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowExportDropdown(!showExportDropdown)}
+                    style={{
+                      ...customButtonStyle,
+                      backgroundColor: '#000000',
+                      color: '#ffffff',
+                      border: 'none',
+                    }}
+                    className="font-sans transition-all select-none"
+                  >
+                    Export inv. traça.
+                  </button>
+                  {showExportDropdown && (
+                    <div 
+                      className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-56 rounded-xl bg-white border border-slate-200 shadow-lg p-3 z-50 flex flex-col gap-2 text-left"
+                      style={{ boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)' }}
+                    >
+                      <label className="text-xs font-bold text-slate-500 uppercase font-sans">Emplacement</label>
+                      <select
+                        value={exportLocation}
+                        onChange={(e) => {
+                          setExportLocation(e.target.value);
+                          // "ne rien faire ensuite on verra plus tard le fichier à générer."
+                          setShowExportDropdown(false);
+                        }}
+                        className="w-full bg-white text-black p-2 rounded border border-slate-200 text-xs font-sans"
+                        style={{ minHeight: '36px' }}
+                      >
+                        <option value="" disabled hidden>Choisir l'emplacement</option>
+                        {['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Véhicule A', 'Véhicule B', 'Véhicule C'].map(loc => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <button
@@ -941,6 +1104,157 @@ export default function StocksDistribuesTab({
                   </div>
                 )}
               </div>
+
+              {/* Section Inventaire de traçabilité en lecture seule */}
+              {mainStockItem?.traceabilityEnabled && (
+                <>
+                  <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+                  <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-4">
+                    <div className="flex bg-white select-none">
+                      <span 
+                        className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                        style={{
+                          color: '#fff',
+                          backgroundColor: '#5f1f66',
+                          fontSize: '16px',
+                          border: 'none',
+                          textTransform: 'none',
+                          letterSpacing: 'normal'
+                        }}
+                      >
+                        Inventaire de traçabilité
+                      </span>
+                    </div>
+
+                    {traceabilities.length > 0 ? (
+                      <div 
+                        className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                        style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                      >
+                        <table className="w-full text-left font-sans border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Barre-code.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
+                              <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white">
+                            {traceabilities.map((trace, idx) => {
+                              return (
+                                <tr 
+                                  key={trace.id} 
+                                  className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                  style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                                >
+                                  {/* Code-barres */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="inline-block"
+                                        dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
+                                        style={{
+                                          backgroundColor: '#000000',
+                                          color: '#ffffff',
+                                          padding: '10px 20px',
+                                          fontSize: '18px',
+                                          borderRadius: '13px',
+                                        }}
+                                        className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                        title="Imprimer / Télécharger"
+                                      >
+                                        Imprimer
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* Mouvement */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <select
+                                      value={trace.movementId}
+                                      disabled
+                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    >
+                                      <option value="" disabled hidden>Sélectionnez un mouvement</option>
+                                      <option value="Autre">Autre (Aucun mouvement)</option>
+                                      {selectedPieceMovements.filter(mv => mv.type !== 'Annulation').map(mv => (
+                                        <option key={mv.id} value={mv.id}>
+                                          {mv.date} - {mv.type} (Vol: {mv.volume})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+
+                                  {/* Numéro de lot ou série */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <input
+                                      type="text"
+                                      value={trace.lotOrSerial}
+                                      disabled
+                                      readOnly
+                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-semibold text-xs font-mono cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Date de péremption */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <input
+                                      type="date"
+                                      value={trace.expirationDate || ''}
+                                      disabled
+                                      readOnly
+                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Volume */}
+                                  <td className="px-3 py-2 bg-white text-center">
+                                    <input
+                                      type="number"
+                                      value={trace.volume}
+                                      disabled
+                                      readOnly
+                                      className="w-16 bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs text-center cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Situation */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <select
+                                      value={trace.situation}
+                                      disabled
+                                      className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    >
+                                      <option value="Disponible">Disponible</option>
+                                      <option value="Utilisé">Utilisé</option>
+                                      <option value="Indisponible">Indisponible</option>
+                                      <option value="Signalé manquant">Signalé manquant</option>
+                                    </select>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 italic">Aucune donnée de traçabilité disponible pour cet équipement.</p>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           </form>
         </div>

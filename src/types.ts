@@ -251,6 +251,15 @@ export interface DistributedStockLocation {
   volumeEntrant: number;
 }
 
+export interface StockTraceability {
+  id: string;
+  movementId: string;
+  lotOrSerial: string;
+  expirationDate?: string;
+  volume: number; // always 1
+  situation: 'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant';
+}
+
 export interface StockRecord {
   id: string;
   denominationPieceId: string; // ID corresponding to a Variable
@@ -268,6 +277,8 @@ export interface StockRecord {
   commentaire?: string;
   mouvements?: StockMovement[];
   ugs?: string;
+  traceabilityEnabled?: boolean;
+  traceabilities?: StockTraceability[];
 }
 
 export interface CommercialDocItem {

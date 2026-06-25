@@ -1,5 +1,92 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur } from '../types';
+import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability } from '../types';
+
+const CODE39_MAP: Record<string, string> = {
+  '0': '101001101101',
+  '1': '110100101011',
+  '2': '101100101011',
+  '3': '110110010101',
+  '4': '101001101011',
+  '5': '110100110101',
+  '6': '101100110101',
+  '7': '101001011011',
+  '8': '110100101101',
+  '9': '101100101101',
+  'A': '110101001011',
+  'B': '101101001011',
+  'C': '110110100101',
+  'D': '101011001011',
+  'E': '110101100101',
+  'F': '101101100101',
+  'G': '101010011011',
+  'H': '110101001101',
+  'I': '101101001101',
+  'J': '101011001101',
+  'K': '110101010011',
+  'L': '101101010011',
+  'M': '110110101001',
+  'N': '101011010011',
+  'O': '110101101001',
+  'P': '101101101001',
+  'Q': '101010110011',
+  'R': '110101011001',
+  'S': '101101011001',
+  'T': '101011011001',
+  'U': '110010101011',
+  'V': '100110101011',
+  'W': '110011010101',
+  'X': '100101101011',
+  'Y': '110010110101',
+  'Z': '100111010101',
+  '-': '100101011101',
+  '.': '110010101101',
+  ' ': '100110101101',
+  '*': '100101101101',
+  '$': '100100100101',
+  '/': '100100101001',
+  '+': '100101001001',
+  '%': '101001001001'
+};
+
+function generateBarcodeSVGString(text: string): string {
+  const cleanText = '*' + text.toUpperCase().replace(/[^0-9A-Z\-\.\ \$\/\+\%]/g, '-') + '*';
+  let binaryString = '';
+  for (let i = 0; i < cleanText.length; i++) {
+    const char = cleanText[i];
+    binaryString += CODE39_MAP[char] || CODE39_MAP['-'];
+    binaryString += '0';
+  }
+
+  const barWidth = 1.5;
+  const barcodeHeight = 30;
+  const textHeight = 15;
+  const totalHeight = barcodeHeight + textHeight;
+  const totalWidth = binaryString.length * barWidth;
+  
+  let rects = '';
+  for (let i = 0; i < binaryString.length; i++) {
+    if (binaryString[i] === '1') {
+      rects += `<rect x="${i * barWidth}" y="0" width="${barWidth}" height="${barcodeHeight}" fill="black" />`;
+    }
+  }
+  
+  const textElement = `<text x="${totalWidth / 2}" y="${barcodeHeight + 12}" font-family="'DefibeoMain', 'Civilprom', sans-serif" font-size="10" text-anchor="middle" fill="black">${text}</text>`;
+  
+  return `<svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">${rects}${textElement}</svg>`;
+}
+
+const downloadBarcodeSVG = (text: string) => {
+  const svgContent = generateBarcodeSVGString(text);
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `barcode_${text}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
 
 interface StocksTabProps {
   stocks: StockRecord[];
@@ -54,6 +141,17 @@ export default function StocksTab({
   const [newMvEmplacement, setNewMvEmplacement] = useState<string>('');
   const [showMvForm, setShowMvForm] = useState<boolean>(false);
   const [newUgs, setNewUgs] = useState<string>('');
+
+  // Traçabilité States
+  const [traceabilityEnabled, setTraceabilityEnabled] = useState<boolean>(false);
+  const [traceabilities, setTraceabilities] = useState<StockTraceability[]>([]);
+  
+  // Nouveau Inventaire Form States
+  const [showTraceabilityForm, setShowTraceabilityForm] = useState<boolean>(false);
+  const [selectedMovementId, setSelectedMovementId] = useState<string>('');
+  const [lotOrSerial, setLotOrSerial] = useState<string>('');
+  const [expirationDate, setExpirationDate] = useState<string>('');
+  const [situation, setSituation] = useState<'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant'>('Disponible');
 
   useEffect(() => {
     if (newMvType === 'Distribution' || newMvType === 'Rapatriement') {
@@ -111,6 +209,33 @@ export default function StocksTab({
     setNewMvTrackingLink('');
     setNewMvEmplacement('');
     setShowMvForm(false);
+  };
+
+  const handleAddTraceabilityInline = () => {
+    if (!selectedMovementId) {
+      alert("Veuillez sélectionner un mouvement.");
+      return;
+    }
+    if (!lotOrSerial.trim()) {
+      alert("Le numéro de lot ou série est requis.");
+      return;
+    }
+    const newTrace: StockTraceability = {
+      id: 'tr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+      movementId: selectedMovementId,
+      lotOrSerial: lotOrSerial.trim(),
+      expirationDate: expirationDate || undefined,
+      volume: 1,
+      situation: situation
+    };
+    setTraceabilities([...traceabilities, newTrace]);
+    
+    // Reset form states
+    setSelectedMovementId('');
+    setLotOrSerial('');
+    setExpirationDate('');
+    setSituation('Disponible');
+    setShowTraceabilityForm(false);
   };
 
   const handleUpdateMovementStatus = (mvId: string, status: 'Préparation' | 'Expédié' | 'Terminé' | 'Annulé') => {
@@ -367,7 +492,9 @@ export default function StocksTab({
             totalACommander: prevoianceData.totalToOrder,
             commentaire: newCommentaire,
             mouvements: mouvements,
-            ugs: newUgs || '0001'
+            ugs: newUgs || '0001',
+            traceabilityEnabled: traceabilityEnabled,
+            traceabilities: traceabilities
           };
         }
         return st;
@@ -391,7 +518,9 @@ export default function StocksTab({
         totalACommander: prevoianceData.totalToOrder,
         commentaire: newCommentaire,
         mouvements: mouvements,
-        ugs: newUgs || '0001'
+        ugs: newUgs || '0001',
+        traceabilityEnabled: traceabilityEnabled,
+        traceabilities: traceabilities
       };
       saveStocks([newItem, ...stocks]);
     }
@@ -408,6 +537,13 @@ export default function StocksTab({
     setNewCommentaire('');
     setNewUgs('');
     setMouvements([]);
+    setTraceabilityEnabled(false);
+    setTraceabilities([]);
+    setSelectedMovementId('');
+    setLotOrSerial('');
+    setExpirationDate('');
+    setSituation('Disponible');
+    setShowTraceabilityForm(false);
     setShowStockForm(false);
   };
 
@@ -429,6 +565,13 @@ export default function StocksTab({
       setNewStorage('Entrepôt A');
       setNewCommentaire('');
       setMouvements([]);
+      setTraceabilityEnabled(false);
+      setTraceabilities([]);
+      setSelectedMovementId('');
+      setLotOrSerial('');
+      setExpirationDate('');
+      setSituation('Disponible');
+      setShowTraceabilityForm(false);
       
       // Auto-generate UGS
       const numbers = stocks
@@ -710,6 +853,7 @@ export default function StocksTab({
                   <tr className="bg-transparent">
                     <th className="px-4 py-3.5" style={thStyle}>UGS</th>
                     <th className="px-4 py-3.5" style={thStyle}>Pièce ou service.</th>
+                    <th className="px-4 py-3.5 text-center" style={thStyle}>Inv. traça. actif.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté disponible.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Qté réservée.</th>
                     <th className="px-4 py-3.5 text-center" style={thStyle}>Besoin 2 mois.</th>
@@ -722,7 +866,7 @@ export default function StocksTab({
                 <tbody className="text-slate-700 text-xs">
                   {filteredStocks.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
+                      <td colSpan={10} className="py-16 text-center font-sans lg:py-24 text-sm bg-white" style={{ color: '#000000', fontWeight: 100, fontSize: '16px' }}>
                         Aucun résultat.
                       </td>
                     </tr>
@@ -742,6 +886,9 @@ export default function StocksTab({
                           </td>
                           <td className="px-4 py-5 whitespace-nowrap">
                             <span className="font-sans font-semibold text-[#000000] text-sm">{rawName}</span>
+                          </td>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                            {st.traceabilityEnabled ? 'Oui' : 'Non'}
                           </td>
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {st.quantite}
@@ -789,6 +936,8 @@ export default function StocksTab({
                                   setNewCommentaire(st.commentaire || '');
                                   setMouvements(st.mouvements || []);
                                   setNewUgs(st.ugs || '');
+                                  setTraceabilityEnabled(st.traceabilityEnabled ?? false);
+                                  setTraceabilities(st.traceabilities ?? []);
                                   setShowStockForm(true);
                                 }}
                                 style={rowActionButtonStyle}
@@ -1486,6 +1635,321 @@ export default function StocksTab({
                 )}
               </div>
 
+              {/* Section Inventaire de traçabilité */}
+              {traceabilityEnabled && (
+                <>
+                  <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
+                  <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-1">
+                    <div className="flex justify-between items-center bg-white mb-2 select-none">
+                      <span 
+                        className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                        style={{
+                          color: '#fff',
+                          backgroundColor: '#5f1f66',
+                          fontSize: '16px',
+                          border: 'none',
+                          textTransform: 'none',
+                          letterSpacing: 'normal'
+                        }}
+                      >
+                        Inventaire de traçabilité
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowTraceabilityForm(!showTraceabilityForm)}
+                          style={{
+                            backgroundColor: '#000000',
+                            color: '#ffffff',
+                            padding: '10px 20px',
+                            fontSize: '18px',
+                            borderRadius: '13px',
+                          }}
+                          className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0 text-white"
+                        >
+                          Nouveau inventaire
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Form Nouveau Inventaire */}
+                    {showTraceabilityForm && (
+                      <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 flex flex-col font-sans mb-3 text-xs">
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-transparent">
+                          {/* Sélection du mouvement */}
+                          <div className="flex flex-col gap-1 bg-transparent">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sélection du mouvement *</label>
+                            <select
+                              value={selectedMovementId}
+                              onChange={(e) => setSelectedMovementId(e.target.value)}
+                              className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                              style={{ minHeight: '36px' }}
+                              required
+                            >
+                              <option value="" disabled hidden>Sélectionnez un mouvement</option>
+                              <option value="Autre">Autre (Aucun mouvement)</option>
+                              {mouvements.filter(mv => mv.type !== 'Annulation').map(mv => (
+                                <option key={mv.id} value={mv.id}>
+                                  {mv.date} - {mv.type} (Vol: {mv.volume})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Numéro de lot ou série */}
+                          <div className="flex flex-col gap-1 bg-transparent">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Numéro de lot ou série *</label>
+                            <input
+                              type="text"
+                              value={lotOrSerial}
+                              onChange={(e) => setLotOrSerial(e.target.value)}
+                              placeholder="Lot / Série"
+                              className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                              style={{ minHeight: '36px' }}
+                              required
+                            />
+                          </div>
+
+                          {/* Date de péremption */}
+                          <div className="flex flex-col gap-1 bg-transparent">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date de péremption</label>
+                            <input
+                              type="date"
+                              value={expirationDate}
+                              onChange={(e) => setExpirationDate(e.target.value)}
+                              className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                              style={{ minHeight: '36px' }}
+                            />
+                          </div>
+
+                          {/* Volume */}
+                          <div className="flex flex-col gap-1 bg-transparent">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Volume *</label>
+                            <input
+                              type="number"
+                              value={1}
+                              disabled
+                              readOnly
+                              className="w-full bg-slate-100 p-2 border border-slate-200 rounded text-slate-500 font-semibold text-xs cursor-not-allowed"
+                              style={{ minHeight: '36px' }}
+                            />
+                          </div>
+
+                          {/* Situation */}
+                          <div className="flex flex-col gap-1 bg-transparent">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Situation *</label>
+                            <select
+                              value={situation}
+                              onChange={(e) => setSituation(e.target.value as any)}
+                              className="w-full bg-white text-black p-2 rounded border border-slate-200"
+                              style={{ minHeight: '36px' }}
+                              required
+                            >
+                              <option value="Disponible">Disponible</option>
+                              <option value="Utilisé">Utilisé</option>
+                              <option value="Indisponible">Indisponible</option>
+                              <option value="Signalé manquant">Signalé manquant</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 bg-transparent mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowTraceabilityForm(false)}
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#ffffff',
+                              padding: '10px 20px',
+                              fontSize: '18px',
+                              borderRadius: '13px',
+                            }}
+                            className="font-sans font-bold active:scale-95 transition-all text-white cursor-pointer border-0"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleAddTraceabilityInline}
+                            style={{
+                              backgroundColor: '#000000',
+                              color: '#ffffff',
+                              padding: '10px 20px',
+                              fontSize: '18px',
+                              borderRadius: '13px',
+                            }}
+                            className="font-sans font-bold active:scale-95 transition-all text-white cursor-pointer border-0 shadow-xs"
+                          >
+                            Ajouter
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Table des Traçabilités */}
+                    {traceabilities.length > 0 && (
+                      <div 
+                        className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                        style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                      >
+                        <table className="w-full text-left font-sans border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Barre-code.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
+                              <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                              <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Action.</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white">
+                            {traceabilities.map((trace, idx) => {
+                              return (
+                                <tr 
+                                  key={trace.id} 
+                                  className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                  style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                                >
+                                  {/* Code-barres */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <div className="flex items-center gap-2">
+                                      <div 
+                                        className="inline-block"
+                                        dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
+                                        style={{
+                                          backgroundColor: '#000000',
+                                          color: '#ffffff',
+                                          padding: '10px 20px',
+                                          fontSize: '18px',
+                                          borderRadius: '13px',
+                                        }}
+                                        className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                        title="Imprimer / Télécharger"
+                                      >
+                                        Imprimer
+                                      </button>
+                                    </div>
+                                  </td>
+
+                                  {/* Mouvement */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <select
+                                      value={trace.movementId}
+                                      onChange={(e) => {
+                                        const updated = [...traceabilities];
+                                        updated[idx].movementId = e.target.value;
+                                        setTraceabilities(updated);
+                                      }}
+                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                      style={{ minHeight: '30px' }}
+                                    >
+                                      <option value="" disabled hidden>Sélectionnez un mouvement</option>
+                                      <option value="Autre">Autre (Aucun mouvement)</option>
+                                      {mouvements.filter(mv => mv.type !== 'Annulation').map(mv => (
+                                        <option key={mv.id} value={mv.id}>
+                                          {mv.date} - {mv.type} (Vol: {mv.volume})
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </td>
+
+                                  {/* Numéro de lot ou série */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <input
+                                      type="text"
+                                      value={trace.lotOrSerial}
+                                      onChange={(e) => {
+                                        const updated = [...traceabilities];
+                                        updated[idx].lotOrSerial = e.target.value;
+                                        setTraceabilities(updated);
+                                      }}
+                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-semibold text-xs font-mono"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Date de péremption */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <input
+                                      type="date"
+                                      value={trace.expirationDate || ''}
+                                      onChange={(e) => {
+                                        const updated = [...traceabilities];
+                                        updated[idx].expirationDate = e.target.value || undefined;
+                                        setTraceabilities(updated);
+                                      }}
+                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Volume */}
+                                  <td className="px-3 py-2 bg-white text-center">
+                                    <input
+                                      type="number"
+                                      value={trace.volume}
+                                      disabled
+                                      className="w-16 bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs text-center cursor-not-allowed"
+                                      style={{ minHeight: '30px' }}
+                                    />
+                                  </td>
+
+                                  {/* Situation */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <select
+                                      value={trace.situation}
+                                      onChange={(e) => {
+                                        const updated = [...traceabilities];
+                                        updated[idx].situation = e.target.value as any;
+                                        setTraceabilities(updated);
+                                      }}
+                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                      style={{ minHeight: '30px' }}
+                                    >
+                                      <option value="Disponible">Disponible</option>
+                                      <option value="Utilisé">Utilisé</option>
+                                      <option value="Indisponible">Indisponible</option>
+                                      <option value="Signalé manquant">Signalé manquant</option>
+                                    </select>
+                                  </td>
+
+                                  {/* Actions */}
+                                  <td className="px-3 py-2 text-right bg-white">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setTraceabilities(traceabilities.filter((_, i) => i !== idx));
+                                      }}
+                                      style={{
+                                        backgroundColor: '#000000',
+                                        color: '#ffffff',
+                                        padding: '10px 20px',
+                                        fontSize: '18px',
+                                        borderRadius: '13px',
+                                      }}
+                                      className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                    >
+                                      Supprimer
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
               {/* Commentaire. */}
               <div className="md:col-span-4 bg-white flex flex-col gap-1">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Commentaire.</label>
@@ -1496,6 +1960,37 @@ export default function StocksTab({
                   placeholder="Entrez votre commentaire..."
                   className="focus:outline-none w-full font-sans p-2 border border-slate-200 rounded text-xs bg-white text-slate-700"
                 />
+              </div>
+
+              {/* Activer la traçabilité des pièces. */}
+              <div className="md:col-span-4 bg-white flex flex-col gap-2 mt-2">
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
+                  Activer la traçabilité des pièces.
+                </span>
+                <div className="flex gap-4 mt-1 bg-transparent">
+                  <button
+                    type="button"
+                    onClick={() => setTraceabilityEnabled(true)}
+                    className="flex items-center gap-2 font-sans font-bold cursor-pointer select-none border-0 bg-transparent text-black"
+                    style={{ fontSize: '18px' }}
+                  >
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white ${traceabilityEnabled === true ? 'border-[#fe4eba]' : 'border-slate-300'}`}>
+                      {traceabilityEnabled === true && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                    </span>
+                    Oui
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTraceabilityEnabled(false)}
+                    className="flex items-center gap-2 font-sans font-bold cursor-pointer select-none border-0 bg-transparent text-black"
+                    style={{ fontSize: '18px' }}
+                  >
+                    <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white ${traceabilityEnabled === false ? 'border-[#fe4eba]' : 'border-slate-300'}`}>
+                      {traceabilityEnabled === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                    </span>
+                    Non
+                  </button>
+                </div>
               </div>
 
             </div>

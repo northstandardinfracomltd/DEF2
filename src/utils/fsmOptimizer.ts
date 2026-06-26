@@ -297,9 +297,25 @@ function isDateOpenForEquipment(date: Date, eq: any, tech?: any): boolean {
   return getOverlappingIntervals(date, eq, tech).length > 0;
 }
 
+export function getMissionDurationInMinutes(reason: string): number {
+  if (!reason) return 75; // Default: 45 + 30 = 75
+  const normalized = reason.toLowerCase();
+  
+  let interventionMinutes = 45; // Default
+  if (normalized.includes('1h30')) {
+    interventionMinutes = 90;
+  } else if (normalized.includes('1h')) {
+    interventionMinutes = 60;
+  } else if (normalized.includes('30min') || normalized.includes('30 mins') || normalized.includes('30mins')) {
+    interventionMinutes = 30;
+  }
+  
+  return interventionMinutes + 30; // 30 minutes of travel time
+}
+
 /**
  * Auto-schedules optimized tour missions sequentially.
- * Allocates 1h15 (75 minutes) per mission.
+ * Allocates time dynamically per mission based on the selected reason, plus 30 mins for travel.
  * Standard workhours: 08:00 to 18:00.
  * If manual overrides exist on date or slot, respects them and updates the scheduling cursor!
  */
@@ -319,6 +335,7 @@ export function scheduleMissions(
 
   return missions.map((m) => {
     const eq = equipmentDetails[m.defibIdentifiant];
+    const duration = getMissionDurationInMinutes(m.reason || '');
 
     // If both date AND slot are manually forced, we jump our cursor to that time
     if (m.isManualDate && m.isManualSlot && m.estimatedDate && m.estimatedSlot) {
@@ -328,8 +345,8 @@ export function scheduleMissions(
       }
       currentCursorMinutes = parseSlotToMinutes(m.estimatedSlot);
 
-      // End time of this forced mission is +75 minutes
-      const endMinutes = currentCursorMinutes + 75;
+      // End time of this forced mission is +duration minutes
+      const endMinutes = currentCursorMinutes + duration;
       currentCursorMinutes = endMinutes;
       if (currentCursorMinutes >= 1440) {
         currentCursorDate = addDays(currentCursorDate, 1);
@@ -355,7 +372,7 @@ export function scheduleMissions(
         let found = false;
         for (const interval of intervals) {
           const candidateStart = Math.max(currentCursorMinutes, interval.start);
-          if (candidateStart + 75 <= interval.end) {
+          if (candidateStart + duration <= interval.end) {
             assignedStartMinutesForcedDate = candidateStart;
             found = true;
             break;
@@ -369,7 +386,7 @@ export function scheduleMissions(
       }
 
       const slot = formatMinutesToSlot(assignedStartMinutesForcedDate);
-      currentCursorMinutes = assignedStartMinutesForcedDate + 75;
+      currentCursorMinutes = assignedStartMinutesForcedDate + duration;
       if (currentCursorMinutes >= 1440) {
         currentCursorDate = addDays(currentCursorDate, 1);
         currentCursorMinutes = 0;
@@ -387,7 +404,7 @@ export function scheduleMissions(
       while (true) {
         const intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
         const foundInterval = intervals.find(interval => 
-          targetSlotMinutes >= interval.start && (targetSlotMinutes + 75) <= interval.end
+          targetSlotMinutes >= interval.start && (targetSlotMinutes + duration) <= interval.end
         );
         if (foundInterval) {
           break;
@@ -396,7 +413,7 @@ export function scheduleMissions(
         currentCursorMinutes = 0;
       }
       const dateStr = formatDate(currentCursorDate);
-      currentCursorMinutes = targetSlotMinutes + 75;
+      currentCursorMinutes = targetSlotMinutes + duration;
       if (currentCursorMinutes >= 1440) {
         currentCursorDate = addDays(currentCursorDate, 1);
         currentCursorMinutes = 0;
@@ -408,14 +425,14 @@ export function scheduleMissions(
       };
     }
 
-    // Regular Auto-Scheduling: sequential 1h15 slots matching open hours & days for both equipment & technician
+    // Regular Auto-Scheduling: sequential slots matching open hours & days for both equipment & technician
     let assignedStartMinutes = 0;
     while (true) {
       const intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
       let found = false;
       for (const interval of intervals) {
         const candidateStart = Math.max(currentCursorMinutes, interval.start);
-        if (candidateStart + 75 <= interval.end) {
+        if (candidateStart + duration <= interval.end) {
           assignedStartMinutes = candidateStart;
           found = true;
           break;
@@ -433,7 +450,7 @@ export function scheduleMissions(
     const assignedSlot = formatMinutesToSlot(assignedStartMinutes);
 
     // Increment cursor for the next mission
-    currentCursorMinutes = assignedStartMinutes + 75;
+    currentCursorMinutes = assignedStartMinutes + duration;
     if (currentCursorMinutes >= 1440) {
       currentCursorDate = addDays(currentCursorDate, 1);
       currentCursorMinutes = 0;

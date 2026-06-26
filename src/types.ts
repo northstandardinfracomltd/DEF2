@@ -50,6 +50,8 @@ export interface Client {
   dateSignatureContrat?: string;
   signeParContrat?: string;
   signatureClientContratImage?: string;
+  payeurId?: string;
+  clientIdField?: string;
 }
 
 export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur';
@@ -83,6 +85,8 @@ export interface Defibrillateur {
   referenceContrat: string;
   debutContrat: string;
   finContrat: string;
+  payeurId?: string;
+  clientIdField?: string;
 
   // Section 3 - Coffret
   modeleCoffretId: string; // Lookup Variable category 'Modèle Coffret'
@@ -295,6 +299,7 @@ export interface CommercialDocItem {
   nomPiece: string;
   prixVenteHt: number;
   quantite: number;
+  ugs?: string;
 }
 
 export interface CommercialDoc {
@@ -307,12 +312,17 @@ export interface CommercialDoc {
   totalHt: number;
   status: 'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé';
   dateStr: string;
-  commentaire?: string;
+  commentaire?: string; // This corresponds to "Remarque." (formerly "Objet ou commentaire.")
+  commentaires?: string; // New textarea "Commentaires."
   assignedMemberName?: string;
   hasBonCommande?: boolean;
   bonCommandeReference?: string;
   bonCommandeLivraison?: 'Intervention' | 'Transporteur';
   bonCommandeSituation?: 'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé';
+  bonCommandeEntete?: string;
+  codeTaxe?: string;
+  payeurId?: string;
+  clientIdField?: string;
 }
 
 export interface GedDocument {
@@ -346,6 +356,8 @@ export interface OtherEquipment {
   referenceContrat: string;
   debutContrat: string;
   finContrat: string;
+  payeurId?: string;
+  clientIdField?: string;
 
   // Section 2 - Localisation
   numeroVoie: string;

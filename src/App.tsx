@@ -664,11 +664,16 @@ export default function App() {
   const [docStatus, setDocStatus] = useState<'Brouillon' | 'Terminé' | 'Accepté' | 'Refusé' | 'Annulé' | 'Supprimé'>('Brouillon');
   const [docItems, setDocItems] = useState<CommercialDocItem[]>([]);
   const [docCommentaire, setDocCommentaire] = useState('');
+  const [docCommentaires, setDocCommentaires] = useState('');
   const [docAssignedMemberName, setDocAssignedMemberName] = useState('');
   const [docHasBonCommande, setDocHasBonCommande] = useState(false);
   const [docBonCommandeReference, setDocBonCommandeReference] = useState('');
   const [docBonCommandeLivraison, setDocBonCommandeLivraison] = useState<'Intervention' | 'Transporteur'>('Transporteur');
   const [docBonCommandeSituation, setDocBonCommandeSituation] = useState<'Ouvert' | 'Envoyé Terminé' | 'Envoyé Logistique' | 'Terminé'>('Ouvert');
+  const [docBonCommandeEntete, setDocBonCommandeEntete] = useState('');
+  const [docCodeTaxe, setDocCodeTaxe] = useState('');
+  const [docPayeurId, setDocPayeurId] = useState('');
+  const [docClientIdField, setDocClientIdField] = useState('');
 
   const [selectedDocPieceId, setSelectedDocPieceId] = useState('');
   const [customDocPiecePrice, setCustomDocPiecePrice] = useState(0);
@@ -1300,7 +1305,7 @@ export default function App() {
     saveFsmTours(updatedTours);
   };
 
-  const changeFsmMissionParts = (tourId: string, missionId: string, oldParts: string[], newParts: string[]) => {
+  const changeFsmMissionParts = (tourId: string, missionId: string, oldParts: string[], newParts: string[], extraFieldsToUpdate?: any) => {
     const added = newParts.filter(p => !oldParts.includes(p));
     const removed = oldParts.filter(p => !newParts.includes(p));
 
@@ -1358,7 +1363,7 @@ export default function App() {
     if (stocksMutated) {
       saveStocks(updatedStocks);
     }
-    updateFsmMission(tourId, missionId, { requiredParts: newParts });
+    updateFsmMission(tourId, missionId, { requiredParts: newParts, ...extraFieldsToUpdate });
   };
 
   const updateFsmMission = (tourId: string, missionId: string, fields: any) => {
@@ -2918,8 +2923,10 @@ export default function App() {
 
     const itemsHtml = doc.items.map((item, idx) => {
       const isLast = idx === doc.items.length - 1;
+      const itemUgs = item.ugs || stocks.find(s => s.denominationPieceId === item.variableId)?.ugs || '—';
       return `
         <tr style="${isLast ? '' : 'border-bottom: 1px solid #dcdcdc;'}">
+          <td style="padding: 12px 8px; font-family: monospace;">${itemUgs}</td>
           <td style="padding: 12px 8px;">${item.nomPiece}</td>
           <td style="padding: 12px 8px; text-align: right;">${item.prixVenteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
           <td style="padding: 12px 8px; text-align: center;">${item.quantite}</td>
@@ -3037,6 +3044,7 @@ export default function App() {
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
               <thead>
                 <tr style="border-bottom: 1px solid #dcdcdc;">
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">UGS.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important;">Description.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Prix unitaire.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important; text-align: center;">Volume.</th>
@@ -3110,8 +3118,10 @@ export default function App() {
 
     const itemsHtml = doc.items.map((item, idx) => {
       const isLast = idx === doc.items.length - 1;
+      const itemUgs = item.ugs || stocks.find(s => s.denominationPieceId === item.variableId)?.ugs || '—';
       return `
         <tr style="${isLast ? '' : 'border-bottom: 1px solid #dcdcdc;'}">
+          <td style="padding: 12px 8px; font-family: monospace;">${itemUgs}</td>
           <td style="padding: 12px 8px;">${item.nomPiece}</td>
           <td style="padding: 12px 8px; text-align: right;">${item.prixVenteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
           <td style="padding: 12px 8px; text-align: center;">${item.quantite}</td>
@@ -3231,6 +3241,7 @@ export default function App() {
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
               <thead>
                 <tr style="border-bottom: 1px solid #dcdcdc;">
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">UGS.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important;">Description.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Prix unitaire.</th>
                   <th style="padding: 10px 8px; font-weight: 100 !important; text-align: center;">Volume.</th>
@@ -3325,11 +3336,16 @@ export default function App() {
     setDocStatus(doc.status);
     setDocItems(doc.items);
     setDocCommentaire(doc.commentaire || '');
+    setDocCommentaires(doc.commentaires || '');
     setDocAssignedMemberName(doc.assignedMemberName || '');
     setDocHasBonCommande(!!doc.hasBonCommande);
     setDocBonCommandeReference(doc.bonCommandeReference || '');
     setDocBonCommandeLivraison(doc.bonCommandeLivraison || 'Transporteur');
     setDocBonCommandeSituation(doc.bonCommandeSituation || 'Ouvert');
+    setDocBonCommandeEntete(doc.bonCommandeEntete || '');
+    setDocCodeTaxe(doc.codeTaxe || '');
+    setDocPayeurId(doc.payeurId || '');
+    setDocClientIdField(doc.clientIdField || '');
     setIsDocFormOpen(true);
   };
 
@@ -3341,11 +3357,16 @@ export default function App() {
     setDocStatus('Brouillon');
     setDocItems([]);
     setDocCommentaire('');
+    setDocCommentaires('');
     setDocAssignedMemberName('');
     setDocHasBonCommande(false);
     setDocBonCommandeReference('');
     setDocBonCommandeLivraison('Transporteur');
     setDocBonCommandeSituation('Ouvert');
+    setDocBonCommandeEntete('');
+    setDocCodeTaxe('');
+    setDocPayeurId('');
+    setDocClientIdField('');
     setIsDocFormOpen(true);
   };
 
@@ -3396,11 +3417,16 @@ export default function App() {
         status: docStatus,
         dateStr: docDateStr,
         commentaire: docCommentaire,
+        commentaires: docCommentaires,
         assignedMemberName: docAssignedMemberName || undefined,
         hasBonCommande: docHasBonCommande,
         bonCommandeReference: docHasBonCommande ? finalBcRef : undefined,
         bonCommandeLivraison: docHasBonCommande ? docBonCommandeLivraison : undefined,
-        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined
+        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined,
+        bonCommandeEntete: docHasBonCommande ? docBonCommandeEntete : undefined,
+        codeTaxe: docCodeTaxe,
+        payeurId: docPayeurId,
+        clientIdField: docClientIdField
       } : d);
       saveCommercialDocs(updatedDocs);
     } else {
@@ -3415,11 +3441,16 @@ export default function App() {
         status: docStatus,
         dateStr: docDateStr,
         commentaire: docCommentaire,
+        commentaires: docCommentaires,
         assignedMemberName: docAssignedMemberName || undefined,
         hasBonCommande: docHasBonCommande,
         bonCommandeReference: docHasBonCommande ? finalBcRef : undefined,
         bonCommandeLivraison: docHasBonCommande ? docBonCommandeLivraison : undefined,
-        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined
+        bonCommandeSituation: docHasBonCommande ? docBonCommandeSituation : undefined,
+        bonCommandeEntete: docHasBonCommande ? docBonCommandeEntete : undefined,
+        codeTaxe: docCodeTaxe,
+        payeurId: docPayeurId,
+        clientIdField: docClientIdField
       };
       saveCommercialDocs([newDoc, ...commercialDocs]);
     }
@@ -3433,11 +3464,15 @@ export default function App() {
     const foundVar = variables.find(v => v.id === selectedDocPieceId);
     if (!foundVar) return;
     
+    const matchedStock = stocks.find(s => s.denominationPieceId === selectedDocPieceId);
+    const ugs = matchedStock?.ugs || '';
+
     const newItem: CommercialDocItem = {
       variableId: selectedDocPieceId,
       nomPiece: `${foundVar.nom} (${foundVar.marque})`,
       prixVenteHt: customDocPiecePrice,
-      quantite: customDocPieceQty
+      quantite: customDocPieceQty,
+      ugs: ugs
     };
 
     setDocItems([...docItems, newItem]);
@@ -4913,8 +4948,8 @@ export default function App() {
                                         })()}
                                       </div>
 
-                                      {/* Ligne 2: Site., Identifiant., Raison., Date estimée., Créneau estimé., Situation. */}
-                                      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 w-full bg-white">
+                                      {/* Ligne 2: Site., Identifiant., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 w-full bg-white">
                                         {/* Site. (toujours disabled) */}
                                         <div className="space-y-0.5 bg-white">
                                           <label className="block mb-1 fsm-label-style">Site.</label>
@@ -4947,21 +4982,117 @@ export default function App() {
                                             onChange={(e) => updateFsmMission(t.id, m.id, { reason: e.target.value })}
                                             className="w-full font-sans focus:outline-none cursor-pointer"
                                           >
-                                            <option value="Maintenance">Maintenance</option>
-                                            <option value="Mise en service">Mise en service</option>
-                                            <option value="Installation">Installation</option>
-                                            <option value="Pose">Pose</option>
-                                            <option value="Formation">Formation</option>
+                                            <option value="Maintenance 1h Monôme">Maintenance 1h Monôme</option>
+                                            <option value="Maintenance 30mins Monôme">Maintenance 30mins Monôme</option>
+                                            <option value="Maintenance 1h30 Monôme">Maintenance 1h30 Monôme</option>
+                                            <option value="Installation 1h Monôme">Installation 1h Monôme</option>
+                                            <option value="Installation 30mins Monôme">Installation 30mins Monôme</option>
+                                            <option value="Installation 1h30 Monôme">Installation 1h30 Monôme</option>
                                             <option value="Installation et formation">Installation et formation</option>
-                                            <option value="Remplacement B">Remplacement B</option>
-                                            <option value="Remplacer B & A">Remplacer B & A</option>
-                                            <option value="Remplacer A & P">Remplacer A & P</option>
-                                            <option value="Remplacer B & P">Remplacer B & P</option>
-                                            <option value="Remplacement A">Remplacement A</option>
-                                            <option value="Remplacement P">Remplacement P</option>
-                                            <option value="Remplacement">Remplacement</option>
-                                            <option value="Diagnostic">Diagnostic</option>
-                                            <option value="Non renseigné">Non renseigné</option>
+                                            <option value="Remplacement D 1h Monôme">Remplacement D 1h Monôme</option>
+                                            <option value="Remplacement D 30mins Monôme">Remplacement D 30mins Monôme</option>
+                                            <option value="Remplacement D 1h30 Monôme">Remplacement D 1h30 Monôme</option>
+                                            <option value="Remplacement A 1h Monôme">Remplacement A 1h Monôme</option>
+                                            <option value="Remplacement A 30mins Monôme">Remplacement A 30mins Monôme</option>
+                                            <option value="Remplacement A 1h30 Monôme">Remplacement A 1h30 Monôme</option>
+                                            <option value="Remplacement P 1h Monôme">Remplacement P 1h Monôme</option>
+                                            <option value="Remplacement P 30mins Monôme">Remplacement P 30mins Monôme</option>
+                                            <option value="Remplacement P 1h30 Monôme">Remplacement P 1h30 Monôme</option>
+                                            <option value="Remplacement B 1h Monôme">Remplacement B 1h Monôme</option>
+                                            <option value="Remplacement B 30mins Monôme">Remplacement B 30mins Monôme</option>
+                                            <option value="Remplacement B 1h30 Monôme">Remplacement B 1h30 Monôme</option>
+                                            <option value="Remplacement A + P 1h Monôme">Remplacement A + P 1h Monôme</option>
+                                            <option value="Remplacement A + P 30mins Monôme">Remplacement A + P 30mins Monôme</option>
+                                            <option value="Remplacement A + P 1h30 Monôme">Remplacement A + P 1h30 Monôme</option>
+                                            <option value="Remplacement A + B 1h Monôme">Remplacement A + B 1h Monôme</option>
+                                            <option value="Remplacement A + B 30mins Monôme">Remplacement A + B 30mins Monôme</option>
+                                            <option value="Remplacement A + B 1h30 Monôme">Remplacement A + B 1h30 Monôme</option>
+                                            <option value="Remplacement P + B 1h Monôme">Remplacement P + B 1h Monôme</option>
+                                            <option value="Remplacement P + B 30mins Monôme">Remplacement P + B 30mins Monôme</option>
+                                            <option value="Remplacement P + B 1h30 Monôme">Remplacement P + B 1h30 Monôme</option>
+                                            <option value="Remplacement A + P + B 1h Monôme">Remplacement A + P + B 1h Monôme</option>
+                                            <option value="Remplacement A + P + B 30mins Monôme">Remplacement A + P + B 30mins Monôme</option>
+                                            <option value="Remplacement A + P + B 1h30 Monôme">Remplacement A + P + B 1h30 Monôme</option>
+                                          </select>
+                                        </div>
+
+                                        {/* Bon de commande. */}
+                                        <div className="space-y-0.5 bg-white">
+                                          <label className="block mb-1 fsm-label-style">Bon de commande.</label>
+                                          <select
+                                            value={m.bonCommandeId || ''}
+                                            onChange={(e) => {
+                                              const nextBcId = e.target.value;
+                                              if (nextBcId) {
+                                                const selectedBcDoc = commercialDocs.find(doc => doc.id === nextBcId);
+                                                if (selectedBcDoc) {
+                                                  const nonServiceParts = selectedBcDoc.items
+                                                    ? selectedBcDoc.items
+                                                        .filter(item => {
+                                                          const vObj = variables.find(v => v.id === item.variableId || v.nom === item.nomPiece);
+                                                          return !(vObj && vObj.category === 'Modèle Service');
+                                                        })
+                                                        .map(item => item.nomPiece)
+                                                    : [];
+                                                  const uniqueParts = Array.from(new Set(nonServiceParts)) as string[];
+                                                  changeFsmMissionParts(t.id, m.id, (m.requiredParts || []) as string[], uniqueParts, { bonCommandeId: nextBcId });
+                                                } else {
+                                                  updateFsmMission(t.id, m.id, { bonCommandeId: nextBcId });
+                                                }
+                                              } else {
+                                                changeFsmMissionParts(t.id, m.id, (m.requiredParts || []) as string[], [], { bonCommandeId: '' });
+                                              }
+                                            }}
+                                            className="w-full font-sans focus:outline-none cursor-pointer text-slate-800"
+                                            style={{
+                                              border: '1px solid #dedede',
+                                              borderRadius: '13px',
+                                              padding: '12px',
+                                              fontSize: '16px',
+                                              fontWeight: '100',
+                                              color: '#000000',
+                                              backgroundColor: '#ffffff'
+                                            }}
+                                          >
+                                            <option value="">-- Aucun --</option>
+                                            {(() => {
+                                              const matchedClient = (() => {
+                                                if (m.clientId) {
+                                                  const found = clients.find(c => c.id === m.clientId);
+                                                  if (found) return found;
+                                                }
+                                                const matchedDefib = defibrillateurs.find(df => df.identifiant === m.defibIdentifiant);
+                                                if (matchedDefib) {
+                                                  const found = clients.find(c => c.id === matchedDefib.clientId);
+                                                  if (found) return found;
+                                                }
+                                                if (m.clientName) {
+                                                  const mName = m.clientName.toLowerCase();
+                                                  const found = clients.find(c => {
+                                                    if (!c.denomination) return false;
+                                                    const cDenom = c.denomination.toLowerCase();
+                                                    return mName.includes(cDenom) || cDenom.includes(mName);
+                                                  });
+                                                  if (found) return found;
+                                                }
+                                                return null;
+                                              })();
+
+                                              const clientBcs = matchedClient
+                                                ? commercialDocs.filter(doc => 
+                                                    doc.hasBonCommande && 
+                                                    (doc.clientId === matchedClient.id || 
+                                                     (doc.clientDenomination && matchedClient.denomination && 
+                                                      doc.clientDenomination.toLowerCase() === matchedClient.denomination.toLowerCase()))
+                                                  )
+                                                : [];
+
+                                              return clientBcs.map(bcDoc => (
+                                                <option key={bcDoc.id} value={bcDoc.id}>
+                                                  {bcDoc.bonCommandeEntete || bcDoc.bonCommandeReference || bcDoc.ref}
+                                                </option>
+                                              ));
+                                            })()}
                                           </select>
                                         </div>
 
@@ -5072,6 +5203,33 @@ export default function App() {
                                           </div>
                                         </div>
                                       </div>
+
+                                      {/* Info block displaying Commentaires of selected Bon de commande */}
+                                      {(() => {
+                                        const selectedBcDoc = (() => {
+                                          if (!m.bonCommandeId) return null;
+                                          return commercialDocs.find(doc => doc.id === m.bonCommandeId);
+                                        })();
+
+                                        if (selectedBcDoc && selectedBcDoc.commentaires && selectedBcDoc.commentaires.trim() !== '') {
+                                          return (
+                                            <div 
+                                              style={{
+                                                color: 'rgb(143 51 151)',
+                                                backgroundColor: 'rgb(253 229 255)',
+                                                border: 'none',
+                                                cursor: 'default'
+                                              }}
+                                              className="font-semibold text-sm px-4 py-3 rounded-xl flex items-center gap-2.5 mt-2 w-full mx-0.5"
+                                            >
+                                              <span>
+                                                Commentaires : {selectedBcDoc.commentaires}
+                                              </span>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      })()}
 
                                   {/* Lookup field for required components with stock items selector */}
                                   {(() => {
@@ -6752,7 +6910,19 @@ export default function App() {
                           <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Client.</label>
                           <select
                             value={docClientId}
-                            onChange={(e) => setDocClientId(e.target.value)}
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              setDocClientId(selectedId);
+                              const matchedClient = clients.find(c => c.id === selectedId);
+                              if (matchedClient) {
+                                if (matchedClient.payeurId) {
+                                  setDocPayeurId(matchedClient.payeurId);
+                                }
+                                if (matchedClient.clientIdField) {
+                                  setDocClientIdField(matchedClient.clientIdField);
+                                }
+                              }
+                            }}
                             className="focus:outline-none"
                             required
                           >
@@ -6796,15 +6966,51 @@ export default function App() {
                           </select>
                         </div>
 
-                        {/* Objet ou commentaire */}
+                        {/* Remarque */}
                         <div className="flex flex-col gap-1 bg-white">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Objet ou commentaire.")}</label>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Remarque.")}</label>
                           <input
                             type="text"
                             value={docCommentaire}
                             onChange={(e) => setDocCommentaire(e.target.value)}
-                            placeholder={t("Entrez un commentaire.")}
+                            placeholder={t("Entrez une remarque.")}
                             className="focus:outline-none w-full animate-fadeIn"
+                          />
+                        </div>
+
+                        {/* Code Taxe */}
+                        <div className="flex flex-col gap-1 bg-white">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Code Taxe.")}</label>
+                          <input
+                            type="text"
+                            value={docCodeTaxe}
+                            onChange={(e) => setDocCodeTaxe(e.target.value)}
+                            placeholder={t("Code Taxe.")}
+                            className="focus:outline-none w-full"
+                          />
+                        </div>
+
+                        {/* Payeur ID */}
+                        <div className="flex flex-col gap-1 bg-white">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Payeur ID.")}</label>
+                          <input
+                            type="text"
+                            value={docPayeurId}
+                            onChange={(e) => setDocPayeurId(e.target.value)}
+                            placeholder={t("Payeur ID.")}
+                            className="focus:outline-none w-full"
+                          />
+                        </div>
+
+                        {/* Client ID */}
+                        <div className="flex flex-col gap-1 bg-white">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Client ID.")}</label>
+                          <input
+                            type="text"
+                            value={docClientIdField}
+                            onChange={(e) => setDocClientIdField(e.target.value)}
+                            placeholder={t("Client ID.")}
+                            className="focus:outline-none w-full"
                           />
                         </div>
 
@@ -6888,9 +7094,10 @@ export default function App() {
                               {t("Aucune ligne ajoutée.")}
                             </div>
                           ) : (
-                            <table className="w-full text-left text-xs border-collapse font-sans bg-white">
+                             <table className="w-full text-left text-xs border-collapse font-sans bg-white">
                               <thead>
                                 <tr className="bg-transparent">
+                                  <th className="px-4 py-3" style={thStyle}>{t("UGS.")}</th>
                                   <th className="px-4 py-3" style={thStyle}>{t("Pièce.")}</th>
                                   <th className="px-4 py-3 text-right" style={thStyle}>{t("Unité HT. (€)")}</th>
                                   <th className="px-4 py-3 text-center w-24" style={thStyle}>{t("Volume.")}</th>
@@ -6899,30 +7106,34 @@ export default function App() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-slate-650 bg-white">
-                                {docItems.map((item, idx) => (
-                                  <tr key={idx} className="bg-white font-sans">
-                                    <td className="px-4 py-3.5" style={itemValueStyle}>{item.nomPiece}</td>
-                                    <td className="px-4 py-3.5 text-right" style={itemValueStyle}>{item.prixVenteHt.toFixed(2)}€</td>
-                                    <td className="px-4 py-3.5 text-center" style={itemValueStyle}>{item.quantite}</td>
-                                    <td className="px-4 py-3.5 text-right" style={itemValueStyle}>
-                                      {(item.prixVenteHt * item.quantite).toFixed(2)}€
-                                    </td>
-                                    <td className="px-4 py-3 text-right bg-white">
-                                      <button
-                                        type="button"
-                                        onClick={() => setDocItems(docItems.filter((_, i) => i !== idx))}
-                                        style={{
-                                          ...rowActionButtonStyle,
-                                          fontSize: '18px',
-                                          padding: '9px 19px',
-                                        }}
-                                        className="cursor-pointer font-sans"
-                                      >
-                                        {t("Supprimer")}
-                                      </button>
-                                    </td>
-                                  </tr>
-                                ))}
+                                {docItems.map((item, idx) => {
+                                  const itemUgs = item.ugs || stocks.find(s => s.denominationPieceId === item.variableId)?.ugs || '—';
+                                  return (
+                                    <tr key={idx} className="bg-white font-sans">
+                                      <td className="px-4 py-3.5 font-mono text-xs" style={itemValueStyle}>{itemUgs}</td>
+                                      <td className="px-4 py-3.5" style={itemValueStyle}>{item.nomPiece}</td>
+                                      <td className="px-4 py-3.5 text-right" style={itemValueStyle}>{item.prixVenteHt.toFixed(2)}€</td>
+                                      <td className="px-4 py-3.5 text-center" style={itemValueStyle}>{item.quantite}</td>
+                                      <td className="px-4 py-3.5 text-right" style={itemValueStyle}>
+                                        {(item.prixVenteHt * item.quantite).toFixed(2)}€
+                                      </td>
+                                      <td className="px-4 py-3 text-right bg-white">
+                                        <button
+                                          type="button"
+                                          onClick={() => setDocItems(docItems.filter((_, i) => i !== idx))}
+                                          style={{
+                                            ...rowActionButtonStyle,
+                                            fontSize: '18px',
+                                            padding: '9px 19px',
+                                          }}
+                                          className="cursor-pointer font-sans"
+                                        >
+                                          {t("Supprimer")}
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
                               </tbody>
                             </table>
                           )}
@@ -6953,6 +7164,17 @@ export default function App() {
                             </div>
                           </div>
                         )}
+
+                        {/* Textarea Commentaires. */}
+                        <div className="flex flex-col gap-1 bg-white mt-4">
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Commentaires.")}</label>
+                          <textarea
+                            value={docCommentaires}
+                            onChange={(e) => setDocCommentaires(e.target.value)}
+                            placeholder={t("Entrez les commentaires...")}
+                            className="focus:outline-none w-full p-3 border border-slate-200 rounded-xl min-h-[100px]"
+                          />
+                        </div>
 
                       </div>
 
@@ -7017,6 +7239,18 @@ export default function App() {
 
                           {docHasBonCommande && (
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 pt-3 bg-transparent animate-fadeIn">
+                              {/* Entête BC. */}
+                              <div className="flex flex-col gap-1 bg-white col-span-1 md:col-span-3">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Entête BC.")}</label>
+                                <input
+                                  type="text"
+                                  value={docBonCommandeEntete}
+                                  onChange={(e) => setDocBonCommandeEntete(e.target.value)}
+                                  placeholder={t("Entrez l'entête du bon de commande.")}
+                                  className="focus:outline-none w-full animate-fadeIn"
+                                />
+                              </div>
+
                               {/* Référence */}
                               <div className="flex flex-col gap-1 bg-white">
                                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Référence BC.")}</label>
@@ -7031,7 +7265,7 @@ export default function App() {
 
                               {/* Livraison Radio buttons */}
                               <div className="flex flex-col gap-1 bg-white">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Livraison.")}</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Livraison BC.")}</label>
                                 <div className="flex gap-4 mt-2 bg-transparent">
                                   <button
                                     type="button"
@@ -7060,7 +7294,7 @@ export default function App() {
 
                               {/* Situation */}
                               <div className="flex flex-col gap-1 bg-white">
-                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Situation.")}</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Situation BC.")}</label>
                                 <select
                                   value={docBonCommandeSituation}
                                   onChange={(e) => setDocBonCommandeSituation(e.target.value as any)}

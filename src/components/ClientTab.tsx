@@ -35,6 +35,8 @@ export default function ClientTab({
   const [accessKey, setAccessKey] = useState('');
   const [signaturePin, setSignaturePin] = useState('');
   const [commentaire, setCommentaire] = useState('');
+  const [payeurId, setPayeurId] = useState('');
+  const [clientIdField, setClientIdField] = useState('');
   
   // Site Information
   const [nomPrenomSite, setNomPrenomSite] = useState('');
@@ -449,6 +451,8 @@ export default function ClientTab({
     setAccessKey('');
     setSignaturePin(generateRandomPin());
     setCommentaire('');
+    setPayeurId('');
+    setClientIdField('');
     setNomPrenomSite('');
     setTelephoneSite('');
     setEmailSite('');
@@ -500,6 +504,8 @@ export default function ClientTab({
     setAccessKey(client.accessKey || '');
     setSignaturePin(client.signaturePin || generateRandomPin());
     setCommentaire(client.commentaire || '');
+    setPayeurId(client.payeurId || '');
+    setClientIdField(client.clientIdField || '');
     setNomPrenomSite(client.nomPrenomSite || '');
     setTelephoneSite(client.telephoneSite || '');
     setEmailSite(client.emailSite || '');
@@ -597,6 +603,8 @@ export default function ClientTab({
       accessKey: accessKey.trim(),
       signaturePin: signaturePin.trim().toUpperCase(),
       commentaire: commentaire.trim(),
+      payeurId: payeurId.trim(),
+      clientIdField: clientIdField.trim(),
       nomPrenomSite: nomPrenomSite.trim() || 'Représentant Standard',
       telephoneSite: telephoneSite.trim() || phone.trim(),
       emailSite: emailSite.trim() || email.trim(),
@@ -961,6 +969,34 @@ export default function ClientTab({
                       maxLength={6}
                       placeholder="Entrez un code PIN de signature."
                       className="font-mono font-bold text-indigo-600 text-center"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label htmlFor="input-client-payeur-id" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Payeur ID
+                    </label>
+                    <input
+                      type="text"
+                      id="input-client-payeur-id"
+                      value={payeurId}
+                      onChange={(e) => setPayeurId(e.target.value)}
+                      placeholder="Entrez le Payeur ID."
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="input-client-id-field" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Client ID
+                    </label>
+                    <input
+                      type="text"
+                      id="input-client-id-field"
+                      value={clientIdField}
+                      onChange={(e) => setClientIdField(e.target.value)}
+                      placeholder="Entrez le Client ID."
                     />
                   </div>
                 </div>

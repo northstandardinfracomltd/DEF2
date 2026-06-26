@@ -263,6 +263,8 @@ export default function AutresMaterielsTab({
   const [referenceContrat, setReferenceContrat] = useState('');
   const [debutContrat, setDebutContrat] = useState('');
   const [finContrat, setFinContrat] = useState('');
+  const [payeurId, setPayeurId] = useState('');
+  const [clientIdField, setClientIdField] = useState('');
 
   const [numeroVoie, setNumeroVoie] = useState('');
   const [ville, setVille] = useState('');
@@ -412,6 +414,8 @@ export default function AutresMaterielsTab({
       setReferenceContrat(chosen.referenceContrat || '');
       setDebutContrat(chosen.debutContrat || '');
       setFinContrat(chosen.finContrat || '');
+      setPayeurId(chosen.payeurId || '');
+      setClientIdField(chosen.clientIdField || '');
       
       const labelStr = `${chosen.denomination} (${chosen.siret || chosen.id})`;
       setClientSearchText(labelStr);
@@ -442,6 +446,8 @@ export default function AutresMaterielsTab({
     setReferenceContrat('');
     setDebutContrat('');
     setFinContrat('');
+    setPayeurId('');
+    setClientIdField('');
     setNumeroVoie('');
     setVille('');
     setCodePostal('');
@@ -499,6 +505,8 @@ export default function AutresMaterielsTab({
     setReferenceContrat(item.referenceContrat);
     setDebutContrat(item.debutContrat);
     setFinContrat(item.finContrat);
+    setPayeurId(item.payeurId || '');
+    setClientIdField(item.clientIdField || '');
     setNumeroVoie(item.numeroVoie);
     if (item.horaires) {
       try {
@@ -591,6 +599,8 @@ export default function AutresMaterielsTab({
       referenceContrat,
       debutContrat,
       finContrat,
+      payeurId: payeurId.trim(),
+      clientIdField: clientIdField.trim(),
       numeroVoie,
       ville,
       codePostal,
@@ -1591,9 +1601,21 @@ export default function AutresMaterielsTab({
                   </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-4">
+                {/* Titre du contrat (Full Width) */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500 uppercase">Titre du contrat.</label>
+                  <input
+                    type="text"
+                    value={nomContrat}
+                    onChange={(e) => setNomContrat(e.target.value)}
+                    placeholder="Titre du contrat"
+                    disabled={contrat === 'Non'}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Contrat en cours */}
-                  <div className="space-y-1 md:w-1/3">
+                  <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Contrat en cours.</label>
                     <input
                       type="text"
@@ -1602,20 +1624,32 @@ export default function AutresMaterielsTab({
                     />
                   </div>
 
-                  {/* Titre du contrat */}
-                  <div className="space-y-1 flex-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Titre du contrat.</label>
+                  {/* Payeur ID */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Payeur ID</label>
                     <input
                       type="text"
-                      value={nomContrat}
-                      onChange={(e) => setNomContrat(e.target.value)}
-                      placeholder=""
-                      disabled={contrat === 'Non'}
+                      value={payeurId}
+                      onChange={(e) => setPayeurId(e.target.value)}
+                      placeholder="Payeur ID"
                     />
                   </div>
 
+                  {/* Client ID */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase">Client ID</label>
+                    <input
+                      type="text"
+                      value={clientIdField}
+                      onChange={(e) => setClientIdField(e.target.value)}
+                      placeholder="Client ID"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {/* Reference contrat */}
-                  <div className="space-y-1 flex-1">
+                  <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Référence du contrat.</label>
                     <input
                       type="text"
@@ -1625,9 +1659,7 @@ export default function AutresMaterielsTab({
                       disabled={contrat === 'Non'}
                     />
                   </div>
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Début contrat */}
                   <div className="space-y-1">
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Début du contrat.</label>

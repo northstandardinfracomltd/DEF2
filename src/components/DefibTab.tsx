@@ -729,6 +729,8 @@ export default function DefibTab({
   const [referenceContrat, setReferenceContrat] = useState('');
   const [debutContrat, setDebutContrat] = useState('');
   const [finContrat, setFinContrat] = useState('');
+  const [payeurId, setPayeurId] = useState('');
+  const [clientIdField, setClientIdField] = useState('');
 
   // Section 3 - Coffret
   const [modeleCoffretId, setModeleCoffretId] = useState('');
@@ -1030,6 +1032,8 @@ export default function DefibTab({
       setReferenceContrat(linkedClient.referenceContrat || '');
       setDebutContrat(linkedClient.debutContrat || '');
       setFinContrat(linkedClient.finContrat || '');
+      setPayeurId(linkedClient.payeurId || '');
+      setClientIdField(linkedClient.clientIdField || '');
     } else {
       setNomPrenomSite('');
       setTelephoneSite('');
@@ -1039,6 +1043,8 @@ export default function DefibTab({
       setReferenceContrat('');
       setDebutContrat('');
       setFinContrat('');
+      setPayeurId('');
+      setClientIdField('');
     }
   };
 
@@ -1309,6 +1315,8 @@ export default function DefibTab({
     setReferenceContrat(df.referenceContrat || '');
     setDebutContrat(df.debutContrat || '');
     setFinContrat(df.finContrat || '');
+    setPayeurId(df.payeurId || '');
+    setClientIdField(df.clientIdField || '');
 
     setModeleCoffretId(df.modeleCoffretId || '');
     setNumeroLotCoffret(df.numeroLotCoffret || '');
@@ -1469,6 +1477,8 @@ export default function DefibTab({
       referenceContrat: referenceContrat.trim(),
       debutContrat,
       finContrat,
+      payeurId: payeurId.trim(),
+      clientIdField: clientIdField.trim(),
 
       modeleCoffretId,
       numeroLotCoffret: numeroLotCoffret.trim(),
@@ -2705,7 +2715,18 @@ export default function DefibTab({
                     </div>
 
                     {/* Enabled Contract fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1 pt-1 font-sans">
+                    <div className="space-y-1 mt-1 pt-1 font-sans">
+                      <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Titre du contrat.</label>
+                      <input
+                        type="text"
+                        value={nomContrat}
+                        disabled
+                        placeholder="Automatique à la sélection"
+                        className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-3 font-sans">
                       <div className="space-y-1">
                         <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Contrat en cours.</label>
                         <select
@@ -2717,14 +2738,24 @@ export default function DefibTab({
                           <option value="Non">Non</option>
                         </select>
                       </div>
-                      <div className="space-y-1 font-sans">
-                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Titre du contrat.</label>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Payeur ID</label>
                         <input
                           type="text"
-                          value={nomContrat}
-                          disabled
-                          placeholder="Automatique à la sélection"
-                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-slate-100 text-slate-500 cursor-not-allowed font-sans"
+                          value={payeurId}
+                          onChange={(e) => setPayeurId(e.target.value)}
+                          placeholder="Payeur ID"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-800 font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[10px] uppercase font-semibold text-slate-400 font-sans">Client ID</label>
+                        <input
+                          type="text"
+                          value={clientIdField}
+                          onChange={(e) => setClientIdField(e.target.value)}
+                          placeholder="Client ID"
+                          className="w-full px-2 py-1 border border-slate-200 rounded-md text-xs bg-white text-slate-800 font-sans"
                         />
                       </div>
                     </div>

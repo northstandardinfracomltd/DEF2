@@ -53,6 +53,7 @@ import {
   DistributedStockLocation,
   StockMovement,
 } from "../types";
+import { REGIONS_FRANCAISES } from "../utils";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import GmaoCorrectionForm from "./GmaoCorrectionForm";
 import GmaoOtherEquipmentCorrectionForm from "./GmaoOtherEquipmentCorrectionForm";
@@ -2505,6 +2506,13 @@ export default function PublicPortal({
 
   // Localisation form states for the connected technician
   const [techStartAddress, setTechStartAddress] = useState("");
+  const [techStartStreet, setTechStartStreet] = useState("");
+  const [techStartCity, setTechStartCity] = useState("");
+  const [techStartZip, setTechStartZip] = useState("");
+  const [techStartRegion, setTechStartRegion] = useState("");
+  const [techStartCountry, setTechStartCountry] = useState("France");
+  const [techStartLat, setTechStartLat] = useState("");
+  const [techStartLng, setTechStartLng] = useState("");
   const [routeOptimization, setRouteOptimization] = useState(
     "Aller au plus proche d'abord",
   );
@@ -2513,7 +2521,7 @@ export default function PublicPortal({
   // Autopopulate technician location details on login / select tab
   useEffect(() => {
     if (authenticatedUser) {
-      const liveMember = members.find((m) => m.name === authenticatedUser.name);
+      const liveMember = members.find((m) => m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase());
       if (liveMember) {
         setTechLocationLink(liveMember.locationLink || "");
         setGpsSharingLink(
@@ -2523,21 +2531,46 @@ export default function PublicPortal({
             ) ||
             "",
         );
+        // Load structured address fields from liveMember
+        setTechStartStreet(liveMember.startAddressStreet || "");
+        setTechStartCity(liveMember.startAddressCity || "");
+        setTechStartZip(liveMember.startAddressZip || "");
+        setTechStartRegion(liveMember.startAddressRegion || "");
+        setTechStartCountry(liveMember.startAddressCountry || "France");
+        setTechStartLat(liveMember.startAddressLat !== undefined ? String(liveMember.startAddressLat) : "");
+        setTechStartLng(liveMember.startAddressLng !== undefined ? String(liveMember.startAddressLng) : "");
+      } else {
+        // Fallback or read from localStorage if any
+        const envId = localStorage.getItem("defib_tenant_id") || "demo";
+        setTechStartStreet(localStorage.getItem(`defib_${envId}_tech_start_street_${authenticatedUser.name}`) || "");
+        setTechStartCity(localStorage.getItem(`defib_${envId}_tech_start_city_${authenticatedUser.name}`) || "");
+        setTechStartZip(localStorage.getItem(`defib_${envId}_tech_start_zip_${authenticatedUser.name}`) || "");
+        setTechStartRegion(localStorage.getItem(`defib_${envId}_tech_start_region_${authenticatedUser.name}`) || "");
+        setTechStartCountry(localStorage.getItem(`defib_${envId}_tech_start_country_${authenticatedUser.name}`) || "France");
+        setTechStartLat(localStorage.getItem(`defib_${envId}_tech_start_lat_${authenticatedUser.name}`) || "");
+        setTechStartLng(localStorage.getItem(`defib_${envId}_tech_start_lng_${authenticatedUser.name}`) || "");
       }
 
-      // Load stored starting address if any
+      // Load stored starting address if any, preferring the liveMember fields
       const envId = localStorage.getItem("defib_tenant_id") || "demo";
-      const savedStart = localStorage.getItem(
-        `defib_${envId}_tech_start_address_${authenticatedUser.name}`,
-      );
-      const savedOpt = localStorage.getItem(
-        `defib_${envId}_tech_optimization_${authenticatedUser.name}`,
-      );
+      const savedStart = (liveMember && liveMember.startAddress)
+        ? liveMember.startAddress
+        : (localStorage.getItem(`defib_${envId}_tech_start_address_${authenticatedUser.name}`) || "");
+      const savedOptVal = (liveMember && liveMember.optimizationPreference)
+        ? liveMember.optimizationPreference
+        : (localStorage.getItem(`defib_${envId}_tech_optimization_${authenticatedUser.name}`) || "proche");
       const savedNavApp = localStorage.getItem(
         `defib_${envId}_tech_nav_app_${authenticatedUser.name}`,
-      );
+      ) || "apple-maps";
+
       if (savedStart) setTechStartAddress(savedStart);
-      if (savedOpt) setRouteOptimization(savedOpt);
+      
+      if (savedOptVal === "loin" || savedOptVal.includes("loin")) {
+        setRouteOptimization("Aller au plus loin d'abord");
+      } else {
+        setRouteOptimization("Aller au plus proche d'abord");
+      }
+
       if (savedNavApp) setDefaultNavApp(savedNavApp);
     }
   }, [authenticatedUser, activeTab, members]);
@@ -3041,24 +3074,82 @@ export default function PublicPortal({
     e.preventDefault();
     if (!authenticatedUser) return;
 
+    // Compose flat startAddress for legacy support
+    const composedAddress = `${techStartStreet}, ${techStartZip} ${techStartCity}, ${techStartCountry}`.trim();
+
     // 1. Update matching member in parent Central state database
     const updatedMembers = members.map((m) => {
-      if (m.name === authenticatedUser.name) {
-        return {
+      if (m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase()) {
+        const updatedM = {
           ...m,
           gpsSharingLink: gpsSharingLink,
+          startAddress: composedAddress,
+          startAddressStreet: techStartStreet,
+          startAddressCity: techStartCity,
+          startAddressZip: techStartZip,
+          startAddressRegion: techStartRegion,
+          startAddressCountry: techStartCountry,
+          startAddressLat: techStartLat ? parseFloat(techStartLat) : undefined,
+          startAddressLng: techStartLng ? parseFloat(techStartLng) : undefined,
+          optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche"
         };
+        return updatedM;
       }
       return m;
     });
 
     onUpdateMembers(updatedMembers);
 
+    // Also update authenticatedUser and stored active session
+    const updatedUser = {
+      ...authenticatedUser,
+      gpsSharingLink: gpsSharingLink,
+      startAddress: composedAddress,
+      startAddressStreet: techStartStreet,
+      startAddressCity: techStartCity,
+      startAddressZip: techStartZip,
+      startAddressRegion: techStartRegion,
+      startAddressCountry: techStartCountry,
+      startAddressLat: techStartLat ? parseFloat(techStartLat) : undefined,
+      startAddressLng: techStartLng ? parseFloat(techStartLng) : undefined,
+      optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche"
+    };
+    setAuthenticatedUser(updatedUser);
+    localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
+
     // 2. Persist starting address & optimized route to local storage
     const envId = localStorage.getItem("defib_tenant_id") || "demo";
     localStorage.setItem(
       `defib_${envId}_tech_start_address_${authenticatedUser.name}`,
-      techStartAddress,
+      composedAddress
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_street_${authenticatedUser.name}`,
+      techStartStreet
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_city_${authenticatedUser.name}`,
+      techStartCity
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_zip_${authenticatedUser.name}`,
+      techStartZip
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_region_${authenticatedUser.name}`,
+      techStartRegion
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_country_${authenticatedUser.name}`,
+      techStartCountry
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_lat_${authenticatedUser.name}`,
+      techStartLat
+    );
+    localStorage.setItem(
+      `defib_${envId}_tech_start_lng_${authenticatedUser.name}`,
+      techStartLng
     );
     localStorage.setItem(
       `defib_${envId}_tech_optimization_${authenticatedUser.name}`,
@@ -8200,29 +8291,162 @@ export default function PublicPortal({
                         />
                       </div>
 
-                      {/* Starting address */}
-                      <div className="space-y-1.5">
-                        <label
-                          style={{ fontSize: "16px" }}
-                          className="block font-bold text-black select-none"
-                        >
-                          Adresse de départ ou de retour. *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={techStartAddress}
-                          onChange={(e) => setTechStartAddress(e.target.value)}
-                          placeholder="Ex: 1 Rue Exemple, 12345, France"
-                          style={{
-                            fontSize: "16px",
-                            padding: "14px",
-                            borderRadius: "13px",
-                            border: "1px solid #dedede",
-                            outline: "none",
-                          }}
-                          className="w-full bg-white focus:border-indigo-500"
-                        />
+                      {/* Mon adresse structured fields */}
+                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2 mb-1">
+                          <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Mon adresse.</span>
+                        </div>
+
+                        {/* Numéro et voie */}
+                        <div className="space-y-1">
+                          <label className="block text-xs font-bold text-slate-500 uppercase">Numéro et voie *</label>
+                          <input
+                            type="text"
+                            required
+                            value={techStartStreet}
+                            onChange={(e) => setTechStartStreet(e.target.value)}
+                            placeholder="Ex: 15 Rue de la Paix"
+                            style={{
+                              fontSize: "15px",
+                              padding: "12px",
+                              borderRadius: "10px",
+                              border: "1px solid #dedede",
+                              outline: "none",
+                            }}
+                            className="w-full bg-white focus:border-indigo-500"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Ville */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Ville *</label>
+                            <input
+                              type="text"
+                              required
+                              value={techStartCity}
+                              onChange={(e) => setTechStartCity(e.target.value)}
+                              placeholder="Ex: Paris"
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500"
+                            />
+                          </div>
+
+                          {/* Code postal */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Code postal *</label>
+                            <input
+                              type="text"
+                              required
+                              value={techStartZip}
+                              onChange={(e) => setTechStartZip(e.target.value)}
+                              placeholder="Ex: 75002"
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500 font-mono"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Région */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Région *</label>
+                            <select
+                              required
+                              value={techStartRegion}
+                              onChange={(e) => setTechStartRegion(e.target.value)}
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500"
+                            >
+                              <option value="">Choisir une région</option>
+                              {REGIONS_FRANCAISES.map((r) => (
+                                <option key={r} value={r}>{r}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Pays */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Pays *</label>
+                            <select
+                              required
+                              value={techStartCountry}
+                              onChange={(e) => setTechStartCountry(e.target.value)}
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500"
+                            >
+                              {["France", "Espagne", "Portugal", "Suisse", "Luxembourg", "Belgique", "Allemagne", "Pays-Bas", "Royaume-Uni", "Irlande", "Suède", "Pologne", "Tchéquie", "Autriche"].map((c) => (
+                                <option key={c} value={c}>{c}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {/* Latitude */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Latitude *</label>
+                            <input
+                              type="text"
+                              required
+                              value={techStartLat}
+                              onChange={(e) => setTechStartLat(e.target.value)}
+                              placeholder="Ex: 48.8566"
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500"
+                            />
+                          </div>
+
+                          {/* Longitude */}
+                          <div className="space-y-1">
+                            <label className="block text-xs font-bold text-slate-500 uppercase">Longitude *</label>
+                            <input
+                              type="text"
+                              required
+                              value={techStartLng}
+                              onChange={(e) => setTechStartLng(e.target.value)}
+                              placeholder="Ex: 2.3522"
+                              style={{
+                                fontSize: "15px",
+                                padding: "12px",
+                                borderRadius: "10px",
+                                border: "1px solid #dedede",
+                                outline: "none",
+                              }}
+                              className="w-full bg-white focus:border-indigo-500"
+                            />
+                          </div>
+                        </div>
                       </div>
 
                       {/* Route Optimization selector */}

@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { findTenantAndDefibGlobally, fetchRawCollectionFromFirestore, db } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { t } from '../utils/translate';
+import { getParisTimestamp } from '../utils/dateUtils';
 
 export default function SatisfactionFormPage() {
   const [defibId, setDefibId] = useState('');
@@ -100,7 +101,7 @@ export default function SatisfactionFormPage() {
           id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
           category: 'Système',
           title: `Le client ${client_denomination} signale sa satisfaction avec la mention : ${label_review}${comment_text}.`,
-          timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+          timestamp: getParisTimestamp(),
           situation: 'Nouveau',
         };
         const updatedNotifs = [newNotif, ...existingNotifications];

@@ -204,6 +204,15 @@ export interface Member {
   competences?: string[];
   semaineTypique?: MemberSchedule[];
   absences?: MemberAbsence[];
+  startAddress?: string;
+  startAddressStreet?: string;
+  startAddressCity?: string;
+  startAddressZip?: string;
+  startAddressRegion?: string;
+  startAddressCountry?: string;
+  startAddressLat?: number;
+  startAddressLng?: number;
+  optimizationPreference?: 'loin' | 'proche';
 }
 
 export interface CompanyInfo {

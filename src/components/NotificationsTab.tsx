@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppNotification } from '../types';
 import { t } from '../utils/translate';
+import { formatNotificationTimestamp } from '../utils/dateUtils';
 
 interface NotificationsTabProps {
   notifications: AppNotification[];
@@ -171,7 +172,7 @@ export default function NotificationsTab({
  
                       {/* Horodatage */}
                       <td className="px-4 py-4 font-sans" style={{ fontSize: '18px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
-                        {notif.timestamp}
+                        {formatNotificationTimestamp(notif.timestamp)}
                       </td>
  
                       {/* Situation (Select with custom color scheme) */}

@@ -17,6 +17,7 @@ import {
   triggerEmail8NouvelleTourneeTech,
   triggerEmail6RapportIntervention
 } from './utils/emailService';
+import { getParisTimestamp } from './utils/dateUtils';
 
 import DefibTab from './components/DefibTab';
 import AutresMaterielsTab from './components/AutresMaterielsTab';
@@ -37,6 +38,7 @@ import LocalisationsTab from './components/LocalisationsTab';
 import SatisfactionTab from './components/SatisfactionTab';
 import GmaoCorrectionForm from './components/GmaoCorrectionForm';
 import ImportExportTab from './components/ImportExportTab';
+import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from './utils/fsmOptimizer';
 import SatisfactionFormPage from './components/SatisfactionFormPage';
 import NotificationsTab from './components/NotificationsTab';
 
@@ -671,7 +673,7 @@ export default function App() {
       id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
       category,
       title,
-      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      timestamp: getParisTimestamp(),
       situation: 'Nouveau',
     };
     // Fetch latest notifications from current state to prevent stale state issues
@@ -953,14 +955,104 @@ export default function App() {
     }
   };
 
+  const optimizeFsmTour = async (
+    tourId: string,
+    currentToursList: any[] = fsmTours,
+    currentMembersList: Member[] = members
+  ) => {
+    const tour = currentToursList.find(t => t.id === tourId);
+    if (!tour) return;
+
+    if (!tour.techName || tour.techName === 'Aucun' || tour.techName.trim() === '') {
+      return;
+    }
+
+    const tech = currentMembersList.find(m => m.name.trim().toLowerCase() === tour.techName.trim().toLowerCase());
+    const hasTechStructured = tech && tech.startAddressLat !== undefined && tech.startAddressLng !== undefined;
+    const hasTechString = tech && tech.startAddress && tech.startAddress.trim() !== '';
+    if (!tech || (!hasTechStructured && !hasTechString)) {
+      return;
+    }
+
+    try {
+      let startCoord: { lat: number; lng: number } | null = null;
+      if (tech.startAddressLat !== undefined && tech.startAddressLng !== undefined) {
+        const parsedLat = Number(tech.startAddressLat);
+        const parsedLng = Number(tech.startAddressLng);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+          startCoord = { lat: parsedLat, lng: parsedLng };
+        }
+      }
+      if (!startCoord && tech.startAddress) {
+        startCoord = await geocodeAddress(tech.startAddress);
+      }
+
+      if (!startCoord) {
+        console.warn("Could not determine starting coordinates for technician:", tech.name);
+        return;
+      }
+
+      const equipmentCoords: Record<string, { lat: number; lng: number }> = {};
+      const equipmentDetails: Record<string, any> = {};
+
+      tour.missions.forEach((m: any) => {
+        const defib = defibrillateurs.find(d => d.identifiant === m.defibIdentifiant);
+        if (defib) {
+          equipmentDetails[m.defibIdentifiant] = defib;
+          const lat = parseFloat(defib.latitude);
+          const lng = parseFloat(defib.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            equipmentCoords[m.defibIdentifiant] = { lat, lng };
+          }
+        } else {
+          const other = otherEquipments.find(o => o.identifiant === m.defibIdentifiant);
+          if (other) {
+            equipmentDetails[m.defibIdentifiant] = other;
+            const lat = parseFloat(other.latitude);
+            const lng = parseFloat(other.longitude);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              equipmentCoords[m.defibIdentifiant] = { lat, lng };
+            }
+          }
+        }
+      });
+
+      const preference = tech.optimizationPreference || 'proche';
+      const sortedMissions = sortMissionsByProximity(tour.missions, startCoord, equipmentCoords, preference as any);
+
+      const scheduledMissions = scheduleMissions(sortedMissions, tour.startDate, equipmentDetails, tech);
+
+      const updatedTours = currentToursList.map(t => {
+        if (t.id === tourId) {
+          return {
+            ...t,
+            missions: scheduledMissions,
+            calculated: true
+          };
+        }
+        return t;
+      });
+
+      setFsmTours(updatedTours);
+      localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(updatedTours));
+      if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+        saveCollectionToFirestore('fsmTours', updatedTours);
+      }
+    } catch (err) {
+      console.error("Failed to optimize tour:", tourId, err);
+    }
+  };
+
   const addFsmTour = () => {
     const newId = 'fsm-tour-' + Date.now();
-    const defaultTech = members.find(m => m.role === 'Maintenance Terrain' || m.role?.toLowerCase().includes('tech'))?.name || members[0]?.name || '';
+    const defaultTech = '';
+    const assignedVehicle = 'Aucun';
     setFsmTourDrafts(prev => ({
       ...prev,
       [newId]: {
         title: 'Nouvelle Tournée',
-        techName: defaultTech
+        techName: defaultTech,
+        vehicule: assignedVehicle
       }
     }));
     const newTour = {
@@ -969,7 +1061,9 @@ export default function App() {
       techName: defaultTech,
       startDate: new Date().toISOString().split('T')[0],
       status: 'Brouillon',
-      missions: []
+      missions: [],
+      vehicule: assignedVehicle,
+      calculated: false
     };
     saveFsmTours([newTour, ...fsmTours]);
   };
@@ -1018,7 +1112,12 @@ export default function App() {
     const oldStatus = existingTour?.status || 'Brouillon';
     const newStatus = fields.status || oldStatus;
 
-    saveFsmTours(fsmTours.map(t => t.id === tourId ? { ...t, ...fields } : t));
+    const techChanged = fields.techName !== undefined && fields.techName !== existingTour?.techName;
+    const dateChanged = fields.startDate !== undefined && fields.startDate !== existingTour?.startDate;
+    const isCalculatedValue = (techChanged || dateChanged) ? false : (existingTour?.calculated ?? false);
+
+    const updatedTours = fsmTours.map(t => t.id === tourId ? { ...t, ...fields, calculated: isCalculatedValue } : t);
+    saveFsmTours(updatedTours);
 
     if (newStatus === 'À faire' && oldStatus !== 'À faire' && existingTour) {
       const companyName = companyInfo.name || 'Défibeo Suite';
@@ -1067,13 +1166,24 @@ export default function App() {
                 };
                 hasUpdatedClient = true;
 
+                const estDate = m.estimatedDate || startDate || '';
+                let estDateFormatted = estDate;
+                if (estDate && estDate.includes('-')) {
+                  const parts = estDate.split('-');
+                  if (parts.length === 3) {
+                    estDateFormatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                  }
+                }
+                const estSlot = m.estimatedSlot || '09:00';
+
                 triggerEmail5AvisageFSM(
                   clientEmail.trim(),
                   defibId,
                   companyName,
                   companyEmail,
-                  formattedDate || 'prochainement',
-                  pin
+                  estDateFormatted || 'prochainement',
+                  pin,
+                  estSlot
                 ).catch(e => console.error("Error sending Email 5:", e));
               }
             }
@@ -1089,7 +1199,7 @@ export default function App() {
 
       // Email 8: NOUVELLE TOURNÉE POUR LE TECHNICIEN
       try {
-        const matchingTech = members.find(m => m.name === techName);
+        const matchingTech = members.find(m => m.name.trim().toLowerCase() === (techName || '').trim().toLowerCase());
         const techEmail = matchingTech?.email;
         if (techEmail && techEmail.trim()) {
           triggerEmail8NouvelleTourneeTech(
@@ -1117,12 +1227,13 @@ export default function App() {
       priority: 'Normale',
       time: '14:00'
     };
-    saveFsmTours(fsmTours.map(t => {
+    const updatedTours = fsmTours.map(t => {
       if (t.id === tourId) {
-        return { ...t, missions: [...t.missions, newMission] };
+        return { ...t, missions: [...t.missions, newMission], calculated: false };
       }
       return t;
-    }));
+    });
+    saveFsmTours(updatedTours);
   };
 
   const deleteFsmMission = (tourId: string, missionId: string) => {
@@ -1159,12 +1270,13 @@ export default function App() {
       }
     }
 
-    saveFsmTours(fsmTours.map(t => {
+    const updatedTours = fsmTours.map(t => {
       if (t.id === tourId) {
-        return { ...t, missions: t.missions.filter(m => m.id !== missionId) };
+        return { ...t, missions: t.missions.filter(m => m.id !== missionId), calculated: false };
       }
       return t;
-    }));
+    });
+    saveFsmTours(updatedTours);
   };
 
   const changeFsmMissionParts = (tourId: string, missionId: string, oldParts: string[], newParts: string[]) => {
@@ -1229,15 +1341,25 @@ export default function App() {
   };
 
   const updateFsmMission = (tourId: string, missionId: string, fields: any) => {
-    saveFsmTours(fsmTours.map(t => {
+    const extraFields: any = {};
+    if ('estimatedDate' in fields) {
+      extraFields.isManualDate = !!fields.estimatedDate && fields.estimatedDate !== '';
+    }
+    if ('estimatedSlot' in fields) {
+      extraFields.isManualSlot = !!fields.estimatedSlot && fields.estimatedSlot !== '';
+    }
+
+    const updatedTours = fsmTours.map(t => {
       if (t.id === tourId) {
         return {
           ...t,
-          missions: t.missions.map(m => m.id === missionId ? { ...m, ...fields } : m)
+          missions: t.missions.map(m => m.id === missionId ? { ...m, ...fields, ...extraFields } : m)
         };
       }
       return t;
-    }));
+    });
+
+    saveFsmTours(updatedTours);
   };
 
   const handleDownloadReport = (report: any) => {
@@ -3480,11 +3602,35 @@ export default function App() {
   const handleUpdateCompanyInfo = (info: CompanyInfo) => {
     setCompanyInfo(info);
     localStorage.setItem('defib_company_info', JSON.stringify(info));
+    localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(info));
   };
 
   const handleUpdateMembers = (updatedMembers: Member[]) => {
     setMembers(updatedMembers);
     localStorage.setItem('defib_members', JSON.stringify(updatedMembers));
+    localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(updatedMembers));
+
+    let toursMutated = false;
+    const nextTours = fsmTours.map(tour => {
+      const mem = updatedMembers.find(m => m.name.trim().toLowerCase() === (tour.techName || '').trim().toLowerCase());
+      if (mem) {
+        const oldMem = members.find(m => m.name.trim().toLowerCase() === mem.name.trim().toLowerCase());
+        const addressChanged = 
+          mem.startAddress !== oldMem?.startAddress ||
+          mem.startAddressLat !== oldMem?.startAddressLat ||
+          mem.startAddressLng !== oldMem?.startAddressLng;
+        const prefChanged = mem.optimizationPreference !== oldMem?.optimizationPreference;
+        if (addressChanged || prefChanged) {
+          toursMutated = true;
+          return { ...tour, calculated: false };
+        }
+      }
+      return tour;
+    });
+
+    if (toursMutated) {
+      saveFsmTours(nextTours);
+    }
   };
 
   // CLIENT CRUD HANDLERS
@@ -4114,13 +4260,6 @@ export default function App() {
 
                       <div className="flex flex-wrap items-center gap-2">
                         <button
-                          onClick={() => window.location.reload()}
-                          id="btn-refresh-fsm"
-                          style={customButtonStyle}
-                        >
-                          Actualiser
-                        </button>
-                        <button
                           onClick={addFsmTour}
                           id="btn-add-tour"
                           style={blueButtonStyle}
@@ -4277,6 +4416,69 @@ export default function App() {
                                 Supprimer
                               </button>
 
+                              {/* Calculer button */}
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const draftVal = fsmTourDrafts[t.id] || {};
+                                  const finalTitle = draftVal.title !== undefined ? draftVal.title : (t.title || '');
+                                  const finalTech = draftVal.techName !== undefined ? draftVal.techName : (t.techName || '');
+                                  const finalStartDate = draftVal.startDate !== undefined ? draftVal.startDate : (t.startDate || '');
+                                  const finalStatus = draftVal.status !== undefined ? draftVal.status : (t.status || 'Brouillon');
+                                  const finalVehicule = draftVal.vehicule !== undefined ? draftVal.vehicule : (t.vehicule || 'Aucun');
+
+                                  if (!finalTech || finalTech.trim() === '') {
+                                    alert("Veuillez sélectionner un technicien avec une adresse de départ renseignée pour pouvoir calculer l'itinéraire.");
+                                    return;
+                                  }
+
+                                  const matchingMember = members.find(m => m.name.trim().toLowerCase() === finalTech.trim().toLowerCase());
+                                  const hasStructuredAddress = matchingMember && matchingMember.startAddressLat !== undefined && matchingMember.startAddressLng !== undefined;
+                                  const hasStringAddress = matchingMember && matchingMember.startAddress && matchingMember.startAddress.trim() !== '';
+                                  if (!matchingMember || (!hasStructuredAddress && !hasStringAddress)) {
+                                    console.warn("Calculer clicked but technician not found or missing starting coordinates:", { finalTech, matchingMember, members });
+                                    alert("Le technicien sélectionné doit avoir une adresse de départ renseignée (avec latitude et longitude renseignées) pour pouvoir calculer l'itinéraire.");
+                                    return;
+                                  }
+
+                                  const mergedTour = {
+                                    ...t,
+                                    title: finalTitle,
+                                    techName: finalTech,
+                                    startDate: finalStartDate,
+                                    status: finalStatus,
+                                    vehicule: finalVehicule
+                                  };
+
+                                  const updatedToursList = fsmTours.map(tourItem => tourItem.id === t.id ? mergedTour : tourItem);
+                                  
+                                  await optimizeFsmTour(t.id, updatedToursList);
+
+                                  // Clear draft since it is now successfully calculated and saved
+                                  setFsmTourDrafts(prev => {
+                                    const copy = { ...prev };
+                                    delete copy[t.id];
+                                    return copy;
+                                  });
+                                  alert("L'itinéraire et les horaires ont été calculés et optimisés avec succès !");
+                                }}
+                                style={{
+                                  ...rowActionButtonStyle,
+                                  padding: '12px 24px',
+                                  borderRadius: '13px',
+                                  fontSize: '18px',
+                                  fontWeight: '100',
+                                  height: '50px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  width: '100%'
+                                }}
+                                className="cursor-pointer md:w-auto flex-1 md:flex-initial"
+                              >
+                                Calculer
+                              </button>
+
                               {/* Enregistrer button */}
                               <button
                                 type="button"
@@ -4287,13 +4489,14 @@ export default function App() {
                                   const draftVal = fsmTourDrafts[t.id] || {};
                                   const finalTitle = draftVal.title !== undefined ? draftVal.title : (t.title || '');
                                   const finalTech = draftVal.techName !== undefined ? draftVal.techName : (t.techName || '');
+                                  const finalStatus = draftVal.status !== undefined ? draftVal.status : (t.status || 'Brouillon');
 
                                   if (!finalTitle.trim()) {
                                     alert("Le titre de la tournée est requis.");
                                     return;
                                   }
-                                  if (!finalTech || finalTech === "Sélectionner un technicien." || finalTech.trim() === '') {
-                                    alert("Veuillez sélectionner un technicien.");
+                                  if (finalStatus !== 'Brouillon' && (!finalTech || finalTech.trim() === '')) {
+                                    alert("Veuillez sélectionner un technicien pour planifier cette tournée.");
                                     return;
                                   }
 
@@ -4348,6 +4551,9 @@ export default function App() {
 
                           {/* Indication of missions and estimated travel duration */}
                           {(() => {
+                            if (!t.techName || t.techName === 'Aucun' || t.techName.trim() === '') {
+                              return null;
+                            }
                             const mLength = t.missions ? t.missions.length : 0;
                             const daysEstimate = Math.ceil(mLength / 6);
                             return (
@@ -4361,7 +4567,7 @@ export default function App() {
                                 className="font-semibold text-sm px-4 py-3 rounded-xl flex items-center gap-2.5 mx-0.5"
                               >
                                 <span>
-                                  La tournée comporte <strong className="font-extrabold">{mLength} {mLength > 1 ? 'missions' : 'mission'}</strong>, nous estimons à <strong className="font-extrabold">{daysEstimate} {daysEstimate > 1 ? 'jours' : 'jour'}</strong> la durée du déplacement.
+                                  La tournée comporte <strong className="font-extrabold">{mLength} {mLength > 1 ? 'missions' : 'mission'}</strong>, nous estimons à <strong className="font-extrabold">{daysEstimate} {daysEstimate > 1 ? 'jours' : 'jour'}</strong> la durée du déplacement. <strong className="font-extrabold">{(mLength * 1.2).toFixed(1).replace('.', ',')} kg d’émissions de CO₂ (dioxyde de carbone)</strong> ont été évités grâce à l’optimisation du trajet (Source: MyClimate).
                                 </span>
                               </div>
                             );
@@ -4375,11 +4581,15 @@ export default function App() {
                               <select
                                 value={tourTechName}
                                 onChange={(e) => {
+                                  const selectedTechName = e.target.value;
+                                  const matchingMember = members.find(m => m.name.trim().toLowerCase() === selectedTechName.trim().toLowerCase());
+                                  const assignedVehicle = matchingMember?.locationLink || 'Aucun';
                                   setFsmTourDrafts(prev => ({
                                     ...prev,
                                     [t.id]: {
                                       ...(prev[t.id] || {}),
-                                      techName: e.target.value
+                                      techName: selectedTechName,
+                                      vehicule: assignedVehicle
                                     }
                                   }));
                                 }}
@@ -4395,14 +4605,26 @@ export default function App() {
                                 }}
                                 className="font-sans cursor-pointer focus:outline-none"
                               >
-                                {(!tourTechName || tourTechName.trim() === '') && (
-                                  <option value="">Sélectionner un technicien.</option>
-                                )}
+                                <option value="">Sélectionnez un technicien.</option>
                                 {(() => {
                                   const techOptions = Array.from(new Set([
                                     ...members.filter(m => {
                                       const roleLower = (m.role || '').toLowerCase();
-                                      return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                                      const isTech = roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                                      const hasAddress = 
+                                        (!!m.startAddress && m.startAddress.trim() !== '') ||
+                                        (m.startAddressLat !== undefined && m.startAddressLng !== undefined);
+                                      if (!isTech && !hasAddress) return false;
+
+                                      // Check unavailability for tourStartDate
+                                      if (tourStartDate && m.absences && m.absences.length > 0) {
+                                        const isUnavailable = m.absences.some(abs => {
+                                          if (!abs.startDate || !abs.endDate) return false;
+                                          return tourStartDate >= abs.startDate && tourStartDate <= abs.endDate;
+                                        });
+                                        if (isUnavailable) return false;
+                                      }
+                                      return true;
                                     }).map(m => m.name),
                                     tourTechName
                                   ].filter(Boolean).filter(name => name.trim() !== '')));
@@ -4420,28 +4642,22 @@ export default function App() {
                               <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Véhicule.</label>
                               <select
                                 value={tourVehicule}
-                                onChange={(e) => {
-                                  setFsmTourDrafts(prev => ({
-                                    ...prev,
-                                    [t.id]: {
-                                      ...(prev[t.id] || {}),
-                                      vehicule: e.target.value
-                                    }
-                                  }));
-                                }}
+                                onChange={() => {}} // No-op to satisfy React warning
                                 style={{
                                   border: '1px solid #dedede',
                                   borderRadius: '13px',
                                   padding: '12px',
                                   fontSize: '16px',
                                   fontWeight: '100',
-                                  color: '#000000',
+                                  color: '#64748b',
                                   backgroundColor: '#ffffff',
-                                  width: '100%'
+                                  width: '100%',
+                                  opacity: 1,
+                                  pointerEvents: 'none',
                                 }}
-                                className="font-sans cursor-pointer focus:outline-none"
+                                className="font-sans cursor-not-allowed focus:outline-none bg-white"
                               >
-                                {['Aucun', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F'].map((veh) => (
+                                {['Aucun', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'].map((veh) => (
                                   <option key={veh} value={veh}>
                                     {veh}
                                   </option>
@@ -4538,7 +4754,7 @@ export default function App() {
 
                           {/* Technician skills line */}
                           {(() => {
-                            const selectedMember = members.find(m => m.name === tourTechName);
+                            const selectedMember = members.find(m => m.name.trim().toLowerCase() === tourTechName.trim().toLowerCase());
                             const comps = selectedMember?.competences || [];
                             const compsStr = comps.length > 0 ? comps.join(', ') : 'Aucune';
                             return (
@@ -4576,7 +4792,7 @@ export default function App() {
                                   d.setDate(d.getDate() + daysToAdd);
                                   return d.toISOString().split('T')[0];
                                 })();
-                                const estimatedDateValue = m.estimatedDate || calculatedDate;
+                                const estimatedDateValue = m.estimatedDate || (t.calculated ? calculatedDate : '');
                                 return (
                                   <div key={m.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans">
                                       {/* Ligne 1: Numéro de passage */}
@@ -4596,7 +4812,7 @@ export default function App() {
                                             fontSize: '14px'
                                           }}
                                         >
-                                          {idx + 1}
+                                          {!t.calculated ? '?' : (idx + 1)}
                                         </div>
                                         <span
                                           style={{

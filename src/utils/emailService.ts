@@ -210,11 +210,13 @@ export async function triggerEmail5AvisageFSM(
   companyName: string, 
   companyEmail: string, 
   periodDate: string,
-  pinCode?: string
+  pinCode?: string,
+  estimatedSlot?: string
 ): Promise<boolean> {
-  const subject = `${companyName} : Nouvelle visite prévue pour votre défibrillateur.`;
+  const subject = `${companyName} : Nouvelle visite prévue pour votre matériel.`;
   const pinText = pinCode ? `\n\nVoici le code pin à fournir au technicien pour signer la visite sur site : ${pinCode}\n` : '';
-  const body = `${companyName} a prévu une visite sur votre défibrillateur ${defibIdentifiant} sur la période du ${periodDate}.${pinText}\nSi vous souhaitez en savoir plus ou vous opposer à l’intervention, répondez simplement au présent email.`;
+  const slotStr = estimatedSlot || '09:00am';
+  const body = `${companyName} a prévu une visite sur votre matériel ${defibIdentifiant} le ${periodDate} (estimé) à ${slotStr} (estimé).${pinText}\nSi vous souhaitez en savoir plus ou vous opposer à l’intervention, répondez simplement au présent email.`;
   
   return sendScriptEmail({
     to: `defibeo@gmail.com, ${clientEmail}`,

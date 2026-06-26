@@ -1194,7 +1194,7 @@ export default function GmaoCorrectionForm({
   };
 
   return (
-    <div className={`w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto text-black pb-48 ${forceSmartphoneLayout ? 'force-smartphone-layout' : ''}`} id="gmao-correction-layout">
+    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[440px] mx-auto text-black pb-48 px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl force-smartphone-layout" id="gmao-correction-layout">
       {/* Header section identical in looks to Defibrillateurs with limited width */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"

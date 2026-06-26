@@ -22,6 +22,7 @@ import { CompanyInfo, Member, MemberSchedule, MemberAbsence } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere, updateTenantLanguage } from '../firebase';
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded } from '../utils/emailService';
 import { setLanguage, t } from '../utils/translate';
+import { REGIONS_FRANCAISES } from '../utils';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -103,15 +104,32 @@ export default function SettingsModal({
     setShowDisableOtherEquipmentsConfirmation(false);
   }, [propEnableOtherEquipments, isOpen]);
 
-  // Synchronise if parent prop changes upon load or reset
-  const hasLoadedRef = React.useRef(false);
+  // Synchronise if parent prop changes upon load or reset, keeping refs to trace incoming changes
+  const lastPropsMembersRef = React.useRef<Member[]>(members);
+  const lastPropsCompanyRef = React.useRef<CompanyInfo>(companyInfo);
+
   React.useEffect(() => {
-    if (!hasLoadedRef.current && (companyInfo.name || members.length > 0)) {
+    if (JSON.stringify(members) !== JSON.stringify(lastPropsMembersRef.current)) {
+      setLocalMembers(members);
+      lastPropsMembersRef.current = members;
+    }
+  }, [members]);
+
+  React.useEffect(() => {
+    if (JSON.stringify(companyInfo) !== JSON.stringify(lastPropsCompanyRef.current)) {
+      setLocalCompany(companyInfo);
+      lastPropsCompanyRef.current = companyInfo;
+    }
+  }, [companyInfo]);
+
+  React.useEffect(() => {
+    if (isOpen) {
       setLocalCompany(companyInfo);
       setLocalMembers(members);
-      hasLoadedRef.current = true;
+      lastPropsMembersRef.current = members;
+      lastPropsCompanyRef.current = companyInfo;
     }
-  }, [companyInfo, members]);
+  }, [isOpen]);
 
   // States for the member addition form inside the local state
   const [newMemberName, setNewMemberName] = React.useState('');
@@ -1389,6 +1407,205 @@ export default function SettingsModal({
                                       </option>
                                     );
                                   })}
+                                </select>
+                              </div>
+                            )}
+
+                             {/* Starting Address */}
+                             {isTech && (
+                               <div className="space-y-3 mt-3 w-full text-left">
+
+                                 {/* Numéro et voie */}
+                                 <div className="space-y-1">
+                                   <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Numéro et voie *")}</label>
+                                   <input
+                                     type="text"
+                                     value={m.startAddressStreet || ''}
+                                     disabled={!canEditThisMember}
+                                     onChange={(e) => {
+                                       const street = e.target.value;
+                                       const updated = [...localMembers];
+                                       const old = updated[idx];
+                                       const composed = `${street}, ${old.startAddressZip || ''} ${old.startAddressCity || ''}, ${old.startAddressCountry || 'France'}`.trim();
+                                       updated[idx] = { 
+                                         ...old, 
+                                         startAddressStreet: street,
+                                         startAddress: composed
+                                       };
+                                       setLocalMembers(updated);
+                                     }}
+                                     placeholder="Ex: 1 Rue de Paris"
+                                     className="w-full text-black text-xs disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-200"
+                                     style={{ height: '36px', padding: '6px 10px', fontSize: '13px' }}
+                                   />
+                                 </div>
+
+                                 <div className="grid grid-cols-2 gap-2">
+                                   {/* Ville */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Ville *")}</label>
+                                     <input
+                                       type="text"
+                                       value={m.startAddressCity || ''}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const city = e.target.value;
+                                         const updated = [...localMembers];
+                                         const old = updated[idx];
+                                         const composed = `${old.startAddressStreet || ''}, ${old.startAddressZip || ''} ${city}, ${old.startAddressCountry || 'France'}`.trim();
+                                         updated[idx] = { 
+                                           ...old, 
+                                           startAddressCity: city,
+                                           startAddress: composed
+                                         };
+                                         setLocalMembers(updated);
+                                       }}
+                                       placeholder="Ex: Paris"
+                                       className="w-full text-black text-xs disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-200"
+                                       style={{ height: '36px', padding: '6px 10px', fontSize: '13px' }}
+                                     />
+                                   </div>
+
+                                   {/* Code postal */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Code postal *")}</label>
+                                     <input
+                                       type="text"
+                                       value={m.startAddressZip || ''}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const zip = e.target.value;
+                                         const updated = [...localMembers];
+                                         const old = updated[idx];
+                                         const composed = `${old.startAddressStreet || ''}, ${zip} ${old.startAddressCity || ''}, ${old.startAddressCountry || 'France'}`.trim();
+                                         updated[idx] = { 
+                                           ...old, 
+                                           startAddressZip: zip,
+                                           startAddress: composed
+                                         };
+                                         setLocalMembers(updated);
+                                       }}
+                                       placeholder="Ex: 75001"
+                                       className="w-full text-black text-xs disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-200 font-mono"
+                                       style={{ height: '36px', padding: '6px 10px', fontSize: '13px' }}
+                                     />
+                                   </div>
+                                 </div>
+
+                                 <div className="grid grid-cols-2 gap-2">
+                                   {/* Région */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Région *")}</label>
+                                     <select
+                                       value={m.startAddressRegion || ''}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const region = e.target.value;
+                                         const updated = [...localMembers];
+                                         updated[idx] = { ...updated[idx], startAddressRegion: region };
+                                         setLocalMembers(updated);
+                                       }}
+                                       className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200"
+                                       style={{ height: '36px', padding: '6px 10px' }}
+                                     >
+                                       <option value="">{t("Choisir une région")}</option>
+                                       {REGIONS_FRANCAISES.map(r => (
+                                         <option key={r} value={r}>{r}</option>
+                                       ))}
+                                     </select>
+                                   </div>
+
+                                   {/* Pays */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Pays *")}</label>
+                                     <select
+                                       value={m.startAddressCountry || 'France'}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const country = e.target.value;
+                                         const updated = [...localMembers];
+                                         const old = updated[idx];
+                                         const composed = `${old.startAddressStreet || ''}, ${old.startAddressZip || ''} ${old.startAddressCity || ''}, ${country}`.trim();
+                                         updated[idx] = { 
+                                           ...old, 
+                                           startAddressCountry: country,
+                                           startAddress: composed
+                                         };
+                                         setLocalMembers(updated);
+                                       }}
+                                       className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed border border-slate-200"
+                                       style={{ height: '36px', padding: '6px 10px' }}
+                                     >
+                                       {["France", "Espagne", "Portugal", "Suisse", "Luxembourg", "Belgique", "Allemagne", "Pays-Bas", "Royaume-Uni", "Irlande", "Suède", "Pologne", "Tchéquie", "Autriche"].map((c) => (
+                                         <option key={c} value={c}>{c}</option>
+                                       ))}
+                                     </select>
+                                   </div>
+                                 </div>
+
+                                 <div className="grid grid-cols-2 gap-2">
+                                   {/* Latitude */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Latitude *")}</label>
+                                     <input
+                                       type="number"
+                                       step="any"
+                                       value={m.startAddressLat !== undefined ? m.startAddressLat : ''}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const lat = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                         const updated = [...localMembers];
+                                         updated[idx] = { ...updated[idx], startAddressLat: lat };
+                                         setLocalMembers(updated);
+                                       }}
+                                       placeholder="Ex: 48.8566"
+                                       className="w-full text-black text-xs disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-200"
+                                       style={{ height: '36px', padding: '6px 10px', fontSize: '13px' }}
+                                     />
+                                   </div>
+
+                                   {/* Longitude */}
+                                   <div className="space-y-1">
+                                     <label className="block text-[10px] font-bold text-slate-400 uppercase">{t("Longitude *")}</label>
+                                     <input
+                                       type="number"
+                                       step="any"
+                                       value={m.startAddressLng !== undefined ? m.startAddressLng : ''}
+                                       disabled={!canEditThisMember}
+                                       onChange={(e) => {
+                                         const lng = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                         const updated = [...localMembers];
+                                         updated[idx] = { ...updated[idx], startAddressLng: lng };
+                                         setLocalMembers(updated);
+                                       }}
+                                       placeholder="Ex: 2.3522"
+                                       className="w-full text-black text-xs disabled:opacity-60 disabled:cursor-not-allowed bg-white border border-slate-200"
+                                       style={{ height: '36px', padding: '6px 10px', fontSize: '13px' }}
+                                     />
+                                   </div>
+                                 </div>
+                               </div>
+                             )}
+
+                            {/* Optimization Preference */}
+                            {isTech && (
+                              <div className="space-y-1 mt-1 w-full text-left">
+                                <span className="text-[16px] font-bold text-black block font-sans" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>
+                                  {t("Préférence d'optimisation")}
+                                </span>
+                                <select
+                                  value={m.optimizationPreference || 'proche'}
+                                  disabled={!canEditThisMember}
+                                  onChange={(e) => {
+                                    const updated = [...localMembers];
+                                    updated[idx] = { ...updated[idx], optimizationPreference: e.target.value as 'loin' | 'proche' };
+                                    setLocalMembers(updated);
+                                  }}
+                                  className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                  style={{ height: '36px', padding: '6px 10px' }}
+                                >
+                                  <option value="proche">{t("Se rendre d'abord au plus proche")}</option>
+                                  <option value="loin">{t("Se rendre d'abord au plus éloigné")}</option>
                                 </select>
                               </div>
                             )}

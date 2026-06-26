@@ -1228,7 +1228,8 @@ export default function SettingsModal({
                                 onClick={() => handleRemoveMember(idx)}
                                 className="cursor-pointer mb-2 inline-flex items-center justify-center font-bold text-center select-none"
                                 style={{
-                                  backgroundColor: '#8b0000',
+                                  backgroundColor: 'rgb(185, 28, 28)',
+                                  boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                                   color: '#ffffff',
                                   border: 'none',
                                   fontSize: '18px',
@@ -1276,7 +1277,7 @@ export default function SettingsModal({
                                   backgroundColor: 'rgb(76 20 81)',
                                   border: 'none',
                                   color: 'rgb(255 255 255)',
-                                  fontSize: '16px',
+                                  fontSize: '18px',
                                   fontWeight: '600',
                                   padding: '4px 10px',
                                   whiteSpace: 'nowrap',
@@ -1699,7 +1700,13 @@ export default function SettingsModal({
                                         type="button"
                                         disabled={!canEditThisMember}
                                         onClick={() => handleRemoveMemberSchedule(idx, schIdx)}
-                                        style={{ borderRadius: '13px', fontSize: '16px', backgroundColor: '#991b1b', color: '#ffffff' }}
+                                        style={{
+                                          borderRadius: '13px',
+                                          fontSize: '16px',
+                                          backgroundColor: 'rgb(185, 28, 28)',
+                                          boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                                          color: '#ffffff'
+                                        }}
                                         className="absolute top-2 right-2 px-3 py-1 font-bold hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans disabled:opacity-50"
                                       >
                                         {t("Supprimer")}
@@ -1876,7 +1883,13 @@ export default function SettingsModal({
                                         type="button"
                                         disabled={!canEditThisMember}
                                         onClick={() => handleRemoveMemberAbsence(idx, absIdx)}
-                                        style={{ borderRadius: '13px', fontSize: '16px', backgroundColor: '#991b1b', color: '#ffffff' }}
+                                        style={{
+                                          borderRadius: '13px',
+                                          fontSize: '16px',
+                                          backgroundColor: 'rgb(185, 28, 28)',
+                                          boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                                          color: '#ffffff'
+                                        }}
                                         className="absolute top-2 right-2 px-3 py-1 font-bold hover:bg-[#7f1d1d] active:scale-95 transition-all cursor-pointer font-sans disabled:opacity-50"
                                       >
                                         {t("Supprimer")}
@@ -2036,7 +2049,8 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: '#8b0000',
+                              backgroundColor: 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
                               borderRadius: '100px',
@@ -2119,7 +2133,8 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: '#8b0000',
+                              backgroundColor: 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
                               borderRadius: '100px',
@@ -2202,7 +2217,8 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: '#8b0000',
+                              backgroundColor: 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
                               borderRadius: '100px',
@@ -2284,7 +2300,8 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: '#8b0000',
+                              backgroundColor: 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
                               borderRadius: '100px',
@@ -2354,7 +2371,8 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: '#8b0000',
+                              backgroundColor: 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
                               borderRadius: '100px',

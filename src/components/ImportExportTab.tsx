@@ -456,16 +456,31 @@ export default function ImportExportTab({
   saveClients,
   saveStocks,
 }: ImportExportTabProps) {
+  const isRecordExpired = (r: ImportExportRecord): boolean => {
+    if (r.expiresAt) {
+      return Date.now() > r.expiresAt;
+    }
+    const d = new Date(r.date);
+    d.setHours(d.getHours() + 48);
+    return Date.now() > d.getTime();
+  };
+
   const [records, setRecords] = useState<ImportExportRecord[]>(() => {
     const key = `defib_import_export_records_${tenantId}`;
     const saved = localStorage.getItem(key);
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as any[];
-        return parsed.map((r) => ({
+        const mapped = parsed.map((r) => ({
           ...r,
           format: 'CSV.' as const
         }));
+        return mapped.filter(r => {
+          if (r.expiresAt) return Date.now() <= r.expiresAt;
+          const d = new Date(r.date);
+          d.setHours(d.getHours() + 48);
+          return Date.now() <= d.getTime();
+        });
       } catch (e) {
         return tenantId === 'demo' ? INITIAL_RECORDS : [];
       }
@@ -537,13 +552,8 @@ export default function ImportExportTab({
       if (isFirebaseLoaded) {
         const cloudRecords = await fetchCollectionFromFirestore<ImportExportRecord[]>('importExportRecords');
         if (cloudRecords && Array.isArray(cloudRecords)) {
-          // Expiration and cleanup check
-          const cleanedRecords = cloudRecords.filter(r => {
-            if (r.expiresAt && Date.now() > r.expiresAt) {
-              return false; // delete expired records
-            }
-            return true;
-          });
+          // Expiration and cleanup check using isRecordExpired
+          const cleanedRecords = cloudRecords.filter(r => !isRecordExpired(r));
           
           setRecords(cleanedRecords);
           localStorage.setItem(key, JSON.stringify(cleanedRecords));
@@ -556,13 +566,8 @@ export default function ImportExportTab({
         }
       }
 
-      // Fallback local expirations check
-      const cleaned = localRecords.filter(r => {
-        if (r.expiresAt && Date.now() > r.expiresAt) {
-          return false;
-        }
-        return true;
-      });
+      // Fallback local expirations check using isRecordExpired
+      const cleaned = localRecords.filter(r => !isRecordExpired(r));
 
       setRecords(cleaned);
       localStorage.setItem(key, JSON.stringify(cleaned));
@@ -581,7 +586,7 @@ export default function ImportExportTab({
     const interval = setInterval(async () => {
       let expiredFound = false;
       const cleaned = records.filter(r => {
-        if (r.expiresAt && Date.now() > r.expiresAt) {
+        if (isRecordExpired(r)) {
           expiredFound = true;
           return false;
         }
@@ -603,6 +608,9 @@ export default function ImportExportTab({
 
   // Clean filters
   const filteredRecords = records.filter((r) => {
+    if (isRecordExpired(r)) {
+      return false;
+    }
     const term = search.toLowerCase();
     return (
       r.date.toLowerCase().includes(term) ||
@@ -688,51 +696,63 @@ export default function ImportExportTab({
     }
 
     // Exportation path
-    let csv = '';
-    let expiresTime: number | undefined = undefined;
-    let expDateStr: string | undefined = undefined;
+    setValidationError(null);
+    setIsSaving(true);
 
-    // Calculate expiration: 48h from now
-    const dExp = new Date();
-    dExp.setHours(dExp.getHours() + 48);
-    expiresTime = dExp.getTime();
-    expDateStr = dExp.toISOString().split('T')[0];
+    setTimeout(async () => {
+      try {
+        let csv = '';
+        let expiresTime: number | undefined = undefined;
+        let expDateStr: string | undefined = undefined;
 
-    // Generate the CSV
-    csv = generateCSV(formCategorie, {
-      defibrillateurs,
-      clients,
-      stocks,
-      pointages
-    });
+        // Calculate expiration: 48h from now
+        const dExp = new Date();
+        dExp.setHours(dExp.getHours() + 48);
+        expiresTime = dExp.getTime();
+        expDateStr = dExp.toISOString().split('T')[0];
 
-    const newRecord: ImportExportRecord = {
-      id: 'rec_' + Date.now(),
-      date: formDate,
-      type: formType,
-      categorie: formCategorie,
-      format: 'CSV.',
-      csvData: csv,
-      expiresAt: expiresTime,
-      expirationDate: expDateStr
-    };
+        // Generate the CSV
+        csv = generateCSV(formCategorie, {
+          defibrillateurs: defibrillateurs || [],
+          clients: clients || [],
+          stocks: stocks || [],
+          pointages: pointages || []
+        });
 
-    const updated = [newRecord, ...records];
-    setRecords(updated);
-    
-    // Save to LocalStorage and Firestore
-    const key = `defib_import_export_records_${tenantId}`;
-    localStorage.setItem(key, JSON.stringify(updated));
-    if (isFirebaseLoaded) {
-      await saveCollectionToFirestore('importExportRecords', updated);
-    }
+        const newRecord: ImportExportRecord = {
+          id: 'rec_' + Date.now(),
+          date: formDate,
+          type: formType,
+          categorie: formCategorie,
+          format: 'CSV.',
+          csvData: csv,
+          expiresAt: expiresTime,
+          expirationDate: expDateStr
+        };
 
-    setShowForm(false);
+        const updated = [newRecord, ...records];
+        setRecords(updated);
+        
+        // Save to LocalStorage and Firestore
+        const key = `defib_import_export_records_${tenantId}`;
+        localStorage.setItem(key, JSON.stringify(updated));
+        if (isFirebaseLoaded) {
+          await saveCollectionToFirestore('importExportRecords', updated);
+        }
 
-    // Reset fields to today and defaults
-    setFormDate(new Date().toISOString().split('T')[0]);
-    setFormType('Importation.');
-    setFormCategorie('Défibrillateurs.');
+        setIsSaving(false);
+        setShowForm(false);
+
+        // Reset fields to today and defaults
+        setFormDate(new Date().toISOString().split('T')[0]);
+        setFormType('Importation.');
+        setFormCategorie('Défibrillateurs.');
+      } catch (err) {
+        console.error(err);
+        setIsSaving(false);
+        setValidationError('Une erreur est survenue lors de l’exportation.');
+      }
+    }, 1000);
   };
 
   const handleDelete = async (id: string) => {
@@ -967,7 +987,7 @@ export default function ImportExportTab({
                   className="transition-all"
                   disabled={isSaving}
                 >
-                  {isSaving ? 'Importation...' : 'Enregistrer'}
+                  {isSaving ? (formType === 'Importation.' ? 'Importation...' : 'Exportation...') : 'Enregistrer'}
                 </button>
               </div>
             </div>
@@ -1094,46 +1114,75 @@ export default function ImportExportTab({
                     </div>
 
                     {formType === 'Importation.' && (
-                      <div className="space-y-1 sm:col-span-2">
-                        <label className="block text-black font-bold font-sans" style={{ color: '#000000', fontSize: '16px', letterSpacing: 'normal', textTransform: 'none' }}>
-                          {t("Fichier d'importation (.csv).")}
+                      <div className="flex flex-col gap-1 sm:col-span-2 bg-white">
+                        <label className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>
+                          {t("Téléchargement du fichier.")}
                         </label>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          id="form-ie-file"
-                          accept=".csv"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              setSelectedFileName(file.name);
-                              const reader = new FileReader();
-                              reader.onload = (evt) => {
-                                const text = evt.target?.result;
-                                if (typeof text === 'string') {
-                                  setUploadedCsvContent(text);
-                                }
-                              };
-                              reader.readAsText(file, 'utf-8');
-                            } else {
-                              setSelectedFileName('');
-                              setUploadedCsvContent('');
+                        <div 
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            const file = e.dataTransfer.files?.[0];
+                            if (!file) return;
+                            if (!file.name.endsWith('.csv')) {
+                              alert(t("Veuillez sélectionner un fichier au format .csv"));
+                              return;
                             }
+                            setSelectedFileName(file.name);
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                              const text = evt.target?.result;
+                              if (typeof text === 'string') {
+                                setUploadedCsvContent(text);
+                              }
+                            };
+                            reader.readAsText(file, 'utf-8');
                           }}
-                          className="hidden"
-                          style={{ display: 'none' }}
-                        />
-                        <div className="flex items-center gap-3">
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 rounded-lg text-sm font-sans cursor-pointer transition-all active:scale-95 whitespace-nowrap"
-                          >
-                            {t("Choisir un fichier")}
-                          </button>
-                          <span className="text-slate-600 text-sm font-sans truncate max-w-xs">
-                            {selectedFileName ? selectedFileName : t("Aucun fichier choisi")}
-                          </span>
+                          onClick={() => fileInputRef.current?.click()}
+                          className="p-8 text-center space-y-4 hover:bg-[#ffecf8]/20 transition-all cursor-pointer"
+                          style={{ borderRadius: '13px', border: 'none', backgroundColor: '#fdecff' }}
+                        >
+                          <input
+                            type="file"
+                            ref={fileInputRef}
+                            id="form-ie-file"
+                            accept=".csv"
+                            className="hidden"
+                            style={{ display: 'none' }}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                if (!file.name.endsWith('.csv')) {
+                                  alert(t("Veuillez sélectionner un fichier au format .csv"));
+                                  return;
+                                }
+                                setSelectedFileName(file.name);
+                                const reader = new FileReader();
+                                reader.onload = (evt) => {
+                                  const text = evt.target?.result;
+                                  if (typeof text === 'string') {
+                                    setUploadedCsvContent(text);
+                                  }
+                                };
+                                reader.readAsText(file, 'utf-8');
+                              } else {
+                                setSelectedFileName('');
+                                setUploadedCsvContent('');
+                              }
+                            }}
+                          />
+                          
+                          <div className="font-sans" style={{ fontSize: '16px', color: '#000000' }}>
+                            {selectedFileName ? (
+                              <span className="font-bold inline-block animate-fadeIn" style={{ fontSize: '16px', padding: '9px 16px', backgroundColor: '#501655', border: 'none', color: '#ffffff', borderRadius: '9999px' }}>
+                                {t("Votre fichier téléchargé :")} {selectedFileName}
+                              </span>
+                            ) : (
+                              <span style={{ color: '#000000', fontSize: '16px' }}>
+                                {t("Cliquez dans cette zone ou glissez directement votre fichier.")}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

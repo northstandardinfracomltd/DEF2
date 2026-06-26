@@ -653,6 +653,7 @@ export default function PublicPortal({
       date: rapatrimentDate,
       statut: rapatrimentStatut,
       trackingLink: rapatrimentTrackingLink,
+      emplacement: selectedTechStock.locationName,
     };
 
     const updatedMovements = [newMv, ...(matchedStockRecord.mouvements || [])];
@@ -5817,7 +5818,7 @@ export default function PublicPortal({
                                 className="space-y-3"
                                 id={`tour-passages-${t.id}`}
                               >
-                                {t.passages.map((p) => {
+                                {t.passages.filter((p: any) => p.status !== "Attente").map((p) => {
                                   const isCompleted = p.status === "Effectué";
                                   const matchedOther = otherEquipments?.find(
                                     (o: any) =>
@@ -6249,7 +6250,7 @@ export default function PublicPortal({
                                     // Find non-completed passages
                                     const uncompletedPassages =
                                       t.passages.filter(
-                                        (pass) => pass.status !== "Effectué",
+                                        (pass) => pass.status !== "Effectué" && pass.status !== "Attente",
                                       );
                                     if (uncompletedPassages.length > 0) {
                                       // Check if any of these does not have a filled out rejectionReason

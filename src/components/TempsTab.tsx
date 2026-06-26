@@ -100,6 +100,58 @@ export default function TempsTab({
     }
   };
 
+  const handleExportTemps = (techName: string) => {
+    if (!techName || techName === 'Tous') return;
+
+    const itemsToExport = pointages.filter(p => p.techName === techName);
+
+    const headers = [
+      'Technicien.',
+      'Début.',
+      'Fin.',
+      'Durée totale.'
+    ];
+
+    let csvContent = '\ufeff'; // BOM for UTF-8 compatibility
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+
+    itemsToExport.forEach(p => {
+      const debutDate = formatToDisplayDate(p.startDate);
+      const debutTime = p.startTime || '';
+      const debutFormatted = `${debutDate} ${debutTime}`.trim();
+
+      const finDate = p.isOngoing ? "En cours" : formatToDisplayDate(p.endDate || p.startDate);
+      const finTime = p.isOngoing ? "" : (p.endTime || '');
+      const finFormatted = p.isOngoing ? "En cours" : `${finDate} ${finTime}`.trim();
+
+      const dureeTotale = p.isOngoing
+        ? "Vacation active"
+        : `${Math.round((p.durationSeconds || 0) / 60)} min (${((p.durationSeconds || 0) / 3600).toFixed(2)} h)`;
+
+      const row = [
+        p.techName || '',
+        debutFormatted,
+        finFormatted,
+        dureeTotale
+      ];
+
+      csvContent += row.map(val => `"${String(val !== undefined && val !== null ? val : '').replace(/"/g, '""')}"`).join(';') + '\n';
+    });
+
+    const formattedDate = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+    const fileName = `Export Temps ${techName} au ${formattedDate}.csv`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Harmonized styling constants
   const actionButtonStyle: React.CSSProperties = {
     backgroundColor: '#000',
@@ -230,7 +282,7 @@ export default function TempsTab({
             {selectedTechFilter !== 'Tous' && (
               <button
                 type="button"
-                onClick={() => {}}
+                onClick={() => handleExportTemps(selectedTechFilter)}
                 style={{
                   ...actionButton18Style,
                   fontFamily: '"DefibeoMain", "Civilprom", sans-serif',

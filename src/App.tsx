@@ -193,6 +193,26 @@ const INITIAL_OTHER_EQUIPMENTS: OtherEquipment[] = [
   }
 ];
 
+function isNotificationOlderThan3Months(ts?: string): boolean {
+  if (!ts) return false;
+  let date: Date;
+  // Parse format "dd/mm/yyyy HH:mm:ss"
+  const matches = ts.match(/^(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/);
+  if (matches) {
+    const [_, day, month, year, hour, minute, second] = matches;
+    date = new Date(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second));
+  } else {
+    const parsed = Date.parse(ts);
+    if (isNaN(parsed)) {
+      return false; // Can't parse, preserve to be safe
+    }
+    date = new Date(parsed);
+  }
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  return date.getTime() < threeMonthsAgo.getTime();
+}
+
 export default function App() {
   // Database States (declared at top of component to be in scope for handlers)
   const [isFirebaseLoaded, setIsFirebaseLoaded] = useState<boolean>(false);
@@ -661,10 +681,11 @@ export default function App() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const saveNotifications = (updated: AppNotification[]) => {
-    setNotifications(updated);
-    localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(updated));
+    const cleaned = updated.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+    setNotifications(cleaned);
+    localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(cleaned));
     if (isFirebaseLoaded && tenantId) {
-      saveCollectionToFirestore('notifications', updated);
+      saveCollectionToFirestore('notifications', cleaned);
     }
   };
 
@@ -678,7 +699,7 @@ export default function App() {
     };
     // Fetch latest notifications from current state to prevent stale state issues
     setNotifications((prev) => {
-      const updated = [newNotif, ...prev];
+      const updated = [newNotif, ...prev].filter(n => !isNotificationOlderThan3Months(n.timestamp));
       localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(updated));
       if (isFirebaseLoaded && tenantId) {
         saveCollectionToFirestore('notifications', updated);
@@ -2566,8 +2587,12 @@ export default function App() {
         } else {
           baseNotifications = getFallback<AppNotification[]>('notifications', []);
         }
-        setNotifications(baseNotifications);
-        localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(baseNotifications));
+        const cleanedNotifications = baseNotifications.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+        setNotifications(cleanedNotifications);
+        localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(cleanedNotifications));
+        if (isFirebaseLoaded && tenantId && cleanedNotifications.length !== baseNotifications.length) {
+          saveCollectionToFirestore('notifications', cleanedNotifications);
+        }
 
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
@@ -2648,8 +2673,20 @@ export default function App() {
         else setAchatsFournisseurs([]);
 
         const savedNotifications = localStorage.getItem(`defib_${tenantId}_notifications`);
-        if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
-        else setNotifications([]);
+        if (savedNotifications) {
+          try {
+            const loadedNotifs = JSON.parse(savedNotifications) as AppNotification[];
+            const cleanedNotifs = loadedNotifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+            setNotifications(cleanedNotifs);
+            if (cleanedNotifs.length !== loadedNotifs.length) {
+              localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(cleanedNotifs));
+            }
+          } catch (e) {
+            setNotifications([]);
+          }
+        } else {
+          setNotifications([]);
+        }
 
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
@@ -5010,6 +5047,7 @@ export default function App() {
                                                   (m.status || 'À faire') === 'À faire' ? '#3b82f6' :  
                                                   (m.status || 'À faire') === 'En cours' ? '#ef4444' :  
                                                   (m.status || 'À faire') === 'Effectué' ? '#22c55e' :  
+                                                  (m.status || 'À faire') === 'Attente' ? '#94a3b8' :  
                                                   '#3b82f6',
                                                 zIndex: 10,
                                                 pointerEvents: 'none'
@@ -5028,6 +5066,7 @@ export default function App() {
                                               className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
                                             >
                                               <option value="À faire">À faire</option>
+                                              <option value="Attente">Attente</option>
                                               <option value="Effectué">Effectué</option>
                                             </select>
                                           </div>

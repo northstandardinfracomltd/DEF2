@@ -204,15 +204,15 @@ export default function StatsModal({
 
   // Stats items structure for mapping
   const statsList = [
-    { value: totalDefibs, label: "Volume Défibrillateurs." },
-    { value: actionExpireeCount, label: "Action requise expirée." },
-    { value: actionUnder3mCount, label: "Action requise sous 3 mois." },
-    { value: action3to6mCount, label: "Action requise sous 3 à 6 mois." },
-    { value: `${complianceRate}%`, label: "Taux de conformité." },
-    { value: totalStockValueStr, label: "Valeur totale du stock." },
+    { value: totalDefibs, label: "Volume Défibrillateur(s)." },
+    { value: actionExpireeCount, label: "Action(s) requise(s) expirée(s) Défibrillateur(s)." },
+    { value: actionUnder3mCount, label: "Action(s) requise(s) sous 3 mois Défibrillateur(s)." },
+    { value: action3to6mCount, label: "Action(s) requise(s) sous 3 à 6 mois Défibrillateur(s)." },
+    { value: `${complianceRate}%`, label: "Taux de conformité Défibrillateur(s)." },
+    { value: totalStockValueStr, label: "Valeur pièce(s) stocké(s)." },
     { value: avgMaintenanceDuration, label: "Temps moyen durée d’une maintenance." },
     { value: avgSatisfaction, label: "Satisfaction moyenne." },
-    { value: openToursCount, label: "Tournées ouvertes." }
+    { value: openToursCount, label: "Tournée(s) ouverte(s)." }
   ];
 
   // Rounded button style for Actualiser

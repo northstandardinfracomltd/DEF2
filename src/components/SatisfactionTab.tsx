@@ -22,6 +22,7 @@ export default function SatisfactionTab({
   const [search, setSearch] = useState('');
   const [isSearchHovered, setIsSearchHovered] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [deleteReviewId, setDeleteReviewId] = useState<string | null>(null);
 
   // Helper date formatter
   const formatToDisplayDate = (dateStr?: string): string => {
@@ -34,10 +35,9 @@ export default function SatisfactionTab({
   };
 
   const handleDeleteReview = (id: string) => {
-    if (confirm('Supprimer cet avis de la liste ?')) {
-      const updated = customerReviews.filter(r => r.id !== id);
-      onUpdateReviews(updated);
-    }
+    const updated = customerReviews.filter(r => r.id !== id);
+    onUpdateReviews(updated);
+    setDeleteReviewId(null);
   };
 
   // Brand aesthetic styling constants matching other panels
@@ -238,7 +238,7 @@ export default function SatisfactionTab({
                           type="button"
                           onClick={() => handleDeleteReview(rev.id)}
                           style={rowActionButtonStyle}
-                          className="cursor-pointer font-sans bg-transparent"
+                          className="cursor-pointer font-sans bg-transparent hover:opacity-80 transition-all"
                         >
                           <span>{t("Supprimer")}</span>
                         </button>

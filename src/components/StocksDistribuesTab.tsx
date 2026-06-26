@@ -235,6 +235,87 @@ export default function StocksDistribuesTab({
     return getPieceOutgoingStats(matchedStock.denominationPieceId);
   }, [getPieceOutgoingStats, selectedStockId, stocks]);
 
+  const handleExportInvTraca = (selectedLocationName: string) => {
+    if (!selectedLocationName) return;
+
+    const itemsToExport = distributedStocks.filter(item => item.locationName === selectedLocationName);
+
+    const headers = [
+      'Emplacement.',
+      'UGS.',
+      'Pièce ou service.',
+      'Qté disponible.',
+      'Qté réservée.',
+      'Qté entrante.',
+      'Sortant Sem.',
+      'Sortant Sem. Pro.',
+      'Sortant 7 à 30 jours.',
+      'Mouvements.',
+      'Inventaire de traçabilité.'
+    ];
+
+    let csvContent = '\ufeff'; // BOM for UTF-8 compatibility
+    csvContent += headers.map(h => `"${h}"`).join(';') + '\n';
+
+    itemsToExport.forEach(item => {
+      const matchedStock = stocks.find(s => s.id === item.stockId || s.denominationPieceId === item.denominationPieceId);
+      const vObj = variables.find(v => v.id === item.denominationPieceId);
+      const rowStats = getPieceOutgoingStats(item.denominationPieceId);
+
+      // Movements formatting
+      const mvs = matchedStock?.mouvements || [];
+      const movementsText = mvs.map(mv => {
+        const circulation = mv.type || '';
+        const raccordement = mv.emplacement || '';
+        const volume = mv.volume !== undefined && mv.volume !== null ? mv.volume : '';
+        const dateFormatted = mv.date ? new Date(mv.date).toLocaleDateString('fr-FR') : '';
+        const situation = mv.statut || '';
+        return `${circulation}, ${raccordement}, ${volume}, ${dateFormatted}, ${situation}`;
+      }).join('\n');
+
+      // Traceability formatting
+      const trs = (matchedStock?.traceabilities || []).filter(t => {
+        return t.situation === 'Disponible' || t.situation === 'Signalé manquant';
+      });
+      const traceText = trs.map(t => {
+        const lotOrSerial = t.lotOrSerial || '';
+        const expirationFormatted = t.expirationDate ? new Date(t.expirationDate).toLocaleDateString('fr-FR') : '';
+        const volume = t.volume !== undefined && t.volume !== null ? t.volume : '1';
+        const situation = t.situation || '';
+        return `${lotOrSerial}, ${expirationFormatted}, ${volume}, ${situation}`;
+      }).join('\n');
+
+      const row = [
+        selectedLocationName,
+        matchedStock?.ugs || '',
+        vObj ? vObj.nom : '',
+        item.volumeDisponible !== undefined && item.volumeDisponible !== null ? item.volumeDisponible : 0,
+        item.volumeReserve !== undefined && item.volumeReserve !== null ? item.volumeReserve : 0,
+        item.volumeEntrant !== undefined && item.volumeEntrant !== null ? item.volumeEntrant : 0,
+        rowStats.week1.vol,
+        rowStats.week2.vol,
+        rowStats.next30.vol,
+        movementsText,
+        traceText
+      ];
+
+      csvContent += row.map(val => `"${String(val !== undefined && val !== null ? val : '').replace(/"/g, '""')}"`).join(';') + '\n';
+    });
+
+    const formattedDate = new Date().toLocaleDateString('fr-FR').replace(/\//g, '-');
+    const fileName = `Export CSV ${selectedLocationName} au ${formattedDate}.csv`;
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleOpenNewForm = () => {
     setEditingId(null);
     setSelectedStockId('');
@@ -547,8 +628,10 @@ export default function StocksDistribuesTab({
                       <select
                         value={exportLocation}
                         onChange={(e) => {
-                          setExportLocation(e.target.value);
-                          // "ne rien faire ensuite on verra plus tard le fichier à générer."
+                          const val = e.target.value;
+                          setExportLocation(val);
+                          handleExportInvTraca(val);
+                          setExportLocation('');
                           setShowExportDropdown(false);
                         }}
                         className="w-full bg-white text-black p-2 rounded border border-slate-200 text-xs font-sans"

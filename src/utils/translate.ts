@@ -583,6 +583,8 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Entrez la Clé secrète d’API": "Enter the API Secret Key",
     "Indisponible": "Unavailable",
     "ID Client.": "Client ID.",
+    "Entrez le Payeur ID.": "Enter the Payer ID.",
+    "Entrez le Client ID.": "Enter the Client ID.",
     "Entrez l'ID Client.": "Enter the Client ID.",
     "Token d’accès.": "Access token.",
     "Token secret d’accès.": "Access secret token.",
@@ -722,7 +724,10 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Remplacement P + B 1h30 Monôme": "Monom P + B Replacement 1h30",
     "Remplacement A + P + B 1h Monôme": "Monom A + P + B Replacement 1h",
     "Remplacement A + P + B 30mins Monôme": "Monom A + P + B Replacement 30mins",
-    "Remplacement A + P + B 1h30 Monôme": "Monom A + P + B Replacement 1h30"
+    "Remplacement A + P + B 1h30 Monôme": "Monom A + P + B Replacement 1h30",
+    "Payeur ID.": "Payer ID.",
+    "Client ID.": "Client ID.",
+    "Identifiant unique.": "Unique identifier."
   },
   Deutsch: {
     // Navigation / Sidebar Tabs

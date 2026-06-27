@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Client, Defibrillateur, StockRecord, PointageLog, Variable } from '../types';
 import { saveCollectionToFirestore, fetchCollectionFromFirestore } from '../firebase';
-import { generateRandomShortCode } from '../utils';
+import { generateRandomShortCode, computeProchaineMaintenance } from '../utils';
 import { t } from '../utils/translate';
 
 export interface ImportExportRecord {
@@ -56,40 +56,89 @@ function generateCSV(
     case 'Défibrillateurs.':
       items = data.defibrillateurs || [];
       keys = [
-        'identifiant', 'numeroSerie', 'modeleId', 'clientId', 'nomPrenomSite', 
-        'telephoneSite', 'emailSite', 'contrat', 'nomContrat', 'referenceContrat', 
-        'debutContrat', 'finContrat', 'modeleCoffretId', 'numeroLotCoffret', 
-        'commentaireCoffret', 'numVoie', 'ville', 'cp', 'region', 'pays', 
-        'latitude', 'longitude', 'commentaireAdresse', 'acces247', 'accesSemaine', 
-        'accesWeekend', 'exterieur', 'finGarantie', 'fabrication', 'miseEnService', 
-        'derniereMaintenance', 'sortieFabricant', 'modeleElectrodeAId', 'lotElectrodeA', 
-        'insertionElectrodeA', 'peremptionElectrodeA', 'livraisonElectrodeA', 
-        'situationElectrodeA', 'commentaireElectrodeA', 'peremptionSecoursElectrodeA', 
-        'modeleElectrodePId', 'lotElectrodeP', 'insertionElectrodeP', 'peremptionElectrodeP', 
-        'livraisonElectrodeP', 'situationElectrodeP', 'commentaireElectrodeP', 
-        'peremptionSecoursElectrodeP', 'modeleBatterieId', 'lotBatterie', 'insertionBatterie', 
-        'peremptionBatterie', 'livraisonBatterie', 'situationBatterie', 'pourcentageBatterie', 
-        'commentaireBatterie', 'loue', 'prete', 'stocke', 'archive', 'conforme', 
-        'sousTraitance', 'fsmAutorise', 'victimeSurvie', 'victimeSansSurvie', 
-        'ageVictime', 'commentaireCampagneRappel', 'rappelMensuelAuto', 'rappelHebdoAuto', 'rappelJournalierAuto', 'commentaire'
+        'identifiant', 'numeroSerie', 'modeleId', 'commentaire', 'clientId', 
+        'nomPrenomSite', 'telephoneSite', 'emailSite', 'nomContrat', 'contrat', 
+        'payeurId', 'clientIdField', 'referenceContrat', 'debutContrat', 'finContrat', 
+        'modeleCoffretId', 'numeroLotCoffret', 'commentaireCoffret', 'numVoie', 'ville', 
+        'cp', 'region', 'pays', 'latitude', 'longitude', 
+        'commentaireAdresse', 'finGarantie', 'fabrication', 'miseEnService', 'derniereMaintenance', 
+        'sortieFabricant', 'prochaineMaintenance', 'modeleElectrodeAId', 'lotElectrodeA', 'insertionElectrodeA', 
+        'peremptionElectrodeA', 'livraisonElectrodeA', 'modeleElectrodeASecoursId', 'lotElectrodeASecours', 'peremptionSecoursElectrodeA', 
+        'situationElectrodeA', 'commentaireElectrodeA', 'modeleElectrodePId', 'lotElectrodeP', 'insertionElectrodeP', 
+        'peremptionElectrodeP', 'livraisonElectrodeP', 'modeleElectrodePSecoursId', 'lotElectrodePSecours', 'peremptionSecoursElectrodeP', 
+        'situationElectrodeP', 'commentaireElectrodeP', 'modeleBatterieId', 'lotBatterie', 'insertionBatterie', 
+        'peremptionBatterie', 'livraisonBatterie', 'situationBatterie', 'pourcentageBatterie', 'commentaireBatterie', 
+        'loue', 'prete', 'stocke', 'archive', 'conforme', 
+        'sousTraitance', 'fsmAutorise'
       ];
       headers = [
-        "Identifiant", "Numéro de Série", "Modèle Défibrillateur", "ID Client", "Nom du Site", 
-        "Téléphone Site", "Email Site", "Contrat Actif", "Nom Contrat", "Référence Contrat", 
-        "Début Contrat", "Fin Contrat", "Modèle Coffret", "Lot Coffret", 
-        "Commentaire Coffret", "Numéro de voie", "Ville", "Code Postal", "Région", "Pays", 
-        "Latitude", "Longitude", "Commentaire Adresse", "Accès 24/7", "Accès Semaine", 
-        "Accès Weekend", "Extérieur", "Fin Garantie", "Date Fabrication", "Mise en Service", 
-        "Dernière Maintenance", "Sortie Fabricant", "Modèle Électrode Adulte", "Lot Électrode Adulte", 
-        "Insertion Électrode Adulte", "Péremption Électrode Adulte", "Livraison Électrode Adulte", 
-        "Situation Électrode Adulte", "Commentaire Électrode Adulte", "Péremption Secours Électrode Adulte", 
-        "Modèle Électrode Enfant", "Lot Électrode Enfant", "Insertion Électrode Enfant", "Péremption Électrode Enfant", 
-        "Livraison Électrode Enfant", "Situation Électrode Enfant", "Commentaire Électrode Enfant", 
-        "Péremption Secours Électrode Enfant", "Modèle Batterie", "Lot Batterie", "Insertion Batterie", 
-        "Péremption Batterie", "Livraison Batterie", "Situation Batterie", "Pourcentage Batterie", 
-        "Commentaire Batterie", "Loué", "Prêté", "Stocké", "Archivé", "Conforme", 
-        "Sous-traitance", "FSM Autorisé", "Victime Survie", "Victime Sans Survie", 
-        "Âge Victime", "Commentaire Campagne Rappel", "Rappel Mensuel Auto", "Rappel Hebdomadaire Auto", "Rappel Journalier Auto", "Commentaire Général"
+        "Section 1 — Identification : Identifiant.",
+        "Section 1 — Identification : Série.",
+        "Section 1 — Identification : Modèle. (Identifiant unique)",
+        "Section 1 — Identification : Commentaire.",
+        "Section 2 — Client : Client. (Identifiant unique)",
+        "Section 2 — Client : Nom et prénom.",
+        "Section 2 — Client : Téléphone portable.",
+        "Section 2 — Client : Email.",
+        "Section 2 — Client : Titre du contrat.",
+        "Section 2 — Client : Contrat en cours.",
+        "Section 2 — Client : Payeur ID.",
+        "Section 2 — Client : Client ID.",
+        "Section 2 — Client : Référence du contrat.",
+        "Section 2 — Client : Début du contrat.",
+        "Section 2 — Client : Expiration du contrat.",
+        "Section 3 — Boîtier : Modèle.",
+        "Section 3 — Boîtier : Lot.",
+        "Section 3 — Boîtier : Commentaire.",
+        "Section 4 — Localisation : Numéro et voie.",
+        "Section 4 — Localisation : Ville.",
+        "Section 4 — Localisation : Code postal.",
+        "Section 4 — Localisation : Région.",
+        "Section 4 — Localisation : Pays.",
+        "Section 4 — Localisation : Latitude.",
+        "Section 4 — Localisation : Longitude.",
+        "Section 4 — Localisation : Aide d’accès.",
+        "Section 5 — Dates : Expiration de garantie.",
+        "Section 5 — Dates : Fabrication.",
+        "Section 5 — Dates : Mise en service.",
+        "Section 5 — Dates : Dernière maintenance.",
+        "Section 5 — Dates : Sortie d’usine.",
+        "Section 5 — Dates : Prochaine maintenance.",
+        "Section 6 — Électrode Adulte ou Mixte : Modèle.",
+        "Section 6 — Électrode Adulte ou Mixte : Lot.",
+        "Section 6 — Électrode Adulte ou Mixte : Insertion.",
+        "Section 6 — Électrode Adulte ou Mixte : Péremption.",
+        "Section 6 — Électrode Adulte ou Mixte : Livraison.",
+        "Section 6 — Électrode Adulte ou Mixte : Modèle d’électrode de secours.",
+        "Section 6 — Électrode Adulte ou Mixte : Lot de l’électrode de secours.",
+        "Section 6 — Électrode Adulte ou Mixte : Péremption de l’électrode de secours.",
+        "Section 6 — Électrode Adulte ou Mixte : Statut.",
+        "Section 6 — Électrode Adulte ou Mixte : Commentaire.",
+        "Section 7 — Électrode Pédiatrique : Modèle.",
+        "Section 7 — Électrode Pédiatrique : Lot.",
+        "Section 7 — Électrode Pédiatrique : Insertion.",
+        "Section 7 — Électrode Pédiatrique : Péremption.",
+        "Section 7 — Électrode Pédiatrique : Livraison.",
+        "Section 7 — Électrode Pédiatrique : Modèle d’électrode de secours.",
+        "Section 7 — Électrode Pédiatrique : Lot de l’électrode de secours.",
+        "Section 7 — Électrode Pédiatrique : Péremption de l’électrode de secours.",
+        "Section 7 — Électrode Pédiatrique : Statut.",
+        "Section 7 — Électrode Pédiatrique : Commentaire.",
+        "Section 8 — Batterie : Modèle.",
+        "Section 8 — Batterie : Lot.",
+        "Section 8 — Batterie : Insertion.",
+        "Section 8 — Batterie : Péremption.",
+        "Section 8 — Batterie : Livraison.",
+        "Section 8 — Batterie : Statut.",
+        "Section 8 — Batterie : Pourcentage constaté.",
+        "Section 8 — Batterie : Commentaire.",
+        "Section 9 — Catégories : Loué.",
+        "Section 9 — Catégories : Prêté.",
+        "Section 9 — Catégories : Stocké.",
+        "Section 9 — Catégories : Archivé.",
+        "Section 9 — Catégories : Conforme.",
+        "Section 9 — Catégories : Opéré en sous-traitance.",
+        "Section 9 — Catégories : Maintenance autorisée."
       ];
       break;
 
@@ -146,7 +195,12 @@ function generateCSV(
 
   const lines = [
     headers.join(';'),
-    ...items.map(item => keys.map(k => escapeCSV(item[k])).join(';'))
+    ...items.map(item => keys.map(k => {
+      if (k === 'prochaineMaintenance') {
+        return escapeCSV(computeProchaineMaintenance(item['derniereMaintenance']));
+      }
+      return escapeCSV(item[k]);
+    }).join(';'))
   ];
 
   return lines.join('\n');
@@ -210,16 +264,90 @@ function parseCSV(text: string): { headers: string[], rows: string[][] } {
 // Validation & Parsing Helpers
 const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existingDefibs: Defibrillateur[]): Defibrillateur[] | null => {
   const { headers, rows } = parseCSV(csvText);
-  if (rows.length < 5) return null;
+  if (rows.length < 1) return null;
 
   const expected = [
-    'Série.', 'Modèle.', 'Commentaire.', 'Numéro et voie.', 'Ville.',
-    'Code postal.', 'Pays.', 'Latitude GPS.', 'Longitude GPS.', 'Lot. (A)',
-    'Péremption. (A)', 'Lot. (P)', 'Péremption. (P)', 'Lot. (B)', 'Péremption (B)'
+    "Section 1 — Identification : Identifiant.",
+    "Section 1 — Identification : Série.",
+    "Section 1 — Identification : Modèle. (Identifiant unique)",
+    "Section 1 — Identification : Commentaire.",
+    "Section 2 — Client : Client. (Identifiant unique)",
+    "Section 2 — Client : Nom et prénom.",
+    "Section 2 — Client : Téléphone portable.",
+    "Section 2 — Client : Email.",
+    "Section 2 — Client : Titre du contrat.",
+    "Section 2 — Client : Contrat en cours.",
+    "Section 2 — Client : Payeur ID.",
+    "Section 2 — Client : Client ID.",
+    "Section 2 — Client : Référence du contrat.",
+    "Section 2 — Client : Début du contrat.",
+    "Section 2 — Client : Expiration du contrat.",
+    "Section 3 — Boîtier : Modèle.",
+    "Section 3 — Boîtier : Lot.",
+    "Section 3 — Boîtier : Commentaire.",
+    "Section 4 — Localisation : Numéro et voie.",
+    "Section 4 — Localisation : Ville.",
+    "Section 4 — Localisation : Code postal.",
+    "Section 4 — Localisation : Région.",
+    "Section 4 — Localisation : Pays.",
+    "Section 4 — Localisation : Latitude.",
+    "Section 4 — Localisation : Longitude.",
+    "Section 4 — Localisation : Aide d’accès.",
+    "Section 5 — Dates : Expiration de garantie.",
+    "Section 5 — Dates : Fabrication.",
+    "Section 5 — Dates : Mise en service.",
+    "Section 5 — Dates : Dernière maintenance.",
+    "Section 5 — Dates : Sortie d’usine.",
+    "Section 5 — Dates : Prochaine maintenance.",
+    "Section 6 — Électrode Adulte ou Mixte : Modèle.",
+    "Section 6 — Électrode Adulte ou Mixte : Lot.",
+    "Section 6 — Électrode Adulte ou Mixte : Insertion.",
+    "Section 6 — Électrode Adulte ou Mixte : Péremption.",
+    "Section 6 — Électrode Adulte ou Mixte : Livraison.",
+    "Section 6 — Électrode Adulte ou Mixte : Modèle d’électrode de secours.",
+    "Section 6 — Électrode Adulte ou Mixte : Lot de l’électrode de secours.",
+    "Section 6 — Électrode Adulte ou Mixte : Péremption de l’électrode de secours.",
+    "Section 6 — Électrode Adulte ou Mixte : Statut.",
+    "Section 6 — Électrode Adulte ou Mixte : Commentaire.",
+    "Section 7 — Électrode Pédiatrique : Modèle.",
+    "Section 7 — Électrode Pédiatrique : Lot.",
+    "Section 7 — Électrode Pédiatrique : Insertion.",
+    "Section 7 — Électrode Pédiatrique : Péremption.",
+    "Section 7 — Électrode Pédiatrique : Livraison.",
+    "Section 7 — Électrode Pédiatrique : Modèle d’électrode de secours.",
+    "Section 7 — Électrode Pédiatrique : Lot de l’électrode de secours.",
+    "Section 7 — Électrode Pédiatrique : Péremption de l’électrode de secours.",
+    "Section 7 — Électrode Pédiatrique : Statut.",
+    "Section 7 — Électrode Pédiatrique : Commentaire.",
+    "Section 8 — Batterie : Modèle.",
+    "Section 8 — Batterie : Lot.",
+    "Section 8 — Batterie : Insertion.",
+    "Section 8 — Batterie : Péremption.",
+    "Section 8 — Batterie : Livraison.",
+    "Section 8 — Batterie : Statut.",
+    "Section 8 — Batterie : Pourcentage constaté.",
+    "Section 8 — Batterie : Commentaire.",
+    "Section 9 — Catégories : Loué.",
+    "Section 9 — Catégories : Prêté.",
+    "Section 9 — Catégories : Stocké.",
+    "Section 9 — Catégories : Archivé.",
+    "Section 9 — Catégories : Conforme.",
+    "Section 9 — Catégories : Opéré en sous-traitance.",
+    "Section 9 — Catégories : Maintenance autorisée."
   ];
+
   if (headers.length !== expected.length) return null;
   const hMatch = headers.every((h, i) => h.replace(/^\uFEFF/, '').trim() === expected[i]);
   if (!hMatch) return null;
+
+  const sanitizeStatus = (val: string, fallback: 'Vert' | 'Orange' | 'Rouge'): 'Vert' | 'Orange' | 'Rouge' => {
+    if (val === 'Vert' || val === 'Orange' || val === 'Rouge') return val;
+    return fallback;
+  };
+  const sanitizeYesNo = (val: string, fallback: 'Oui' | 'Non'): 'Oui' | 'Non' => {
+    if (val === 'Oui' || val === 'Non') return val;
+    return fallback;
+  };
 
   const parsedItems: Defibrillateur[] = [];
   const existingIds = [...existingDefibs.map(df => df.identifiant)];
@@ -228,27 +356,82 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
     const row = rows[idx];
     if (row.length !== expected.length) return null;
 
-    const serie = row[0];
-    const modelNom = row[1];
-    const commentaire = row[2];
-    const numVoie = row[3];
-    const ville = row[4];
-    const cp = row[5];
-    const pays = row[6];
-    const latitude = row[7];
-    const longitude = row[8];
-    const lotA = row[9];
-    const peremptionA = row[10];
-    const lotP = row[11];
-    const peremptionP = row[12];
-    const lotB = row[13];
-    const peremptionB = row[14];
+    const identifiant = row[0];
+    const serie = row[1];
+    const modelVal = row[2];
+    const commentaire = row[3];
+    const clientVal = row[4];
+    const nomPrenomSite = row[5];
+    const telephoneSite = row[6];
+    const emailSite = row[7];
+    const nomContrat = row[8];
+    const contrat = sanitizeYesNo(row[9], 'Non');
+    const payeurId = row[10];
+    const clientIdField = row[11];
+    const referenceContrat = row[12];
+    const debutContrat = row[13];
+    const finContrat = row[14];
+    const modeleCoffretId = row[15];
+    const numeroLotCoffret = row[16];
+    const commentaireCoffret = row[17];
+    const numVoie = row[18];
+    const ville = row[19];
+    const cp = row[20];
+    const region = row[21];
+    const pays = row[22];
+    const latitude = row[23];
+    const longitude = row[24];
+    const commentaireAdresse = row[25];
+    const finGarantie = row[26];
+    const fabrication = row[27];
+    const miseEnService = row[28];
+    const derniereMaintenance = row[29];
+    const sortieFabricant = row[30];
+    // row[31] is Prochaine maintenance (derived/informative)
+    const modeleElectrodeAId = row[32];
+    const lotElectrodeA = row[33];
+    const insertionElectrodeA = row[34];
+    const peremptionElectrodeA = row[35];
+    const livraisonElectrodeA = row[36];
+    const modeleElectrodeASecoursId = row[37];
+    const lotElectrodeASecours = row[38];
+    const peremptionSecoursElectrodeA = row[39];
+    const situationElectrodeA = sanitizeStatus(row[40], 'Vert');
+    const commentaireElectrodeA = row[41];
+    const modeleElectrodePId = row[42];
+    const lotElectrodeP = row[43];
+    const insertionElectrodeP = row[44];
+    const peremptionElectrodeP = row[45];
+    const livraisonElectrodeP = row[46];
+    const modeleElectrodePSecoursId = row[47];
+    const lotElectrodePSecours = row[48];
+    const peremptionSecoursElectrodeP = row[49];
+    const situationElectrodeP = sanitizeStatus(row[50], 'Vert');
+    const commentaireElectrodeP = row[51];
+    const modeleBatterieId = row[52];
+    const lotBatterie = row[53];
+    const insertionBatterie = row[54];
+    const peremptionBatterie = row[55];
+    const livraisonBatterie = row[56];
+    const situationBatterie = sanitizeStatus(row[57], 'Vert');
+    const pourcentageBatterie = row[58] || '100';
+    const commentaireBatterie = row[59];
+    const loue = sanitizeYesNo(row[60], 'Non');
+    const prete = sanitizeYesNo(row[61], 'Non');
+    const stocke = sanitizeYesNo(row[62], 'Non');
+    const archive = sanitizeYesNo(row[63], 'Non');
+    const conforme = sanitizeYesNo(row[64], 'Oui');
+    const sousTraitance = sanitizeYesNo(row[65], 'Non');
+    const fsmAutorise = sanitizeYesNo(row[66], 'Non');
 
     // Modèle. must exist exactly as a variable
-    const matchingVar = currentVars.find(v => v.nom === modelNom);
+    const matchingVar = currentVars.find(v => v.id === modelVal || v.nom === modelVal);
     if (!matchingVar) return null;
 
-    const assignedIdentifiant = generateRandomShortCode(existingIds);
+    let assignedIdentifiant = identifiant;
+    if (!assignedIdentifiant) {
+      assignedIdentifiant = generateRandomShortCode(existingIds);
+    }
     existingIds.push(assignedIdentifiant);
 
     parsedItems.push({
@@ -257,73 +440,76 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
       numeroSerie: serie,
       modeleId: matchingVar.id,
       commentaire: commentaire,
-      clientId: '',
-      nomPrenomSite: '',
-      telephoneSite: '',
-      emailSite: '',
-      contrat: 'Non',
-      nomContrat: '',
-      referenceContrat: '',
-      debutContrat: '',
-      finContrat: '',
-      modeleCoffretId: '',
-      numeroLotCoffret: '',
-      commentaireCoffret: '',
+      clientId: clientVal || '',
+      nomPrenomSite: nomPrenomSite,
+      telephoneSite: telephoneSite,
+      emailSite: emailSite,
+      contrat: contrat,
+      nomContrat: nomContrat,
+      referenceContrat: referenceContrat,
+      debutContrat: debutContrat,
+      finContrat: finContrat,
+      payeurId: payeurId,
+      clientIdField: clientIdField,
+      modeleCoffretId: modeleCoffretId,
+      numeroLotCoffret: numeroLotCoffret,
+      commentaireCoffret: commentaireCoffret,
       numVoie: numVoie,
       ville: ville,
       cp: cp,
-      region: '',
+      region: region,
       pays: pays,
       latitude: latitude,
       longitude: longitude,
-      commentaireAdresse: '',
+      commentaireAdresse: commentaireAdresse,
       acces247: false,
       accesSemaine: false,
       accesWeekend: false,
       exterieur: false,
-      finGarantie: '',
-      fabrication: '',
-      miseEnService: '',
-      derniereMaintenance: '',
-      sortieFabricant: '',
-      modeleElectrodeAId: '',
-      lotElectrodeA: lotA,
-      insertionElectrodeA: '',
-      peremptionElectrodeA: peremptionA,
-      livraisonElectrodeA: '',
-      situationElectrodeA: 'Vert',
-      commentaireElectrodeA: '',
-      peremptionSecoursElectrodeA: '',
-      modeleElectrodePId: '',
-      lotElectrodeP: lotP,
-      insertionElectrodeP: '',
-      peremptionElectrodeP: peremptionP,
-      livraisonElectrodeP: '',
-      situationElectrodeP: 'Vert',
-      commentaireElectrodeP: '',
-      peremptionSecoursElectrodeP: '',
-      modeleBatterieId: '',
-      lotBatterie: lotB,
-      insertionBatterie: '',
-      peremptionBatterie: peremptionB,
-      livraisonBatterie: '',
-      situationBatterie: 'Vert',
-      pourcentageBatterie: '100',
-      commentaireBatterie: '',
-      loue: 'Non',
-      prete: 'Non',
-      stocke: 'Non',
-      archive: 'Non',
-      conforme: 'Oui',
-      sousTraitance: 'Non',
-      fsmAutorise: 'Non',
+      finGarantie: finGarantie,
+      fabrication: fabrication,
+      miseEnService: miseEnService,
+      derniereMaintenance: derniereMaintenance,
+      sortieFabricant: sortieFabricant,
+      modeleElectrodeAId: modeleElectrodeAId,
+      lotElectrodeA: lotElectrodeA,
+      insertionElectrodeA: insertionElectrodeA,
+      peremptionElectrodeA: peremptionElectrodeA,
+      livraisonElectrodeA: livraisonElectrodeA,
+      situationElectrodeA: situationElectrodeA,
+      commentaireElectrodeA: commentaireElectrodeA,
+      peremptionSecoursElectrodeA: peremptionSecoursElectrodeA,
+      modeleElectrodeASecoursId: modeleElectrodeASecoursId,
+      lotElectrodeASecours: lotElectrodeASecours,
+      modeleElectrodePId: modeleElectrodePId,
+      lotElectrodeP: lotElectrodeP,
+      insertionElectrodeP: insertionElectrodeP,
+      peremptionElectrodeP: peremptionElectrodeP,
+      livraisonElectrodeP: livraisonElectrodeP,
+      situationElectrodeP: situationElectrodeP,
+      commentaireElectrodeP: commentaireElectrodeP,
+      peremptionSecoursElectrodeP: peremptionSecoursElectrodeP,
+      modeleElectrodePSecoursId: modeleElectrodePSecoursId,
+      lotElectrodePSecours: lotElectrodePSecours,
+      modeleBatterieId: modeleBatterieId,
+      lotBatterie: lotBatterie,
+      insertionBatterie: insertionBatterie,
+      peremptionBatterie: peremptionBatterie,
+      livraisonBatterie: livraisonBatterie,
+      situationBatterie: situationBatterie,
+      pourcentageBatterie: pourcentageBatterie,
+      commentaireBatterie: commentaireBatterie,
+      loue: loue,
+      prete: prete,
+      stocke: stocke,
+      archive: archive,
+      conforme: conforme,
+      sousTraitance: sousTraitance,
+      fsmAutorise: fsmAutorise,
       victimeSurvie: 'Non',
       victimeSansSurvie: 'Non',
       ageVictime: '',
-      commentaireCampagneRappel: '',
-      rappelMensuelAuto: 'Non',
-      rappelHebdoAuto: 'Non',
-      rappelJournalierAuto: 'Non'
+      commentaireCampagneRappel: ''
     });
   }
 

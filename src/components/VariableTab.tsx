@@ -294,6 +294,16 @@ export default function VariableTab({
                background: #ffffff !important;
                font-family: "DefibeoMain", "Civilprom", sans-serif !important;
              }
+             #variable-form input:disabled {
+               background: #f1f5f9 !important;
+               color: #64748b !important;
+               cursor: not-allowed !important;
+               opacity: 0.8 !important;
+             }
+             #variable-form input:disabled:hover,
+             #variable-form input:disabled:focus {
+               outline: none !important;
+             }
              #variable-form label {
                letter-spacing: normal !important;
                text-transform: none !important;
@@ -387,6 +397,19 @@ export default function VariableTab({
                     />
                   </div>
                 )}
+
+                {/* Identifiant unique. */}
+                <div className="space-y-1">
+                  <label htmlFor="input-variable-unique-id" className="block text-[11px] font-bold text-slate-500 uppercase">
+                    {t("Identifiant unique.")}
+                  </label>
+                  <input
+                    type="text"
+                    id="input-variable-unique-id"
+                    value={editingVariable ? editingVariable.id : 'Nouveau (généré automatiquement)'}
+                    disabled
+                  />
+                </div>
 
                 {/* Commentaire sur la variable */}
                 <div className="space-y-1">

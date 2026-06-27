@@ -3,6 +3,7 @@ import { Client, Defibrillateur, Variable, CompanyInfo } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck, Download } from 'lucide-react';
 import { checkIfEmailExistsAnywhere } from '../firebase';
 import { generateRandomPin } from '../utils';
+import { t } from '../utils/translate';
 
 interface ClientTabProps {
   clients: Client[];
@@ -973,30 +974,42 @@ export default function ClientTab({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1">
                     <label htmlFor="input-client-payeur-id" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Payeur ID
+                      {t("Payeur ID.")}
                     </label>
                     <input
                       type="text"
                       id="input-client-payeur-id"
                       value={payeurId}
                       onChange={(e) => setPayeurId(e.target.value)}
-                      placeholder="Entrez le Payeur ID."
+                      placeholder={t("Entrez le Payeur ID.")}
                     />
                   </div>
 
                   <div className="space-y-1">
                     <label htmlFor="input-client-id-field" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Client ID
+                      {t("Client ID.")}
                     </label>
                     <input
                       type="text"
                       id="input-client-id-field"
                       value={clientIdField}
                       onChange={(e) => setClientIdField(e.target.value)}
-                      placeholder="Entrez le Client ID."
+                      placeholder={t("Entrez le Client ID.")}
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="input-client-unique-id" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      {t("Identifiant unique.")}
+                    </label>
+                    <input
+                      type="text"
+                      id="input-client-unique-id"
+                      value={editingClient ? editingClient.id : 'Nouveau (généré automatiquement)'}
+                      disabled
                     />
                   </div>
                 </div>

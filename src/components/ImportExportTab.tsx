@@ -217,6 +217,7 @@ interface ImportExportTabProps {
   saveDefibs?: (newDefibs: Defibrillateur[]) => void;
   saveClients?: (newClients: Client[]) => void;
   saveStocks?: (newStocks: StockRecord[]) => void;
+  setActiveTab?: (tab: any) => void;
 }
 
 // Helper function to robustly parse CSV
@@ -262,9 +263,13 @@ function parseCSV(text: string): { headers: string[], rows: string[][] } {
 }
 
 // Validation & Parsing Helpers
-const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existingDefibs: Defibrillateur[]): Defibrillateur[] | null => {
+const validateAndParseDefibs = (
+  csvText: string,
+  currentVars: Variable[],
+  existingDefibs: Defibrillateur[]
+): { success: boolean; data: Defibrillateur[]; errors: string[] } => {
   const { headers, rows } = parseCSV(csvText);
-  if (rows.length < 1) return null;
+  const errorsSet = new Set<string>();
 
   const expected = [
     "Section 1 — Identification : Identifiant.",
@@ -336,115 +341,220 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
     "Section 9 — Catégories : Maintenance autorisée."
   ];
 
-  if (headers.length !== expected.length) return null;
-  const hMatch = headers.every((h, i) => h.replace(/^\uFEFF/, '').trim() === expected[i]);
-  if (!hMatch) return null;
+  if (rows.length < 1) {
+    return { success: false, data: [], errors: ["Erreur P"] };
+  }
 
-  const sanitizeStatus = (val: string, fallback: 'Vert' | 'Orange' | 'Rouge'): 'Vert' | 'Orange' | 'Rouge' => {
-    if (val === 'Vert' || val === 'Orange' || val === 'Rouge') return val;
-    return fallback;
+  if (headers.length !== expected.length) {
+    errorsSet.add("Erreur P");
+  } else {
+    const hMatch = headers.every((h, i) => h.replace(/^\uFEFF/, '').trim() === expected[i]);
+    if (!hMatch) {
+      errorsSet.add("Erreur P");
+    }
+  }
+
+  if (errorsSet.has("Erreur P")) {
+    return { success: false, data: [], errors: Array.from(errorsSet) };
+  }
+
+  const parsedItems: Defibrillateur[] = [];
+  const existingIds = [...existingDefibs.map(df => df.identifiant)];
+
+  const mapStatusToDb = (val: string): 'Vert' | 'Orange' | 'Rouge' => {
+    const trimmed = (val || '').trim();
+    if (trimmed === 'Conforme') return 'Vert';
+    if (trimmed === 'Attention') return 'Orange';
+    if (trimmed === 'Alerte') return 'Rouge';
+    return 'Vert';
   };
+
   const sanitizeYesNo = (val: string, fallback: 'Oui' | 'Non'): 'Oui' | 'Non' => {
     if (val === 'Oui' || val === 'Non') return val;
     return fallback;
   };
 
-  const parsedItems: Defibrillateur[] = [];
-  const existingIds = [...existingDefibs.map(df => df.identifiant)];
-
   for (let idx = 0; idx < rows.length; idx++) {
     const row = rows[idx];
-    if (row.length !== expected.length) return null;
-
-    const identifiant = row[0];
-    const serie = row[1];
-    const modelVal = row[2];
-    const commentaire = row[3];
-    const clientVal = row[4];
-    const nomPrenomSite = row[5];
-    const telephoneSite = row[6];
-    const emailSite = row[7];
-    const nomContrat = row[8];
-    const contrat = sanitizeYesNo(row[9], 'Non');
-    const payeurId = row[10];
-    const clientIdField = row[11];
-    const referenceContrat = row[12];
-    const debutContrat = row[13];
-    const finContrat = row[14];
-    const modeleCoffretId = row[15];
-    const numeroLotCoffret = row[16];
-    const commentaireCoffret = row[17];
-    const numVoie = row[18];
-    const ville = row[19];
-    const cp = row[20];
-    const region = row[21];
-    const pays = row[22];
-    const latitude = row[23];
-    const longitude = row[24];
-    const commentaireAdresse = row[25];
-    const finGarantie = row[26];
-    const fabrication = row[27];
-    const miseEnService = row[28];
-    const derniereMaintenance = row[29];
-    const sortieFabricant = row[30];
-    // row[31] is Prochaine maintenance (derived/informative)
-    const modeleElectrodeAId = row[32];
-    const lotElectrodeA = row[33];
-    const insertionElectrodeA = row[34];
-    const peremptionElectrodeA = row[35];
-    const livraisonElectrodeA = row[36];
-    const modeleElectrodeASecoursId = row[37];
-    const lotElectrodeASecours = row[38];
-    const peremptionSecoursElectrodeA = row[39];
-    const situationElectrodeA = sanitizeStatus(row[40], 'Vert');
-    const commentaireElectrodeA = row[41];
-    const modeleElectrodePId = row[42];
-    const lotElectrodeP = row[43];
-    const insertionElectrodeP = row[44];
-    const peremptionElectrodeP = row[45];
-    const livraisonElectrodeP = row[46];
-    const modeleElectrodePSecoursId = row[47];
-    const lotElectrodePSecours = row[48];
-    const peremptionSecoursElectrodeP = row[49];
-    const situationElectrodeP = sanitizeStatus(row[50], 'Vert');
-    const commentaireElectrodeP = row[51];
-    const modeleBatterieId = row[52];
-    const lotBatterie = row[53];
-    const insertionBatterie = row[54];
-    const peremptionBatterie = row[55];
-    const livraisonBatterie = row[56];
-    const situationBatterie = sanitizeStatus(row[57], 'Vert');
-    const pourcentageBatterie = row[58] || '100';
-    const commentaireBatterie = row[59];
-    const loue = sanitizeYesNo(row[60], 'Non');
-    const prete = sanitizeYesNo(row[61], 'Non');
-    const stocke = sanitizeYesNo(row[62], 'Non');
-    const archive = sanitizeYesNo(row[63], 'Non');
-    const conforme = sanitizeYesNo(row[64], 'Oui');
-    const sousTraitance = sanitizeYesNo(row[65], 'Non');
-    const fsmAutorise = sanitizeYesNo(row[66], 'Non');
-
-    // Modèle. must exist exactly as a variable
-    const matchingVar = currentVars.find(v => v.id === modelVal || v.nom === modelVal);
-    if (!matchingVar) return null;
-
-    let assignedIdentifiant = identifiant;
-    if (!assignedIdentifiant) {
-      assignedIdentifiant = generateRandomShortCode(existingIds);
+    if (row.length !== expected.length) {
+      errorsSet.add("Erreur P");
+      continue;
     }
+
+    const identifiant = row[0] ? row[0].trim() : "";
+    const serie = row[1] ? row[1].trim() : "";
+    const modelVal = row[2] ? row[2].trim() : "";
+    const commentaire = row[3] ? row[3].trim() : "";
+    const clientVal = row[4] ? row[4].trim() : "";
+    const nomPrenomSite = row[5] ? row[5].trim() : "";
+    const telephoneSite = row[6] ? row[6].trim() : "";
+    const emailSite = row[7] ? row[7].trim() : "";
+    const nomContrat = row[8] ? row[8].trim() : "";
+    const contrat = sanitizeYesNo(row[9] ? row[9].trim() : "", 'Non');
+    const payeurId = row[10] ? row[10].trim() : "";
+    const clientIdField = row[11] ? row[11].trim() : "";
+    const referenceContrat = row[12] ? row[12].trim() : "";
+    const debutContrat = row[13] ? row[13].trim() : "";
+    const finContrat = row[14] ? row[14].trim() : "";
+    const modeleCoffretId = row[15] ? row[15].trim() : "";
+    const numeroLotCoffret = row[16] ? row[16].trim() : "";
+    const commentaireCoffret = row[17] ? row[17].trim() : "";
+    const numVoie = row[18] ? row[18].trim() : "";
+    const ville = row[19] ? row[19].trim() : "";
+    const cp = row[20] ? row[20].trim() : "";
+    const region = row[21] ? row[21].trim() : "";
+    const pays = row[22] ? row[22].trim() : "";
+    const latitude = row[23] ? row[23].trim() : "";
+    const longitude = row[24] ? row[24].trim() : "";
+    const commentaireAdresse = row[25] ? row[25].trim() : "";
+    const finGarantie = row[26] ? row[26].trim() : "";
+    const fabrication = row[27] ? row[27].trim() : "";
+    const miseEnService = row[28] ? row[28].trim() : "";
+    const derniereMaintenance = row[29] ? row[29].trim() : "";
+    const sortieFabricant = row[30] ? row[30].trim() : "";
+    
+    const modeleElectrodeAId = row[32] ? row[32].trim() : "";
+    const lotElectrodeA = row[33] ? row[33].trim() : "";
+    const insertionElectrodeA = row[34] ? row[34].trim() : "";
+    const peremptionElectrodeA = row[35] ? row[35].trim() : "";
+    const livraisonElectrodeA = row[36] ? row[36].trim() : "";
+    const modeleElectrodeASecoursId = row[37] ? row[37].trim() : "";
+    const lotElectrodeASecours = row[38] ? row[38].trim() : "";
+    const peremptionSecoursElectrodeA = row[39] ? row[39].trim() : "";
+    const situationElectrodeAVal = row[40] ? row[40].trim() : "";
+    const commentaireElectrodeA = row[41] ? row[41].trim() : "";
+    const modeleElectrodePId = row[42] ? row[42].trim() : "";
+    const lotElectrodeP = row[43] ? row[43].trim() : "";
+    const insertionElectrodeP = row[44] ? row[44].trim() : "";
+    const peremptionElectrodeP = row[45] ? row[45].trim() : "";
+    const livraisonElectrodeP = row[46] ? row[46].trim() : "";
+    const modeleElectrodePSecoursId = row[47] ? row[47].trim() : "";
+    const lotElectrodePSecours = row[48] ? row[48].trim() : "";
+    const peremptionSecoursElectrodeP = row[49] ? row[49].trim() : "";
+    const situationElectrodePVal = row[50] ? row[50].trim() : "";
+    const commentaireElectrodeP = row[51] ? row[51].trim() : "";
+    const modeleBatterieId = row[52] ? row[52].trim() : "";
+    const lotBatterie = row[53] ? row[53].trim() : "";
+    const insertionBatterie = row[54] ? row[54].trim() : "";
+    const peremptionBatterie = row[55] ? row[55].trim() : "";
+    const livraisonBatterie = row[56] ? row[56].trim() : "";
+    const situationBatterieVal = row[57] ? row[57].trim() : "";
+    const pourcentageBatterie = row[58] ? row[58].trim() : "";
+    const commentaireBatterie = row[59] ? row[59].trim() : "";
+    const loue = row[60] ? row[60].trim() : "";
+    const prete = row[61] ? row[61].trim() : "";
+    const stocke = row[62] ? row[62].trim() : "";
+    const archive = row[63] ? row[63].trim() : "";
+    const conforme = row[64] ? row[64].trim() : "";
+    const sousTraitance = row[65] ? row[65].trim() : "";
+    const fsmAutorise = row[66] ? row[66].trim() : "";
+
+    // Erreur A : Identifiant must be empty
+    if (identifiant !== "") {
+      errorsSet.add("Erreur A");
+    }
+
+    // Erreur B : Série is mandatory
+    if (serie === "") {
+      errorsSet.add("Erreur B");
+    }
+
+    // Erreur C : Modèle. (Identifiant unique) starts with "v_" (if provided)
+    if (modelVal !== "" && !modelVal.startsWith("v_")) {
+      errorsSet.add("Erreur C");
+    }
+
+    // Erreur D : Client. (Identifiant unique) starts with "c_" (if provided)
+    if (clientVal !== "" && !clientVal.startsWith("c_")) {
+      errorsSet.add("Erreur D");
+    }
+
+    // Erreur E : Section 3 — Boîtier : Modèle starts with "v_" (if provided)
+    if (modeleCoffretId !== "" && !modeleCoffretId.startsWith("v_")) {
+      errorsSet.add("Erreur E");
+    }
+
+    // Erreur F : Section 6 — Électrode Adulte ou Mixte : Modèle starts with "v_" (if provided)
+    if (modeleElectrodeAId !== "" && !modeleElectrodeAId.startsWith("v_")) {
+      errorsSet.add("Erreur F");
+    }
+
+    // Erreur G : Section 6 — Électrode Adulte ou Mixte : Modèle d’électrode de secours starts with "v_" (if provided)
+    if (modeleElectrodeASecoursId !== "" && !modeleElectrodeASecoursId.startsWith("v_")) {
+      errorsSet.add("Erreur G");
+    }
+
+    // Erreur H : Section 6 — Électrode Adulte ou Mixte : Statut must be empty, Conforme, Attention, or Alerte
+    if (situationElectrodeAVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationElectrodeAVal)) {
+      errorsSet.add("Erreur H");
+    }
+
+    // Erreur I : Section 7 — Électrode Pédiatrique : Modèle starts with "v_" (if provided)
+    if (modeleElectrodePId !== "" && !modeleElectrodePId.startsWith("v_")) {
+      errorsSet.add("Erreur I");
+    }
+
+    // Erreur J : Section 7 — Électrode Pédiatrique : Modèle d’électrode de secours starts with "v_" (if provided)
+    if (modeleElectrodePSecoursId !== "" && !modeleElectrodePSecoursId.startsWith("v_")) {
+      errorsSet.add("Erreur J");
+    }
+
+    // Erreur K : Section 7 — Électrode Pédiatrique : Statut must be empty, Conforme, Attention, or Alerte
+    if (situationElectrodePVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationElectrodePVal)) {
+      errorsSet.add("Erreur K");
+    }
+
+    // Erreur L : Section 8 — Batterie : Modèle starts with "v_" (if provided)
+    if (modeleBatterieId !== "" && !modeleBatterieId.startsWith("v_")) {
+      errorsSet.add("Erreur L");
+    }
+
+    // Erreur M : Section 8 — Batterie : Statut must be empty, Conforme, Attention, or Alerte
+    if (situationBatterieVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationBatterieVal)) {
+      errorsSet.add("Erreur M");
+    }
+
+    // Erreur N : Section 8 — Batterie : Pourcentage constaté must be a numeric integer or empty
+    if (pourcentageBatterie !== "" && isNaN(Number(pourcentageBatterie))) {
+      errorsSet.add("Erreur N");
+    }
+
+    // Erreur O : Section 9 categories must be empty, Oui, or Non
+    const catVals = [loue, prete, stocke, archive, conforme, sousTraitance, fsmAutorise];
+    const invalidCat = catVals.some(v => v !== "" && v !== "Oui" && v !== "Non");
+    if (invalidCat) {
+      errorsSet.add("Erreur O");
+    }
+
+    let matchingVar: Variable | undefined = undefined;
+    if (modelVal !== "") {
+      matchingVar = currentVars.find(v => v.id === modelVal || v.nom === modelVal);
+      if (!matchingVar) {
+        errorsSet.add("Erreur P");
+      }
+    } else {
+      const firstModelVar = currentVars.find(v => v.category === 'Modèle Défibrillateur');
+      matchingVar = firstModelVar;
+    }
+
+    if (errorsSet.size > 0) {
+      continue;
+    }
+
+    const assignedIdentifiant = generateRandomShortCode(existingIds);
     existingIds.push(assignedIdentifiant);
 
     parsedItems.push({
       id: 'df_' + Date.now() + '_' + idx + '_' + Math.floor(Math.random() * 1000),
       identifiant: assignedIdentifiant,
       numeroSerie: serie,
-      modeleId: matchingVar.id,
+      modeleId: matchingVar ? matchingVar.id : '',
       commentaire: commentaire,
-      clientId: clientVal || '',
+      clientId: clientVal,
       nomPrenomSite: nomPrenomSite,
       telephoneSite: telephoneSite,
       emailSite: emailSite,
-      contrat: contrat,
+      contrat: sanitizeYesNo(contrat, 'Non'),
       nomContrat: nomContrat,
       referenceContrat: referenceContrat,
       debutContrat: debutContrat,
@@ -476,7 +586,7 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
       insertionElectrodeA: insertionElectrodeA,
       peremptionElectrodeA: peremptionElectrodeA,
       livraisonElectrodeA: livraisonElectrodeA,
-      situationElectrodeA: situationElectrodeA,
+      situationElectrodeA: mapStatusToDb(situationElectrodeAVal),
       commentaireElectrodeA: commentaireElectrodeA,
       peremptionSecoursElectrodeA: peremptionSecoursElectrodeA,
       modeleElectrodeASecoursId: modeleElectrodeASecoursId,
@@ -486,7 +596,7 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
       insertionElectrodeP: insertionElectrodeP,
       peremptionElectrodeP: peremptionElectrodeP,
       livraisonElectrodeP: livraisonElectrodeP,
-      situationElectrodeP: situationElectrodeP,
+      situationElectrodeP: mapStatusToDb(situationElectrodePVal),
       commentaireElectrodeP: commentaireElectrodeP,
       peremptionSecoursElectrodeP: peremptionSecoursElectrodeP,
       modeleElectrodePSecoursId: modeleElectrodePSecoursId,
@@ -496,16 +606,16 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
       insertionBatterie: insertionBatterie,
       peremptionBatterie: peremptionBatterie,
       livraisonBatterie: livraisonBatterie,
-      situationBatterie: situationBatterie,
-      pourcentageBatterie: pourcentageBatterie,
+      situationBatterie: mapStatusToDb(situationBatterieVal),
+      pourcentageBatterie: pourcentageBatterie || '100',
       commentaireBatterie: commentaireBatterie,
-      loue: loue,
-      prete: prete,
-      stocke: stocke,
-      archive: archive,
-      conforme: conforme,
-      sousTraitance: sousTraitance,
-      fsmAutorise: fsmAutorise,
+      loue: sanitizeYesNo(loue, 'Non'),
+      prete: sanitizeYesNo(prete, 'Non'),
+      stocke: sanitizeYesNo(stocke, 'Non'),
+      archive: sanitizeYesNo(archive, 'Non'),
+      conforme: sanitizeYesNo(conforme, 'Oui'),
+      sousTraitance: sanitizeYesNo(sousTraitance, 'Non'),
+      fsmAutorise: sanitizeYesNo(fsmAutorise, 'Non'),
       victimeSurvie: 'Non',
       victimeSansSurvie: 'Non',
       ageVictime: '',
@@ -513,7 +623,20 @@ const validateAndParseDefibs = (csvText: string, currentVars: Variable[], existi
     });
   }
 
-  return parsedItems;
+  if (errorsSet.size > 0) {
+    const sortedErrors = Array.from(errorsSet).sort();
+    return {
+      success: false,
+      data: [],
+      errors: sortedErrors
+    };
+  }
+
+  return {
+    success: true,
+    data: parsedItems,
+    errors: []
+  };
 };
 
 const validateAndParseClients = (csvText: string): Client[] | null => {
@@ -641,6 +764,7 @@ export default function ImportExportTab({
   saveDefibs,
   saveClients,
   saveStocks,
+  setActiveTab,
 }: ImportExportTabProps) {
   const isRecordExpired = (r: ImportExportRecord): boolean => {
     if (r.expiresAt) {
@@ -660,7 +784,7 @@ export default function ImportExportTab({
         const mapped = parsed.map((r) => ({
           ...r,
           format: 'CSV.' as const
-        }));
+         }));
         return mapped.filter(r => {
           if (r.expiresAt) return Date.now() <= r.expiresAt;
           const d = new Date(r.date);
@@ -693,6 +817,7 @@ export default function ImportExportTab({
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   // Set expiration date automatically: today + 1 day
@@ -717,6 +842,7 @@ export default function ImportExportTab({
     setUploadedCsvContent('');
     setSelectedFileName('');
     setValidationError(null);
+    setImportSuccessMessage(null);
   }, [formType, formCategorie]);
 
   // Load records from LocalStorage / Firestore on tenantId or isFirebaseLoaded change
@@ -817,16 +943,26 @@ export default function ImportExportTab({
 
       let parsedData: any[] | null = null;
       if (formCategorie === 'Défibrillateurs.') {
-        parsedData = validateAndParseDefibs(uploadedCsvContent, variables, defibrillateurs);
+        const valResult = validateAndParseDefibs(uploadedCsvContent, variables, defibrillateurs);
+        if (!valResult.success) {
+          const errorListStr = valResult.errors.join(', ');
+          setValidationError(`Votre fichier contient une ou plusieurs erreurs : ${errorListStr}. Vous trouverez sur notre aide en ligne (https://defibeo.com/school/) les solutions correspondantes pour résoudre ces anomalies. Pour obtenir un tableau d'exemple d'importation, téléchargez un fichier d'exportation comme exemple pour récupérer les entêtes.`);
+          return;
+        }
+        parsedData = valResult.data;
+        setImportSuccessMessage("Votre fichier est valide, en cours d’importation.");
       } else if (formCategorie === 'Clients.') {
         parsedData = validateAndParseClients(uploadedCsvContent);
+        if (!parsedData) {
+          setValidationError('Fichier invalide, veuillez vérifier votre CSV et essayer à nouveau.');
+          return;
+        }
       } else if (formCategorie === 'Stocks.') {
         parsedData = validateAndParseStocks(uploadedCsvContent, variables);
-      }
-
-      if (!parsedData) {
-        setValidationError('Fichier invalide, veuillez vérifier votre CSV et essayer à nouveau.');
-        return;
+        if (!parsedData) {
+          setValidationError('Fichier invalide, veuillez vérifier votre CSV et essayer à nouveau.');
+          return;
+        }
       }
 
       setValidationError(null);
@@ -871,10 +1007,16 @@ export default function ImportExportTab({
           setShowForm(false);
           setUploadedCsvContent('');
           setSelectedFileName('');
+          setImportSuccessMessage(null);
+          
+          if (formCategorie === 'Défibrillateurs.' && setActiveTab) {
+            setActiveTab('defibrillateurs');
+          }
         } catch (err) {
           console.error(err);
           setIsSaving(false);
           setValidationError('Une erreur est survenue lors de l’importation.');
+          setImportSuccessMessage(null);
         }
       }, 1500);
 
@@ -1256,6 +1398,9 @@ export default function ImportExportTab({
                         onChange={(e) => {
                           const val = e.target.value as 'Importation.' | 'Exportation.';
                           setFormType(val);
+                          if (val === 'Importation.') {
+                            setFormCategorie('Défibrillateurs.');
+                          }
                         }}
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-black cursor-pointer"
                       >
@@ -1276,10 +1421,12 @@ export default function ImportExportTab({
                         className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white text-black cursor-pointer"
                       >
                         <option value="Défibrillateurs.">{t("Défibrillateurs.")}</option>
-                        <option value="Clients.">{t("Clients.")}</option>
-                        <option value="Stocks.">{t("Stocks.")}</option>
                         {formType !== 'Importation.' && (
-                          <option value="Temps.">{t("Temps.")}</option>
+                          <>
+                            <option value="Clients.">{t("Clients.")}</option>
+                            <option value="Stocks.">{t("Stocks.")}</option>
+                            <option value="Temps.">{t("Temps.")}</option>
+                          </>
                         )}
                       </select>
                     </div>
@@ -1377,8 +1524,31 @@ export default function ImportExportTab({
 
                   {validationError && (
                     <div className="pt-2 text-center" id="validation-error-msg">
-                      <p className="text-red-600 font-bold font-sans" style={{ color: '#dc2626', fontSize: '18px' }}>
-                        {validationError}
+                      <p className="text-red-600 font-bold font-sans animate-pulse-once" style={{ color: '#dc2626', fontSize: '18px', lineHeight: '1.5' }}>
+                        {validationError.includes('https://defibeo.com/school/') ? (
+                          <>
+                            {validationError.split('https://defibeo.com/school/')[0]}
+                            <a 
+                              href="https://defibeo.com/school/" 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="underline text-red-700 hover:text-red-900 transition-colors duration-150 decoration-2 font-extrabold"
+                            >
+                              https://defibeo.com/school/
+                            </a>
+                            {validationError.split('https://defibeo.com/school/')[1]}
+                          </>
+                        ) : (
+                          validationError
+                        )}
+                      </p>
+                    </div>
+                  )}
+
+                  {importSuccessMessage && (
+                    <div className="pt-2 text-center" id="validation-success-msg">
+                      <p className="text-emerald-600 font-bold font-sans" style={{ color: '#059669', fontSize: '18px' }}>
+                        {importSuccessMessage}
                       </p>
                     </div>
                   )}

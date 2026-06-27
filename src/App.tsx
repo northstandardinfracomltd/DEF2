@@ -7479,6 +7479,7 @@ export default function App() {
               saveDefibs={saveDefibs}
               saveClients={saveClients}
               saveStocks={saveStocks}
+              setActiveTab={setActiveTab}
             />
           )}
 

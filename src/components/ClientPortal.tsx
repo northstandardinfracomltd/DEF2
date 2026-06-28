@@ -2044,9 +2044,9 @@ export default function ClientPortal({
                             onClick={() => handleDownloadBonCommande(doc)}
                             className="w-full text-white font-bold transition-all cursor-pointer font-sans border-0 flex items-center justify-center"
                             style={{
-                              backgroundColor: '#fe4eba',
+                              backgroundColor: '#000000',
                               borderRadius: '13px',
-                              fontSize: '16px',
+                              fontSize: '18px',
                               height: '48px',
                               padding: '10px 14px',
                             }}

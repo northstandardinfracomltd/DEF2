@@ -1560,6 +1560,13 @@ export default function App() {
               color: #000000;
             }
           </style>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 500);
+            };
+          </script>
         </head>
         <body class="bg-white">
           <div id="print-container">
@@ -1706,12 +1713,7 @@ export default function App() {
       `;
       const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `rapport-${snapshot.identifiant || report.defibIdentifiant || 'intervention'}.html`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(url, '_blank');
       return;
     }
 
@@ -2215,12 +2217,7 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `rapport-${snapshot.identifiant || report.defibIdentifiant || 'intervention'}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(url, '_blank');
   };
 
   const handleCorrectReport = (id: string, updatedFields: Partial<any>) => {
@@ -3167,12 +3164,7 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${doc.type.toLowerCase()}-${doc.ref}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(url, '_blank');
   };
 
   const handleDownloadBonCommande = (doc: CommercialDoc) => {
@@ -3364,12 +3356,7 @@ export default function App() {
     `;
     const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `bon-de-commande-${doc.bonCommandeReference || 'sans-ref'}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    window.open(url, '_blank');
   };
 
   const handleTransformDoc = (doc: CommercialDoc) => {

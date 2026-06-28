@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Client, Defibrillateur, Variable, CompanyInfo } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Briefcase, Mail, Phone, FileText, Calendar, ShieldCheck, Download } from 'lucide-react';
 import { checkIfEmailExistsAnywhere } from '../firebase';
-import { generateRandomPin } from '../utils';
+import { generateRandomPin, formatDateToFR } from '../utils';
 import { t } from '../utils/translate';
 
 interface ClientTabProps {
@@ -216,6 +216,10 @@ export default function ClientTab({
             body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
             .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
           }
+          .avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         </style>
         <script>
           window.onload = function() {
@@ -227,88 +231,82 @@ export default function ClientTab({
         <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
           
           <!-- HAUT DE PAGE / COORDONNEES -->
-          <div class="flex justify-between items-start pb-4" style="border-bottom: 1px solid #dcdcdc;">
+          <div class="flex justify-between items-start pb-4" style="border-bottom: none;">
             <div>
-              \${compLogo ? \`<img src="\${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />\` : ''}
-              <span class="text-large" style="display: block; margin-bottom: 4px;">\${compName}</span>
-              <div>\${compEmail}</div>
-              <div>\${compPhone}</div>
-              <div style="margin-top: 2px;"><a href="https://\${compWebsite}" target="_blank" class="blue-link">\${compWebsite}</a></div>
+              ${compLogo ? `<img src="${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">${compName}</span>
+              <div>${compEmail}</div>
+              <div>${compPhone}</div>
+              <div style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" class="blue-link">${compWebsite}</a></div>
             </div>
             <div style="text-align: right;">
               <div style="font-weight: bold;">CONTRAT DE MAINTENANCE</div>
-              <div style="margin-top: 4px; color: #555;">Généré le \${new Date().toLocaleDateString('fr-FR')}</div>
-              \${nomContrat ? \`<div style="margin-top: 4px; font-weight: bold; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; display: inline-block;">Catégorie : \${nomContrat}</div>\` : ''}
+              <div style="margin-top: 4px; color: #555;">Généré le ${new Date().toLocaleDateString('fr-FR')}</div>
+              <div style="margin-top: 4px; color: #555; font-size: 14px !important;">
+                Début : <strong>${formatDateToFR(debutContrat) || debutContrat || '-'}</strong>
+              </div>
+              <div style="margin-top: 2px; color: #555; font-size: 14px !important;">
+                Expiration : <strong>${formatDateToFR(finContrat) || finContrat || '-'}</strong>
+              </div>
             </div>
           </div>
 
           <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
-          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+          <div class="grid grid-cols-2 gap-6 avoid-break" style="margin-top: 20px;">
             <div>
               <h1 class="doc-title" style="margin-bottom: 10px;">CONTRAT</h1>
-              <p style="margin: 4px 0 0 0; font-size: 15px !important; color: #555 !important;">
-                Le présent contrat formalise les engagements de maintenance et d'audit pour la sécurité de vos dispositifs d'urgence de santé.
-              </p>
+              <div style="font-size: 14px !important; color: #555 !important; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                <div>Numéro de marché : <strong>${numeroMarche || '-'}</strong></div>
+                <div>Payeur ID : <strong>${payeurId || '-'}</strong></div>
+                <div>Client ID : <strong>${clientIdField || '-'}</strong></div>
+              </div>
             </div>
             <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
               <div style="margin-bottom: 6px; font-weight: bold; color: #555;">Client bénéficiaire.</div>
-              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">\${denomination || 'Non renseigné'}</div>
-              \${siret ? \`<div style="margin-bottom: 2px;">SIRET. \${siret}</div>\` : ''}
-              \${nomPrenomSite ? \`<div style="margin-bottom: 2px;">Contact site. \${nomPrenomSite}</div>\` : ''}
-              \${email ? \`<div style="margin-bottom: 2px;">Email. \${email}</div>\` : ''}
-              \${phone ? \`<div style="margin-bottom: 2px;">Téléphone. \${phone}</div>\` : ''}
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">${denomination || 'Non renseigné'}</div>
+              ${siret ? `<div style="margin-bottom: 2px;">SIRET. ${siret}</div>` : ''}
+              ${nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact site. ${nomPrenomSite}</div>` : ''}
+              ${email ? `<div style="margin-bottom: 2px;">Email. ${email}</div>` : ''}
+              ${phone ? `<div style="margin-bottom: 2px;">Téléphone. ${phone}</div>` : ''}
             </div>
           </div>
 
           <!-- CORPS DU CONTRAT -->
-          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
-            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
-              Conditions Particulières & Descriptif de la maintenance
-            </div>
+          <div class="avoid-break" style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
             <div style="white-space: pre-wrap; font-size: 15px !important; line-height: 1.6 !important; color: #333333 !important;">
-              \${redactionContrat || "Aucun détail contractuel n'est rédigé."}
+              ${redactionContrat || "Aucun détail contractuel n'est rédigé."}
             </div>
           </div>
 
           <!-- SIGNATURES -->
-          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
-            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
-              Signatures contractuelles
-            </div>
+          <div class="avoid-break" style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
             <div class="grid grid-cols-2 gap-6" style="margin-top: 12px;">
               <div>
                 <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le prestataire :</div>
-                <div style="font-size: 15px !important; font-weight: bold !important;">\${compName}</div>
+                <div style="font-size: 15px !important; font-weight: bold !important;">${compName}</div>
                 <div style="font-size: 13px !important; color: #64748b; margin-top: 4px;">Signé électroniquement par défaut de service contractuel.</div>
               </div>
               <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
                 <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le Client :</div>
-                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>\${signeParContrat || '-'}</strong></div>
-                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : \${formattedDate}</div>
+                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>${signeParContrat || '-'}</strong></div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : ${formattedDate}</div>
                 
                 <div style="margin-top: 12px; text-align: center;">
-                  \${signatureClientContratImage ? \`
-                    <div style="display: inline-block; border: 1px dashed rgb(200, 200, 200); padding: 6px; border-radius: 8px; background-color: #fff;">
-                      <img src="\${signatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
-                      <div style="font-size: 10px !important; color: #16a34a; font-weight: bold; margin-top: 4px;">✓ Document signé électroniquement</div>
+                  ${signatureClientContratImage ? `
+                    <div style="display: inline-block; padding: 6px; border-radius: 8px; background-color: #fff;">
+                      <img src="${signatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
                     </div>
-                  \` : \`
+                  ` : `
                     <div style="border: 1px dashed #dcdcdc; padding: 20px; color: #a1a1a1; font-style: italic; font-size: 14px !important; border-radius: 8px;">
                       Contrat en attente de signature client
                     </div>
-                  \`}
+                  `}
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- MENTIONS LEGALES ET CONDITIONS -->
-          \${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? \`
-            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px !important;">
-              \${companyInfo.mentionsLegalesFactures ? \`<div style="font-size: 12px !important; color: #64748b !important;">Mentions légales : \${companyInfo.mentionsLegalesFactures}</div>\` : ''}
-              \${companyInfo.conditionsLegalesLink ? \`<div style="font-size: 12px !important; color: #64748b !important;">Conditions légales : <a href="\${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link" style="font-size: 12px !important;">\${companyInfo.conditionsLegalesLink}</a></div>\` : ''}
-            </div>
-          \` : ''}
+
 
         </div>
       </body>

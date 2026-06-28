@@ -1427,7 +1427,25 @@ export default function PublicPortal({
       {};
 
     if (snapshot.categorie && snapshot.categorie !== "Défibrillateur") {
-      const clientFound = clients.find((c) => c.id === snapshot.clientId);
+      let clientFound = clients.find((c) => c.id === snapshot.clientId);
+      if (!clientFound && snapshot.clientId) {
+        clientFound = clients.find((c) => c.denomination === snapshot.clientId || c.id === snapshot.clientId);
+      }
+      if (!clientFound && report.clientId) {
+        clientFound = clients.find((c) => c.id === report.clientId);
+      }
+      if (!clientFound) {
+        const siteEmail = snapshot.emailSite || report.emailSite || "";
+        if (siteEmail) {
+          clientFound = clients.find((c) => c.email && c.email.toLowerCase().trim() === siteEmail.toLowerCase().trim());
+        }
+      }
+      if (!clientFound) {
+        const siteNom = snapshot.nomPrenomSite || "";
+        if (siteNom) {
+          clientFound = clients.find((c) => c.denomination === siteNom || c.nomPrenomSite === siteNom);
+        }
+      }
       const clientName = clientFound
         ? clientFound.denomination
         : snapshot.nomPrenomSite || "Non rattaché";
@@ -1595,12 +1613,13 @@ export default function PublicPortal({
         <body class="bg-white">
           <div id="print-container">
             <div class="pdf-page">
-              <div class="pdf-header">
-                ${report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie}`}
-              </div>
-              
-              <div style="font-family: 'Civilprom', sans-serif !important; font-size: 18px; text-align: center; color: #000000; margin-bottom: 8px; line-height: 1.4;">
-                Conservez et archivez consciencieusement ce certificat technique GMAO pour vos obligations d'entretien.
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: -5px;">
+                <div class="pdf-header" style="margin-bottom: 0px !important;">
+                  ${report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie}`}
+                </div>
+                <div style="font-family: 'Civilprom', sans-serif !important; font-size: 14px; text-align: center; color: #555555; margin-bottom: 0px !important; line-height: 1.2;">
+                  Conservez et archivez consciencieusement ce certificat technique GMAO pour vos obligations d'entretien.
+                </div>
               </div>
 
               <div class="pdf-grid">
@@ -1609,7 +1628,7 @@ export default function PublicPortal({
                   <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
                   <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
                     ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ""}
-                    <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName}</div>
+                    <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
                     <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ""}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ""}</span></div>
                     <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
@@ -1723,7 +1742,7 @@ export default function PublicPortal({
                       <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                         <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
                         ${
-                          report.clientPinCode
+                          report.clientPinCode && report.clientPinCode.trim()
                             ? `
                           <div style="font-size: 11px; margin-bottom: 2px;">
                             <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
@@ -1735,21 +1754,21 @@ export default function PublicPortal({
                         ${
                           clientFound && clientFound.clientSignatureImage
                             ? `
-                          <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                          <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
                             <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
-                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
                           </div>
                         `
                             : `
                           ${
-                            report.clientPinCode
+                            report.clientPinCode && report.clientPinCode.trim()
                               ? `
-                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
                               Signé électroniquement par PIN (${report.clientPinCode})
                             </div>
                           `
                               : `
-                            <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                            <div style="font-size: 13px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
                               Non signée
                             </div>
                           `
@@ -1781,7 +1800,25 @@ export default function PublicPortal({
     const compWebsite = companyInfo.website || "";
 
     // Resolving Client Name
-    const clientFound = clients.find((c) => c.id === snapshot.clientId);
+    let clientFound = clients.find((c) => c.id === snapshot.clientId);
+    if (!clientFound && snapshot.clientId) {
+      clientFound = clients.find((c) => c.denomination === snapshot.clientId || c.id === snapshot.clientId);
+    }
+    if (!clientFound && report.clientId) {
+      clientFound = clients.find((c) => c.id === report.clientId);
+    }
+    if (!clientFound) {
+      const siteEmail = snapshot.emailSite || report.emailSite || "";
+      if (siteEmail) {
+        clientFound = clients.find((c) => c.email && c.email.toLowerCase().trim() === siteEmail.toLowerCase().trim());
+      }
+    }
+    if (!clientFound) {
+      const siteNom = snapshot.nomPrenomSite || "";
+      if (siteNom) {
+        clientFound = clients.find((c) => c.denomination === siteNom || c.nomPrenomSite === siteNom);
+      }
+    }
     const clientName = clientFound
       ? clientFound.denomination
       : snapshot.nomPrenomSite || "Non rattaché";
@@ -1956,7 +1993,7 @@ export default function PublicPortal({
             font-family: "Gochi", cursive !important;
             font-size: 32px;
             font-weight: normal !important;
-            text-align: center;
+            text-align: left;
             color: #000000;
             margin-top: -10px;
             margin-bottom: 4px;
@@ -2040,15 +2077,13 @@ export default function PublicPortal({
 
           <!-- PAGE 1 -->
           <div class="pdf-page">
-            <div class="pdf-header">
-              ${report.title ? report.title : "Rapport d’intervention GMAO"}
-            </div>
-
-            <div style="font-family: 'Civilprom', sans-serif !important; font-size: 18px; text-align: center; color: #000000; margin-bottom: 8px; line-height: 1.4;">
-              Utilisez ce lien pour vous connecter à l’accès client, envoyer une demande ou signaler un problème&nbsp;: 
-              <a href="https://defibeo.deroesch.com/" target="_blank" style="color: #2563eb; text-decoration: underline;">https://defibeo.deroesch.com/</a>
-              <br />
-              Nous vous recommandons de conserver et archiver le présent document.
+            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: -5px;">
+              <div class="pdf-header" style="margin-bottom: 0px !important; text-align: left !important; width: 100%;">
+                ${report.title ? report.title : "Rapport d’intervention GMAO"}
+              </div>
+              <div style="font-family: 'Civilprom', sans-serif !important; font-size: 14px; text-align: left; color: #555555; margin-bottom: 0px !important; line-height: 1.2;">
+                Nous vous recommandons de conserver et d'archiver le présent document.
+              </div>
             </div>
 
             <div class="pdf-grid">
@@ -2057,7 +2092,7 @@ export default function PublicPortal({
                 <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
                 <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
                   ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ""}
-                  <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName}</div>
+                  <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
                   <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ""}</span></div>
                   <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
@@ -2092,10 +2127,17 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Fin de garantie :</span> <span class="pdf-bold">${snapshot.finGarantie || ""}</span></div>
                 </div>
               </div>
+            </div>
 
+            <div class="pdf-footer">Page 1 / 4</div>
+          </div>
+
+          <!-- PAGE 2 -->
+          <div class="pdf-page">
+            <div class="pdf-grid">
               <!-- SECTION 3 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">3 — Coffret ou armoire.</div>
+                <div class="pdf-card-header">3 — Coffret.</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle de boîtier :</span> <span class="pdf-bold">${coffretModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot de boîtier :</span> <span class="pdf-bold">${snapshot.numeroLotCoffret || ""}</span></div>
@@ -2107,84 +2149,81 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant le boîtier :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireCoffret || ""}</span></div>
                 </div>
               </div>
-            </div>
 
-            <div class="pdf-footer">Page 1 / 3</div>
-          </div>
-
-          <!-- PAGE 2 -->
-          <div class="pdf-page">
-            <div class="pdf-grid">
               <!-- SECTION 4 -->
               <div class="pdf-card">
                 <div class="pdf-card-header">4 — Vérifications techniques.</div>
                 <div class="pdf-card-body" style="gap: 3px;">
                   <div class="pdf-line"><span class="pdf-label">Conforme à mon arrivée :</span> <span class="pdf-bold">${report.techConformeArrivee || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Commentaire sur l’état à mon arrivée :</span> <span class="pdf-bold">${report.techCommentaireArrivee || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-rose-700">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Nettoyage :</span> <span class="pdf-bold">${report.techNettoyage || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Voyant conforme :</span> <span class="pdf-bold">${report.techVoyantConforme || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Équipé d’un message numérique :</span> <span class="pdf-bold">${report.techEquipeMessageNumerique || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Message numérique conforme :</span> <span class="pdf-bold">${report.techMessageNumeroConforme || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Guides vocaux conformes :</span> <span class="pdf-bold">${report.techGuidesVocauxConformes || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Branchement conforme des électrodes :</span> <span class="pdf-bold">${report.techBranchementElectrodesConforme || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Délivrance du choc conforme :</span> <span class="pdf-bold">${report.techDelivranceChocConforme || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode A :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA ? report.techResultatJoulesElectrodeA + " J" : ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Résultat du test en joules de l’électrode P :</span> <span class="pdf-bold">${report.techResultatJoulesElectrodeA2 ? report.techResultatJoulesElectrodeA2 + " J" : ""}</span></div>
                 </div>
               </div>
+            </div>
 
+            <div class="pdf-footer">Page 2 / 4</div>
+          </div>
+
+          <!-- PAGE 3 -->
+          <div class="pdf-page">
+            <div class="pdf-grid">
               <!-- SECTION 5 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">5 — Électrode adulte (A).</div>
+                <div class="pdf-card-header">5 — Électrode Adulte ou Mixte (A).</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode A :</span> <span class="pdf-bold">${electrodeAModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot A :</span> <span class="pdf-bold">${snapshot.lotElectrodeA || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Insertion :</span> <span class="pdf-bold">${snapshot.insertionElectrodeA || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeA || ""}</span></div>
                   
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodeASecoursModelName || "Aucun"}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodeASecours || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Modèle électrode secours :</span> <span class="pdf-bold">${electrodeASecoursModelName || "Aucun"}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodeASecours || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeA || ""}</span></div>
                   
                   <div class="pdf-line"><span class="pdf-label">Électrode A remplacée :</span> <span class="pdf-bold">${report.electrodeARemplacee || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeA || ""}</span></div>
                   
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode A Secours remplacée :</span> <span class="pdf-bold">${report.electrodeASecoursRemplacee || "Non"}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours A remplacée :</span> <span class="pdf-bold">${selElectrodeASecours || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode A Secours remplacée :</span> <span class="pdf-bold">${report.electrodeASecoursRemplacee || "Non"}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode Secours A remplacée :</span> <span class="pdf-bold">${selElectrodeASecours || ""}</span></div>
                   
+                  <div class="pdf-line"><span class="pdf-label">Électrode A conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodeAConformeSante || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode A :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeA || ""}</span></div>
                 </div>
               </div>
 
               <!-- SECTION 6 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">6 — Électrode pédiatrique (P).</div>
+                <div class="pdf-card-header">6 — Électrode Pédiatrique (P).</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode P :</span> <span class="pdf-bold">${electrodePModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot P :</span> <span class="pdf-bold">${snapshot.lotElectrodeP || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionElectrodeP || ""}</span></div>
                   
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Modèle électrode secours :</span> <span class="pdf-bold">${electrodePSecoursModelName || "Aucun"}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodePSecours || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Modèle électrode secours :</span> <span class="pdf-bold">${electrodePSecoursModelName || "Aucun"}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Lot de secours :</span> <span class="pdf-bold">${snapshot.lotElectrodePSecours || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption de secours :</span> <span class="pdf-bold">${snapshot.peremptionSecoursElectrodeP || ""}</span></div>
                   
                   <div class="pdf-line"><span class="pdf-label">Électrode P remplacée :</span> <span class="pdf-bold">${report.electrodePRemplacee || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode remplacée :</span> <span class="pdf-bold">${selElectrodeP || ""}</span></div>
                   
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Électrode P Secours remplacée :</span> <span class="pdf-bold">${report.electrodePSecoursRemplacee || "Non"}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Sélection de l'électrode Secours P remplacée :</span> <span class="pdf-bold">${selElectrodePSecours || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Électrode P Secours remplacée :</span> <span class="pdf-bold">${report.electrodePSecoursRemplacee || "Non"}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de l'électrode Secours P remplacée :</span> <span class="pdf-bold">${selElectrodePSecours || ""}</span></div>
                   
+                  <div class="pdf-line"><span class="pdf-label">Électrode P conforme et fonctionnelle :</span> <span class="pdf-bold">${report.electrodePConformeSante || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant l’électrode P :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireElectrodeP || ""}</span></div>
                 </div>
               </div>
             </div>
 
-            <div class="pdf-footer">Page 2 / 3</div>
+            <div class="pdf-footer">Page 3 / 4</div>
           </div>
 
-          <!-- PAGE 3 -->
+          <!-- PAGE 4 -->
           <div class="pdf-page">
             <div class="pdf-grid">
               <!-- SECTION 7 -->
@@ -2196,8 +2235,8 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Lot B :</span> <span class="pdf-bold">${snapshot.lotBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Batterie remplacée :</span> <span class="pdf-bold">${report.batterieRemplacee || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Sélection de la batterie remplacée :</span> <span class="pdf-bold">${selBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Batterie conforme et fonctionnelle :</span> <span class="pdf-bold">${report.batterieConformeSante || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Sélection de la batterie :</span> <span class="pdf-bold">${selBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Commentaire concernant la batterie :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaireBatterie || ""}</span></div>
                 </div>
               </div>
@@ -2211,9 +2250,9 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Sélection d’un kit de secours :</span> <span class="pdf-bold">${selKitSecours || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Ciseaux présents :</span> <span class="pdf-bold">${report.kitCiseauxPresents || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Masque présent :</span> <span class="pdf-bold">${report.kitMasquePresent || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption du masque :</span> <span class="pdf-bold">${report.kitPeremptionMasque || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption du masque :</span> <span class="pdf-bold">${report.kitPeremptionMasque || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Serviettes présentes :</span> <span class="pdf-bold">${report.kitServiettesPresentes || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label text-blue-800">Péremption des serviettes :</span> <span class="pdf-bold">${report.kitPeremptionServiettes || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Péremption des serviettes :</span> <span class="pdf-bold">${report.kitPeremptionServiettes || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Paires de gants présents :</span> <span class="pdf-bold">${report.kitGantsPresents || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Rasoir :</span> <span class="pdf-bold">${report.kitRasoirPresent || ""}</span></div>
                 </div>
@@ -2279,11 +2318,11 @@ export default function PublicPortal({
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                       <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
                       ${
-                        report.clientPinCode
+                        report.clientPinCode && report.clientPinCode.trim()
                           ? `
-                        <div style="font-size: 11px; margin-bottom: 2px;">
-                          <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
-                          <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                        <div style="font-size: 11px; margin-bottom: 2px; font-family: 'Civilprom', sans-serif !important;">
+                          <span class="pdf-label" style="font-size:11px; color:rgb(138, 138, 138); font-family: 'Civilprom', sans-serif !important;">Code validation :</span> 
+                          <span class="pdf-bold" style="font-size:11px; font-family: 'Civilprom', sans-serif !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
                         </div>
                       `
                           : ""
@@ -2291,21 +2330,21 @@ export default function PublicPortal({
                       ${
                         clientFound && clientFound.clientSignatureImage
                           ? `
-                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
                           <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
                         </div>
                       `
                           : `
                         ${
-                          report.clientPinCode
+                          report.clientPinCode && report.clientPinCode.trim()
                             ? `
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                          <div style="font-size: 11px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
                             Signé électroniquement par PIN (${report.clientPinCode})
                           </div>
                         `
                             : `
-                          <div style="font-size: 13px; color: #a1a1a1; font-style: italic;">
+                          <div style="font-size: 13px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
                             Non signée
                           </div>
                         `
@@ -2318,7 +2357,7 @@ export default function PublicPortal({
               </div>
             </div>
 
-            <div class="pdf-footer">Page 3 / 3</div>
+            <div class="pdf-footer">Page 4 / 4</div>
           </div>
 
         </div>

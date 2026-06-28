@@ -371,6 +371,10 @@ export default function ClientPortal({
             body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
             .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
           }
+          .avoid-break {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
         </style>
         <script>
           window.onload = function() {
@@ -382,88 +386,80 @@ export default function ClientPortal({
         <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
           
           <!-- HAUT DE PAGE / COORDONNEES -->
-          <div class="flex justify-between items-start pb-4" style="border-bottom: 1px solid #dcdcdc;">
+          <div class="flex justify-between items-start pb-4" style="border-bottom: none;">
             <div>
-              \${compLogo ? \`<img src="\${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />\` : ''}
-              <span class="text-large" style="display: block; margin-bottom: 4px;">\${compName}</span>
-              <div>\${compEmail}</div>
-              <div>\${compPhone}</div>
-              <div style="margin-top: 2px;"><a href="https://\${compWebsite}" target="_blank" class="blue-link">\${compWebsite}</a></div>
+              ${compLogo ? `<img src="${compLogo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">${compName}</span>
+              <div>${compEmail}</div>
+              <div>${compPhone}</div>
+              <div style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" class="blue-link">${compWebsite}</a></div>
             </div>
             <div style="text-align: right;">
               <div style="font-weight: bold;">CONTRAT DE MAINTENANCE</div>
-              <div style="margin-top: 4px; color: #555;">Généré le \${new Date().toLocaleDateString('fr-FR')}</div>
-              \${authenticatedClient.nomContrat ? \`<div style="margin-top: 4px; font-weight: bold; background: #f3f4f6; padding: 4px 8px; border-radius: 4px; display: inline-block;">Catégorie : \${authenticatedClient.nomContrat}</div>\` : ''}
+              <div style="margin-top: 4px; color: #555;">Généré le ${new Date().toLocaleDateString('fr-FR')}</div>
+              <div style="margin-top: 4px; color: #555; font-size: 14px !important;">
+                Début : <strong>${formatDateToFR(authenticatedClient.debutContrat) || authenticatedClient.debutContrat || '-'}</strong>
+              </div>
+              <div style="margin-top: 2px; color: #555; font-size: 14px !important;">
+                Expiration : <strong>${formatDateToFR(authenticatedClient.finContrat) || authenticatedClient.finContrat || '-'}</strong>
+              </div>
             </div>
           </div>
 
           <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
-          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+          <div class="grid grid-cols-2 gap-6 avoid-break" style="margin-top: 20px;">
             <div>
               <h1 class="doc-title" style="margin-bottom: 10px;">CONTRAT</h1>
-              <p style="margin: 4px 0 0 0; font-size: 15px !important; color: #555 !important;">
-                Le présent contrat formalise les engagements de maintenance et d'audit pour la sécurité de vos dispositifs d'urgence de santé.
-              </p>
+              <div style="font-size: 14px !important; color: #555 !important; display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                <div>Numéro de marché : <strong>${authenticatedClient.numeroMarche || '-'}</strong></div>
+                <div>Payeur ID : <strong>${authenticatedClient.payeurId || '-'}</strong></div>
+                <div>Client ID : <strong>${authenticatedClient.clientIdField || '-'}</strong></div>
+              </div>
             </div>
             <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
               <div style="margin-bottom: 6px; font-weight: bold; color: #555;">Client bénéficiaire.</div>
-              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">\${authenticatedClient.denomination || 'Non renseigné'}</div>
-              \${authenticatedClient.siret ? \`<div style="margin-bottom: 2px;">SIRET. \${authenticatedClient.siret}</div>\` : ''}
-              \${authenticatedClient.nomPrenomSite ? \`<div style="margin-bottom: 2px;">Contact site. \${authenticatedClient.nomPrenomSite}</div>\` : ''}
-              \${authenticatedClient.email ? \`<div style="margin-bottom: 2px;">Email. \${authenticatedClient.email}</div>\` : ''}
-              \${authenticatedClient.phone ? \`<div style="margin-bottom: 2px;">\${t("Téléphone.")} \${authenticatedClient.phone}</div>\` : ''}
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">${authenticatedClient.denomination || 'Non renseigné'}</div>
+              ${authenticatedClient.siret ? `<div style="margin-bottom: 2px;">SIRET. ${authenticatedClient.siret}</div>` : ''}
+              ${authenticatedClient.nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact site. ${authenticatedClient.nomPrenomSite}</div>` : ''}
+              ${authenticatedClient.email ? `<div style="margin-bottom: 2px;">Email. ${authenticatedClient.email}</div>` : ''}
+              ${authenticatedClient.phone ? `<div style="margin-bottom: 2px;">${t("Téléphone.")} ${authenticatedClient.phone}</div>` : ''}
             </div>
           </div>
 
           <!-- CORPS DU CONTRAT -->
-          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
-            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
-              Conditions Particulières & Descriptif de la maintenance
-            </div>
+          <div class="avoid-break" style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #fafafa; margin-top: 10px;">
             <div style="white-space: pre-wrap; font-size: 15px !important; line-height: 1.6 !important; color: #333333 !important;">
-              \${portalRedactionContrat || "Aucun détail contractuel n'est rédigé."}
+              ${portalRedactionContrat || "Aucun détail contractuel n'est rédigé."}
             </div>
           </div>
 
           <!-- SIGNATURES -->
-          <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
-            <div style="font-weight: bold; margin-bottom: 10px; font-size: 18px !important; border-bottom: 1px solid #dcdcdc; padding-bottom: 8px;">
-              Signatures contractuelles
-            </div>
+          <div class="avoid-break" style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 20px; background-color: #ffffff; margin-top: 10px;">
             <div class="grid grid-cols-2 gap-6" style="margin-top: 12px;">
               <div>
                 <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le prestataire :</div>
-                <div style="font-size: 15px !important; font-weight: bold !important;">\${compName}</div>
+                <div style="font-size: 15px !important; font-weight: bold !important;">${compName}</div>
                 <div style="font-size: 13px !important; color: #64748b; margin-top: 4px;">Signé électroniquement par défaut de service contractuel.</div>
               </div>
               <div style="border-left: 1px solid #e2e8f0; padding-left: 20px;">
                 <div style="font-weight: bold; margin-bottom: 6px; color: #555;">Le Client :</div>
-                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>\${portalSigneParContrat || '-'}</strong></div>
-                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : \${formattedDate}</div>
+                <div style="font-size: 15px !important;"><span style="color: #64748b;">Signataire :</span> <strong>${portalSigneParContrat || '-'}</strong></div>
+                <div style="font-size: 13px !important; color: #64748b; margin-top: 2px;">Date signature : ${formattedDate}</div>
                 
                 <div style="margin-top: 12px; text-align: center;">
-                  \${portalSignatureClientContratImage ? \`
-                    <div style="display: inline-block; border: 1px dashed rgb(200, 200, 200); padding: 6px; border-radius: 8px; background-color: #fff;">
-                      <img src="\${portalSignatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
-                      <div style="font-size: 10px !important; color: #16a34a; font-weight: bold; margin-top: 4px;">✓ Document signé électroniquement</div>
+                  ${portalSignatureClientContratImage ? `
+                    <div style="display: inline-block; padding: 6px; border-radius: 8px; background-color: #fff;">
+                      <img src="${portalSignatureClientContratImage}" style="max-height: 70px; max-width: 220px; object-fit: contain;" alt="Signature Client" />
                     </div>
-                  \` : \`
+                  ` : `
                     <div style="border: 1px dashed #dcdcdc; padding: 20px; color: #a1a1a1; font-style: italic; font-size: 14px !important; border-radius: 8px;">
                       Contrat en attente de signature client
                     </div>
-                  \`}
+                  `}
                 </div>
               </div>
             </div>
           </div>
-
-          <!-- MENTIONS LEGALES ET CONDITIONS -->
-          \${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? \`
-            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px !important;">
-              \${companyInfo.mentionsLegalesFactures ? \`<div style="font-size: 12px !important; color: #64748b !important;">Mentions légales : \${companyInfo.mentionsLegalesFactures}</div>\` : ''}
-              \${companyInfo.conditionsLegalesLink ? \`<div style="font-size: 12px !important; color: #64748b !important;">Conditions légales : <a href="\${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link" style="font-size: 12px !important;">\${companyInfo.conditionsLegalesLink}</a></div>\` : ''}
-            </div>
-          \` : ''}
 
         </div>
       </body>
@@ -1095,7 +1091,13 @@ export default function ClientPortal({
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || defibrillateurs.find(d => d.id === report.defibId || d.identifiant === report.defibIdentifiant) || {};
     const isOther = snapshot.categorie && snapshot.categorie !== 'Défibrillateur';
-    const clientFound = clients.find(c => c.id === snapshot.clientId);
+    let clientFound = clients.find(c => c.id === snapshot.clientId) || authenticatedClient;
+    if (!clientFound && snapshot.clientId) {
+      clientFound = clients.find(c => c.denomination === snapshot.clientId || c.id === snapshot.clientId);
+    }
+    if (!clientFound && report.clientId) {
+      clientFound = clients.find(c => c.id === report.clientId);
+    }
     const clientName = clientFound ? clientFound.denomination : (snapshot.nomPrenomSite || 'Non rattaché');
 
     const compLogo = companyInfo.logo || '';
@@ -1234,7 +1236,7 @@ export default function ClientPortal({
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                 <div>
                   ${compLogo ? `<img src="${compLogo}" style="max-height: 50px; object-fit: contain; margin-bottom: 6px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
-                  <div style="font-size: 12px; font-weight: bold; color: #1e1b4b;">${compName}</div>
+                  <div style="font-size: 12px; font-weight: bold; color: #1e1b4b;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
                   <div style="font-size: 10px; color: #64748b;">${compEmail} | ${compPhone}</div>
                 </div>
                 <div style="text-align: right; font-size: 11px; color: #64748b;">
@@ -1312,24 +1314,24 @@ export default function ClientPortal({
                     <!-- Client signature -->
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                       <div class="pdf-line" style="font-weight: 700; margin-bottom: 2px;">Signature client</div>
-                      ${report.clientPinCode ? `
+                      ${(report.clientPinCode && report.clientPinCode.trim()) ? `
                         <div style="font-size: 10px; margin-bottom: 2px;">
                           <span class="pdf-label" style="font-size:10px; color:#555;">PIN validé:</span> 
                           <span class="pdf-bold" style="font-size:10px; font-family: monospace !important; font-weight: bold !important;">${report.clientPinCode}</span>
                         </div>
                       ` : ''}
                       ${clientFound && clientFound.clientSignatureImage ? `
-                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
                           <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
                         </div>
                       ` : `
-                        ${report.clientPinCode ? `
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                        ${(report.clientPinCode && report.clientPinCode.trim()) ? `
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
                             Signé électroniquement par PIN (${report.clientPinCode})
                           </div>
                         ` : `
-                          <div style="font-size: 11px; color: #a1a1a1; font-style: italic;">
+                          <div style="font-size: 11px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
                             Non signée
                           </div>
                         `}
@@ -1480,7 +1482,7 @@ export default function ClientPortal({
               <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
                 <div>
                   ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ''}
-                  <div style="font-size: 11px; font-weight: bold; color: #1e1b4b;">${compName}</div>
+                  <div style="font-size: 11px; font-weight: bold; color: #1e1b4b;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
                 </div>
                 <div style="text-align: right; font-size: 10px; color: #64748b;">
                   <div>Rapport GMAO N° <strong>${report.id || 'N/A'}</strong></div>
@@ -1615,24 +1617,24 @@ export default function ClientPortal({
                     <!-- Client signature -->
                     <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                       <div class="pdf-line" style="font-weight: 700; margin-bottom: 2px;">Signature client</div>
-                      ${report.clientPinCode ? `
+                      ${(report.clientPinCode && report.clientPinCode.trim()) ? `
                         <div style="font-size: 10px; margin-bottom: 2px;">
                           <span class="pdf-label" style="font-size:10px; color:#555;">PIN validé:</span> 
                           <span class="pdf-bold" style="font-size:10px; font-family: monospace !important; font-weight: bold !important;">${report.clientPinCode}</span>
                         </div>
                       ` : ''}
                       ${clientFound && clientFound.clientSignatureImage ? `
-                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px;">
+                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
                           <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement</div>
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
                         </div>
                       ` : `
-                        ${report.clientPinCode ? `
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">
+                        ${(report.clientPinCode && report.clientPinCode.trim()) ? `
+                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
                             Signé électroniquement par PIN (${report.clientPinCode})
                           </div>
                         ` : `
-                          <div style="font-size: 11px; color: #a1a1a1; font-style: italic;">
+                          <div style="font-size: 11px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
                             Non signée
                           </div>
                         `}

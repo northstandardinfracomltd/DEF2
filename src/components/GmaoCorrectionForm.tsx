@@ -2903,7 +2903,7 @@ export default function GmaoCorrectionForm({
 
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
-                  Électrode A conforme et fonctionnelle.
+                  Électrode P conforme et fonctionnelle.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
                   <FormRadio label="Oui" checked={electrodePConformeSante === 'Oui'} onChange={() => setElectrodePConformeSante('Oui')} />

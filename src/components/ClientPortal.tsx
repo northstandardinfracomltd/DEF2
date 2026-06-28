@@ -907,6 +907,190 @@ export default function ClientPortal({
     window.open(url, '_blank');
   };
 
+  const handleDownloadBonCommande = (doc: CommercialDoc) => {
+    if (!doc.hasBonCommande) return;
+
+    const totalTva = doc.totalHt * 0.20;
+    const totalTtc = doc.totalHt * 1.20;
+    
+    const formatDateStr = (dateStr: string) => {
+      if (!dateStr) return '';
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) return dateStr;
+      const parts = dateStr.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return dateStr;
+    };
+
+    const itemsHtml = doc.items.map((item, idx) => {
+      const isLast = idx === doc.items.length - 1;
+      const itemUgs = item.ugs || stocks.find((s: any) => s.denominationPieceId === item.variableId)?.ugs || '—';
+      return `
+        <tr style="${isLast ? '' : 'border-bottom: 1px solid #dcdcdc;'}">
+          <td style="padding: 12px 8px; font-family: monospace;">${itemUgs}</td>
+          <td style="padding: 12px 8px;">${item.nomPiece}</td>
+          <td style="padding: 12px 8px; text-align: right;">${item.prixVenteHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+          <td style="padding: 12px 8px; text-align: center;">${item.quantite}</td>
+          <td style="padding: 12px 8px; text-align: right;">${(item.prixVenteHt * item.quantite).toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</td>
+        </tr>
+      `;
+    }).join('');
+
+    const clientObj = clients.find(c => c.id === doc.clientId) || clients.find(c => c.denomination === doc.clientDenomination);
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html lang="fr">
+      <head>
+        <meta charset="UTF-8">
+        <title>Bon de commande ${doc.bonCommandeReference || 'Sans réf'}</title>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <style>
+          @font-face {
+            font-family: "Gochi";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/gochi.otf") format("opentype");
+            font-weight: normal;
+            font-style: normal;
+            font-display: swap;
+          }
+          @font-face {
+            font-family: "Civilprom";
+            src: url("https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf") format("opentype");
+            font-weight: 100 900;
+            font-style: normal;
+            font-display: swap;
+          }
+          
+          @page {
+            size: auto;
+            margin: 0;
+          }
+          
+          body, select, input, textarea, div, p, span, h1, h2, h3, h4, table, tr, th, td, a {
+            font-family: "Civilprom", sans-serif !important;
+            font-weight: 100 !important;
+            color: #000000 !important;
+            letter-spacing: normal !important;
+            text-transform: none !important;
+            font-size: 16px !important;
+          }
+          
+          .text-large {
+            font-size: 18px !important;
+          }
+          
+          h1.doc-title {
+            font-family: "Gochi" !important;
+            font-size: 55px !important;
+            font-weight: normal !important;
+            line-height: 1 !important;
+          }
+          
+          .blue-link {
+            color: #2563eb !important;
+            text-decoration: underline !important;
+            font-weight: 100 !important;
+          }
+          
+          @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; padding: 0 !important; margin: 1.6cm 1.6cm 1.6cm 1.6cm !important; }
+            .max-w-3xl { border: none !important; box-shadow: none !important; max-width: 100% !important; width: 100% !important; padding: 0 !important; }
+          }
+        </style>
+      </head>
+      <body class="bg-white text-black p-8">
+        <div class="max-w-3xl mx-auto p-4 md:p-8" style="background-color: #ffffff; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box;">
+          
+          <!-- HAUT DE PAGE / COORDONNEES -->
+          <div class="flex justify-between items-start pb-4">
+            <div>
+              ${companyInfo.logo ? `<img src="${companyInfo.logo}" style="max-width: 300px; max-height: 100px; object-fit: contain; margin-bottom: 12px; display: block;" referrerPolicy="no-referrer" />` : ''}
+              <span class="text-large" style="display: block; margin-bottom: 4px;">${companyInfo.name}</span>
+              <div>${companyInfo.email}</div>
+              <div>${companyInfo.phone}</div>
+              <div style="margin-top: 2px;"><a href="https://${companyInfo.website}" target="_blank" class="blue-link">${companyInfo.website}</a></div>
+            </div>
+            <div style="text-align: right;">
+              <div>${formatDateStr(doc.dateStr)}</div>
+            </div>
+          </div>
+
+          <!-- TITRE DU DOCUMENT / INFOS CLIENT -->
+          <div class="grid grid-cols-2 gap-6" style="margin-top: 20px;">
+            <div>
+              <h1 class="doc-title">BON DE COMMANDE</h1>
+              <p style="margin: 4px 0 0 0;">Référence BC : ${doc.bonCommandeReference || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Livraison : ${doc.bonCommandeLivraison || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Situation : ${doc.bonCommandeSituation || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Commentaire : ${doc.commentaire || ''}</p>
+            </div>
+            <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
+              <div style="margin-bottom: 6px;">Client.</div>
+              <div style="font-size: 24px !important; font-weight: bold !important; margin-bottom: 6px; line-height: 1.2 !important;">${clientObj ? clientObj.denomination : doc.clientDenomination}</div>
+              ${clientObj ? `
+                ${clientObj.nomPrenomSite ? `<div style="margin-bottom: 2px;">Contact. ${clientObj.nomPrenomSite}</div>` : ''}
+                ${clientObj.siret ? `<div style="margin-bottom: 2px;">Numéro fiscal. ${clientObj.siret}</div>` : ''}
+                ${clientObj.email ? `<div style="margin-bottom: 2px;">Email. ${clientObj.email}</div>` : ''}
+                ${clientObj.phone ? `<div style="margin-bottom: 2px;">Téléphone. ${clientObj.phone}</div>` : ''}
+              ` : ''}
+            </div>
+          </div>
+
+          <!-- TABLEAU DES PRESTATIONS / PIECES -->
+          <div style="border: 1px solid #dcdcdc; border-radius: 12px; overflow: hidden; margin-top: 20px; background-color: #ffffff;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr style="border-bottom: 1px solid #dcdcdc;">
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">UGS.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important;">Description.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Prix unitaire.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: center;">Volume.</th>
+                  <th style="padding: 10px 8px; font-weight: 100 !important; text-align: right;">Total ligne.</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SECTION DE COMMODITES DES CALCULS (TOTALS) -->
+          <div style="display: flex; justify-content: flex-end; padding-top: 16px;">
+            <div style="width: 256px; border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total HT.</span>
+                <span>${doc.totalHt.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;">
+                <span>Total TVA (20%).</span>
+                <span>${totalTva.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+              <div style="display: flex; justify-content: space-between;" class="text-large">
+                <span>Total TTC.</span>
+                <span>${totalTtc.toLocaleString('fr-FR', { minimumFractionDigits: 2 })}€</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- MENTIONS LEGALES ET CONDITIONS -->
+          ${companyInfo.mentionsLegalesFactures || companyInfo.conditionsLegalesLink ? `
+            <div style="border: 1px solid #dcdcdc; border-radius: 12px; padding: 16px; background-color: #ffffff; display: flex; flex-direction: column; gap: 6px; margin-top: 10px;">
+              ${companyInfo.mentionsLegalesFactures ? `<div style="font-size: 15px !important;">Mentions légales : ${companyInfo.mentionsLegalesFactures}</div>` : ''}
+              ${companyInfo.conditionsLegalesLink ? `<div style="font-xs !important;">Conditions légales : <a href="${companyInfo.conditionsLegalesLink}" target="_blank" class="blue-link">${companyInfo.conditionsLegalesLink}</a></div>` : ''}
+            </div>
+          ` : ''}
+
+        </div>
+      </body>
+      </html>
+    `;
+    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+  };
+
   // Downloader for Reports
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || defibrillateurs.find(d => d.id === report.defibId || d.identifiant === report.defibIdentifiant) || {};
@@ -1649,11 +1833,7 @@ export default function ClientPortal({
           
           {/* Section 1: Défibrillateurs & Autres matériels */}
           {activePortalTab === 'defibs' && (
-            (clientDefibs.length === 0 && clientOthers.length === 0) ? (
-              <div className="p-10 text-center font-sans">
-                <p className="text-black font-light text-[16px]">Aucun équipement enregistré.</p>
-              </div>
-            ) : (
+            (clientDefibs.length === 0 && clientOthers.length === 0) ? null : (
               <div className="space-y-6">
                 {clientDefibs.length > 0 && (
                   <div className="space-y-6">
@@ -1731,33 +1911,6 @@ export default function ClientPortal({
                                 recurrenceAutoVigilance = 'Journalière';
                               }
                               return renderField('Récurrence auto-vigilance', recurrenceAutoVigilance, true);
-                            })()}
-                            
-                            {df.horaires && (() => {
-                              try {
-                                const parsed = JSON.parse(df.horaires);
-                                if (Array.isArray(parsed) && parsed.length > 0 && parsed.some((p: any) => p.days && p.days.length > 0)) {
-                                  return (
-                                    <div className="col-span-1 sm:col-span-2 md:col-span-3 mt-2 pt-2 border-t border-slate-100">
-                                      <span className="text-[11px] font-bold text-slate-500 uppercase block mb-1">📅 Horaires d'ouverture :</span>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-xs">
-                                        {parsed.map((sch: any, currentIdx: number) => {
-                                          if (!sch.days || sch.days.length === 0) return null;
-                                          return (
-                                            <div key={currentIdx} className="bg-slate-50 p-2 rounded border border-slate-100 flex flex-col justify-between">
-                                              <span className="font-semibold text-slate-700">{sch.days.join(', ')}</span>
-                                              <span className="font-mono text-indigo-600 mt-1">
-                                                {sch.fermetureMidi ? `${sch.openMorning} - ${sch.closeMorning} / ${sch.openAfternoon} - ${sch.closeAfternoon}` : `${sch.openContinuous} - ${sch.closeContinuous}`}
-                                              </span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                              } catch(e){}
-                              return null;
                             })()}
                           </div>
                         </div>
@@ -1884,6 +2037,24 @@ export default function ClientPortal({
                       {renderField('Référence', doc.ref, true)}
                       {renderField('Situation', doc.status, true)}
                       {renderField('Total HT', `${doc.totalHt.toFixed(2)} €`, true)}
+                      {doc.hasBonCommande && (
+                        <div className="col-span-1 sm:col-span-1 md:col-span-1 flex items-end">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadBonCommande(doc)}
+                            className="w-full text-white font-bold transition-all cursor-pointer font-sans border-0 flex items-center justify-center"
+                            style={{
+                              backgroundColor: '#fe4eba',
+                              borderRadius: '13px',
+                              fontSize: '16px',
+                              height: '48px',
+                              padding: '10px 14px',
+                            }}
+                          >
+                            Télécharger bon de commande
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1914,11 +2085,7 @@ export default function ClientPortal({
                 return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
               };
 
-              return clientReports.length === 0 ? (
-                <div className="p-10 text-center font-sans">
-                  <p className="text-black font-light text-[16px]">Aucun rapport disponible.</p>
-                </div>
-              ) : (
+              return clientReports.length === 0 ? null : (
                 <div className="space-y-6">
                   {clientReports.map((rep) => {
                     const snap = rep.defibSnapshot || {};
@@ -1976,15 +2143,11 @@ export default function ClientPortal({
           {activePortalTab === 'autovigilance' && (
             <div className="space-y-8">
               <div id="new-pointage-container">
-                {assignedEquipment.length === 0 ? (
-                  <div className="p-4 bg-amber-50 text-amber-800 rounded-xl text-sm font-sans">
-                    {t("Aucun matériel n'est actuellement affecté à votre établissement. Vous pourrez ajouter des pointages d'auto-vigilance dès que votre parc de matériels sera configuré.")}
-                  </div>
-                ) : (
+                {assignedEquipment.length === 0 ? null : (
                   <form onSubmit={handleSavePointage} className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                       {/* Sélection du matériel */}
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <label className="block text-[18px] font-bold text-black font-sans">
                           {t('Sélection du matériel *')}
                         </label>
@@ -1992,7 +2155,7 @@ export default function ClientPortal({
                           required
                           value={selectedEquipId}
                           onChange={(e) => setSelectedEquipId(e.target.value)}
-                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none min-w-0"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2001,7 +2164,9 @@ export default function ClientPortal({
                             height: '48px',
                             appearance: 'none',
                             WebkitAppearance: 'none',
-                            MozAppearance: 'none'
+                            MozAppearance: 'none',
+                            boxSizing: 'border-box',
+                            maxWidth: '100%'
                           }}
                         >
                           <option value="">{t('-- Choisir un matériel --')}</option>
@@ -2014,7 +2179,7 @@ export default function ClientPortal({
                       </div>
 
                       {/* Date */}
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <label className="block text-[18px] font-bold text-black font-sans">
                           {t('Date *')}
                         </label>
@@ -2023,19 +2188,21 @@ export default function ClientPortal({
                           required
                           value={pointageDate}
                           onChange={(e) => setPointageDate(e.target.value)}
-                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none min-w-0"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
                             padding: '10px 14px',
                             fontWeight: 100,
-                            height: '48px'
+                            height: '48px',
+                            boxSizing: 'border-box',
+                            maxWidth: '100%'
                           }}
                         />
                       </div>
 
                       {/* Commentaire */}
-                      <div className="space-y-1">
+                      <div className="space-y-1 min-w-0">
                         <label className="block text-[18px] font-bold text-black font-sans">
                           {t('Commentaire *')}
                         </label>
@@ -2043,7 +2210,7 @@ export default function ClientPortal({
                           required
                           value={pointageComment}
                           onChange={(e) => setPointageComment(e.target.value as any)}
-                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none"
+                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all cursor-pointer appearance-none min-w-0"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2052,7 +2219,9 @@ export default function ClientPortal({
                             height: '48px',
                             appearance: 'none',
                             WebkitAppearance: 'none',
-                            MozAppearance: 'none'
+                            MozAppearance: 'none',
+                            boxSizing: 'border-box',
+                            maxWidth: '100%'
                           }}
                         >
                           <option value="En fonctionnement et accessible">{t('En fonctionnement et accessible')}</option>
@@ -2270,13 +2439,7 @@ export default function ClientPortal({
 
                   {/* Actions row: Download button always visible, Save button visible if not signed yet */}
                   <div className="flex flex-col sm:flex-row items-center justify-between pt-4 mt-2 gap-4">
-                    <div>
-                      {contractSaveSuccess && (
-                        <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn">
-                          ✓ Votre signature a été enregistrée avec succès !
-                        </span>
-                      )}
-                    </div>
+                    <div></div>
                     <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
                       <button
                         type="button"
@@ -2289,7 +2452,7 @@ export default function ClientPortal({
                           boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                         }}
                       >
-                        {t("Télécharger le contrat PDF")}
+                        {t("Télécharger")}
                       </button>
 
                       {!authenticatedClient?.signatureClientContratImage && (
@@ -2304,7 +2467,7 @@ export default function ClientPortal({
                             boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
                           }}
                         >
-                          {t("Enregistrer & Signer le Contrat")}
+                          {t("Signer")}
                         </button>
                       )}
                     </div>
@@ -2591,15 +2754,9 @@ export default function ClientPortal({
                           fontSize: '18px',
                         }}
                       >
-                        {t("Enregistrer ma signature")}
+                        {t("Enregistrer")}
                       </button>
                     </div>
-
-                    {saveSuccess && (
-                      <span className="text-sm font-bold text-emerald-600 font-sans animate-fadeIn flex items-center gap-1">
-                        ✓ {t("Signature enregistrée avec succès !")}
-                      </span>
-                    )}
                   </div>
                 </div>
 

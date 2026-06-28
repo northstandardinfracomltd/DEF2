@@ -217,6 +217,8 @@ export interface Member {
   startAddressLat?: number;
   startAddressLng?: number;
   optimizationPreference?: 'loin' | 'proche';
+  googleCalEmail?: string;
+  googleCalId?: string;
 }
 
 export interface CompanyInfo {

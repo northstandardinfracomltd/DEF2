@@ -1519,6 +1519,9 @@ export default function ClientTab({
                         id="input-client-contract-sig-date"
                         value={dateSignatureContrat}
                         onChange={(e) => setDateSignatureContrat(e.target.value)}
+                        disabled
+                        className="bg-slate-100 cursor-not-allowed opacity-70 font-sans"
+                        style={{ backgroundColor: '#f1f5f9' }}
                       />
                     </div>
 
@@ -1533,6 +1536,9 @@ export default function ClientTab({
                         value={signeParContrat}
                         onChange={(e) => setSigneParContrat(e.target.value)}
                         placeholder="Nom du signataire"
+                        disabled
+                        className="bg-slate-100 cursor-not-allowed opacity-70 font-sans"
+                        style={{ backgroundColor: '#f1f5f9' }}
                       />
                     </div>
 
@@ -1566,9 +1572,12 @@ export default function ClientTab({
                     <button
                       type="button"
                       onClick={handleDownloadContractPDF}
-                      className="w-full py-3 text-white font-bold transition-all cursor-pointer font-sans border-0"
+                      disabled={!redactionContrat || !redactionContrat.trim()}
+                      className={`w-full py-3 text-white font-bold transition-all font-sans border-0 ${
+                        (!redactionContrat || !redactionContrat.trim()) ? 'cursor-not-allowed opacity-50 bg-slate-400' : 'cursor-pointer hover:bg-slate-800'
+                      }`}
                       style={{
-                        backgroundColor: '#000000',
+                        backgroundColor: (!redactionContrat || !redactionContrat.trim()) ? '#94a3b8' : '#000000',
                         borderRadius: '13px',
                         fontSize: '18px'
                       }}

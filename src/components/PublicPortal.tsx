@@ -429,6 +429,9 @@ export default function PublicPortal({
         const activeTechRaw = localStorage.getItem("defib_active_tech_session");
         if (activeTechRaw) {
           const activeTech = JSON.parse(activeTechRaw);
+          if (activeTech?.googleCalEmail) {
+            return activeTech.googleCalEmail;
+          }
           return localStorage.getItem(
             `defib_google_cal_email_${activeTech?.name || "common"}`,
           );
@@ -2620,6 +2623,13 @@ export default function PublicPortal({
             ) ||
             "",
         );
+        // Sync Google Calendar email from master database Member record
+        if (liveMember.googleCalEmail) {
+          setSyncedGoogleEmail(liveMember.googleCalEmail);
+        } else {
+          const localEmail = localStorage.getItem(`defib_google_cal_email_${liveMember.name}`);
+          setSyncedGoogleEmail(localEmail || null);
+        }
         // Load structured address fields from liveMember
         setTechStartStreet(liveMember.startAddressStreet || "");
         setTechStartCity(liveMember.startAddressCity || "");
@@ -3284,12 +3294,37 @@ export default function PublicPortal({
       setGoogleAccessToken(token);
       setSyncedGoogleEmail(email);
 
-      // Persist the email
+      // Persist the email locally
       const techName = authenticatedUser?.name || "common";
       localStorage.setItem(`defib_google_cal_email_${techName}`, email);
 
       // Perform synchronization!
       const syncResult = await performGoogleCalendarSync(token);
+      const calendarId = syncResult.calendarId || "";
+
+      // Persist Google account settings to the centralized Firestore database
+      if (authenticatedUser) {
+        const updatedMembers = members.map((m) => {
+          if (m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase()) {
+            return {
+              ...m,
+              googleCalEmail: email,
+              googleCalId: calendarId,
+            };
+          }
+          return m;
+        });
+        onUpdateMembers(updatedMembers);
+
+        // Also update authenticatedUser and stored active session
+        const updatedUser = {
+          ...authenticatedUser,
+          googleCalEmail: email,
+          googleCalId: calendarId,
+        };
+        setAuthenticatedUser(updatedUser);
+        localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
+      }
 
       setSyncStatusMsg({
         type: "success",
@@ -3362,8 +3397,31 @@ export default function PublicPortal({
     }
     const techName = authenticatedUser?.name || "common";
     localStorage.removeItem(`defib_google_cal_email_${techName}`);
+    localStorage.removeItem(`defib_google_cal_id_${techName}`);
     setGoogleAccessToken(null);
     setSyncedGoogleEmail(null);
+
+    // Deactivate Google Calendar settings from Firestore
+    if (authenticatedUser) {
+      const updatedMembers = members.map((m) => {
+        if (m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase()) {
+          const updatedM = { ...m };
+          delete updatedM.googleCalEmail;
+          delete updatedM.googleCalId;
+          return updatedM;
+        }
+        return m;
+      });
+      onUpdateMembers(updatedMembers);
+
+      // Also update authenticatedUser and stored active session
+      const updatedUser = { ...authenticatedUser };
+      delete updatedUser.googleCalEmail;
+      delete updatedUser.googleCalId;
+      setAuthenticatedUser(updatedUser);
+      localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
+    }
+
     setSyncStatusMsg({
       type: "success",
       text: "La synchronisation Google Calendar a été désactivée.",
@@ -3391,8 +3449,9 @@ export default function PublicPortal({
       console.error("Error fetching calendar list:", err);
     }
 
+    const liveMember = members.find((m) => m.name.trim().toLowerCase() === (authenticatedUser?.name || "").trim().toLowerCase());
     const techName = authenticatedUser?.name || "common";
-    const savedCalId = localStorage.getItem(`defib_google_cal_id_${techName}`);
+    const savedCalId = liveMember?.googleCalId || localStorage.getItem(`defib_google_cal_id_${techName}`);
     let calendarId = "";
 
     // Find any calendar matching "Défibeo", "Defibeo", or "Défibéo"
@@ -3585,7 +3644,7 @@ export default function PublicPortal({
       }
     }
 
-    return { count: missionsToSync.length };
+    return { count: missionsToSync.length, calendarId };
   };
 
   const getNextPassageZone = () => {

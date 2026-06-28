@@ -62,6 +62,8 @@ const translations = {
     softwareIdPlace: "Ex: D18, D19...",
     companyEmail: "Email entreprise",
     companyEmailPlace: "Ex: contact@medical360.com",
+    softwareName: "Nom du logiciel",
+    softwareNamePlace: "Ex: App360",
     companyPhone: "Téléphone (mobile)",
     companyPhonePlace: "06 12 34 56 78",
     adminName: "Nom et prénom",
@@ -124,6 +126,8 @@ const translations = {
     softwareIdPlace: "e.g., D18, D19...",
     companyEmail: "Company Email",
     companyEmailPlace: "e.g., contact@medical360.com",
+    softwareName: "Software Name",
+    softwareNamePlace: "e.g., App360",
     companyPhone: "Phone (mobile)",
     companyPhonePlace: "+33 6 12 34 56 78",
     adminName: "Full Name",
@@ -186,6 +190,8 @@ const translations = {
     softwareIdPlace: "z.B. D18, D19...",
     companyEmail: "Firmen-E-Mail",
     companyEmailPlace: "z.B. contact@medical360.com",
+    softwareName: "Softwarename",
+    softwareNamePlace: "z.B. App360",
     companyPhone: "Telefon (Mobil)",
     companyPhonePlace: "017 12 34 56 78",
     adminName: "Vor- & Nachname",
@@ -248,6 +254,8 @@ const translations = {
     softwareIdPlace: "Ex: D18, D19...",
     companyEmail: "E-mail da empresa",
     companyEmailPlace: "Ex: contact@medical360.com",
+    softwareName: "Nome do Software",
+    softwareNamePlace: "Ex: App360",
     companyPhone: "Telefone (celular)",
     companyPhonePlace: "912 345 678",
     adminName: "Nome completo",
@@ -310,6 +318,8 @@ const translations = {
     softwareIdPlace: "Ej: D18, D19...",
     companyEmail: "Correo electrónico de la empresa",
     companyEmailPlace: "Ej: contact@medical360.com",
+    softwareName: "Nombre del Software",
+    softwareNamePlace: "Ej: App360",
     companyPhone: "Teléfono (móvil)",
     companyPhonePlace: "612 34 56 78",
     adminName: "Nombre y apellido",
@@ -488,6 +498,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
            !isCheckingId;
   }, [reportSubject, reportMessage, isDefibIdTypedValid, reportEmail, isCheckingId]);
   const [reqCompany, setReqCompany] = useState('');
+  const [reqNomLogiciel, setReqNomLogiciel] = useState('');
   const [reqTenantId, setReqTenantId] = useState('');
   const [reqCompanyEmail, setReqCompanyEmail] = useState('');
   const [reqCompanyPhone, setReqCompanyPhone] = useState('');
@@ -690,7 +701,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
     setReqError('');
 
     try {
-      if (!reqCompany.trim() || !reqCompanyEmail.trim() || !reqAdminName.trim() || !reqAdminEmail.trim() || !reqAdminPassword.trim()) {
+      if (!reqCompany.trim() || !reqNomLogiciel.trim() || !reqCompanyEmail.trim() || !reqAdminName.trim() || !reqAdminEmail.trim() || !reqAdminPassword.trim()) {
         throw new Error('Veuillez remplir tous les champs obligatoires.');
       }
 
@@ -702,6 +713,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         adminEmail: reqAdminEmail.trim(),
         adminPasswordHexOrPlain: reqAdminPassword.trim(),
         lang: reqLang,
+        nomLogiciel: reqNomLogiciel.trim(),
       });
 
       console.log('Successfully registered environment tenant ID:', tenantId);
@@ -1248,6 +1260,24 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                       />
                     </div>
 
+                    {/* Nom du logiciel */}
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-bold text-black font-sans">
+                        {t.softwareName}
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={reqNomLogiciel}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^a-zA-Z0-9]/g, '');
+                          setReqNomLogiciel(val);
+                        }}
+                        className="block w-full"
+                        placeholder={t.softwareNamePlace}
+                      />
+                    </div>
+
                     {/* Email entreprise */}
                     <div className="space-y-1">
                       <label className="block text-[11px] font-bold text-black font-sans">
@@ -1257,7 +1287,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                         type="email"
                         required
                         value={reqCompanyEmail}
-                        onChange={(e) => setReqCompanyEmail(e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setReqCompanyEmail(val);
+                          if (reqAdminEmail === reqCompanyEmail || reqAdminEmail === '') {
+                            setReqAdminEmail(val);
+                          }
+                        }}
                         className="block w-full"
                         placeholder={t.companyEmailPlace}
                       />

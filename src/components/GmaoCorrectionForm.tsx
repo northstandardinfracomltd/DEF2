@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { REGIONS_FRANCAISES } from '../utils';
+import { getRegionsForCountry } from '../utils/regions';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -321,7 +322,9 @@ export default function GmaoCorrectionForm({
       const varObj = variables.find(v => v.id === st.denominationPieceId);
       if (category && varObj?.category !== category) return;
       
-      const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+      const denom = varObj
+        ? (varObj.marque && varObj.marque !== 'Standard' ? `${varObj.nom} (${varObj.marque})` : varObj.nom)
+        : `Pièce (${st.id})`;
       
       if (st.traceabilityEnabled && st.traceabilities) {
         st.traceabilities.forEach(trace => {
@@ -363,7 +366,9 @@ export default function GmaoCorrectionForm({
       
       if (isElectrodeOrBatteryOrDefibOrCoffretOrService) return;
       
-      const denom = varObj ? `${varObj.nom} (${varObj.marque})` : `Pièce (${st.id})`;
+      const denom = varObj
+        ? (varObj.marque && varObj.marque !== 'Standard' ? `${varObj.nom} (${varObj.marque})` : varObj.nom)
+        : `Pièce (${st.id})`;
       
       if (st.traceabilityEnabled && st.traceabilities) {
         st.traceabilities.forEach(trace => {
@@ -2007,7 +2012,9 @@ export default function GmaoCorrectionForm({
                           <>
                             {serviceStocks.map(st => {
                               const variable = variables.find(v => v.id === st.denominationPieceId);
-                              const label = variable ? `${variable.nom} (${variable.marque})` : 'Service Inconnu';
+                              const label = variable
+                                ? (variable.marque && variable.marque !== 'Standard' ? `${variable.nom} (${variable.marque})` : variable.nom)
+                                : 'Service Inconnu';
                               return (
                                 <option key={st.id} value={st.id}>
                                   {label} — {st.prixVenteHt} € HT
@@ -2016,7 +2023,7 @@ export default function GmaoCorrectionForm({
                             })}
                             {serviceVariablesOnly.map(v => (
                               <option key={v.id} value={v.id}>
-                                {v.nom} ({v.marque}) — 150 € HT (Virtuel)
+                                {v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''} — 150 € HT (Virtuel)
                               </option>
                             ))}
                           </>
@@ -2284,7 +2291,7 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-850 cursor-pointer"
                 >
                   <option value="">Sélectionnez une région.</option>
-                  {REGIONS_FRANCAISES.map(r => (
+                  {getRegionsForCountry(snapshot.pays || 'France').map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>

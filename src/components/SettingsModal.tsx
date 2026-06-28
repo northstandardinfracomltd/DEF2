@@ -23,6 +23,7 @@ import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFir
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded } from '../utils/emailService';
 import { setLanguage, t } from '../utils/translate';
 import { REGIONS_FRANCAISES } from '../utils';
+import { getRegionsForCountry } from '../utils/regions';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -546,6 +547,27 @@ export default function SettingsModal({
     const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
 
     try {
+      if (!localCompany.name || !localCompany.name.trim()) {
+        alert("Le champ 'Nom commercial' est requis.");
+        setIsSaving(false);
+        setIsVerifyingEmail(false);
+        return;
+      }
+
+      if (!localCompany.email || !localCompany.email.trim()) {
+        alert("Le champ 'Email de l'entreprise' est requis.");
+        setIsSaving(false);
+        setIsVerifyingEmail(false);
+        return;
+      }
+
+      if (!localCompany.nomLogiciel || !localCompany.nomLogiciel.trim()) {
+        alert("Le champ 'Nom du logiciel' est requis.");
+        setIsSaving(false);
+        setIsVerifyingEmail(false);
+        return;
+      }
+
       // Check for duplicate location assignments among technicians
       const locationsAssigned = new Set<string>();
       for (const m of localMembers) {
@@ -851,7 +873,9 @@ export default function SettingsModal({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[16px] font-bold text-black font-sans">{t("Nom commercial")}.</label>
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Nom commercial")} <span className="text-red-500">*</span>.
+                </label>
                 <input
                   type="text"
                   value={localCompany.name}
@@ -884,7 +908,9 @@ export default function SettingsModal({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[16px] font-bold text-black font-sans">{t("Email de l’entreprise")}.</label>
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Email de l’entreprise")} <span className="text-red-500">*</span>.
+                </label>
                 <input
                   type="email"
                   value={localCompany.email}
@@ -906,14 +932,16 @@ export default function SettingsModal({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-[16px] font-bold text-black font-sans">{t("Nom du logiciel")}.</label>
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Nom du logiciel")} <span className="text-red-500">*</span>.
+                </label>
                 <input
                   type="text"
                   value={localCompany.nomLogiciel ?? ''}
-                  onChange={(e) => handleCompanyChange('nomLogiciel', e.target.value)}
+                  onChange={(e) => handleCompanyChange('nomLogiciel', e.target.value.replace(/[^a-zA-Z0-9]/g, ''))}
                   className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
                   style={{ backgroundColor: '#ffffff' }}
-                  placeholder={t("Entrez un nom pour votre logiciel")}
+                  placeholder={t("Ex: App360")}
                 />
               </div>
 
@@ -1510,7 +1538,7 @@ export default function SettingsModal({
                                        style={{ height: '36px', padding: '6px 10px' }}
                                      >
                                        <option value="">{t("Choisir une région")}</option>
-                                       {REGIONS_FRANCAISES.map(r => (
+                                       {getRegionsForCountry(m.startAddressCountry || 'France').map(r => (
                                          <option key={r} value={r}>{r}</option>
                                        ))}
                                      </select>

@@ -25,6 +25,7 @@ export interface Tenant {
   lang: string;
   createdAt: string;
   shortEnvId?: string;
+  nomLogiciel?: string;
 }
 
 let currentTenantId: string = localStorage.getItem('defib_tenant_id') || 'demo';
@@ -403,7 +404,8 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     logo: "",
     website: `${tenantData.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.defibeo.com`,
     email: tenantData.companyEmail,
-    phone: tenantData.companyPhone
+    phone: tenantData.companyPhone,
+    nomLogiciel: tenantData.nomLogiciel || tenantData.companyName || "Défibeo Suite"
   };
 
   const customMembers = [

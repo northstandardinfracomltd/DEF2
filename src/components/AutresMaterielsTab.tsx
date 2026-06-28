@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { OtherEquipment, Client } from '../types';
 import { Plus, Search, Trash2, Edit } from 'lucide-react';
 import { generateRandomShortCode } from '../utils';
+import { getRegionsForCountry } from '../utils/regions';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -1750,19 +1751,9 @@ export default function AutresMaterielsTab({
                     <label className="block text-[11px] font-bold text-slate-500 uppercase">Région.</label>
                     <select value={region} onChange={(e) => setRegion(e.target.value)}>
                       <option value="">Sélectionner une région...</option>
-                      <option value="Île-de-France">Île-de-France</option>
-                      <option value="Provence-Alpes-Côte d'Azur">Provence-Alpes-Côte d'Azur</option>
-                      <option value="Auvergne-Rhône-Alpes">Auvergne-Rhône-Alpes</option>
-                      <option value="Nouvelle-Aquitaine">Nouvelle-Aquitaine</option>
-                      <option value="Occitanie">Occitanie</option>
-                      <option value="Hauts-de-France">Hauts-de-France</option>
-                      <option value="Grand Est">Grand Est</option>
-                      <option value="Pays de la Loire">Pays de la Loire</option>
-                      <option value="Bretagne">Bretagne</option>
-                      <option value="Normandie">Normandie</option>
-                      <option value="Bourgogne-Franche-Comté">Bourgogne-Franche-Comté</option>
-                      <option value="Centre-Val de Loire">Centre-Val de Loire</option>
-                      <option value="Corse">Corse</option>
+                      {getRegionsForCountry(pays).map(r => (
+                        <option key={r} value={r}>{r}</option>
+                      ))}
                     </select>
                   </div>
 

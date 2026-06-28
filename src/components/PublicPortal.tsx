@@ -55,6 +55,7 @@ import {
   VeilleRecord,
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
+import { getRegionsForCountry } from "../utils/regions";
 import { getLanguage } from "../utils/translate";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import GmaoCorrectionForm from "./GmaoCorrectionForm";
@@ -8826,7 +8827,7 @@ export default function PublicPortal({
                               className="w-full bg-white focus:border-indigo-500 appearance-none"
                             >
                               <option value="">Choisir une région</option>
-                              {REGIONS_FRANCAISES.map((r) => (
+                              {getRegionsForCountry(techStartCountry || 'France').map((r) => (
                                 <option key={r} value={r}>{r}</option>
                               ))}
                             </select>

@@ -196,6 +196,7 @@ import {
   generateRandomShortCode,
   computeProchaineMaintenance
 } from '../utils';
+import { getRegionsForCountry, REGIONS_BY_COUNTRY } from '../utils/regions';
 import {
   Plus,
   Search,
@@ -2962,7 +2963,7 @@ export default function DefibTab({
                           className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
                         >
                           <option value="">Choisir une région.</option>
-                          {REGIONS_FRANCAISES.map(r => (
+                          {getRegionsForCountry(pays).map(r => (
                             <option key={r} value={r}>{r}</option>
                           ))}
                         </select>
@@ -4794,7 +4795,7 @@ export default function DefibTab({
                   style={filterInputStyle}
                 >
                   <option value="Tous">Toutes régions.</option>
-                  {REGIONS_FRANCAISES.map(r => (
+                  {Array.from(new Set(Object.values(REGIONS_BY_COUNTRY).flat())).map(r => (
                     <option key={r} value={r}>{r}</option>
                   ))}
                 </select>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification, VeilleRecord } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -36,6 +36,7 @@ import TicketsCaisseTab from './components/TicketsCaisseTab';
 import TempsTab from './components/TempsTab';
 import LocalisationsTab from './components/LocalisationsTab';
 import SatisfactionTab from './components/SatisfactionTab';
+import VeillesTab from './components/VeillesTab';
 import GmaoCorrectionForm from './components/GmaoCorrectionForm';
 import ImportExportTab from './components/ImportExportTab';
 import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from './utils/fsmOptimizer';
@@ -103,6 +104,7 @@ export type AppTab =
   | 'ged'
   | 'tickets'
   | 'temps'
+  | 'veilles'
   | 'localisations'
   | 'satisfaction'
   | 'statistiques'
@@ -854,6 +856,36 @@ export default function App() {
       ] : [];
       setExpenses(defaultExpenses);
       localStorage.setItem(key, JSON.stringify(defaultExpenses));
+    }
+  }, [isPublicPortalOpen, activeTab, tenantId]);
+
+  // Load veilles from localStorage when portal closes or tab changes
+  const [veilles, setVeilles] = useState<VeilleRecord[]>([]);
+  useEffect(() => {
+    const key = `defib_${tenantId}_veilles`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setVeilles(JSON.parse(saved));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      const defaultVeilles = tenantId === 'demo' ? [
+        {
+          id: 'veille-1',
+          commune: 'Nantes',
+          volume: 12,
+          mainteneurActuel: 'Défibeo SAV',
+          prochaineMaintenance: '2026-12-15',
+          contactNomPrenom: 'Jean Dupont',
+          contactEmail: 'jean.dupont@nantes.fr',
+          contactTelephone: '0140000000',
+          createdAt: '2026-06-27 10:00:00'
+        }
+      ] : [];
+      setVeilles(defaultVeilles);
+      localStorage.setItem(key, JSON.stringify(defaultVeilles));
     }
   }, [isPublicPortalOpen, activeTab, tenantId]);
 
@@ -2208,6 +2240,18 @@ export default function App() {
     }
   };
 
+  const saveVeilles = (updated: VeilleRecord[]) => {
+    setVeilles(updated);
+    try {
+      localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify(updated));
+    } catch (e) {
+      console.warn('Storage quota exceeded in saveVeilles:', e);
+    }
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('veilles', updated);
+    }
+  };
+
   const savePointages = (updated: PointageLog[]) => {
     setPointages(updated);
     try {
@@ -2279,7 +2323,7 @@ export default function App() {
           fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
           fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
           fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance,
-          fDistributedStocks, fAchatsFournisseurs, fNotifications
+          fDistributedStocks, fAchatsFournisseurs, fNotifications, fVeilles
         ] = await Promise.all([
           fetchCollectionFromFirestore<Client[]>('clients'),
           fetchCollectionFromFirestore<Variable[]>('variables'),
@@ -2300,7 +2344,8 @@ export default function App() {
           fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance'),
           fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks'),
           fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs'),
-          fetchCollectionFromFirestore<AppNotification[]>('notifications')
+          fetchCollectionFromFirestore<AppNotification[]>('notifications'),
+          fetchCollectionFromFirestore<VeilleRecord[]>('veilles')
         ]);
 
         // Helper block to query local storage fallback safely when firestore responds with null/error
@@ -2516,6 +2561,28 @@ export default function App() {
         }
         setExpenses(baseExpenses);
         localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(baseExpenses));
+
+        let baseVeilles: VeilleRecord[] = [];
+        if (fVeilles !== null) {
+          baseVeilles = fVeilles;
+        } else {
+          const defaultVeilles = tenantId === 'demo' ? [
+            {
+              id: 'veille-1',
+              commune: 'Nantes',
+              volume: 12,
+              mainteneurActuel: 'Défibeo SAV',
+              prochaineMaintenance: '2026-12-15',
+              contactNomPrenom: 'Jean Dupont',
+              contactEmail: 'jean.dupont@nantes.fr',
+              contactTelephone: '0140000000',
+              createdAt: '2026-06-27 10:00:00'
+            }
+          ] : [];
+          baseVeilles = getFallback<VeilleRecord[]>('veilles', defaultVeilles);
+        }
+        setVeilles(baseVeilles);
+        localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify(baseVeilles));
 
         let baseReports: any[] = [];
         if (fReports !== null) {
@@ -2806,6 +2873,17 @@ export default function App() {
       }
     }
   }, [expenses, isFirebaseLoaded, tenantId]);
+
+  useEffect(() => {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      saveCollectionToFirestore('veilles', veilles);
+      try {
+        localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify(veilles));
+      } catch (e) {
+        console.warn('Storage quota exceeded for veilles:', e);
+      }
+    }
+  }, [veilles, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
@@ -3831,6 +3909,8 @@ export default function App() {
         onUpdatePointages={savePointages}
         expenses={expenses}
         onUpdateExpenses={saveExpenses}
+        veilles={veilles}
+        onUpdateVeilles={saveVeilles}
         commercialDocs={commercialDocs}
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
@@ -3923,6 +4003,8 @@ export default function App() {
         onUpdatePointages={savePointages}
         expenses={expenses}
         onUpdateExpenses={saveExpenses}
+        veilles={veilles}
+        onUpdateVeilles={saveVeilles}
         commercialDocs={commercialDocs}
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
@@ -4032,6 +4114,7 @@ export default function App() {
             { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
             { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
             { id: 'notifications', label: 'Notifications', icon: Bell },
+            { id: 'veilles', label: t('Relevés de veille'), icon: ClipboardList },
           ].map((tab) => {
             return (
               <button
@@ -7401,6 +7484,21 @@ export default function App() {
             <TempsTab
               pointages={pointages}
               onUpdatePointages={(updated) => savePointages(updated)}
+            />
+          )}
+
+          {/* ======================================= */}
+          {/* RELEVÉS DE VEILLE MODULE */}
+          {/* ======================================= */}
+          {activeTab === 'veilles' && (
+            <VeillesTab
+              veilles={veilles}
+              onDeleteVeille={(id) => {
+                if (confirm("Voulez-vous vraiment supprimer ce relevé de veille ?")) {
+                  const updated = veilles.filter((v) => v.id !== id);
+                  saveVeilles(updated);
+                }
+              }}
             />
           )}
 

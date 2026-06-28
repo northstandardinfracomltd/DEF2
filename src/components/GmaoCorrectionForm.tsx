@@ -1783,7 +1783,7 @@ export default function GmaoCorrectionForm({
               >
                 <option value="">Sélection d’un modèle.</option>
                 {variables.filter(v => v.category === 'Modèle Défibrillateur').map(v => (
-                  <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                 ))}
               </select>
             </div>
@@ -2068,7 +2068,7 @@ export default function GmaoCorrectionForm({
                 >
                   <option value="">Sélection d’un modèle de coffret.</option>
                   {variables.filter(v => v.category === 'Modèle Coffret').map(v => (
-                    <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                    <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -2447,7 +2447,7 @@ export default function GmaoCorrectionForm({
               >
                 <option value="">Sélectionnez un modèle.</option>
                 {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
-                  <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                 ))}
               </select>
             </div>
@@ -2526,7 +2526,7 @@ export default function GmaoCorrectionForm({
                 >
                   <option value="">Sélectionnez un modèle de secours.</option>
                   {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
-                    <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                    <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -2779,7 +2779,7 @@ export default function GmaoCorrectionForm({
               >
                 <option value="">Sélectionnez un modèle.</option>
                 {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
-                  <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                 ))}
               </select>
             </div>
@@ -2846,7 +2846,7 @@ export default function GmaoCorrectionForm({
                 >
                   <option value="">Sélectionnez un modèle de secours.</option>
                   {variables.filter(v => v.category === 'Modèle Électrode').map(v => (
-                    <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                    <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -3099,7 +3099,7 @@ export default function GmaoCorrectionForm({
               >
                 <option value="">Sélectionnez un modèle.</option>
                 {variables.filter(v => v.category === 'Modèle Batterie').map(v => (
-                  <option key={v.id} value={v.id}>{v.nom} ({v.marque})</option>
+                  <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                 ))}
               </select>
             </div>
@@ -3435,20 +3435,22 @@ export default function GmaoCorrectionForm({
               {/* Spacer */}
               <div className="col-span-1 md:col-span-2 bg-white" />
 
-              <div 
-                className="col-span-1 md:col-span-2 rounded-xl p-4 leading-relaxed space-y-2 text-left"
-                style={{ background: '#ffe8f6', border: 'none', fontSize: '16px', color: '#69236d' }}
-              >
-                <div className="font-bold flex items-start home-important" style={{ color: '#69236d', fontSize: '16px' }}>
-                  <span>Important : Conformément aux manuels techniques des fabricants et aux recommandations de l'ANSM, la réalisation de tests de décharge de choc externe sur simulateur est proscrite ou déconseillée pour les modèles suivants :</span>
+              {((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France') && (
+                <div 
+                  className="col-span-1 md:col-span-2 rounded-xl p-4 leading-relaxed space-y-2 text-left"
+                  style={{ background: '#ffe8f6', border: 'none', fontSize: '16px', color: '#69236d' }}
+                >
+                  <div className="font-bold flex items-start home-important" style={{ color: '#69236d', fontSize: '16px' }}>
+                    <span>Important : Conformément aux manuels techniques des fabricants et aux recommandations de l'ANSM, la réalisation de tests de décharge de choc externe sur simulateur est proscrite ou déconseillée pour les modèles suivants :</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-1 pl-3" style={{ color: '#69236d', fontSize: '16px' }}>
+                    <li><strong style={{ color: '#69236d' }}>ZOLL</strong> : AED Plus et AED 3</li>
+                    <li><strong style={{ color: '#69236d' }}>PHILIPS</strong> : HeartStart HS1 et FRx</li>
+                    <li><strong style={{ color: '#69236d' }}>CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
+                    <li><strong style={{ color: '#69236d' }}>LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
+                  </ul>
                 </div>
-                <ul className="list-disc list-inside space-y-1 pl-3" style={{ color: '#69236d', fontSize: '16px' }}>
-                  <li><strong style={{ color: '#69236d' }}>ZOLL</strong> : AED Plus et AED 3</li>
-                  <li><strong style={{ color: '#69236d' }}>PHILIPS</strong> : HeartStart HS1 et FRx</li>
-                  <li><strong style={{ color: '#69236d' }}>CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
-                  <li><strong style={{ color: '#69236d' }}>LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
-                </ul>
-              </div>
+              )}
 
               {/* 8. Résultat du test en joules de l’électrode A */}
               <div className="space-y-1 bg-white">

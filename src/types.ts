@@ -421,6 +421,19 @@ export interface AppNotification {
   situation: 'Nouveau' | 'En cours' | 'Terminé';
 }
 
+export interface VeilleRecord {
+  id: string;
+  commune: string;
+  volume: number;
+  mainteneurActuel: string;
+  prochaineMaintenance: string; // date string YYYY-MM-DD
+  contactNomPrenom: string;
+  contactEmail: string;
+  contactTelephone: string;
+  createdAt?: string; // YYYY-MM-DD HH:mm:ss
+}
+
+
 
 
 

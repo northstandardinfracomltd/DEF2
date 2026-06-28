@@ -52,6 +52,7 @@ import {
   CommercialDocItem,
   DistributedStockLocation,
   StockMovement,
+  VeilleRecord,
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
@@ -218,6 +219,8 @@ interface PublicPortalProps {
   onUpdatePointages?: (updated: PointageLog[]) => void;
   expenses?: Expense[];
   onUpdateExpenses?: (updated: Expense[]) => void;
+  veilles?: VeilleRecord[];
+  onUpdateVeilles?: (updated: VeilleRecord[]) => void;
   onAddNotification?: (category: 'Stocks' | 'Défibrillateurs' | 'Interventions' | 'Factures & Devis' | 'Système', title: string) => void;
 }
 
@@ -274,6 +277,8 @@ export default function PublicPortal({
   onUpdatePointages,
   expenses: propExpenses,
   onUpdateExpenses,
+  veilles: propVeilles,
+  onUpdateVeilles,
   onAddNotification,
 }: PublicPortalProps) {
   const getNextDocRef = (
@@ -1298,6 +1303,7 @@ export default function PublicPortal({
     useState<Defibrillateur | null>(null);
   const [selectedOtherEquipmentUnique, setSelectedOtherEquipmentUnique] =
     useState<any | null>(null);
+  const [reportToEdit, setReportToEdit] = useState<GeneratedReport | null>(null);
   const [isLotScannerOpen, setIsLotScannerOpen] = useState(false);
   const [isSerieScannerOpen, setIsSerieScannerOpen] = useState(false);
   const [isLotAScannerOpen, setIsLotAScannerOpen] = useState(false);
@@ -1394,6 +1400,7 @@ export default function PublicPortal({
   };
 
   const sortedAndLimitedReports = [...generatedReports]
+    .filter((rep) => rep.validated !== true)
     .sort((a, b) => {
       const timeA = parseReportDate(a.date);
       const timeB = parseReportDate(b.date);
@@ -2494,6 +2501,85 @@ export default function PublicPortal({
     }
   };
 
+  // Veille state variables
+  const [veilles, setVeilles] = useState<VeilleRecord[]>(() => {
+    const envId = localStorage.getItem("defib_tenant_id") || "demo";
+    const saved = localStorage.getItem(`defib_${envId}_veilles`);
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    if (propVeilles) {
+      setVeilles(propVeilles);
+    }
+  }, [propVeilles]);
+
+  const saveVeilles = (updated: VeilleRecord[]) => {
+    setVeilles(updated);
+    const envId = localStorage.getItem("defib_tenant_id") || "demo";
+    try {
+      localStorage.setItem(`defib_${envId}_veilles`, JSON.stringify(updated));
+    } catch (e) {
+      console.warn("Storage quota exceeded for veilles in PublicPortal:", e);
+    }
+    if (onUpdateVeilles) {
+      onUpdateVeilles(updated);
+    }
+  };
+
+  // New veille form state
+  const [veilleCommune, setVeilleCommune] = useState("");
+  const [veilleVolume, setVeilleVolume] = useState("");
+  const [veilleMainteneur, setVeilleMainteneur] = useState("");
+  const [veilleProchaine, setVeilleProchaine] = useState("");
+  const [veilleContactNom, setVeilleContactNom] = useState("");
+  const [veilleContactEmail, setVeilleContactEmail] = useState("");
+  const [veilleContactTel, setVeilleContactTel] = useState("");
+
+  const [expenseSuccessMessage, setExpenseSuccessMessage] = useState("");
+  const [veilleSuccessMessage, setVeilleSuccessMessage] = useState("");
+
+  const handleAddVeille = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!veilleCommune || !veilleVolume || !veilleMainteneur || !veilleProchaine || !veilleContactNom || !veilleContactEmail || !veilleContactTel) {
+      alert("Veuillez remplir tous les champs obligatoires.");
+      return;
+    }
+
+    const newVeille: VeilleRecord = {
+      id: "veille-" + Date.now(),
+      commune: veilleCommune.trim(),
+      volume: parseFloat(veilleVolume) || 0,
+      mainteneurActuel: veilleMainteneur.trim(),
+      prochaineMaintenance: veilleProchaine,
+      contactNomPrenom: veilleContactNom.trim(),
+      contactEmail: veilleContactEmail.trim(),
+      contactTelephone: veilleContactTel.trim(),
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19)
+    };
+
+    saveVeilles([newVeille, ...veilles]);
+
+    // Reset form
+    setVeilleCommune("");
+    setVeilleVolume("");
+    setVeilleMainteneur("");
+    setVeilleProchaine("");
+    setVeilleContactNom("");
+    setVeilleContactEmail("");
+    setVeilleContactTel("");
+    
+    setVeilleSuccessMessage("Parfait! Le relevé concurrentiel est enregistré avec succès.");
+    setTimeout(() => {
+      setVeilleSuccessMessage("");
+    }, 5000);
+  };
+
   // New expense form state
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseTtc, setExpenseTtc] = useState("");
@@ -3063,7 +3149,10 @@ export default function PublicPortal({
     setExpenseHt("");
     setExpenseTva("");
     setExpensePhotoUrl("");
-    alert("Enregistré avec succès.");
+    setExpenseSuccessMessage("Parfait! Le ticket de frais est enregistré avec succès.");
+    setTimeout(() => {
+      setExpenseSuccessMessage("");
+    }, 5000);
   };
 
   const handleDeleteExpense = (id: string) => {
@@ -3657,7 +3746,8 @@ export default function PublicPortal({
                   />
                 ) : (
                   <GmaoCorrectionForm
-                    isNew={true}
+                    isNew={reportToEdit ? false : true}
+                    report={reportToEdit}
                     clients={clients}
                     variables={variables}
                     defibrillateurs={defibrillateurs}
@@ -3670,12 +3760,35 @@ export default function PublicPortal({
                     forceSmartphoneLayout={true}
                     onCancel={() => {
                       setIsReportOverlayOpen(false);
+                      setReportToEdit(null);
                       setSelectedDefibId("");
                       setSelectedDefibData(null);
                       setReportActiveTourId("");
                       setReportActivePassageNum(null);
                     }}
                     onSave={(updatedReport) => {
+                      if (reportToEdit) {
+                        const submission = {
+                          ...reportToEdit,
+                          ...updatedReport,
+                          validated: false, // Require validation in GMAO tab again
+                        };
+
+                        const updatedReports = generatedReports.map(r => r.id === reportToEdit.id ? submission : r);
+                        saveReports(updatedReports);
+
+                        alert(
+                          `Le rapport "${submission.title}" a été modifié avec succès (en attente de validation sur le logiciel principal) !`,
+                        );
+                        setIsReportOverlayOpen(false);
+                        setReportToEdit(null);
+                        setSelectedDefibId("");
+                        setSelectedDefibData(null);
+                        setReportActiveTourId("");
+                        setReportActivePassageNum(null);
+                        return;
+                      }
+
                       const reportId = "REP-" + Date.now();
                       const submission = {
                         ...updatedReport,
@@ -5485,9 +5598,9 @@ export default function PublicPortal({
                   style={{ color: "#ffffff", paddingTop: "10px" }}
                   className="font-gochi text-2xl text-center tracking-wide"
                 >
-                  {companyInfo.name.length > 25
-                    ? companyInfo.name.substring(0, 25) + "..."
-                    : companyInfo.name}
+                  {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
+                    ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
+                    : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
                 </div>
               </div>
 
@@ -5661,6 +5774,29 @@ export default function PublicPortal({
                   className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
                 >
                   <span>Frais</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("veille")}
+                  style={
+                    activeTab === "veille"
+                      ? {
+                          backgroundColor: "rgb(254, 78, 187)",
+                          color: "#ffffff",
+                          fontSize: "18px",
+                          fontWeight: "bold",
+                          borderRadius: "12px",
+                          boxShadow: "none",
+                        }
+                      : {
+                          color: "#ffffff",
+                          fontSize: "18px",
+                          fontWeight: "bold",
+                        }
+                  }
+                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <span>Relevé Concurrentiel</span>
                 </button>
 
                 <button
@@ -6530,6 +6666,38 @@ export default function PublicPortal({
                             className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
                           >
                             Télécharger PDF
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setReportToEdit(rep);
+                              setSelectedDefibId(rep.defibId || "");
+                              const defib = defibrillateurs.find(
+                                (d) =>
+                                  d.id === rep.defibId ||
+                                  d.identifiant === rep.defibIdentifiant,
+                              );
+                              if (defib) setSelectedDefibData(defib);
+                              setIsReportOverlayOpen(true);
+                            }}
+                            style={{
+                              backgroundColor: "#000000",
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                              borderRadius: "12px",
+                              padding: "12px 20px",
+                              border: "none",
+                              boxShadow:
+                                "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f",
+                              cursor: "pointer",
+                              width: "100%",
+                              marginTop: "8px",
+                            }}
+                            className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
+                          >
+                            Corriger
                           </button>
                         </div>
                       );
@@ -8035,10 +8203,10 @@ export default function PublicPortal({
                       {/* Title */}
                       <div className="space-y-1.5">
                         <label
-                          style={{ fontSize: "16px" }}
+                          style={{ fontSize: "18px" }}
                           className="block font-bold text-black select-none"
                         >
-                          Objet
+                          Objet.
                         </label>
                         <input
                           type="text"
@@ -8062,7 +8230,7 @@ export default function PublicPortal({
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <label
-                            style={{ fontSize: "16px" }}
+                            style={{ fontSize: "18px" }}
                             className="block font-bold text-black select-none"
                           >
                             Total TTC. (€) *
@@ -8087,7 +8255,7 @@ export default function PublicPortal({
 
                         <div className="space-y-1.5">
                           <label
-                            style={{ fontSize: "16px" }}
+                            style={{ fontSize: "18px" }}
                             className="block font-bold text-black select-none"
                           >
                             Total HT. (€)
@@ -8113,7 +8281,7 @@ export default function PublicPortal({
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
                           <label
-                            style={{ fontSize: "16px" }}
+                            style={{ fontSize: "18px" }}
                             className="block font-bold text-black select-none"
                           >
                             Total TVA. (€)
@@ -8138,7 +8306,7 @@ export default function PublicPortal({
                         {/* Date */}
                         <div className="space-y-1.5">
                           <label
-                            style={{ fontSize: "16px" }}
+                            style={{ fontSize: "18px" }}
                             className="block font-bold text-black select-none"
                           >
                             Date du paiement.
@@ -8163,7 +8331,7 @@ export default function PublicPortal({
                       {/* Photo select */}
                       <div className="space-y-1.5">
                         <label
-                          style={{ fontSize: "16px" }}
+                          style={{ fontSize: "18px" }}
                           className="block font-bold text-black select-none"
                         >
                           Photographie ou fichier.
@@ -8245,6 +8413,262 @@ export default function PublicPortal({
                     >
                       <span>Enregistrer</span>
                     </button>
+
+                    {expenseSuccessMessage && (
+                      <div
+                        style={{
+                          border: "none",
+                          borderRadius: "13px",
+                          fontSize: "18px",
+                          backgroundColor: "#fde5ff",
+                          color: "#a354aa",
+                          padding: "14px",
+                          textAlign: "center",
+                          fontWeight: "normal",
+                          marginTop: "12px",
+                          fontFamily: 'var(--font-sans), "Civilprom", "DefibeoMain", sans-serif',
+                        }}
+                        className="animate-fadeIn"
+                      >
+                        {expenseSuccessMessage}
+                      </div>
+                    )}
+                  </form>
+                </div>
+              )}
+
+              {/* ----------------- TAB: VEILLE ----------------- */}
+              {activeTab === "veille" && (
+                <div
+                  className="space-y-6 pb-16 animate-fadeIn"
+                  id="tab-veille-screen"
+                >
+                  <style>{`
+                    #tab-veille-screen input,
+                    #tab-veille-screen label,
+                    #tab-veille-screen input::placeholder {
+                      font-family: var(--font-sans), "Civilprom", "DefibeoMain", sans-serif !important;
+                    }
+                    #tab-veille-screen input::placeholder {
+                      font-size: 16px !important;
+                    }
+                    #tab-veille-screen input[type="date"]::-webkit-calendar-picker-indicator {
+                      display: none !important;
+                      -webkit-appearance: none !important;
+                    }
+                  `}</style>
+
+                  <form
+                    onSubmit={handleAddVeille}
+                    className="space-y-5"
+                    style={{
+                      border: "none",
+                      padding: "0",
+                      background: "transparent",
+                      boxShadow: "none",
+                    }}
+                    id="veille-main-card"
+                  >
+                    {/* Commune */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Commune.
+                      </label>
+                      <input
+                        type="text"
+                        value={veilleCommune}
+                        onChange={(e) => setVeilleCommune(e.target.value)}
+                        placeholder="Entrez une commune."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Volume */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Volume (Chiffre).
+                      </label>
+                      <input
+                        type="number"
+                        value={veilleVolume}
+                        onChange={(e) => setVeilleVolume(e.target.value)}
+                        placeholder="Entrez un volume."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Mainteneur Actuel */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Mainteneur actuel.
+                      </label>
+                      <input
+                        type="text"
+                        value={veilleMainteneur}
+                        onChange={(e) => setVeilleMainteneur(e.target.value)}
+                        placeholder="Entrez un mainteneur actuel."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Prochaine maintenance */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Prochaine maintenance.
+                      </label>
+                      <input
+                        type="date"
+                        value={veilleProchaine}
+                        onChange={(e) => setVeilleProchaine(e.target.value)}
+                        placeholder="jj/mm/aaaa"
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Contact Nom/Prénom */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Contact Nom/Prénom.
+                      </label>
+                      <input
+                        type="text"
+                        value={veilleContactNom}
+                        onChange={(e) => setVeilleContactNom(e.target.value)}
+                        placeholder="Entrez un nom et prénom."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Contact Email */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Contact Email.
+                      </label>
+                      <input
+                        type="email"
+                        value={veilleContactEmail}
+                        onChange={(e) => setVeilleContactEmail(e.target.value)}
+                        placeholder="Entrez un email."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    {/* Contact Téléphone */}
+                    <div className="space-y-2">
+                      <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">
+                        Contact Téléphone.
+                      </label>
+                      <input
+                        type="tel"
+                        value={veilleContactTel}
+                        onChange={(e) => setVeilleContactTel(e.target.value)}
+                        placeholder="Entrez un téléphone."
+                        required
+                        style={{
+                          fontSize: "16px",
+                          padding: "14px",
+                          borderRadius: "13px",
+                          border: "1px solid #dedede",
+                          outline: "none",
+                          backgroundColor: "transparent",
+                        }}
+                        className="w-full text-black focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      style={{
+                        backgroundColor: "#3556ec",
+                        color: "#fff",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                        borderRadius: "12px",
+                        padding: "14px 20px",
+                        border: "none",
+                        boxShadow:
+                          "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                        cursor: "pointer",
+                        width: "100%",
+                      }}
+                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold mt-4"
+                    >
+                      <span>Enregistrer</span>
+                    </button>
+
+                    {veilleSuccessMessage && (
+                      <div
+                        style={{
+                          border: "none",
+                          borderRadius: "13px",
+                          fontSize: "18px",
+                          backgroundColor: "#fde5ff",
+                          color: "#a354aa",
+                          padding: "14px",
+                          textAlign: "center",
+                          fontWeight: "normal",
+                          marginTop: "12px",
+                          fontFamily: 'var(--font-sans), "Civilprom", "DefibeoMain", sans-serif',
+                        }}
+                        className="animate-fadeIn"
+                      >
+                        {veilleSuccessMessage}
+                      </div>
+                    )}
                   </form>
                 </div>
               )}
@@ -8255,6 +8679,14 @@ export default function PublicPortal({
                   className="space-y-6 pb-16 animate-fadeIn"
                   id="tab-localisation-screen"
                 >
+                  <style>{`
+                    #tab-localisation-screen input,
+                    #tab-localisation-screen select,
+                    #tab-localisation-screen label,
+                    #tab-localisation-screen input::placeholder {
+                      font-family: var(--font-sans), "Civilprom", "DefibeoMain", sans-serif !important;
+                    }
+                  `}</style>
                   <form
                     onSubmit={handleSaveLocalisation}
                     className="space-y-5"
@@ -8268,12 +8700,12 @@ export default function PublicPortal({
                   >
                     <div className="space-y-4">
                       {/* Live map link */}
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5" style={{ marginTop: "24px" }}>
                         <label
-                          style={{ fontSize: "16px" }}
-                          className="block font-bold text-black select-none"
+                          style={{ fontSize: "18px", color: "#000000" }}
+                          className="block font-bold select-none"
                         >
-                          Lien de partage de localisation Google Maps. *
+                          Lien de partage de localisation Google Maps.
                         </label>
                         <input
                           type="text"
@@ -8293,14 +8725,10 @@ export default function PublicPortal({
                       </div>
 
                       {/* Mon adresse structured fields */}
-                      <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                        <div className="flex items-center gap-2 border-b border-slate-200/80 pb-2 mb-1">
-                          <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Mon adresse.</span>
-                        </div>
-
+                      <div className="space-y-4" style={{ marginTop: "32px" }}>
                         {/* Numéro et voie */}
-                        <div className="space-y-1">
-                          <label className="block text-xs font-bold text-slate-500 uppercase">Numéro et voie *</label>
+                        <div className="space-y-1" style={{ marginTop: "24px" }}>
+                          <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Numéro et voie.</label>
                           <input
                             type="text"
                             required
@@ -8309,19 +8737,20 @@ export default function PublicPortal({
                             placeholder="Ex: 15 Rue de la Paix"
                             style={{
                               fontSize: "15px",
-                              padding: "12px",
+                              padding: "14px",
                               borderRadius: "10px",
                               border: "1px solid #dedede",
                               outline: "none",
+                              color: "#000000",
                             }}
-                            className="w-full bg-white focus:border-indigo-500"
+                            className="w-full bg-white focus:border-indigo-500 font-sans"
                           />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Ville */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Ville *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Ville.</label>
                             <input
                               type="text"
                               required
@@ -8330,18 +8759,19 @@ export default function PublicPortal({
                               placeholder="Ex: Paris"
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
                               }}
-                              className="w-full bg-white focus:border-indigo-500"
+                              className="w-full bg-white focus:border-indigo-500 font-sans"
                             />
                           </div>
 
                           {/* Code postal */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Code postal *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Code postal.</label>
                             <input
                               type="text"
                               required
@@ -8350,12 +8780,13 @@ export default function PublicPortal({
                               placeholder="Ex: 75002"
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
                               }}
-                              className="w-full bg-white focus:border-indigo-500 font-mono"
+                              className="w-full bg-white focus:border-indigo-500 font-sans"
                             />
                           </div>
                         </div>
@@ -8363,19 +8794,23 @@ export default function PublicPortal({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Région */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Région *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Région.</label>
                             <select
                               required
                               value={techStartRegion}
                               onChange={(e) => setTechStartRegion(e.target.value)}
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
+                                appearance: "none",
+                                WebkitAppearance: "none",
+                                MozAppearance: "none",
                               }}
-                              className="w-full bg-white focus:border-indigo-500"
+                              className="w-full bg-white focus:border-indigo-500 appearance-none"
                             >
                               <option value="">Choisir une région</option>
                               {REGIONS_FRANCAISES.map((r) => (
@@ -8386,19 +8821,23 @@ export default function PublicPortal({
 
                           {/* Pays */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Pays *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Pays.</label>
                             <select
                               required
                               value={techStartCountry}
                               onChange={(e) => setTechStartCountry(e.target.value)}
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
+                                appearance: "none",
+                                WebkitAppearance: "none",
+                                MozAppearance: "none",
                               }}
-                              className="w-full bg-white focus:border-indigo-500"
+                              className="w-full bg-white focus:border-indigo-500 appearance-none"
                             >
                               {["France", "Espagne", "Portugal", "Suisse", "Luxembourg", "Belgique", "Allemagne", "Pays-Bas", "Royaume-Uni", "Irlande", "Suède", "Pologne", "Tchéquie", "Autriche"].map((c) => (
                                 <option key={c} value={c}>{c}</option>
@@ -8410,7 +8849,7 @@ export default function PublicPortal({
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Latitude */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Latitude *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Latitude.</label>
                             <input
                               type="text"
                               required
@@ -8419,10 +8858,11 @@ export default function PublicPortal({
                               placeholder="Ex: 48.8566"
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
                               }}
                               className="w-full bg-white focus:border-indigo-500"
                             />
@@ -8430,7 +8870,7 @@ export default function PublicPortal({
 
                           {/* Longitude */}
                           <div className="space-y-1">
-                            <label className="block text-xs font-bold text-slate-500 uppercase">Longitude *</label>
+                            <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Longitude.</label>
                             <input
                               type="text"
                               required
@@ -8439,10 +8879,11 @@ export default function PublicPortal({
                               placeholder="Ex: 2.3522"
                               style={{
                                 fontSize: "15px",
-                                padding: "12px",
+                                padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
+                                color: "#000000",
                               }}
                               className="w-full bg-white focus:border-indigo-500"
                             />

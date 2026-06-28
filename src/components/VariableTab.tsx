@@ -497,7 +497,7 @@ export default function VariableTab({
               style={{
                 borderRadius: '1000px',
                 padding: '10px 20px',
-                fontSize: '15px',
+                fontSize: '18px',
                 fontWeight: 100,
                 cursor: 'pointer',
                 fontFamily: '"DefibeoMain", "Civilprom", sans-serif',

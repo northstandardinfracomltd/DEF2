@@ -55,6 +55,7 @@ import {
   VeilleRecord,
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
+import { getLanguage } from "../utils/translate";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import GmaoCorrectionForm from "./GmaoCorrectionForm";
 import GmaoOtherEquipmentCorrectionForm from "./GmaoOtherEquipmentCorrectionForm";
@@ -7825,7 +7826,12 @@ export default function PublicPortal({
                       }}
                       className="font-bold"
                     >
-                      {currentTime.toLocaleTimeString("fr-FR")}
+                      {currentTime.toLocaleTimeString(
+                        getLanguage() === "English" ? "en-US" : 
+                        getLanguage() === "Deutsch" ? "de-DE" : 
+                        getLanguage() === "Português" ? "pt-PT" : 
+                        getLanguage() === "Español" ? "es-ES" : "fr-FR"
+                      )}
                     </div>
                     <div
                       style={{
@@ -7835,12 +7841,19 @@ export default function PublicPortal({
                       }}
                       className="font-bold"
                     >
-                      {currentTime.toLocaleDateString("fr-FR", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                      {(() => {
+                        const activeLang = getLanguage();
+                        const locale = activeLang === "English" ? "en-US" : 
+                                       activeLang === "Deutsch" ? "de-DE" : 
+                                       activeLang === "Português" ? "pt-PT" : 
+                                       activeLang === "Español" ? "es-ES" : "fr-FR";
+                        return currentTime.toLocaleDateString(locale, {
+                          weekday: "long",
+                          year: "numeric",
+                          month: "long",
+                          day: "numeric",
+                        });
+                      })()}
                     </div>
                   </div>
 

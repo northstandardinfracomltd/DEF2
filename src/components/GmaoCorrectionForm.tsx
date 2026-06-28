@@ -432,6 +432,16 @@ export default function GmaoCorrectionForm({
   const [missionSite, setMissionSite] = useState<'DÉPLACEMENT' | 'ATELIER SAV'>(
     report?.siteMission === 'ATELIER SAV' ? 'ATELIER SAV' : 'DÉPLACEMENT'
   );
+  const [currentLang, setCurrentLang] = useState(() => localStorage.getItem('defib_lang') || 'Français, France');
+
+  useEffect(() => {
+    const handleLangChange = () => {
+      setCurrentLang(localStorage.getItem('defib_lang') || 'Français, France');
+    };
+    window.addEventListener('defib_lang_changed', handleLangChange);
+    return () => window.removeEventListener('defib_lang_changed', handleLangChange);
+  }, []);
+
   const [photoUrl, setPhotoUrl] = useState(report?.photoUrl || '');
   const [errorText, setErrorText] = useState('');
   const [alertInfoErrors, setAlertInfoErrors] = useState<string[]>([]);
@@ -3435,7 +3445,7 @@ export default function GmaoCorrectionForm({
               {/* Spacer */}
               <div className="col-span-1 md:col-span-2 bg-white" />
 
-              {((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France') && (
+              {(currentLang === 'Français, France') && (
                 <div 
                   className="col-span-1 md:col-span-2 rounded-xl p-4 leading-relaxed space-y-2 text-left"
                   style={{ background: '#ffe8f6', border: 'none', fontSize: '16px', color: '#69236d' }}

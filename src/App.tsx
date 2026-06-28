@@ -4114,7 +4114,7 @@ export default function App() {
             { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
             { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
             { id: 'notifications', label: 'Notifications', icon: Bell },
-            { id: 'veilles', label: t('Relevés de veille'), icon: ClipboardList },
+            { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
           ].map((tab) => {
             return (
               <button

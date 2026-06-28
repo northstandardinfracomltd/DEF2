@@ -1663,7 +1663,7 @@ export default function DefibTab({
                     id="search-defibs-input"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t('Recherche...')}
+                    placeholder={t('Recherche.')}
                     className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
                     style={searchInputStyle}
                     onMouseEnter={() => setIsSearchHovered(true)}
@@ -1870,13 +1870,15 @@ export default function DefibTab({
                   >
                     CSV
                   </button>
-                  <button
-                    onClick={handleExportToAtlasanteCSV}
-                    style={rowActionButton18Style}
-                    className="cursor-pointer"
-                  >
-                    CSV Atlasanté
-                  </button>
+                  {typeof window !== 'undefined' && (localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' && (
+                    <button
+                      onClick={handleExportToAtlasanteCSV}
+                      style={rowActionButton18Style}
+                      className="cursor-pointer"
+                    >
+                      CSV Atlasanté
+                    </button>
+                  )}
                   <button
                     onClick={handleBulkDeleteAction}
                     id="btn-bulk-delete"

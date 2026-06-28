@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { VeilleRecord } from '../types';
+import { t } from '../utils/translate';
 
 interface VeillesTabProps {
   veilles: VeilleRecord[];
@@ -79,7 +80,7 @@ export default function VeillesTab({ veilles, onDeleteVeille }: VeillesTabProps)
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
           <div>
             <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default', fontFamily: 'Gochi, sans-serif' }} id="veilles-tab-title">
-              Relevés de veille
+              {t('Relevé Concurrentiel')}
             </h2>
           </div>
 

@@ -1,9 +1,25 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc, persistentLocalCache, persistentMultipleTabManager } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc, persistentLocalCache, persistentMultipleTabManager, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { INITIAL_VARIABLES } from './utils';
-import { Member, Client } from './types';
+import {
+  INITIAL_VARIABLES,
+  INITIAL_CLIENTS,
+  INITIAL_DEFIBRILLATEURS,
+  INITIAL_OTHER_EQUIPMENTS,
+  INITIAL_TICKETS,
+  INITIAL_COMMERCIAL_DOCS,
+  INITIAL_GED_DOCS,
+  INITIAL_STOCKS,
+  INITIAL_DISTRIBUTED_STOCKS,
+  INITIAL_REVIEWS,
+  INITIAL_EXPENSES,
+  INITIAL_VEILLES,
+  INITIAL_REPORTS,
+  INITIAL_TOURS,
+  INITIAL_MEMBERS
+} from './utils';
+import { Member, Client, Defibrillateur } from './types';
 
 const app = initializeApp(firebaseConfig);
 export const db = initializeFirestore(app, {
@@ -27,6 +43,7 @@ export interface Tenant {
   shortEnvId?: string;
   nomLogiciel?: string;
   disabled?: boolean;
+  blockedForPrez?: boolean;
 }
 
 let currentTenantId: string = localStorage.getItem('defib_tenant_id') || 'demo';
@@ -73,7 +90,12 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string): P
   const key = getCollectionKey(collectionName);
   try {
     const docRef = doc(db, 'appData', key);
-    const snap = await getDoc(docRef);
+    let snap;
+    try {
+      snap = await getDocFromServer(docRef);
+    } catch {
+      snap = await getDoc(docRef);
+    }
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -194,7 +216,12 @@ export function generateUniqueShortEnvId(existingCodes: string[]): string {
 export async function getRegisteredTenants(): Promise<Tenant[]> {
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
-    const snap = await getDoc(docRef);
+    let snap;
+    try {
+      snap = await getDocFromServer(docRef);
+    } catch {
+      snap = await getDoc(docRef);
+    }
     if (snap.exists()) {
       const tenants = (snap.data().value || []) as Tenant[];
       let needsUpdate = false;
@@ -233,7 +260,12 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
 export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promise<T | null> {
   try {
     const docRef = doc(db, 'appData', rawKey);
-    const snap = await getDoc(docRef);
+    let snap;
+    try {
+      snap = await getDocFromServer(docRef);
+    } catch {
+      snap = await getDoc(docRef);
+    }
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -389,7 +421,8 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     ...restTenantData,
     id: tenantId,
     shortEnvId: assignedShortEnvId,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    blockedForPrez: true
   };
 
   // 1. Save new tenant entry back to list
@@ -422,33 +455,280 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
 
   // Store seeded partitions
   await setDoc(doc(db, 'appData', `${tenantId}_companyInfo`), { value: customCompanyInfo });
-  await setDoc(doc(db, 'appData', `${tenantId}_members`), { value: customMembers });
-  await setDoc(doc(db, 'appData', `${tenantId}_variables`), { value: [] });
   
-  // Store empty arrays for independent tables
+  // Seed the demo/dummy data automatically at creation
+  await seedTenantDemoData(tenantId);
+
+  return tenantId;
+}
+
+/**
+ * Seeds or resets an environment with full specified demo/dummy data.
+ */
+export async function seedTenantDemoData(tenantId: string): Promise<void> {
+  const tenants = await getRegisteredTenants();
+  const tenant = tenants.find(t => t.id === tenantId);
+  const adminEmail = tenant ? tenant.adminEmail : 'roesch.ronan@gmail.com';
+  const adminName = tenant ? tenant.adminName : 'Ronan Roesch';
+
+  const getSuffix = (tid: string): string => {
+    const match = tid.match(/\d+/);
+    return match ? match[0] : "1";
+  };
+  const suffix = getSuffix(tenantId);
+  const clientEmail = `demo${suffix}@demo.com`;
+  const techEmail = `techniciendemo${suffix}@demo.com`;
+
+  // Custom function to attach envId and tenantId to records for security rules
+  const addEnvFields = <T>(list: T[]): T[] => {
+    return list.map(item => ({
+      ...item,
+      envId: tenantId,
+      tenantId: tenantId
+    }));
+  };
+
+  // Reset/seed Company Info for this tenant
+  const customCompanyInfo = {
+    nom: tenant ? tenant.companyName : "Défibeo Demo",
+    adresse: "12 Rue de la Paix, 75001 Paris",
+    siret: "12345678901234",
+    email: tenant ? tenant.companyEmail : "demo@demo.com",
+    phone: tenant ? tenant.companyPhone : "0100000000",
+    nomLogiciel: tenant ? (tenant.nomLogiciel || tenant.companyName) : "Défibeo Suite"
+  };
+  await setDoc(doc(db, 'appData', getCollectionKey('companyInfo', tenantId)), { value: customCompanyInfo });
+
+  // Create brand-new, clean, completely customized client records specific to this tenant environment
+  const seededClients: Client[] = [
+    {
+      id: 'c1',
+      denomination: `Medical360 - SPO (Demo ${suffix})`,
+      siret: '12345678901234',
+      email: clientEmail,
+      phone: '+33 6 12 34 56 78',
+      accessKey: tenantId === 'demo' ? 'DEMO123' : 'ACCESS1' + suffix,
+      signaturePin: '1234',
+      nomPrenomSite: 'Jean-Marc DUPONT',
+      telephoneSite: '+33 6 12 34 56 78',
+      emailSite: clientEmail,
+      contrat: 'Oui',
+      nomContrat: 'Abonnement Maintenance Premium',
+      referenceContrat: 'REF-2026-SPO',
+      debutContrat: '2026-01-01',
+      finContrat: '2029-12-31'
+    },
+    {
+      id: 'c2',
+      denomination: `Clinique de l'Erdre (Demo ${suffix})`,
+      siret: '98765432100021',
+      email: clientEmail,
+      phone: '+33 7 98 76 54 32',
+      accessKey: 'ACCESS2' + suffix,
+      signaturePin: '5678',
+      nomPrenomSite: 'Pierre Martin',
+      telephoneSite: '+33 7 98 76 54 32',
+      emailSite: clientEmail,
+      contrat: 'Oui',
+      nomContrat: 'Contrat Sécurité Incendie',
+      referenceContrat: 'CTR-INC-1220',
+      debutContrat: '2025-06-15',
+      finContrat: '2027-06-14'
+    },
+    {
+      id: 'c3',
+      denomination: `Mairie de Bordeaux (Demo ${suffix})`,
+      siret: '55210928300012',
+      email: clientEmail,
+      phone: '+33 5 56 10 20 31',
+      accessKey: 'ACCESS3' + suffix,
+      signaturePin: '9012',
+      nomPrenomSite: 'Robert PASCAL',
+      telephoneSite: '+33 5 56 10 20 31',
+      emailSite: clientEmail,
+      contrat: 'Non',
+      nomContrat: 'Aucun contrat',
+      referenceContrat: '-',
+      debutContrat: '',
+      finContrat: ''
+    }
+  ];
+
+  const seededDefibrillateurs: Defibrillateur[] = [
+    {
+      id: 'df_demo_' + tenantId,
+      identifiant: 'SPO-D26-DAE',
+      numeroSerie: 'SN-G5-' + suffix + '001',
+      commentaire: 'Défibrillateur de démonstration Cardiac Science Powerheart G5.',
+      modeleId: 'CSPG5', // Auto-selected to the created variable (Cardiac Science Powerheart G5)
+      clientId: 'c1', // Linked to Medical360 - SPO
+      nomPrenomSite: 'Jean-Marc DUPONT',
+      telephoneSite: '+33 6 12 34 56 78',
+      emailSite: clientEmail,
+      contrat: 'Oui',
+      nomContrat: 'Abonnement Maintenance Premium',
+      referenceContrat: 'REF-2026-SPO',
+      debutContrat: '2026-01-01',
+      finContrat: '2029-12-31',
+      modeleCoffretId: '',
+      numeroLotCoffret: '',
+      commentaireCoffret: '',
+      numVoie: '12 Rue de la Paix',
+      ville: 'Paris',
+      cp: '75001',
+      region: 'Île-de-France',
+      pays: 'France',
+      latitude: '48.869',
+      longitude: '2.332',
+      commentaireAdresse: 'En intérieur, panneau mural visible depuis l\'entrée principale.',
+      acces247: false,
+      accesSemaine: true,
+      accesWeekend: false,
+      exterieur: false,
+      finGarantie: '2029-06-30',
+      fabrication: '2025-10-15',
+      miseEnService: '2026-01-15',
+      derniereMaintenance: '2026-05-15',
+      sortieFabricant: '2025-11-01',
+      modeleElectrodeAId: '',
+      lotElectrodeA: 'LOTA-99824',
+      insertionElectrodeA: '2026-01-15',
+      peremptionElectrodeA: '2028-06-01',
+      livraisonElectrodeA: '2025-11-01',
+      situationElectrodeA: 'Vert',
+      commentaireElectrodeA: 'Neuves',
+      peremptionSecoursElectrodeA: '',
+      modeleElectrodePId: '',
+      lotElectrodeP: '',
+      insertionElectrodeP: '',
+      peremptionElectrodeP: '',
+      livraisonElectrodeP: '',
+      situationElectrodeP: 'Vert',
+      commentaireElectrodeP: '',
+      peremptionSecoursElectrodeP: '',
+      modeleBatterieId: '',
+      lotBatterie: 'LOTB-00912',
+      insertionBatterie: '2026-01-15',
+      peremptionBatterie: '2030-01-15',
+      livraisonBatterie: '2025-11-01',
+      situationBatterie: 'Vert',
+      pourcentageBatterie: '100',
+      commentaireBatterie: 'Tension normale',
+      loue: 'Non',
+      prete: 'Non',
+      stocke: 'Non',
+      archive: 'Non',
+      conforme: 'Oui',
+      sousTraitance: 'Non',
+      fsmAutorise: 'Oui',
+      victimeSurvie: 'Non',
+      victimeSansSurvie: 'Non',
+      ageVictime: '0',
+      commentaireCampagneRappel: ''
+    }
+  ];
+
+  const seededTours = [
+    {
+      id: `tour-demo-${tenantId}`,
+      title: `Tournée Centre (Demo ${suffix})`,
+      techName: 'Jakub Démo',
+      startDate: new Date().toISOString().substring(0, 10),
+      status: 'À faire',
+      missions: [
+        {
+          id: `m-demo-${tenantId}-1`,
+          clientName: `Medical360 - SPO (Demo ${suffix})`,
+          defibIdentifiant: 'SPO-D26-DAE',
+          reason: 'Maintenance préventive',
+          requiredParts: ['Électrodes Adultes', 'Batterie'],
+          status: 'À faire',
+          priority: 'Normale',
+          time: '14:00'
+        }
+      ]
+    }
+  ];
+
+  const seededMembers = [
+    {
+      id: 'member-admin-' + tenantId,
+      name: adminName,
+      email: adminEmail,
+      role: 'Propriétaire / Admin',
+      pin: '1234',
+      status: 'Actif',
+      lastActive: 'En ligne'
+    },
+    {
+      id: 'member-tech-demo',
+      name: 'Jakub Démo',
+      email: techEmail,
+      role: 'Technicien',
+      pin: '1034',
+      startAddress: 'Véhicule A',
+      status: 'Actif',
+      lastActive: 'En ligne'
+    }
+  ];
+
+  // 2. Notifications: add exactly the initial system notification
+  const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const dummyNotification = {
+    id: 'notif-demo-' + Date.now(),
+    category: 'Système' as const,
+    title: 'Le super-admin vient de créer l’environnement.',
+    timestamp: nowStr,
+    situation: 'Terminé' as const,
+    envId: tenantId,
+    tenantId: tenantId
+  };
+
+  // 3. Seed every partition with the custom, clean datasets using the exact collection keys from getCollectionKey
+  await setDoc(doc(db, 'appData', getCollectionKey('clients', tenantId)), { value: addEnvFields(seededClients) });
+  await setDoc(doc(db, 'appData', getCollectionKey('variables', tenantId)), { value: addEnvFields(INITIAL_VARIABLES) });
+  await setDoc(doc(db, 'appData', getCollectionKey('defibrillateurs', tenantId)), { value: addEnvFields(seededDefibrillateurs) });
+  await setDoc(doc(db, 'appData', getCollectionKey('otherEquipments', tenantId)), { value: addEnvFields(INITIAL_OTHER_EQUIPMENTS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('tickets', tenantId)), { value: addEnvFields(INITIAL_TICKETS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('commercialDocs', tenantId)), { value: addEnvFields(INITIAL_COMMERCIAL_DOCS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('gedDocs', tenantId)), { value: addEnvFields(INITIAL_GED_DOCS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('stocks', tenantId)), { value: addEnvFields(INITIAL_STOCKS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('distributed_stocks', tenantId)), { value: addEnvFields(INITIAL_DISTRIBUTED_STOCKS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('customerReviews', tenantId)), { value: addEnvFields(INITIAL_REVIEWS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('expenses', tenantId)), { value: addEnvFields(INITIAL_EXPENSES) });
+  await setDoc(doc(db, 'appData', getCollectionKey('veilles', tenantId)), { value: addEnvFields(INITIAL_VEILLES) });
+  await setDoc(doc(db, 'appData', getCollectionKey('generatedReports', tenantId)), { value: addEnvFields(INITIAL_REPORTS) });
+  await setDoc(doc(db, 'appData', getCollectionKey('fsmTours', tenantId)), { value: addEnvFields(seededTours) });
+  await setDoc(doc(db, 'appData', getCollectionKey('members', tenantId)), { value: addEnvFields(seededMembers) });
+  await setDoc(doc(db, 'appData', getCollectionKey('notifications', tenantId)), { value: [dummyNotification] });
+
+  // Clear independent dynamic tables to complete reset
   const emptyTables = [
-    'clients',
-    'defibrillateurs',
-    'tickets',
-    'commercialDocs',
-    'gedDocs',
-    'stocks',
-    'customerReviews',
     'pointages',
-    'expenses',
-    'generatedReports',
-    'fsmTours',
-    'otherEquipments',
-    'pointagesAutoVigilance'
+    'pointagesAutoVigilance',
+    'memos',
+    'achats_fournisseurs'
   ];
 
   await Promise.all(
     emptyTables.map(tableName => 
-      setDoc(doc(db, 'appData', `${tenantId}_${tableName}`), { value: [] })
+      setDoc(doc(db, 'appData', getCollectionKey(tableName, tenantId)), { value: [] })
     )
   );
 
-  return tenantId;
+  // Clear local storage cache keys for this tenant in the current browser
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (key.includes(tenantId) || key.includes('registered_tenants'))) {
+        localStorage.removeItem(key);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to clear local storage in seedTenantDemoData:', e);
+  }
+
+  console.log(`Demo data successfully seeded for tenant ${tenantId}`);
 }
 
 /**

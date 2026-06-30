@@ -1189,7 +1189,9 @@ export default function DefibTab({
     // Reset standard fields
     setNumeroSerie('');
     setCommentaire('');
-    setModeleId('');
+    // Auto-select to the most recently created model variable, or CSPG5, or the first model
+    const defaultModel = modelesDefib.length > 0 ? modelesDefib[modelesDefib.length - 1] : null;
+    setModeleId(defaultModel ? defaultModel.id : '');
 
     // Reset client to empty, autotriggering copy
     setClientId('');

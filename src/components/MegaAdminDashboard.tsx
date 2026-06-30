@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   getRegisteredTenants, 
   db, 
-  Tenant 
+  Tenant,
+  seedTenantDemoData
 } from '../firebase';
 import { doc, setDoc } from 'firebase/firestore';
 import { 
@@ -19,7 +20,9 @@ import {
   ToggleRight, 
   CheckCircle, 
   XCircle,
-  HelpCircle
+  HelpCircle,
+  RotateCcw,
+  Calendar
 } from 'lucide-react';
 
 interface MegaAdminDashboardProps {
@@ -31,6 +34,7 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
+  const [resettingId, setResettingId] = useState<string | null>(null);
 
   const fetchTenants = async () => {
     setIsLoading(true);
@@ -75,6 +79,61 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
       await fetchTenants();
     } finally {
       setIsSyncing(null);
+    }
+  };
+
+  const handleTogglePrez = async (tenantId: string, currentBlockedStatus: boolean) => {
+    setIsSyncing(tenantId);
+    
+    // Update local state optimistically
+    const updatedList = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, blockedForPrez: !currentBlockedStatus };
+      }
+      return t;
+    });
+    setTenants(updatedList);
+
+    try {
+      // Sync to Firestore
+      const docRef = doc(db, 'appData', 'registered_tenants');
+      await setDoc(docRef, { value: updatedList });
+      
+      // Sync to local cache so other reads are coherent immediately
+      localStorage.setItem('fs_cache_registered_tenants', JSON.stringify(updatedList));
+      console.log(`Successfully toggled blockedForPrez for ${tenantId} to ${!currentBlockedStatus ? 'ON' : 'OFF'}`);
+    } catch (err) {
+      console.error('Failed to sync tenant prez block update:', err);
+      alert('Une erreur est survenue lors du basculement. Rétablissement...');
+      await fetchTenants();
+    } finally {
+      setIsSyncing(null);
+    }
+  };
+
+  const [confirmResetTenantId, setConfirmResetTenantId] = useState<string | null>(null);
+  const [showSuccessToast, setShowSuccessToast] = useState(false);
+  const [showErrorToast, setShowErrorToast] = useState(false);
+
+  const handleResetData = (tenantId: string) => {
+    setConfirmResetTenantId(tenantId);
+  };
+
+  const handleConfirmReset = async () => {
+    if (!confirmResetTenantId) return;
+    const tenantId = confirmResetTenantId;
+    setConfirmResetTenantId(null);
+    setResettingId(tenantId);
+    try {
+      await seedTenantDemoData(tenantId);
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 4000);
+    } catch (err) {
+      console.error("Failed to reset and seed tenant:", err);
+      setShowErrorToast(true);
+      setTimeout(() => setShowErrorToast(false), 4000);
+    } finally {
+      setResettingId(null);
     }
   };
 
@@ -304,6 +363,42 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
                       <p className="text-xs font-bold text-white truncate">{tnt.adminName || "—"}</p>
                       <p className="text-[11px] text-neutral-400 font-medium truncate">{tnt.adminEmail || "—"}</p>
                     </div>
+
+                    {/* Toggle "Bloqué pour RDV Prez" */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-neutral-800/50">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Bloqué pour RDV Prez</span>
+                        <span className="text-[10px] text-neutral-500 font-medium truncate">Redirige vers planification</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isCurrentlySyncing}
+                        onClick={() => handleTogglePrez(tnt.id, !!tnt.blockedForPrez)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${
+                          tnt.blockedForPrez ? 'bg-amber-600' : 'bg-neutral-800'
+                        }`}
+                        aria-label="Toggle RDV Prez block"
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                            tnt.blockedForPrez ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Reset Button */}
+                    <div className="pt-2 border-t border-neutral-800/50 flex justify-end">
+                      <button
+                        type="button"
+                        disabled={resettingId === tnt.id}
+                        onClick={() => handleResetData(tnt.id)}
+                        className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 border border-neutral-700 rounded-xl text-xs font-bold text-red-400 hover:text-red-300 transition-all cursor-pointer disabled:opacity-50"
+                      >
+                        <RotateCcw className={`w-3.5 h-3.5 ${resettingId === tnt.id ? 'animate-spin' : ''}`} />
+                        {resettingId === tnt.id ? "Réinitialisation..." : "Remise à zéro (données démo)"}
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -311,6 +406,79 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
           </div>
         )}
       </main>
+
+      {/* Custom Confirmation Modal */}
+      {confirmResetTenantId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-neutral-950/85 backdrop-blur-sm transition-opacity"
+            onClick={() => setConfirmResetTenantId(null)}
+          />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl transition-all">
+            <div className="flex flex-col items-center text-center">
+              {/* Warning Icon */}
+              <div className="w-12 h-12 rounded-full bg-red-950/50 border border-red-500/30 flex items-center justify-center mb-4 text-red-400">
+                <ShieldAlert className="w-6 h-6 animate-pulse" />
+              </div>
+              
+              <h3 className="text-lg font-bold text-neutral-100 mb-2">
+                Confirmation de réinitialisation
+              </h3>
+              
+              <p className="text-sm text-neutral-400 mb-6 leading-relaxed">
+                Êtes-vous absolument sûr de vouloir vider toutes les données actuelles de cet environnement ? <br/>
+                <strong className="text-red-400">Cette opération est définitive et irréversible.</strong> Les données de l'environnement seront rechargées exclusivement avec le record de démo spécifié.
+              </p>
+              
+              {/* Buttons */}
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => setConfirmResetTenantId(null)}
+                  className="flex-1 px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 border border-neutral-700 rounded-xl text-xs font-semibold text-neutral-300 transition-all cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmReset}
+                  className="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-500 active:bg-red-700 rounded-xl text-xs font-semibold text-white shadow-lg shadow-red-600/10 transition-all cursor-pointer"
+                >
+                  Confirmer l'exécution
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Elegant Toast Notifications */}
+      {showSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 shadow-2xl animate-bounce-short">
+          <div className="w-8 h-8 rounded-full bg-green-950 flex items-center justify-center text-green-400 border border-green-500/30">
+            <CheckCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-neutral-200">Succès !</h4>
+            <p className="text-[10px] text-neutral-400">L'environnement a été réinitialisé avec succès.</p>
+          </div>
+        </div>
+      )}
+
+      {showErrorToast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 shadow-2xl animate-bounce-short">
+          <div className="w-8 h-8 rounded-full bg-red-950 flex items-center justify-center text-red-400 border border-red-500/30">
+            <XCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-neutral-200">Erreur</h4>
+            <p className="text-[10px] text-neutral-400">Échec de la réinitialisation des données.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

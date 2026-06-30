@@ -6,6 +6,18 @@ import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
   INITIAL_DEFIBRILLATEURS,
+  INITIAL_OTHER_EQUIPMENTS,
+  INITIAL_TICKETS,
+  INITIAL_COMMERCIAL_DOCS,
+  INITIAL_GED_DOCS,
+  INITIAL_STOCKS,
+  INITIAL_DISTRIBUTED_STOCKS,
+  INITIAL_REVIEWS,
+  INITIAL_EXPENSES,
+  INITIAL_VEILLES,
+  INITIAL_REPORTS,
+  INITIAL_TOURS,
+  INITIAL_MEMBERS,
   generateRandomPin,
   formatDateToFR,
   computeProchaineMaintenance,
@@ -113,89 +125,6 @@ export type AppTab =
   | 'parametres'
   | 'import-export';
 
-const INITIAL_OTHER_EQUIPMENTS: OtherEquipment[] = [
-  {
-    id: 'oe_1',
-    identifiant: 'EXT-D18-001',
-    clientId: 'c1',
-    nomPrenomSite: 'Jean Dupont',
-    telephoneSite: '06 12 34 56 78',
-    emailSite: 'jean.dupont@secourspro.com',
-    contrat: 'Oui',
-    nomContrat: 'Contrat Maintenance Extincteurs',
-    referenceContrat: 'CTR-EXT-7729',
-    debutContrat: '2026-01-01',
-    finContrat: '2028-12-31',
-    numeroVoie: '12 Rue de la Paix',
-    ville: 'Paris',
-    codePostal: '75001',
-    region: 'Île-de-France',
-    pays: 'France',
-    latitude: '48.869',
-    longitude: '2.332',
-    aideAcces: 'Code digicode 4829',
-    accesPermanent: 'Non',
-    accesJoursOuvres: 'Oui',
-    accesWeekend: 'Non',
-    installeExterieur: 'Non',
-    expirationGarantie: '2029-06-30',
-    fabrication: '2025-10-15',
-    miseEnService: '2026-01-15',
-    derniereMaintenance: '2026-05-15',
-    sortieUsine: '2025-11-01',
-    prochaineMaintenance: '2027-05-15',
-    categorie: 'Extincteur',
-    tournee: 'Nord',
-    specifiques: {
-      agentExtincteur: 'Eau pulvérisée',
-      capacite: '6 Litres',
-      pressionConforme: 'Conforme',
-      plombGoupille: 'Présents / Intacts',
-      commentaire: 'Vérification annuelle effectuée RAS.'
-    }
-  },
-  {
-    id: 'oe_2',
-    identifiant: 'DET-D18-002',
-    clientId: 'c2',
-    nomPrenomSite: 'Pierre Martin',
-    telephoneSite: '07 98 76 54 32',
-    emailSite: 'pierre.martin@clinique-erdre.fr',
-    contrat: 'Oui',
-    nomContrat: 'Contrat Sécurité Incendie',
-    referenceContrat: 'CTR-INC-1220',
-    debutContrat: '2025-06-15',
-    finContrat: '2027-06-14',
-    numeroVoie: '105 Route de Paris',
-    ville: 'Nantes',
-    codePostal: '44000',
-    region: 'Pays de la Loire',
-    pays: 'France',
-    latitude: '47.218',
-    longitude: '-1.553',
-    aideAcces: 'Entrée principale de la clinique',
-    accesPermanent: 'Oui',
-    accesJoursOuvres: 'Oui',
-    accesWeekend: 'Oui',
-    installeExterieur: 'Non',
-    expirationGarantie: '2030-12-31',
-    fabrication: '2024-12-01',
-    miseEnService: '2025-01-10',
-    derniereMaintenance: '2026-01-10',
-    sortieUsine: '2024-12-10',
-    prochaineMaintenance: '2027-01-10',
-    categorie: 'Détecteur de fumée',
-    tournee: 'Ouest',
-    specifiques: {
-      remplacementMax: 'Décembre 2034',
-      declenchementAerosol: 'Positif',
-      testPileFaible: 'Aucun signal',
-      propreteChambre: 'Propre',
-      commentaire: 'Détecteur de fumée autonome en parfait état de marche.'
-    }
-  }
-];
-
 function isNotificationOlderThan3Months(ts?: string): boolean {
   if (!ts) return false;
   let date: Date;
@@ -226,9 +155,13 @@ export default function App() {
     return localStorage.getItem('defib_tenant_id') || 'demo';
   });
 
+  const [isBlockedByPrez, setIsBlockedByPrez] = useState<boolean>(false);
+  const [prezCountdown, setPrezCountdown] = useState<number>(5);
+
   useEffect(() => {
     if (tenantId === 'demo') {
       localStorage.setItem('defib_short_env_id', 'D18');
+      setIsBlockedByPrez(false);
     } else {
       getRegisteredTenants().then(tenants => {
         const found = tenants.find(t => t.id === tenantId);
@@ -241,8 +174,11 @@ export default function App() {
           if (found.lang) {
             setLanguage(found.lang);
           }
+          const loggedRole = localStorage.getItem('defib_logged_user_role') || '';
+          setIsBlockedByPrez(!!found.blockedForPrez && loggedRole !== 'megaadmin');
         } else {
           localStorage.setItem('defib_short_env_id', 'D18');
+          setIsBlockedByPrez(false);
         }
       }).catch(err => {
         console.error('Error fetching tenant details on startup/change:', err);
@@ -251,6 +187,7 @@ export default function App() {
   }, [tenantId]);
 
   const loadedTenantIdRef = useRef<string>('');
+  const loadedDataRef = useRef<Record<string, string>>({});
 
   const [isSatisfactionFormPage] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -288,6 +225,19 @@ export default function App() {
 
   const handleLoginSuccess = (email: string, name: string, activeTenantId?: string, loggedInRole?: string) => {
     const tenantToSet = activeTenantId || 'demo';
+    
+    // Clear old localStorage cache keys for this tenant to force a fresh, authoritative sync from Firestore
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.includes(tenantToSet) || key.includes('registered_tenants'))) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to clear cache on login success:', e);
+    }
+
     setTenantIdState(tenantToSet);
     setFirebaseTenantId(tenantToSet);
     localStorage.setItem('defib_tenant_id', tenantToSet);
@@ -301,6 +251,20 @@ export default function App() {
     const roleToSet = loggedInRole || 'admin';
     localStorage.setItem('defib_logged_user_role', roleToSet);
     setActiveTab('defibrillateurs');
+
+    // Optimistically set isBlockedByPrez if the environment is blocked
+    if (tenantToSet !== 'demo' && roleToSet !== 'megaadmin') {
+      getRegisteredTenants().then(tenants => {
+        const found = tenants.find(t => t.id === tenantToSet);
+        if (found && found.blockedForPrez) {
+          setIsBlockedByPrez(true);
+        } else {
+          setIsBlockedByPrez(false);
+        }
+      }).catch(() => {});
+    } else {
+      setIsBlockedByPrez(false);
+    }
 
     if (roleToSet === 'megaadmin') {
       return;
@@ -369,6 +333,26 @@ export default function App() {
     setIsClientPortalOpen(false);
     setActivePortalClient(null);
   };
+
+  useEffect(() => {
+    if (!isBlockedByPrez) {
+      setPrezCountdown(5);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setPrezCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleLogout();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isBlockedByPrez]);
 
   // Auto-route on initial mount or updates if already logged in as Technician or Client
   useEffect(() => {
@@ -2402,12 +2386,11 @@ export default function App() {
           return defaultVal;
         };
 
-        // Handlers to apply state or write if empty
         let baseClients: Client[] = [];
         if (fClients !== null) {
           baseClients = fClients;
         } else {
-          baseClients = getFallback<Client[]>('clients', tenantId === 'demo' ? INITIAL_CLIENTS : []);
+          baseClients = getFallback<Client[]>('clients', INITIAL_CLIENTS);
         }
 
         let clientsChanged = false;
@@ -2427,15 +2410,9 @@ export default function App() {
 
         let baseVariables: Variable[] = [];
         if (fVariables !== null) {
-          // If this is a custom tenant and they have exactly the template's custom list initialized previously,
-          // instantly clean it up to keep their private workspace clean of seed choices
-          if (tenantId !== 'demo' && (fVariables.length === 11 || fVariables.length === 13 || fVariables.length === INITIAL_VARIABLES.length) && fVariables[0]?.id === 'v_def_1') {
-            baseVariables = [];
-          } else {
-            baseVariables = fVariables;
-          }
+          baseVariables = fVariables;
         } else {
-          baseVariables = getFallback<Variable[]>('variables', tenantId === 'demo' ? INITIAL_VARIABLES : []);
+          baseVariables = getFallback<Variable[]>('variables', INITIAL_VARIABLES);
         }
         setVariables(baseVariables);
         localStorage.setItem(`defib_${tenantId}_variables`, JSON.stringify(baseVariables));
@@ -2444,7 +2421,7 @@ export default function App() {
         if (fDefibrillateurs !== null) {
           baseDefibrillateurs = fDefibrillateurs;
         } else {
-          baseDefibrillateurs = getFallback<Defibrillateur[]>('defibrillateurs', tenantId === 'demo' ? INITIAL_DEFIBRILLATEURS : []);
+          baseDefibrillateurs = getFallback<Defibrillateur[]>('defibrillateurs', INITIAL_DEFIBRILLATEURS);
         }
         setDefibrillateurs(baseDefibrillateurs);
         localStorage.setItem(`defib_${tenantId}_defibrillateurs`, JSON.stringify(baseDefibrillateurs));
@@ -2469,24 +2446,7 @@ export default function App() {
         if (fMembers !== null) {
           baseMembers = fMembers;
         } else {
-          const defaultMembers: Member[] = [
-            { name: 'Ronan Roesch', role: 'Propriétaire / Admin', email: 'roesch.ronan@gmail.com', status: 'Actif', lastActive: 'En ligne', pin: '1234' },
-            { 
-              name: 'Technicien Ouest', 
-              role: 'Maintenance Terrain', 
-              email: 'tech.ouest@defibeo.com', 
-              status: 'Actif', 
-              lastActive: 'Il y a 10 min', 
-              pin: '4321',
-              competences: [
-                "Installation et maintenance défibrillateur",
-                "Installation et maintenance extincteur",
-                "Installation et maintenance BIMP"
-              ]
-            },
-            { name: 'Secrétariat Clientèle', role: 'Support & Contrats', email: 'support@defibeo.com', status: 'Inactif', lastActive: 'Hier', pin: '0000' },
-          ];
-          baseMembers = getFallback<Member[]>('members', defaultMembers);
+          baseMembers = getFallback<Member[]>('members', INITIAL_MEMBERS);
         }
         setMembers(baseMembers);
         localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(baseMembers));
@@ -2495,12 +2455,7 @@ export default function App() {
         if (fTickets !== null) {
           baseTickets = fTickets;
         } else {
-          const defaultTickets: SupportTicket[] = tenantId === 'demo' ? [
-            { id: '#128394', identifiant: 'PAR-102', objet: 'Défibrillateur utilisé', message: 'Nous avons déployé notre DAE hier soir lors du malaise d\'un client à l\'accueil. L\'appareil nous a bien guidé, mais le lot d\'électrodes est maintenant à remplacer.', email: 'securite@hotel-paris.com', phone: '01 42 27 00 12', date: '02/06/2026', status: 'Nouveau' },
-            { id: '#495729', identifiant: 'NTS-203', objet: 'Défibrillateur hors service', message: 'Le boîtier extérieur émet un bip sonore continu et le voyant rouge clignote. Le diagnostic affiche Battery Low.', email: 'mairie@nantes-mairie.fr', phone: '02 40 12 34 56', date: '28/05/2026', status: 'En cours' },
-            { id: '#889403', identifiant: 'TLS-401', objet: 'Autre', message: 'Demande d\'ajout d\'un kit de signalétique murale DAE pour notre nouveau garage souterrain.', email: 'logistique@tls-corporate.com', phone: '05 61 77 88 99', date: '25/05/2026', status: 'Résolu' }
-          ] : [];
-          baseTickets = getFallback<SupportTicket[]>('support_tickets', defaultTickets);
+          baseTickets = getFallback<SupportTicket[]>('support_tickets', INITIAL_TICKETS);
         }
         setTickets(baseTickets);
         localStorage.setItem(`defib_${tenantId}_support_tickets`, JSON.stringify(baseTickets));
@@ -2509,11 +2464,7 @@ export default function App() {
         if (fDocs !== null) {
           baseDocs = fDocs;
         } else {
-          const defaultDocs: CommercialDoc[] = tenantId === 'demo' ? [
-            { id: 'doc-1', ref: 'DEV-2026-0419', type: 'Devis', clientId: 'c1', clientDenomination: 'Secours Pro Ouest', items: [{ variableId: 'v_el_1', nomPiece: 'Électrodes Adultes SMART II (Philips)', prixVenteHt: 89, quantite: 6 }, { variableId: 'v_bat_1', nomPiece: 'Batterie Lithium-Manganèse FRx', prixVenteHt: 199, quantite: 1 }], totalHt: 733, status: 'Brouillon', dateStr: '2026-04-19' },
-            { id: 'doc-2', ref: 'PRO-2026-0038', type: 'Proforma', clientId: 'c2', clientDenomination: "Clinique de l'Erdre", items: [{ variableId: 'v_cof_2', nomPiece: 'Aivia 200 (Extérieur, chauffé, alarmé)', prixVenteHt: 640, quantite: 1 }], totalHt: 640, status: 'Accepté', dateStr: '2026-05-15' }
-          ] : [];
-          baseDocs = getFallback<CommercialDoc[]>('commercial_docs', defaultDocs);
+          baseDocs = getFallback<CommercialDoc[]>('commercial_docs', INITIAL_COMMERCIAL_DOCS);
         }
         setCommercialDocs(baseDocs);
         localStorage.setItem(`defib_${tenantId}_commercial_docs`, JSON.stringify(baseDocs));
@@ -2522,13 +2473,7 @@ export default function App() {
         if (fGed !== null) {
           baseGed = fGed;
         } else {
-          const defaultGed = tenantId === 'demo' ? [
-            { id: 'ged-1', title: 'Notice d\'utilisation Lifeline AED', category: 'Manuel de conformité', fileName: 'Notice_Utilisation_Lifeline_AED.pdf', fileSize: '4.2 Mo', dateStr: '2026-02-12', fileUrl: 'https://v6.defibtech.com/sites/default/files/2021-02/Lifeline_AED_User_Manual_French_0.pdf' },
-            { id: 'ged-2', title: 'Réglementation Nationale Code de la Santé', category: 'Manuel de conformité', fileName: 'Reglementation_Nationale_Code_Sante.pdf', fileSize: '1.1 Mo', dateStr: '2026-01-01', fileUrl: 'https://www.legifrance.gouv.fr/' },
-            { id: 'ged-3', title: 'PV Maintenance Bordeaux - EVB-411', category: "Fiche de visite d'audit", fileName: 'PV_Maintenance_Bordeaux_EVB-411.pdf', fileSize: '890 Ko', dateStr: '2026-06-06', fileUrl: 'https://www.defibtech.com/' },
-            { id: 'ged-4', title: 'Fiche Technique Mise en Service Nantes', category: "Fiche de visite d'audit", fileName: 'Fiche_Technique_Mise_Service_Nantes.pdf', fileSize: '3.1 Mo', dateStr: '2026-06-04', fileUrl: 'https://www.defibtech.com/' }
-          ] : [];
-          baseGed = getFallback<GedDocument[]>('ged_docs', defaultGed);
+          baseGed = getFallback<GedDocument[]>('ged_docs', INITIAL_GED_DOCS);
         }
         setGedDocs(baseGed);
         localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(baseGed));
@@ -2537,15 +2482,7 @@ export default function App() {
         if (fStocks !== null) {
           baseStocks = fStocks;
         } else {
-          const defaultStocks = tenantId === 'demo' ? [
-            { id: 'st_1', denominationPieceId: 'v_el_1', quantite: 45, livraisonDate: '2026-04-12', reapprovisionnementDate: '2026-06-15', valeurAchat: 45, marge: 44, prixVenteHt: 89, stockage: 'Entrepôt A' },
-            { id: 'st_2', denominationPieceId: 'v_bat_1', quantite: 28, livraisonDate: '2026-05-18', reapprovisionnementDate: '2026-06-30', valeurAchat: 95, marge: 104, prixVenteHt: 199, stockage: 'Entrepôt A' },
-            { id: 'st_3', denominationPieceId: 'v_cof_1', quantite: 12, livraisonDate: '2026-05-20', reapprovisionnementDate: '2026-07-05', valeurAchat: 140, marge: 145, prixVenteHt: 285, stockage: 'Entrepôt B' },
-            { id: 'st_4', denominationPieceId: 'v_cof_2', quantite: 8, livraisonDate: '2026-05-22', reapprovisionnementDate: '2026-07-10', valeurAchat: 310, marge: 330, prixVenteHt: 640, stockage: 'Entrepôt B' },
-            { id: 'st_srv_1', denominationPieceId: 'v_srv_1', quantite: 9991, livraisonDate: '2026-01-01', reapprovisionnementDate: '2026-06-01', valeurAchat: 0, marge: 150, prixVenteHt: 150, stockage: 'Siège' },
-            { id: 'st_srv_2', denominationPieceId: 'v_srv_2', quantite: 9992, livraisonDate: '2026-01-01', reapprovisionnementDate: '2026-06-01', valeurAchat: 0, marge: 120, prixVenteHt: 120, stockage: 'Siège' }
-          ] : [];
-          baseStocks = getFallback<StockRecord[]>('stocks', defaultStocks);
+          baseStocks = getFallback<StockRecord[]>('stocks', INITIAL_STOCKS);
         }
         setStocks(baseStocks);
         localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(baseStocks));
@@ -2554,12 +2491,7 @@ export default function App() {
         if (fDistributedStocks !== null) {
           baseDistrib = fDistributedStocks;
         } else {
-          const defaultDistrib = tenantId === 'demo' ? [
-            { id: 'ds_1', denominationPieceId: 'v_el_1', locationName: 'Entrepôt A' as const, volumeDisponible: 15, volumeReserve: 5, volumeEntrant: 2 },
-            { id: 'ds_2', denominationPieceId: 'v_el_p_1', locationName: 'Véhicule A' as const, volumeDisponible: 8, volumeReserve: 2, volumeEntrant: 0 },
-            { id: 'ds_3', denominationPieceId: 'v_bat_1', locationName: 'Véhicule B' as const, volumeDisponible: 5, volumeReserve: 1, volumeEntrant: 3 }
-          ] : [];
-          baseDistrib = getFallback<DistributedStockLocation[]>('distributed_stocks', defaultDistrib);
+          baseDistrib = getFallback<DistributedStockLocation[]>('distributed_stocks', INITIAL_DISTRIBUTED_STOCKS);
         }
         setDistributedStocks(baseDistrib);
         localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify(baseDistrib));
@@ -2568,14 +2500,7 @@ export default function App() {
         if (fReviews !== null) {
           baseReviews = fReviews;
         } else {
-          const defaultReviews = tenantId === 'demo' ? [
-            { id: 'rev-1', clientName: 'Secours Pro Ouest (Jean-Marc DUPONT)', comment: "Excellent travail ! Le technicien Thierry a été très soigné et a remplacé les piles rapidement en expliquant le fonctionnement du boîtier thermique.", label: 'Excellent', dateStr: '2026-06-20' },
-            { id: 'rev-2', clientName: 'Espace Vert Bordeaux (Marc VIGNAL)', comment: "L'intervention s'est déroulée à l'heure convenue. Explications claires et professionnalisme au rendez-vous. Matériel de rechange disponible immédiatement.", label: 'Parfait', dateStr: '2026-06-19' },
-            { id: 'rev-3', clientName: 'Gymnase Jean Bouin (Stéphanie LEFEVRE)', comment: "Remplacement de l'appareil effectué comme prévu. Cependant, l'un des autocollants signalétiques était légèrement corné.", label: 'Moyen', dateStr: '2026-06-18' },
-            { id: 'rev-4', clientName: 'Hôtel Splendid Nantes', comment: "Le technicien a oublié de nous laisser le document papier de visite, bien que nous l'ayons reçu par e-mail peu après.", label: 'Décevant', dateStr: '2026-06-15' },
-            { id: 'rev-5', clientName: 'Camping des Pins', comment: "Délai de passage non respecté deux fois de suite, aucune notification de retard reçue. Nous attendons un geste commercial.", label: 'Médiocre', dateStr: '2026-06-10' }
-          ] : [];
-          baseReviews = getFallback<any[]>('customer_reviews', defaultReviews);
+          baseReviews = getFallback<any[]>('customer_reviews', INITIAL_REVIEWS);
         }
         setCustomerReviews(baseReviews);
         localStorage.setItem(`defib_${tenantId}_customer_reviews`, JSON.stringify(baseReviews));
@@ -2593,12 +2518,7 @@ export default function App() {
         if (fExpenses !== null) {
           baseExpenses = fExpenses;
         } else {
-          const defaultExpenses = tenantId === 'demo' ? [
-            { id: 'exp-1', techName: 'Thierry Martin', title: 'Abonnement Parking Nantes', amountTtc: 18.20, amountHt: 15.17, amountTva: 3.03, dateStr: '2026-06-02', photoUrl: 'https://images.unsplash.com/photo-1554415707-6e8cfc93fe23?w=100&auto=format&fit=crop' },
-            { id: 'exp-2', techName: 'Marc VIGNAL', title: 'Achat consommables - Électrodes Lot A3', amountTtc: 220.00, amountHt: 183.33, amountTva: 36.67, dateStr: '2026-06-03', photoUrl: '' },
-            { id: 'exp-3', techName: 'Thierry LEFEBVRE', title: 'Batteries Spécifiques Type B2 (x2)', amountTtc: 2550.00, amountHt: 2125.00, amountTva: 425.00, dateStr: '2026-06-01', photoUrl: '' }
-          ] : [];
-          baseExpenses = getFallback<any[]>('expenses', defaultExpenses);
+          baseExpenses = getFallback<any[]>('expenses', INITIAL_EXPENSES);
         }
         setExpenses(baseExpenses);
         localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(baseExpenses));
@@ -2607,20 +2527,7 @@ export default function App() {
         if (fVeilles !== null) {
           baseVeilles = fVeilles;
         } else {
-          const defaultVeilles = tenantId === 'demo' ? [
-            {
-              id: 'veille-1',
-              commune: 'Nantes',
-              volume: 12,
-              mainteneurActuel: 'Défibeo SAV',
-              prochaineMaintenance: '2026-12-15',
-              contactNomPrenom: 'Jean Dupont',
-              contactEmail: 'jean.dupont@nantes.fr',
-              contactTelephone: '0140000000',
-              createdAt: '2026-06-27 10:00:00'
-            }
-          ] : [];
-          baseVeilles = getFallback<VeilleRecord[]>('veilles', defaultVeilles);
+          baseVeilles = getFallback<VeilleRecord[]>('veilles', INITIAL_VEILLES);
         }
         setVeilles(baseVeilles);
         localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify(baseVeilles));
@@ -2629,10 +2536,7 @@ export default function App() {
         if (fReports !== null) {
           baseReports = fReports;
         } else {
-          const defaultReports = tenantId === 'demo' ? [
-            { id: 'rep-1', date: '02-06-2026 14:15', techName: 'Thierry Martin', defibId: 'df_1', defibIdentifiant: 'PAR-101', title: 'CONSTAT DE MAINTENANCE DÉFIBRILLATEUR', siteMission: 'DÉPLACEMENT', photoUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?w=100&auto=format&fit=crop' }
-          ] : [];
-          baseReports = getFallback<any[]>('generated_reports', defaultReports);
+          baseReports = getFallback<any[]>('generated_reports', INITIAL_REPORTS);
         }
         setGeneratedReports(baseReports);
         localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(baseReports));
@@ -2641,19 +2545,7 @@ export default function App() {
         if (fTours !== null) {
           baseTours = fTours;
         } else {
-          const defaultTours = tenantId === 'demo' ? [
-            {
-              id: 'fsm-tour-1',
-              title: 'Tournée Nantes Hyper-Centre',
-              techName: 'Thierry LEFEBVRE',
-              startDate: '2026-06-08',
-              status: 'À faire',
-              missions: [
-                { id: 'fsm-m-1', clientName: 'Jean-Marc DUPONT (SPO-891)', defibIdentifiant: 'PAR-101', reason: 'Remplacement B', requiredParts: ['Batterie Lithium 5 ans'], status: 'À faire', priority: 'Haute', time: '14:00' }
-              ]
-            }
-          ] : [];
-          baseTours = getFallback<any[]>('fsm_tours', defaultTours);
+          baseTours = getFallback<any[]>('fsm_tours', INITIAL_TOURS);
         }
         setFsmTours(baseTours);
         localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(baseTours));
@@ -2671,7 +2563,7 @@ export default function App() {
         if (fOtherEquipments !== null) {
           baseOtherEquip = fOtherEquipments;
         } else {
-          baseOtherEquip = getFallback<OtherEquipment[]>('other_equipments', tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : []);
+          baseOtherEquip = getFallback<OtherEquipment[]>('other_equipments', INITIAL_OTHER_EQUIPMENTS);
         }
         setOtherEquipments(baseOtherEquip);
         localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(baseOtherEquip));
@@ -2707,6 +2599,29 @@ export default function App() {
           saveCollectionToFirestore('notifications', cleanedNotifications);
         }
 
+        loadedDataRef.current = {
+          clients: JSON.stringify(sanitizedClients),
+          variables: JSON.stringify(baseVariables),
+          defibrillateurs: JSON.stringify(baseDefibrillateurs),
+          stocks: JSON.stringify(baseStocks),
+          companyInfo: JSON.stringify(baseCompanyInfo),
+          members: JSON.stringify(baseMembers),
+          tickets: JSON.stringify(baseTickets),
+          pointages: JSON.stringify(basePointages),
+          pointagesAutoVigilance: JSON.stringify(basePointagesAuto),
+          commercialDocs: JSON.stringify(baseDocs),
+          customerReviews: JSON.stringify(baseReviews),
+          notifications: JSON.stringify(cleanedNotifications),
+          gedDocs: JSON.stringify(baseGed),
+          expenses: JSON.stringify(baseExpenses),
+          veilles: JSON.stringify(baseVeilles),
+          generatedReports: JSON.stringify(baseReports),
+          fsmTours: JSON.stringify(baseTours),
+          memos: JSON.stringify(baseMemos),
+          otherEquipments: JSON.stringify(baseOtherEquip),
+          achats_fournisseurs: JSON.stringify(baseAchats),
+        };
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       } catch (err) {
@@ -2717,7 +2632,7 @@ export default function App() {
         if (savedClients) {
           offlineClients = JSON.parse(savedClients);
         } else {
-          offlineClients = tenantId === 'demo' ? INITIAL_CLIENTS : [];
+          offlineClients = INITIAL_CLIENTS;
         }
         let offlineChanged = false;
         const sanitizedOffline = offlineClients.map(c => {
@@ -2734,11 +2649,11 @@ export default function App() {
 
         const savedVariables = localStorage.getItem(`defib_${tenantId}_variables`);
         if (savedVariables) setVariables(JSON.parse(savedVariables));
-        else setVariables(tenantId === 'demo' ? INITIAL_VARIABLES : []);
+        else setVariables(INITIAL_VARIABLES);
 
         const savedDefibs = localStorage.getItem(`defib_${tenantId}_defibrillateurs`);
         if (savedDefibs) setDefibrillateurs(JSON.parse(savedDefibs));
-        else setDefibrillateurs(tenantId === 'demo' ? INITIAL_DEFIBRILLATEURS : []);
+        else setDefibrillateurs(INITIAL_DEFIBRILLATEURS);
 
         const savedCompanyInfo = localStorage.getItem(`defib_${tenantId}_company_info`);
         if (savedCompanyInfo) setCompanyInfo(JSON.parse(savedCompanyInfo));
@@ -2772,7 +2687,7 @@ export default function App() {
 
         const savedOtherEquipments = localStorage.getItem(`defib_${tenantId}_other_equipments`);
         if (savedOtherEquipments) setOtherEquipments(JSON.parse(savedOtherEquipments));
-        else setOtherEquipments(tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : []);
+        else setOtherEquipments(INITIAL_OTHER_EQUIPMENTS);
 
         const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
         if (savedPointagesHistory) setPointages(JSON.parse(savedPointagesHistory));
@@ -2801,6 +2716,29 @@ export default function App() {
           setNotifications([]);
         }
 
+        loadedDataRef.current = {
+          clients: JSON.stringify(sanitizedOffline),
+          variables: savedVariables || JSON.stringify(tenantId === 'demo' ? INITIAL_VARIABLES : []),
+          defibrillateurs: savedDefibs || JSON.stringify(tenantId === 'demo' ? INITIAL_DEFIBRILLATEURS : []),
+          stocks: savedStocks || '[]',
+          companyInfo: savedCompanyInfo || '{}',
+          members: savedMembers || '[]',
+          tickets: savedTickets || '[]',
+          pointages: savedPointagesHistory || '[]',
+          pointagesAutoVigilance: savedPointagesAutoVigilance || '[]',
+          commercialDocs: savedCommercialDocs || '[]',
+          customerReviews: '[]',
+          notifications: savedNotifications || '[]',
+          gedDocs: savedGedDocs || '[]',
+          expenses: savedExpenses || '[]',
+          veilles: '[]',
+          generatedReports: savedReports || '[]',
+          fsmTours: savedFsmTours || '[]',
+          memos: savedMemos || '[]',
+          otherEquipments: savedOtherEquipments || JSON.stringify(tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : []),
+          achats_fournisseurs: savedAchatsFournisseurs || '[]',
+        };
+
         setIsFirebaseLoaded(true);
         loadedTenantIdRef.current = tenantId;
       }
@@ -2811,173 +2749,233 @@ export default function App() {
   // Save state changes back to Firebase
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(clients);
+      if (loadedDataRef.current.clients === str) return;
       saveCollectionToFirestore('clients', clients);
-      localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(clients));
+      localStorage.setItem(`defib_${tenantId}_clients`, str);
+      loadedDataRef.current.clients = str;
     }
   }, [clients, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(variables);
+      if (loadedDataRef.current.variables === str) return;
       saveCollectionToFirestore('variables', variables);
-      localStorage.setItem(`defib_${tenantId}_variables`, JSON.stringify(variables));
+      localStorage.setItem(`defib_${tenantId}_variables`, str);
+      loadedDataRef.current.variables = str;
     }
   }, [variables, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(defibrillateurs);
+      if (loadedDataRef.current.defibrillateurs === str) return;
       saveCollectionToFirestore('defibrillateurs', defibrillateurs);
-      localStorage.setItem(`defib_${tenantId}_defibrillateurs`, JSON.stringify(defibrillateurs));
+      localStorage.setItem(`defib_${tenantId}_defibrillateurs`, str);
+      loadedDataRef.current.defibrillateurs = str;
     }
   }, [defibrillateurs, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(stocks);
+      if (loadedDataRef.current.stocks === str) return;
       saveCollectionToFirestore('stocks', stocks);
-      localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(stocks));
+      localStorage.setItem(`defib_${tenantId}_stocks`, str);
+      loadedDataRef.current.stocks = str;
     }
   }, [stocks, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(companyInfo);
+      if (loadedDataRef.current.companyInfo === str) return;
       saveCollectionToFirestore('companyInfo', companyInfo);
-      localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(companyInfo));
+      localStorage.setItem(`defib_${tenantId}_company_info`, str);
+      loadedDataRef.current.companyInfo = str;
     }
   }, [companyInfo, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(members);
+      if (loadedDataRef.current.members === str) return;
       saveCollectionToFirestore('members', members);
-      localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(members));
+      localStorage.setItem(`defib_${tenantId}_members`, str);
+      loadedDataRef.current.members = str;
     }
   }, [members, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(tickets);
+      if (loadedDataRef.current.tickets === str) return;
       saveCollectionToFirestore('tickets', tickets);
-      localStorage.setItem(`defib_${tenantId}_support_tickets`, JSON.stringify(tickets));
+      localStorage.setItem(`defib_${tenantId}_support_tickets`, str);
+      loadedDataRef.current.tickets = str;
     }
   }, [tickets, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(pointages);
+      if (loadedDataRef.current.pointages === str) return;
       saveCollectionToFirestore('pointages', pointages);
-      localStorage.setItem(`defib_${tenantId}_pointages_history`, JSON.stringify(pointages));
+      localStorage.setItem(`defib_${tenantId}_pointages_history`, str);
+      loadedDataRef.current.pointages = str;
     }
   }, [pointages, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(pointagesAutoVigilance);
+      if (loadedDataRef.current.pointagesAutoVigilance === str) return;
       saveCollectionToFirestore('pointagesAutoVigilance', pointagesAutoVigilance);
-      localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify(pointagesAutoVigilance));
+      localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, str);
+      loadedDataRef.current.pointagesAutoVigilance = str;
     }
   }, [pointagesAutoVigilance, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(commercialDocs);
+      if (loadedDataRef.current.commercialDocs === str) return;
       saveCollectionToFirestore('commercialDocs', commercialDocs);
-      localStorage.setItem(`defib_${tenantId}_commercial_docs`, JSON.stringify(commercialDocs));
+      localStorage.setItem(`defib_${tenantId}_commercial_docs`, str);
+      loadedDataRef.current.commercialDocs = str;
     }
   }, [commercialDocs, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(customerReviews);
+      if (loadedDataRef.current.customerReviews === str) return;
       saveCollectionToFirestore('customerReviews', customerReviews);
-      localStorage.setItem(`defib_${tenantId}_customer_reviews`, JSON.stringify(customerReviews));
+      localStorage.setItem(`defib_${tenantId}_customer_reviews`, str);
+      loadedDataRef.current.customerReviews = str;
     }
   }, [customerReviews, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(notifications);
+      if (loadedDataRef.current.notifications === str) return;
       saveCollectionToFirestore('notifications', notifications);
-      localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify(notifications));
+      localStorage.setItem(`defib_${tenantId}_notifications`, str);
+      loadedDataRef.current.notifications = str;
     }
   }, [notifications, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(gedDocs);
+      if (loadedDataRef.current.gedDocs === str) return;
       saveCollectionToFirestore('gedDocs', gedDocs);
       try {
-        localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify(gedDocs));
+        localStorage.setItem(`defib_${tenantId}_ged_docs`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for gedDocs:', e);
       }
+      loadedDataRef.current.gedDocs = str;
     }
   }, [gedDocs, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(expenses);
+      if (loadedDataRef.current.expenses === str) return;
       saveCollectionToFirestore('expenses', expenses);
       try {
-        localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify(expenses));
+        localStorage.setItem(`defib_${tenantId}_expenses`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for expenses:', e);
       }
+      loadedDataRef.current.expenses = str;
     }
   }, [expenses, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(veilles);
+      if (loadedDataRef.current.veilles === str) return;
       saveCollectionToFirestore('veilles', veilles);
       try {
-        localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify(veilles));
+        localStorage.setItem(`defib_${tenantId}_veilles`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for veilles:', e);
       }
+      loadedDataRef.current.veilles = str;
     }
   }, [veilles, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(generatedReports);
+      if (loadedDataRef.current.generatedReports === str) return;
       saveCollectionToFirestore('generatedReports', generatedReports);
       try {
-        localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify(generatedReports));
+        localStorage.setItem(`defib_${tenantId}_generated_reports`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for generatedReports:', e);
       }
+      loadedDataRef.current.generatedReports = str;
     }
   }, [generatedReports, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(fsmTours);
+      if (loadedDataRef.current.fsmTours === str) return;
       saveCollectionToFirestore('fsmTours', fsmTours);
       try {
-        localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify(fsmTours));
+        localStorage.setItem(`defib_${tenantId}_fsm_tours`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for fsmTours:', e);
       }
+      loadedDataRef.current.fsmTours = str;
     }
   }, [fsmTours, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(memos);
+      if (loadedDataRef.current.memos === str) return;
       saveCollectionToFirestore('memos', memos);
       try {
-        localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify(memos));
+        localStorage.setItem(`defib_${tenantId}_memos`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for memos:', e);
       }
+      loadedDataRef.current.memos = str;
     }
   }, [memos, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(otherEquipments);
+      if (loadedDataRef.current.otherEquipments === str) return;
       saveCollectionToFirestore('otherEquipments', otherEquipments);
       try {
-        localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify(otherEquipments));
+        localStorage.setItem(`defib_${tenantId}_other_equipments`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for otherEquipments:', e);
       }
+      loadedDataRef.current.otherEquipments = str;
     }
   }, [otherEquipments, isFirebaseLoaded, tenantId]);
 
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
+      const str = JSON.stringify(achatsFournisseurs);
+      if (loadedDataRef.current.achats_fournisseurs === str) return;
       saveCollectionToFirestore('achats_fournisseurs', achatsFournisseurs);
       try {
-        localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify(achatsFournisseurs));
+        localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, str);
       } catch (e) {
         console.warn('Storage quota exceeded for achatsFournisseurs:', e);
       }
+      loadedDataRef.current.achats_fournisseurs = str;
     }
   }, [achatsFournisseurs, isFirebaseLoaded, tenantId]);
 
@@ -4073,6 +4071,39 @@ export default function App() {
   const loggedRole = localStorage.getItem('defib_logged_user_role') || '';
   if (loggedRole === 'megaadmin') {
     return <MegaAdminDashboard onLogout={handleLogout} />;
+  }
+
+  if (isBlockedByPrez) {
+    const getPrezBlockMessage = () => {
+      const lang = getLanguage();
+      if (lang === 'English') {
+        return `Welcome! To get started, you must schedule an introductory call with a Défibeo specialist to guide you through your first steps. You will be logged out in ${prezCountdown} second${prezCountdown > 1 ? 's' : ''}.`;
+      } else if (lang === 'Deutsch') {
+        return `Willkommen! Um zu beginnen, müssen Sie ein Einführungsgespräch mit einem Défibeo-Spezialisten vereinbaren, der Sie bei Ihren ersten Schritten begleitet. Sie werden in ${prezCountdown} Sekunde${prezCountdown > 1 ? 'n' : ''} abgemeldet.`;
+      } else if (lang === 'Español') {
+        return `¡Bienvenido! Para empezar, debe programar una llamada de presentación con un especialista de Défibeo para que le guíe en sus primeros pasos. Se le desconectará en ${prezCountdown} segundo${prezCountdown > 1 ? 's' : ''}.`;
+      } else if (lang === 'Português') {
+        return `Bem-vindo! Para começar, deve agendar uma chamada de apresentação com um especialista Défibeo para o orientar nos seus primeiros passos. Será desconectado em ${prezCountdown} segundo${prezCountdown > 1 ? 's' : ''}.`;
+      }
+      return `Bienvenue! Pour commencer, vous devez planifier un appel de présentation avec un spécialiste Défibeo afin d'être guidé dans vos premiers pas. Vous allez être déconnecté dans ${prezCountdown} seconde${prezCountdown > 1 ? 's' : ''}.`;
+    };
+
+    return (
+      <div 
+        className="fixed inset-0 z-[99999] flex flex-col items-center justify-center text-center font-sans p-6" 
+        style={{ 
+          background: 'radial-gradient(#7e2e86, #36093a)',
+          color: '#ffffff'
+        }}
+        id="prez-block-overlay"
+      >
+        <div className="flex flex-col items-center gap-6 max-w-lg">
+          <span className="text-white text-[18px] font-sans font-medium leading-relaxed">
+            {getPrezBlockMessage()}
+          </span>
+        </div>
+      </div>
+    );
   }
 
   if (windowWidth < 1000) {

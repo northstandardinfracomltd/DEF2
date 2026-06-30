@@ -1,6 +1,7 @@
 // Multi-language translation dictionaries
 const dictionaries: Record<string, Record<string, string>> = {
   English: {
+    "Bienvenue! Pour commencer, vous devez planifier un appel de présentation avec un spécialiste Défibeo afin d'être guidé dans vos premiers pas.": "Welcome! To get started, you must schedule an introductory call with a Défibeo specialist to guide you through your first steps.",
     // Navigation / Sidebar Tabs
     "Défibrillateurs": "Defibrillators",
     "Autres matériels": "Other Equipment",
@@ -1116,6 +1117,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Identifiant unique.": "Unique identifier."
   },
   Deutsch: {
+    "Bienvenue! Pour commencer, vous devez planifier un appel de présentation avec un spécialiste Défibeo afin d'être guidé dans vos premiers pas.": "Willkommen! Um zu beginnen, müssen Sie ein Einführungsgespräch mit einem Défibeo-Spezialisten vereinbaren, der Sie bei Ihren ersten Schritten begleitet.",
     // Navigation / Sidebar Tabs
     "Défibrillateurs": "Defibrillatoren",
     "Autres matériels": "Andere Geräte",
@@ -1769,6 +1771,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Dim": "Son"
   },
   Português: {
+    "Bienvenue! Pour commencer, vous devez planifier un appel de présentation avec un spécialiste Défibeo afin d'être guidé dans vos premiers pas.": "Bem-vindo! Para começar, deve agendar uma chamada de apresentação com um especialista Défibeo para o orientar nos seus primeiros passos.",
     // Navigation / Sidebar Tabs
     "Défibrillateurs": "Desfibrilhadores",
     "Autres matériels": "Outros Equipamentos",
@@ -2423,6 +2426,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Dim": "Dom"
   },
   Español: {
+    "Bienvenue! Pour commencer, vous devez planifier un appel de présentation avec un spécialiste Défibeo afin d'être guidé dans vos premiers pas.": "¡Bienvenido! Para empezar, debe programar una llamada de presentación con un especialista de Défibeo para que le guíe en sus primeros pasos.",
     // Navigation / Sidebar Tabs
     "Défibrillateurs": "Desfibriladores",
     "Autres matériels": "Otros Equipos",

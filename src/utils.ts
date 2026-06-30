@@ -1,4 +1,4 @@
-import { Defibrillateur, Client, Variable } from './types';
+import { Defibrillateur, Client, Variable, OtherEquipment, SupportTicket, CommercialDoc, GedDocument, StockRecord, DistributedStockLocation, VeilleRecord, Member } from './types';
 
 export const REGIONS_FRANCAISES = [
   'Auvergne-Rhône-Alpes',
@@ -22,23 +22,23 @@ export function generateRandomShortCode(existingIds: string[]): string {
   
   // Dynamically determine the environment identifier using the short ID
   const tenantIdDigit = typeof window !== 'undefined' 
-    ? (localStorage.getItem('defib_short_env_id') || 'D18') 
-    : 'D18';
+    ? (localStorage.getItem('defib_short_env_id') || 'D26') 
+    : 'D26';
 
   while (attempts < 1000) {
     const l1 = letters[Math.floor(Math.random() * letters.length)];
     const l2 = letters[Math.floor(Math.random() * letters.length)];
     const l3 = letters[Math.floor(Math.random() * letters.length)];
-    const n1 = Math.floor(Math.random() * 10);
-    const n2 = Math.floor(Math.random() * 10);
-    const n3 = Math.floor(Math.random() * 10);
-    const code = `${l1}${l2}${l3}-${tenantIdDigit}-${n1}${n2}${n3}`;
+    const l4 = letters[Math.floor(Math.random() * letters.length)];
+    const l5 = letters[Math.floor(Math.random() * letters.length)];
+    const l6 = letters[Math.floor(Math.random() * letters.length)];
+    const code = `${l1}${l2}${l3}-${tenantIdDigit}-${l4}${l5}${l6}`;
     if (!existingIds.includes(code)) {
       return code;
     }
     attempts++;
   }
-  return `DAE-${tenantIdDigit}-${Math.floor(Math.random() * 900) + 100}`;
+  return `SPO-${tenantIdDigit}-DAE`;
 }
 
 export function generateRandomPin(): string {
@@ -53,14 +53,59 @@ export function generateRandomPin(): string {
   return `${randLetters}${randDigits}`;
 }
 
+export const formatDateWithOffset = (monthsOffset: number, daysOffset: number = 0): string => {
+  const d = new Date();
+  d.setMonth(d.getMonth() + monthsOffset);
+  d.setDate(d.getDate() + daysOffset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 export const INITIAL_CLIENTS: Client[] = [
   {
-    id: 'c1',
-    denomination: 'Secours Pro Ouest',
-    siret: '12345678901234',
-    email: 'contact@secours-ouest.fr',
-    phone: '+33 6 12 34 56 78',
-    accessKey: 'ABCDE12345',
+    id: 'client-demo-1',
+    denomination: 'Medical360 Demo',
+    siret: '123456',
+    email: 'demo1@demo.com',
+    phone: '0000000000',
+    accessKey: 'DEMO123',
+    signaturePin: 'DEMO1',
+    typeContact1: 'Direction',
+    nomPrenomSite: 'Jean Dupont',
+    telephoneSite: '0000000000',
+    emailSite: 'demo1@demo.com',
+    contrat: 'Oui',
+    nomContrat: 'Contrat de maintenance',
+    referenceContrat: 'REF-DEMO-01',
+    debutContrat: formatDateWithOffset(0),
+    finContrat: formatDateWithOffset(12)
+  }
+];
+
+export const INITIAL_VARIABLES: Variable[] = [
+  {
+    id: 'CSPG5',
+    category: 'Modèle Défibrillateur',
+    nom: 'Cardiac Science Powerheart G5',
+    marque: 'Cardiac Science',
+    description: 'Il s’agit d’un exemple.',
+    imageUrl: 'https://civilprom.s3.eu-north-1.amazonaws.com/Cardiac+Science+Powerheart+G5.png'
+  }
+];
+
+export const INITIAL_SPARE_PARTS: any[] = [];
+
+// Seed initial comprehensive Defibrillateurs matching new schema
+export const INITIAL_DEFIBRILLATEURS: Defibrillateur[] = [
+  {
+    id: 'df_1',
+    identifiant: 'SPO-D26-DAE',
+    numeroSerie: 'SN-G5-998124',
+    commentaire: 'Défibrillateur principal de démonstration.',
+    modeleId: 'CSPG5', // Cardiac Science Powerheart G5
+    clientId: 'c1', // Medical360 - SPO
     nomPrenomSite: 'Jean-Marc DUPONT',
     telephoneSite: '+33 6 12 34 56 78',
     emailSite: 'jm.dupont@secours-ouest.fr',
@@ -68,108 +113,66 @@ export const INITIAL_CLIENTS: Client[] = [
     nomContrat: 'Abonnement Maintenance Premium',
     referenceContrat: 'REF-2026-SPO',
     debutContrat: '2026-01-01',
-    finContrat: '2029-12-31'
-  },
-  {
-    id: 'c2',
-    denomination: 'Clinique de l\'Erdre',
-    siret: '56789012345678',
-    email: 'admin@clinique-erdre.pro',
-    phone: '+33 2 40 44 11 22',
-    accessKey: 'ERDRE54321',
-    nomPrenomSite: 'Sophie BERTRAND',
-    telephoneSite: '+33 2 40 44 11 25',
-    emailSite: 's.bertrand@sautron-ecole.fr',
-    contrat: 'Non',
-    nomContrat: 'Aucun contrat',
-    referenceContrat: '-',
-    debutContrat: '',
-    finContrat: ''
-  },
-  {
-    id: 'c3',
-    denomination: 'Mairie de Bordeaux',
-    siret: '90123456789012',
-    email: 'contact@bordeaux-mairie.fr',
-    phone: '+33 5 56 10 20 30',
-    accessKey: 'BDX8899000',
-    nomPrenomSite: 'Robert PASCAL',
-    telephoneSite: '+33 5 56 10 20 31',
-    emailSite: 'r.pascal@bordeaux-mairie.fr',
-    contrat: 'Non',
-    nomContrat: 'Aucun contrat',
-    referenceContrat: '-',
-    debutContrat: '',
-    finContrat: ''
-  },
+    finContrat: '2029-12-31',
+    modeleCoffretId: '',
+    numeroLotCoffret: '',
+    commentaireCoffret: '',
+    numVoie: '12 Rue de la Paix',
+    ville: 'Paris',
+    cp: '75001',
+    region: 'Île-de-France',
+    pays: 'France',
+    latitude: '48.869',
+    longitude: '2.332',
+    commentaireAdresse: 'Près de l\'accueil principal',
+    acces247: true,
+    accesSemaine: true,
+    accesWeekend: true,
+    exterieur: false,
+    finGarantie: '2031-01-01',
+    fabrication: '2025-12-01',
+    miseEnService: '2026-01-01',
+    derniereMaintenance: '2026-06-01',
+    sortieFabricant: '2025-12-10',
+    modeleElectrodeAId: '',
+    lotElectrodeA: '',
+    insertionElectrodeA: '',
+    peremptionElectrodeA: '',
+    livraisonElectrodeA: '',
+    situationElectrodeA: 'Vert',
+    commentaireElectrodeA: '',
+    peremptionSecoursElectrodeA: '',
+    modeleElectrodePId: '',
+    lotElectrodeP: '',
+    insertionElectrodeP: '',
+    peremptionElectrodeP: '',
+    livraisonElectrodeP: '',
+    situationElectrodeP: 'Vert',
+    commentaireElectrodeP: '',
+    peremptionSecoursElectrodeP: '',
+    modeleBatterieId: '',
+    lotBatterie: '',
+    insertionBatterie: '',
+    peremptionBatterie: '',
+    livraisonBatterie: '',
+    situationBatterie: 'Vert',
+    pourcentageBatterie: '100',
+    commentaireBatterie: '',
+    loue: 'Non',
+    prete: 'Non',
+    stocke: 'Non',
+    archive: 'Non',
+    conforme: 'Oui',
+    sousTraitance: 'Non',
+    fsmAutorise: 'Oui',
+    victimeSurvie: 'Non',
+    victimeSansSurvie: 'Non',
+    ageVictime: '0',
+    commentaireCampagneRappel: ''
+  }
 ];
 
-export const INITIAL_VARIABLES: Variable[] = [
-  // Modèles Défibrillateur
-  { id: 'v_def_1', category: 'Modèle Défibrillateur', nom: 'Philips HeartStart FRx', marque: 'Philips', description: 'Idéal pour environnements exigeants' },
-  { id: 'v_def_2', category: 'Modèle Défibrillateur', nom: 'ZOLL AED Plus', marque: 'ZOLL Medical', description: 'Assistance RCP temps réel' },
-  { id: 'v_def_3', category: 'Modèle Défibrillateur', nom: 'Physio-Control Lifepak CR2', marque: 'Physio-Control', description: 'Connectivité Wi-Fi intégrée' },
-  // Modèles de coffrets
-  { id: 'v_cof_1', category: 'Modèle Coffret', nom: 'Aivia 100 (Intérieur, non chauffé)', marque: 'Aivia', description: 'Intérieur standard' },
-  { id: 'v_cof_2', category: 'Modèle Coffret', nom: 'Aivia 200 (Extérieur, chauffé, alarmé)', marque: 'Aivia', description: 'Extérieur avec chauffage' },
-  { id: 'v_cof_3', category: 'Modèle Coffret', nom: 'DefibSafe 2 (Extérieur robuste)', marque: 'DefibSafe', description: 'Résistant aux intempéries' },
-  // Modèles d'électrodes
-  { id: 'v_el_1', category: 'Modèle Électrode', nom: 'Électrodes Adultes SMART II (Philips)', marque: 'Philips', description: 'Électrodes adultes' },
-  { id: 'v_el_2', category: 'Modèle Électrode', nom: 'CPR-D padz Monobloc (ZOLL)', marque: 'ZOLL Medical', description: 'Électrodes monobloc RCP' },
-  { id: 'v_el_p_1', category: 'Modèle Électrode', nom: 'Électrodes Pédiatriques SMART Kids', marque: 'Philips', description: 'Électrodes enfants' },
-  // Modèles de batteries
-  { id: 'v_bat_1', category: 'Modèle Batterie', nom: 'Batterie Lithium-Manganèse FRx', marque: 'Philips', description: 'Durée de vie 4 ans' },
-  { id: 'v_bat_2', category: 'Modèle Batterie', nom: 'Piles Lithium CR123A (ZOLL)', marque: 'ZOLL Medical', description: 'Lot de 10 piles lithium' },
-  // Modèles de services
-  { id: 'v_srv_1', category: 'Modèle Service', nom: 'Maintenance Préventive standard', marque: 'Défibeo', description: 'Visite de maintenance preventive annuelle standard' },
-  { id: 'v_srv_2', category: 'Modèle Service', nom: 'Mise en service DAE', marque: 'Défibeo', description: 'Déploiement et mise en service initiale DAE' },
-];
-
-export const INITIAL_SPARE_PARTS = [
-  {
-    id: 'sp_1',
-    label: 'Électrode Adulte Philips SMART II',
-    sku: 'PHIL-M5071A',
-    stock: 24,
-    price: 89.00,
-    marque: 'Philips',
-    category: 'Modèle Électrode',
-    description: 'Électrodes de rechange à usage unique pour Philips HS1/FRx.',
-  },
-  {
-    id: 'sp_2',
-    label: 'Électrode Pédiatrique SMART Kids',
-    sku: 'PHIL-M5072A',
-    stock: 8,
-    price: 119.00,
-    marque: 'Philips',
-    category: 'Modèle Électrode',
-    description: 'Cartouche d\'électrodes pédiatriques pour Philips HS1/FRx.',
-  },
-  {
-    id: 'sp_3',
-    label: 'Batterie Lithium-Manganèse Philips',
-    sku: 'PHIL-M5070A',
-    stock: 12,
-    price: 199.00,
-    marque: 'Philips',
-    category: 'Modèle Batterie',
-    description: 'Batterie longue durée (4 ans en veille) pour Philips HS1/FRx.',
-  },
-  {
-    id: 'sp_4',
-    label: 'Piles Lithium CR123A ZOLL AED (Pack)',
-    sku: 'ZOLL-8000-0807-01',
-    stock: 18,
-    price: 79.00,
-    marque: 'Zoll',
-    category: 'Modèle Batterie',
-    description: 'Lot de 10 piles lithium CR123A pour AED Plus.',
-  },
-];
-
-// Seed initial comprehensive Defibrillateurs matching new schema
-export const INITIAL_DEFIBRILLATEURS: Defibrillateur[] = [
+export const DEPRECATED_INITIAL_DEFIBRILLATEURS: Defibrillateur[] = [
   {
     id: 'df_1',
     identifiant: 'PAR-101',
@@ -748,3 +751,57 @@ export function exportToCSV(
   link.click();
   document.body.removeChild(link);
 }
+
+export const INITIAL_OTHER_EQUIPMENTS: OtherEquipment[] = [];
+
+export const INITIAL_TICKETS: SupportTicket[] = [];
+
+export const INITIAL_COMMERCIAL_DOCS: CommercialDoc[] = [];
+
+export const INITIAL_GED_DOCS: GedDocument[] = [];
+
+export const INITIAL_STOCKS: StockRecord[] = [];
+
+export const INITIAL_DISTRIBUTED_STOCKS: DistributedStockLocation[] = [];
+
+export const INITIAL_REVIEWS: any[] = [];
+
+export const INITIAL_EXPENSES: any[] = [];
+
+export const INITIAL_VEILLES: VeilleRecord[] = [];
+
+export const INITIAL_REPORTS: any[] = [];
+
+export const INITIAL_TOURS: any[] = [
+  {
+    id: 'fsm-tour-demo',
+    title: 'Exemple de tournée.',
+    techName: 'Jakub Démo',
+    startDate: formatDateWithOffset(0, 10),
+    status: 'À faire',
+    missions: [
+      {
+        id: 'fsm-m-demo',
+        clientName: 'Medical360 - SPO',
+        defibIdentifiant: 'SPO-D26-DAE',
+        reason: 'Maintenance',
+        requiredParts: [],
+        status: 'À faire',
+        priority: 'Normale',
+        time: '14:00'
+      }
+    ]
+  }
+];
+
+export const INITIAL_MEMBERS: Member[] = [
+  {
+    name: 'Jakub Démo',
+    email: 'techniciendemo1@demo.com',
+    role: 'Technicien',
+    pin: '1034',
+    startAddress: 'Véhicule A',
+    status: 'Actif',
+    lastActive: 'En ligne'
+  }
+];

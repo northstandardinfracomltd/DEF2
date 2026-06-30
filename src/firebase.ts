@@ -26,6 +26,7 @@ export interface Tenant {
   createdAt: string;
   shortEnvId?: string;
   nomLogiciel?: string;
+  disabled?: boolean;
 }
 
 let currentTenantId: string = localStorage.getItem('defib_tenant_id') || 'demo';

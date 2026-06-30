@@ -28,6 +28,7 @@ import StatsModal from './components/StatsModal';
 import PublicPortal from './components/PublicPortal';
 import ClientPortal from './components/ClientPortal';
 import Login from './components/Login';
+import MegaAdminDashboard from './components/MegaAdminDashboard';
 import StocksTab from './components/StocksTab';
 import StocksDistribuesTab from './components/StocksDistribuesTab';
 import GedTab from './components/GedTab';
@@ -300,6 +301,10 @@ export default function App() {
     const roleToSet = loggedInRole || 'admin';
     localStorage.setItem('defib_logged_user_role', roleToSet);
     setActiveTab('defibrillateurs');
+
+    if (roleToSet === 'megaadmin') {
+      return;
+    }
 
     const emailLower = email.trim().toLowerCase();
     const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === emailLower);
@@ -4063,6 +4068,11 @@ export default function App() {
 
   if (!isLoggedIn) {
     return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  const loggedRole = localStorage.getItem('defib_logged_user_role') || '';
+  if (loggedRole === 'megaadmin') {
+    return <MegaAdminDashboard onLogout={handleLogout} />;
   }
 
   if (windowWidth < 1000) {

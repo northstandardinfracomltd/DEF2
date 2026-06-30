@@ -3139,7 +3139,11 @@ export default function App() {
             <div>
               <h1 class="doc-title">${doc.type === 'Devis' ? 'DEVIS' : 'FACTURE'}</h1>
               <p style="margin: 4px 0 0 0;">Référence : ${doc.ref}</p>
-              <p style="margin: 4px 0 0 0;">Commentaire : ${doc.commentaire || ''}</p>
+              <p style="margin: 4px 0 0 0;">Remarque : ${doc.commentaire || ''}</p>
+              <p style="margin: 4px 0 0 0;">Référence du contrat : ${clientObj?.referenceContrat || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Numéro de marché : ${clientObj?.numeroMarche || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Payeur ID : ${clientObj?.payeurId || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Client ID : ${clientObj?.clientIdField || '-'}</p>
             </div>
             <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
               <div style="margin-bottom: 6px;">Client.</div>
@@ -3331,7 +3335,12 @@ export default function App() {
               <p style="margin: 4px 0 0 0;">Référence BC : ${doc.bonCommandeReference || '-'}</p>
               <p style="margin: 4px 0 0 0;">Livraison : ${doc.bonCommandeLivraison || '-'}</p>
               <p style="margin: 4px 0 0 0;">Situation : ${doc.bonCommandeSituation || '-'}</p>
-              <p style="margin: 4px 0 0 0;">Commentaire : ${doc.commentaire || ''}</p>
+              <p style="margin: 4px 0 0 0;">Remarque : ${doc.commentaire || ''}</p>
+              <p style="margin: 4px 0 0 0;">Entête : ${doc.bonCommandeEntete || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Référence du contrat : ${clientObj?.referenceContrat || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Numéro de marché : ${clientObj?.numeroMarche || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Payeur ID : ${clientObj?.payeurId || '-'}</p>
+              <p style="margin: 4px 0 0 0;">Client ID : ${clientObj?.clientIdField || '-'}</p>
             </div>
             <div style="border: 1px solid #dcdcdc; padding: 16px; border-radius: 12px; background-color: #ffffff;">
               <div style="margin-bottom: 6px;">Client.</div>

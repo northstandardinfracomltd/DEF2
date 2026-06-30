@@ -56,7 +56,7 @@ import {
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
 import { getRegionsForCountry } from "../utils/regions";
-import { getLanguage } from "../utils/translate";
+import { getLanguage, t } from "../utils/translate";
 import { BarcodeScannerModal } from "./BarcodeScannerModal";
 import GmaoCorrectionForm from "./GmaoCorrectionForm";
 import GmaoOtherEquipmentCorrectionForm from "./GmaoOtherEquipmentCorrectionForm";
@@ -66,6 +66,7 @@ import {
 } from "../utils/emailService";
 import { auth } from "../firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from "../utils/fsmOptimizer";
 
 // Helper functions for French date <-> ISO date picker compatibility
 const getIsoDate = (dateStr: string) => {
@@ -453,6 +454,134 @@ export default function PublicPortal({
   // Selected tour ID for mobile view
   const [selectedTourId, setSelectedTourId] = useState<string>("");
   const [pauseEnabled, setPauseEnabled] = useState(false);
+  const [showConfirmRecalculate, setShowConfirmRecalculate] = useState(false);
+
+  const handleRecalculateTour = async () => {
+    const activeToursSource = fsmTours && fsmTours.length > 0
+      ? fsmTours
+      : (() => {
+          const raw = localStorage.getItem("defib_fsm_tours");
+          return raw ? JSON.parse(raw) : [];
+        })();
+
+    if (!selectedTourId || !activeToursSource || activeToursSource.length === 0) return;
+    const tour = activeToursSource.find((t: any) => t.id === selectedTourId);
+    if (!tour) return;
+
+    if (!tour.techName || tour.techName === "Aucun" || tour.techName.trim() === "") {
+      alert(t("Aucun technicien n'est configuré pour cette tournée."));
+      return;
+    }
+
+    const tech = members.find(
+      (m) => m.name.trim().toLowerCase() === tour.techName.trim().toLowerCase()
+    );
+    const hasTechStructured = tech && tech.startAddressLat !== undefined && tech.startAddressLng !== undefined;
+    const hasTechString = tech && tech.startAddress && tech.startAddress.trim() !== "";
+    if (!tech || (!hasTechStructured && !hasTechString)) {
+      alert(t("Le technicien sélectionné doit avoir une adresse de départ renseignée pour pouvoir calculer l'itinéraire."));
+      return;
+    }
+
+    setShowConfirmRecalculate(true);
+  };
+
+  const executeTourRecalculation = async () => {
+    setShowConfirmRecalculate(false);
+    const activeToursSource = fsmTours && fsmTours.length > 0
+      ? fsmTours
+      : (() => {
+          const raw = localStorage.getItem("defib_fsm_tours");
+          return raw ? JSON.parse(raw) : [];
+        })();
+
+    if (!selectedTourId || !activeToursSource || activeToursSource.length === 0) return;
+    const tour = activeToursSource.find((t: any) => t.id === selectedTourId);
+    if (!tour) return;
+
+    const tech = members.find(
+      (m) => m.name.trim().toLowerCase() === tour.techName.trim().toLowerCase()
+    );
+    if (!tech) return;
+
+    try {
+      let startCoord: { lat: number; lng: number } | null = null;
+      if (tech.startAddressLat !== undefined && tech.startAddressLng !== undefined) {
+        const parsedLat = Number(tech.startAddressLat);
+        const parsedLng = Number(tech.startAddressLng);
+        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+          startCoord = { lat: parsedLat, lng: parsedLng };
+        }
+      }
+      if (!startCoord && tech.startAddress) {
+        startCoord = await geocodeAddress(tech.startAddress);
+      }
+
+      if (!startCoord) {
+        alert(t("Impossible de déterminer les coordonnées de départ du technicien."));
+        return;
+      }
+
+      const equipmentCoords: Record<string, { lat: number; lng: number }> = {};
+      const equipmentDetails: Record<string, any> = {};
+
+      (tour.missions || []).forEach((m: any) => {
+        const defib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+        if (defib) {
+          equipmentDetails[m.defibIdentifiant] = defib;
+          const lat = parseFloat(defib.latitude);
+          const lng = parseFloat(defib.longitude);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            equipmentCoords[m.defibIdentifiant] = { lat, lng };
+          }
+        } else {
+          const other = otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant);
+          if (other) {
+            equipmentDetails[m.defibIdentifiant] = other;
+            const lat = parseFloat(other.latitude);
+            const lng = parseFloat(other.longitude);
+            if (!isNaN(lat) && !isNaN(lng)) {
+              equipmentCoords[m.defibIdentifiant] = { lat, lng };
+            }
+          }
+        }
+      });
+
+      const preference = tech.optimizationPreference || "proche";
+      const sortedMissions = sortMissionsByProximity(
+        tour.missions || [],
+        startCoord,
+        equipmentCoords,
+        preference as any
+      );
+
+      const scheduledMissions = scheduleMissions(
+        sortedMissions,
+        tour.startDate,
+        equipmentDetails,
+        tech
+      );
+
+      const updatedToursList = activeToursSource.map((t: any) => {
+        if (t.id === selectedTourId) {
+          return {
+            ...t,
+            missions: scheduledMissions,
+            calculated: true,
+          };
+        }
+        return t;
+      });
+
+      if (onUpdateFsmTours) {
+        onUpdateFsmTours(updatedToursList);
+        alert(t("L'itinéraire et les horaires ont été recalculés et optimisés avec succès !"));
+      }
+    } catch (err) {
+      console.error("Failed to optimize tour in technician portal:", err);
+      alert(t("Une erreur est survenue lors du calcul de la tournée."));
+    }
+  };
 
   // Selected tour ID and passage num for currently opening GMAO report overlay
   const [reportActiveTourId, setReportActiveTourId] = useState<string>("");
@@ -5951,7 +6080,9 @@ export default function PublicPortal({
                       {selectedTourId && hasTodoMissions && (
                         <div className="px-1" id="pause-toggle-block">
                           <div
-                            className="bg-white border p-4 space-y-3"
+                            className={`bg-white border px-4 space-y-3 ${
+                              pauseEnabled ? "py-4" : "py-[25px]"
+                            }`}
                             style={{
                               borderColor: "rgb(201, 190, 205)",
                               borderRadius: "14px",
@@ -5959,7 +6090,7 @@ export default function PublicPortal({
                           >
                             <div className="flex items-center justify-between">
                               <span className="text-[18px] font-bold text-black font-sans">
-                                Suspendre pour pause.
+                                {t("Suspendre pour pause.")}
                               </span>
                               <button
                                 type="button"
@@ -5983,13 +6114,39 @@ export default function PublicPortal({
                             </div>
                             {pauseEnabled && (
                               <div className="text-[18px] font-semibold text-[#fe4eba] font-sans">
-                                Zone recommandée pour votre pause :{" "}
+                                {t("Zone recommandée pour votre pause :")}{" "}
                                 <span className="font-bold">
                                   {getNextPassageZone()}
                                 </span>
                                 .
                               </div>
                             )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section "Affiner la tournée" */}
+                      {selectedTourId && (
+                        <div className="px-1" id="affiner-tournee-block">
+                          <div
+                            className="bg-white border p-4 space-y-3"
+                            style={{
+                              borderColor: "rgb(201, 190, 205)",
+                              borderRadius: "14px",
+                            }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-[18px] font-bold text-black font-sans">
+                                {t("Affiner la tournée.")}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleRecalculateTour}
+                                className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-bold text-[18px] rounded-[13px] transition-all shadow-sm"
+                              >
+                                {t("Re/Calculer")}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -10363,6 +10520,33 @@ export default function PublicPortal({
                   Ce constat de conformité de l'appareil de secours fait foi de
                   l'évaluation physique réalisée.
                 </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* System-like Confirm Modal for Tour recalculation */}
+        {showConfirmRecalculate && (
+          <div className="fixed inset-0 bg-black/45 backdrop-blur-xs flex items-center justify-center z-[99999] p-4 font-sans text-black select-none">
+            <div className="bg-white border border-neutral-300 shadow-xl rounded-[14px] max-w-md w-full p-6 space-y-5 animate-scaleUp">
+              <p className="text-[18px] text-black leading-relaxed font-bold">
+                {t("Êtes-vous certains de vouloir poursuivre? Cela va écraser les dates et créneaux prévus par l'administrateur.")}
+              </p>
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmRecalculate(false)}
+                  className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-bold text-[18px] rounded-[13px] transition-all shadow-sm"
+                >
+                  {t("Non")}
+                </button>
+                <button
+                  type="button"
+                  onClick={executeTourRecalculation}
+                  className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-bold text-[18px] rounded-[13px] transition-all shadow-sm"
+                >
+                  {t("Oui")}
+                </button>
               </div>
             </div>
           </div>

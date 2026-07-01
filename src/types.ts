@@ -273,6 +273,7 @@ export interface StockTraceability {
   expirationDate?: string;
   volume: number; // always 1
   situation: 'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant';
+  emplacement?: string;
 }
 
 export interface StockRecord {

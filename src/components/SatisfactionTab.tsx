@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { t } from '../utils/translate';
+import HelpBubble from './HelpBubble';
 
 interface Review {
   id: string;
@@ -154,6 +155,11 @@ export default function SatisfactionTab({
           </div>
         </div>
       </div>
+
+      <HelpBubble 
+        cacheKey="help_dismissed_satisfaction" 
+        text="Retrouvez ici les retours de vos clients suite au lien envoyé après chaque intervention. Ces données permettent de mesurer la satisfaction globale et d'identifier d'éventuels points d'amélioration pour vos services. Chaque retour est horodaté et associé à l'évaluation donnée par le client." 
+      />
 
       {/* Main Table Content */}
       <div className="bg-white overflow-hidden mt-6 rounded-none animate-fadeIn" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>

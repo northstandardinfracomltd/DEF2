@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability } from '../types';
+import HelpBubble from './HelpBubble';
 
 const CODE39_MAP: Record<string, string> = {
   '0': '101001101101',
@@ -220,13 +221,29 @@ export default function StocksTab({
       alert("Le numéro de lot ou série est requis.");
       return;
     }
+
+    const matchedMv = mouvements.find(mv => mv.id === selectedMovementId);
+    let initialLocation = 'Centrale';
+    if (matchedMv) {
+      if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+        initialLocation = 'Centrale';
+      } else if (matchedMv.emplacement) {
+        if (matchedMv.emplacement.includes(' : ')) {
+          initialLocation = matchedMv.emplacement.split(' : ')[1];
+        } else {
+          initialLocation = matchedMv.emplacement;
+        }
+      }
+    }
+
     const newTrace: StockTraceability = {
       id: 'tr_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
       movementId: selectedMovementId,
       lotOrSerial: lotOrSerial.trim(),
       expirationDate: expirationDate || undefined,
       volume: 1,
-      situation: situation
+      situation: situation,
+      emplacement: initialLocation
     };
     setTraceabilities([...traceabilities, newTrace]);
     
@@ -793,6 +810,11 @@ export default function StocksTab({
               </div>
             </div>
           </div>
+
+          <HelpBubble 
+            cacheKey="help_dismissed_stocks" 
+            text="Le compartiment de la centrale des stocks vous permet de créer et gérer des pièces et services tous emplacements confondus. Retrouvez ensuite dans l’onglet des stocks distribués la répartition des pièces et services pour chaque emplacement. Pour rappel, un seul emplacement peut être dédié à un technicien par exemple, comme un véhicule ; il est aussi possible de gérer des emplacements de type entrepôt afin de savoir où est placé chaque élément." 
+          />
 
           {/* Filters Pills Row */}
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-storage-pills">
@@ -1797,6 +1819,7 @@ export default function StocksTab({
                           <thead>
                             <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Barre-code.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Emplacement.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
@@ -1807,6 +1830,35 @@ export default function StocksTab({
                           </thead>
                           <tbody className="bg-white">
                             {traceabilities.map((trace, idx) => {
+                              const ALL_LOCATIONS = [
+                                'Centrale',
+                                'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E',
+                                'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
+                                'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E',
+                                'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
+                              ];
+                              const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
+                              let locationText = 'Centrale';
+                              if (trace.emplacement) {
+                                locationText = trace.emplacement;
+                              } else if (matchedMv) {
+                                if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+                                  locationText = 'Centrale';
+                                } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
+                                  if (matchedMv.emplacement.includes(' : ')) {
+                                    locationText = matchedMv.emplacement.split(' : ')[1];
+                                  } else {
+                                    locationText = matchedMv.emplacement;
+                                  }
+                                } else if (matchedMv.emplacement) {
+                                  if (matchedMv.emplacement.includes(' : ')) {
+                                    locationText = matchedMv.emplacement.split(' : ')[1];
+                                  } else {
+                                    locationText = matchedMv.emplacement;
+                                  }
+                                }
+                              }
+
                               return (
                                 <tr 
                                   key={trace.id} 
@@ -1836,6 +1888,26 @@ export default function StocksTab({
                                         Imprimer
                                       </button>
                                     </div>
+                                  </td>
+
+                                  {/* Emplacement */}
+                                  <td className="px-3 py-2 bg-white">
+                                    <select
+                                      value={trace.emplacement || locationText}
+                                      onChange={(e) => {
+                                        const updated = [...traceabilities];
+                                        updated[idx].emplacement = e.target.value;
+                                        setTraceabilities(updated);
+                                      }}
+                                      className="bg-white text-black p-1 border border-slate-300 rounded font-sans font-semibold"
+                                      style={{ fontSize: '18px', border: '1px solid #cbd5e1', minWidth: '130px' }}
+                                    >
+                                      {ALL_LOCATIONS.map(loc => (
+                                        <option key={loc} value={loc}>
+                                          {loc}
+                                        </option>
+                                      ))}
+                                    </select>
                                   </td>
 
                                   {/* Mouvement */}

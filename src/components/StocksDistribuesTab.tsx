@@ -159,8 +159,30 @@ export default function StocksDistribuesTab({
 
   const traceabilities = useMemo(() => {
     const raw = mainStockItem?.traceabilities || [];
-    return raw.filter(t => t.situation === 'Disponible' || t.situation === 'Signalé manquant');
-  }, [mainStockItem]);
+    return raw.filter(t => {
+      if (t.situation !== 'Disponible' && t.situation !== 'Signalé manquant') {
+        return false;
+      }
+      let currentLoc = 'Centrale';
+      if (t.emplacement) {
+        currentLoc = t.emplacement;
+      } else {
+        const matchedMv = selectedPieceMovements.find(mv => mv.id === t.movementId);
+        if (matchedMv) {
+          if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+            currentLoc = 'Centrale';
+          } else if (matchedMv.emplacement) {
+            if (matchedMv.emplacement.includes(' : ')) {
+              currentLoc = matchedMv.emplacement.split(' : ')[1];
+            } else {
+              currentLoc = matchedMv.emplacement;
+            }
+          }
+        }
+      }
+      return currentLoc === locationName;
+    });
+  }, [mainStockItem, locationName, selectedPieceMovements]);
 
   // Dynamically calculate outgoing volumes and impacted defibrillators from active tours
   const getPieceOutgoingStats = useMemo(() => {
@@ -352,6 +374,9 @@ export default function StocksDistribuesTab({
     if (!matchedStock) return;
 
     if (editingId) {
+      const originalItem = distributedStocks.find(it => it.id === editingId);
+      const oldLocationName = originalItem?.locationName;
+
       const updated = distributedStocks.map(it => {
         if (it.id === editingId) {
           return {
@@ -367,6 +392,49 @@ export default function StocksDistribuesTab({
         return it;
       });
       saveDistributedStocks(updated);
+
+      // propagate the storage location change to all traceabilities matching this stock's old location name
+      if (saveStocks && oldLocationName && oldLocationName !== locationName) {
+        const movementsList = matchedStock.mouvements || [];
+        const updatedStocks = stocks.map(st => {
+          if (st.id === matchedStock.id) {
+            const updatedTraceabilities = (st.traceabilities || []).map(t => {
+              let currentLoc = 'Centrale';
+              if (t.emplacement) {
+                currentLoc = t.emplacement;
+              } else {
+                const matchedMv = movementsList.find(mv => mv.id === t.movementId);
+                if (matchedMv) {
+                  if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+                    currentLoc = 'Centrale';
+                  } else if (matchedMv.emplacement) {
+                    if (matchedMv.emplacement.includes(' : ')) {
+                      currentLoc = matchedMv.emplacement.split(' : ')[1];
+                    } else {
+                      currentLoc = matchedMv.emplacement;
+                    }
+                  }
+                }
+              }
+
+              if (currentLoc === oldLocationName) {
+                return {
+                  ...t,
+                  emplacement: locationName
+                };
+              }
+              return t;
+            });
+
+            return {
+              ...st,
+              traceabilities: updatedTraceabilities
+            };
+          }
+          return st;
+        });
+        saveStocks(updatedStocks);
+      }
     } else {
       const newItem: DistributedStockLocation = {
         id: 'ds_' + Date.now(),
@@ -1192,6 +1260,102 @@ export default function StocksDistribuesTab({
                     </table>
                   </div>
                 )}
+
+                {mainStockItem?.traceabilityEnabled && (
+                  <div className="mt-6 flex flex-col gap-4">
+                    <div className="flex bg-white select-none">
+                      <span 
+                        className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
+                        style={{
+                          color: '#fff',
+                          backgroundColor: '#fa53d5',
+                          fontSize: '14px',
+                          border: 'none',
+                          textTransform: 'none',
+                          letterSpacing: 'normal'
+                        }}
+                      >
+                        Matériels de traçabilité dans cet emplacement (Lecture seule)
+                      </span>
+                    </div>
+
+                    {traceabilities.length > 0 ? (
+                      <div 
+                        className="overflow-x-auto border rounded-xl bg-white" 
+                        style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                      >
+                        <table className="w-full text-left font-sans border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Code-barres</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>N° de lot ou série</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Volume</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Situation</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white text-black">
+                            {traceabilities.map((trace, idx) => (
+                              <tr 
+                                key={trace.id} 
+                                className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                              >
+                                <td className="px-3 py-2 bg-white align-middle">
+                                  <div className="flex items-center gap-2">
+                                    <div 
+                                      className="inline-block"
+                                      dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
+                                      style={{
+                                        backgroundColor: '#000000',
+                                        color: '#ffffff',
+                                        padding: '4px 8px',
+                                        fontSize: '12px',
+                                        borderRadius: '6px',
+                                      }}
+                                      className="font-sans font-semibold active:scale-95 transition-all cursor-pointer border-0"
+                                      title="Imprimer"
+                                    >
+                                      Imprimer
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 bg-white align-middle font-semibold" style={{ fontSize: '15px' }}>
+                                  {trace.lotOrSerial}
+                                </td>
+                                <td className="px-3 py-2 bg-white align-middle" style={{ fontSize: '15px' }}>
+                                  {trace.expirationDate ? new Date(trace.expirationDate).toLocaleDateString('fr-FR') : '-'}
+                                </td>
+                                <td className="px-3 py-2 bg-white align-middle text-center font-semibold" style={{ fontSize: '15px' }}>
+                                  {trace.volume}
+                                </td>
+                                <td className="px-3 py-2 bg-white align-middle text-center" style={{ fontSize: '15px' }}>
+                                  <span 
+                                    className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold text-xs ${
+                                      trace.situation === 'Disponible' 
+                                        ? 'bg-green-100 text-green-800' 
+                                        : 'bg-red-100 text-red-800'
+                                    }`}
+                                  >
+                                    {trace.situation}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500 font-sans italic" style={{ fontSize: '15px', color: '#6b7280' }}>
+                        Aucun matériel de traçabilité enregistré dans cet emplacement pour le moment.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Section Inventaire de traçabilité en lecture seule */}
@@ -1223,6 +1387,27 @@ export default function StocksDistribuesTab({
                           if (!mainStockItem || !stocks || !saveStocks) return;
                           const updatedTraceabilities = (mainStockItem.traceabilities || []).map((t) => {
                             if (t.situation === "Disponible" || t.situation === "Signalé manquant") {
+                              let currentLoc = 'Centrale';
+                              if (t.emplacement) {
+                                currentLoc = t.emplacement;
+                              } else {
+                                const matchedMv = selectedPieceMovements.find(mv => mv.id === t.movementId);
+                                if (matchedMv) {
+                                  if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+                                    currentLoc = 'Centrale';
+                                  } else if (matchedMv.emplacement) {
+                                    if (matchedMv.emplacement.includes(' : ')) {
+                                      currentLoc = matchedMv.emplacement.split(' : ')[1];
+                                    } else {
+                                      currentLoc = matchedMv.emplacement;
+                                    }
+                                  }
+                                }
+                              }
+                              if (currentLoc !== locationName) {
+                                return t;
+                              }
+
                               const isChecked = checkedTraceabilityIds[t.id];
                               let newSituation = t.situation;
                               if (isChecked) {
@@ -1498,7 +1683,9 @@ export default function StocksDistribuesTab({
                         </table>
                       </div>
                     ) : (
-                      <p className="text-sm text-slate-500 italic">Aucune donnée de traçabilité disponible pour cet équipement.</p>
+                      <p className="text-sm text-slate-500 font-sans italic" style={{ fontSize: '16px', color: '#6b7280' }}>
+                        Aucun matériel de traçabilité enregistré dans cet emplacement pour le moment.
+                      </p>
                     )}
                   </div>
                 </>

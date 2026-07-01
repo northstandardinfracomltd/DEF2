@@ -164,6 +164,14 @@ export default function SettingsModal({
   const [cegidApiKey, setCegidApiKey] = React.useState('');
   const [cegidApiSecret, setCegidApiSecret] = React.useState('');
 
+  const [textelpActive, setTextelpActive] = React.useState(false);
+  const [textelpEnvId, setTextelpEnvId] = React.useState('');
+  const [textelpSecretId, setTextelpSecretId] = React.useState('');
+
+  const [civilpromActive, setCivilpromActive] = React.useState(false);
+  const [civilpromWebsiteUrl, setCivilpromWebsiteUrl] = React.useState('');
+  const [civilpromAssetsFileUrl, setCivilpromAssetsFileUrl] = React.useState('');
+
   const [connectorsSaveStatus, setConnectorsSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
 
   React.useEffect(() => {
@@ -192,6 +200,14 @@ export default function SettingsModal({
           if (data.cegidActive !== undefined) setCegidActive(data.cegidActive);
           if (data.cegidApiKey !== undefined) setCegidApiKey(data.cegidApiKey);
           if (data.cegidApiSecret !== undefined) setCegidApiSecret(data.cegidApiSecret);
+
+          if (data.textelpActive !== undefined) setTextelpActive(data.textelpActive);
+          if (data.textelpEnvId !== undefined) setTextelpEnvId(data.textelpEnvId);
+          if (data.textelpSecretId !== undefined) setTextelpSecretId(data.textelpSecretId);
+
+          if (data.civilpromActive !== undefined) setCivilpromActive(data.civilpromActive);
+          if (data.civilpromWebsiteUrl !== undefined) setCivilpromWebsiteUrl(data.civilpromWebsiteUrl);
+          if (data.civilpromAssetsFileUrl !== undefined) setCivilpromAssetsFileUrl(data.civilpromAssetsFileUrl);
         }
       }).catch(err => {
         console.error('Error loading API connectors from Firestore:', err);
@@ -220,7 +236,13 @@ export default function SettingsModal({
         dropboxAccessTokenSecret,
         cegidActive,
         cegidApiKey,
-        cegidApiSecret
+        cegidApiSecret,
+        textelpActive,
+        textelpEnvId,
+        textelpSecretId,
+        civilpromActive,
+        civilpromWebsiteUrl,
+        civilpromAssetsFileUrl
       };
       await saveCollectionToFirestore('api_connectors', payload);
       setConnectorsSaveStatus('saved');
@@ -2028,7 +2050,7 @@ export default function SettingsModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               {/* DEROESCH DATA */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2068,7 +2090,7 @@ export default function SettingsModal({
               </div>
 
               {/* SAGE 100 */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2103,7 +2125,7 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2152,7 +2174,7 @@ export default function SettingsModal({
               </div>
 
               {/* SAGE 100 4197 */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2187,7 +2209,7 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2236,7 +2258,7 @@ export default function SettingsModal({
               </div>
 
               {/* PENNYLANE */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2270,7 +2292,7 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2319,7 +2341,7 @@ export default function SettingsModal({
               </div>
 
               {/* DROPBOX */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2353,7 +2375,7 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2390,7 +2412,7 @@ export default function SettingsModal({
               </div>
 
               {/* CEGID */}
-              <div style={{ border: '1px solid #D5D5D5', borderRadius: '13px', backgroundColor: '#ffffff' }} className="p-4 space-y-3 flex flex-col justify-between">
+              <div style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -2424,7 +2446,7 @@ export default function SettingsModal({
                           }}
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-slate-300 rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2453,6 +2475,156 @@ export default function SettingsModal({
                           }}
                           className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
                           placeholder={t("Entrez la Clé secrète d’API.")}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* TEXTELP */}
+              <div id="connector-block-textelp" style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Textelp</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: 'rgb(57, 169, 143)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {t("Disponible")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          id="toggle-textelp-active"
+                          checked={textelpActive}
+                          onChange={(e) => {
+                            setTextelpActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {textelpActive && (
+                    <div className="mt-4 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("ID de l’environnement.")}</label>
+                        <input
+                          type="text"
+                          id="input-textelp-env-id"
+                          value={textelpEnvId}
+                          onChange={(e) => {
+                            setTextelpEnvId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'ID de l’environnement.")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Identifiant secret.")}</label>
+                        <input
+                          type="text"
+                          id="input-textelp-secret-id"
+                          value={textelpSecretId}
+                          onChange={(e) => {
+                            setTextelpSecretId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'identifiant secret.")}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* CIVILPROM */}
+              <div id="connector-block-civilprom" style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Civilprom</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: 'rgb(57, 169, 143)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {t("Disponible")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          id="toggle-civilprom-active"
+                          checked={civilpromActive}
+                          onChange={(e) => {
+                            setCivilpromActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {civilpromActive && (
+                    <div className="mt-4 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("URL site internet.")}</label>
+                        <input
+                          type="text"
+                          id="input-civilprom-website"
+                          value={civilpromWebsiteUrl}
+                          onChange={(e) => {
+                            setCivilpromWebsiteUrl(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'URL site internet.")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("URL fichier des assets.")}</label>
+                        <input
+                          type="text"
+                          id="input-civilprom-assets"
+                          value={civilpromAssetsFileUrl}
+                          onChange={(e) => {
+                            setCivilpromAssetsFileUrl(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'URL fichier des assets.")}
                         />
                       </div>
                     </div>

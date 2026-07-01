@@ -3,6 +3,7 @@ import { Client, Defibrillateur, StockRecord, PointageLog, Variable } from '../t
 import { saveCollectionToFirestore, fetchCollectionFromFirestore } from '../firebase';
 import { generateRandomShortCode, computeProchaineMaintenance } from '../utils';
 import { t } from '../utils/translate';
+import HelpBubble from './HelpBubble';
 
 export interface ImportExportRecord {
   id: string;
@@ -1265,6 +1266,13 @@ export default function ImportExportTab({
               </button>
             </div>
           </div>
+        )}
+
+        {!showForm && (
+          <HelpBubble 
+            cacheKey="help_dismissed_import_export" 
+            text="Astuce : Vous souhaitez importer un fichier de données et vous avez besoin d’un fichier d’exemple, il vous suffit de télécharger un fichier d’exportation pour obtenir les entêtes des colonnes (ne les changez pas) ainsi qu’un jeu de données exemple avec les lignes exportées." 
+          />
         )}
 
         {/* 🛠️ Matches DefibTab's Form Structure when form is open 🛠️ */}

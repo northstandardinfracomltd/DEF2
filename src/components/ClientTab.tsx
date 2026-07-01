@@ -5,6 +5,138 @@ import { checkIfEmailExistsAnywhere } from '../firebase';
 import { generateRandomPin, formatDateToFR } from '../utils';
 import { t } from '../utils/translate';
 
+const TEMPLATE_1 = `CONTRAT DE MAINTENANCE DE DÉFIBRILLATEUR (DAE)
+
+Accord Annuel : Maintenance Préventive & Curative (Pièces Incluses)
+ENTRE LES SOUSSIGNÉS :
+[Nom de votre entreprise / Votre Nom], [Forme juridique] au capital de [Montant] €, immatriculée au RCS de [Ville] sous le numéro [Numéro SIRET], dont le siège social est situé au [Adresse complète], représentée par [Nom du représentant], en qualité de [Fonction], Ci-après désignée « Le Prestataire », d’une part,
+ET :
+[Nom du Client / Raison sociale], [Forme juridique] au capital de [Montant] €, immatriculée au RCS de [Ville] sous le numéro [Numéro SIRET], dont le siège social est situé au [Adresse complète], représentée par [Nom du représentant], en qualité de [Fonction], Ci-après désignée « Le Client », d’autre part.
+Il a été convenu et arrêté ce qui suit :
+
+Article 1 — Objet du contrat
+Le présent contrat a pour objet de définir les conditions dans lesquelles le Prestataire assure la maintenance préventive et curative du ou des défibrillateurs (DAE) du Client, afin de garantir leur parfait état de fonctionnement conformément à la réglementation en vigueur.
+La liste et la localisation des équipements concernés sont détaillées ci-dessous et sur le portail du client.
+
+[1- Identifiant - N° de série (lister le/s défibrillateur/s ]
+
+Article 2 — Durée du contrat
+Le présent contrat est conclu pour une durée de un (1) an à compter du [Date de début]. Il se renouvellera par tacite reconduction pour des périodes successives d’un an, sauf dénonciation par l’une ou l’autre des parties par lettre recommandée avec accusé de réception (LRAR), au moins deux (2) mois avant l'échéance de la période en cours.
+
+Article 3 — Prestations de Maintenance Préventive
+Le Prestataire s'engage à réaliser [une / deux] visite(s) de maintenance préventive par an. Cette visite comprend obligatoirement :
+* La vérification visuelle de l'état général de l'appareil et de son boîtier/support.
+* Le contrôle des indicateurs de statut et des autotests de l'appareil.
+* Les tests de charge et de batterie (simulateur de scope).
+* La mise à jour des logiciels internes (firmware) selon les recommandations du fabricant.
+* L'apposition d'une étiquette de contrôle sur le dispositif.
+* La rédaction et l'envoi d'un rapport de maintenance pour le registre de sécurité du Client.
+
+Article 4 — Prestations de Maintenance Curative & Remplacement des consommables
+En cas de panne, de dysfonctionnement ou d'utilisation du DAE lors d'un arrêt cardiaque, les conditions suivantes s'appliquent :
+* Remplacement des consommables (Pièces incluses) : Le présent contrat inclut le remplacement périodique (à date de péremption) ou post-utilisation des consommables essentiels, à savoir :
+    * Les électrodes (adultes et pédiatriques).
+    * Les batteries / piles au lithium.
+    * Le kit de premier secours joint au DAE (ciseaux, rasoir, masque de protection, etc.).
+* Assistance technique : Le Prestataire met à disposition une assistance téléphonique du lundi au vendredi, de [Heures, ex: 9h00 à 18h00].
+* Délai d'intervention : En cas de panne signalée, le Prestataire s'engage à intervenir sur site ou à organiser l'enlèvement de l'appareil sous [ex: 48 heures] ouvrées.
+* Prêt de matériel : Si le DAE doit être immobilisé en atelier pour réparation pendant plus de 24 heures, le Prestataire s’engage à mettre gratuitement à disposition du Client un DAE de prêt de catégorie équivalente afin d'assurer la continuité de la sécurité du site.
+
+Article 5 — Obligations du Client
+Le Client s'engage à :
+* Désigner un référent interne pour le suivi du DAE.
+* Vérifier régulièrement (au moins une fois par mois) le témoin lumineux de bon fonctionnement de l'appareil et signaler sans délai au Prestataire toute anomalie.
+* Faciliter l'accès aux équipements aux techniciens du Prestataire lors des visites programmées ou des interventions d'urgence.
+* Conserver l'appareil dans les conditions environnementales (température, humidité) préconisées par le constructeur.
+
+Article 6 — Conditions Financières et Modalités de Paiement
+* Prix annuel : Le présent contrat est consenti et accepté moyennant une redevance annuelle forfaitaire de [Montant en chiffres] € HT (soit [Montant en lettres] euros Hors Taxes), par appareil.
+* Facturation : La facturation est émise annuellement, à terme échoir (en début de période).
+* Paiement : Le Client s'engage à régler les factures dans un délai de [30 jours] fin de mois à compter de la date d'émission de la facture, par [Virement / Chèque].
+* Indexation : Le prix pourra être révisé à chaque date anniversaire selon l'indice [ex: Syntec ou INSEE spécifique], sous réserve d'en informer le Client un mois avant.
+
+Article 7 — Responsabilité et Assurance
+Le Prestataire est tenu à une obligation de moyens dans l'exécution de ses prestations. Il est titulaire d’une assurance de Responsabilité Civile Professionnelle garantissant les dommages corporels ou matériels qui pourraient survenir du fait de son intervention. Le Prestataire ne saurait être tenu responsable en cas de mauvaise utilisation du matériel par le Client ou des tiers, ou en cas de modification de l'appareil non autorisée.
+
+Article 8 — Résiliation Anticipée
+Le présent contrat pourra être résilié de plein droit par l’une des parties en cas de manquement grave de l’autre partie à ses obligations, non réparé dans un délai de 30 jours après mise en demeure restée infructueuse.
+
+Article 9 — Litiges et Droit Applicable
+Le présent contrat est soumis au droit français. En cas de litige relatif à l'interprétation ou à l'exécution du présent contrat, les parties s'efforceront de trouver une solution amiable. À défaut, compétence exclusive est attribuée aux tribunaux de [Ville du tribunal compétent].
+Fait à [Ville], le [Date] En deux exemplaires originaux.`;
+
+const TEMPLATE_2 = `CONTRAT DE MAINTENANCE DE DÉFIBRILLATEUR (DAE)
+
+Accord Annuel : Maintenance Préventive & Curative (Hors Pièces)
+
+ENTRE LES SOUSSIGNÉS :
+[Nom de votre entreprise / Votre Nom], [Forme juridique], immatriculée au RCS de [Ville] sous le numéro [Numéro SIRET], dont le siège social est situé au [Adresse complète], représentée par [Nom], en qualité de [Fonction], Ci-après désignée « Le Prestataire », d’une part,
+ET :
+[Nom du Client / Raison sociale], [Forme juridique], immatriculée au RCS de [Ville] sous le numéro [Numéro SIRET], dont le siège social est situé au [Adresse complète], représentée par [Nom], en qualité de [Fonction], Ci-après désignée « Le Client », d’autre part.
+Il a été convenu et arrêté ce qui suit :
+
+Article 1 — Objet du contrat
+Le présent contrat définit les conditions dans lesquelles le Prestataire assure la maintenance préventive et curative du ou des défibrillateurs (DAE) du Client.
+
+Article 2 — Durée
+Le présent contrat est conclu pour une durée de un (1) an à compter du [Date de début]. Il se renouvelle automatiquement chaque année à date anniversaire, sauf dénonciation par l'une ou l'autre des parties par lettre recommandée avec accusé de réception (LRAR) au moins deux (2) mois avant l'échéance.
+
+Article 3 — Maintenance Préventive
+Le Prestataire s'engage à réaliser une (1) visite de contrôle annuelle sur site comprenant :
+* La vérification visuelle de l'état général de l'appareil et de son support/boîtier.
+* Le contrôle des indicateurs d'autotest et du niveau de batterie.
+* Les tests de simulation de choc (avec appareil de test dédié).
+* La pose d'une étiquette de contrôle sur le DAE et la remise d'un rapport de visite pour le registre de sécurité du Client.
+
+Article 4 — Maintenance Curative & Consommables (Hors Pièces)
+En cas de panne, de dysfonctionnement ou après l'utilisation du DAE lors d'un arrêt cardiaque :
+* Exclusion des pièces et consommables : Le présent contrat exclut la fourniture gratuite des pièces de rechange et des consommables. Les électrodes, les batteries / piles au lithium et le kit de premier secours périmés ou utilisés seront intégralement facturés au Client selon le tarif en vigueur au moment du remplacement. Le Prestataire effectuera ces remplacements obligatoires pour maintenir la conformité de l'appareil.
+* Assistance & Délais : Le Prestataire fournit une assistance téléphonique du lundi au vendredi. En cas de panne signalée, il s'engage à intervenir ou à organiser l'enlèvement sous [ex: 48 heures] ouvrées.
+* Prêt de matériel : Si le DAE doit être immobilisé plus de 24 heures pour réparation, le Prestataire met gratuitement à disposition du Client un appareil de prêt durant toute la durée de l'intervention.
+
+Article 5 — Obligations du Client
+Le Client s'engage à vérifier visuellement une fois par mois le voyant d'état du DAE et à signaler immédiatement toute anomalie (voyant rouge ou signal sonore). Il s'engage également à laisser libre accès aux appareils pour les techniciens du Prestataire.
+
+Article 6 — Conditions Financières
+Le contrat est conclu moyennant une redevance annuelle forfaitaire de [Montant] € HT par appareil. La facturation est émise annuellement à terme à échoir (en début de période) et payable sous [30 jours] par [Virement / Chèque].
+
+Article 7 — Résiliation et Litiges
+En cas de manquement grave d'une partie, le contrat peut être résilié après une mise en demeure restée infructueuse pendant 30 jours. Le contrat est soumis au droit français. Tout litige persistant sera porté devant le tribunal de [Ville].
+Fait à [Ville], le [Date], en deux exemplaires originaux.
+(Faire précéder la signature de la mention manuscrite « Lu et approuvé »)
+ANNEXE 1 : Liste du matériel couvert
+[1- Identifiant - N° de série (lister le/s défibrillateur/s ]`;
+
+const TEMPLATE_3 = `CONTRAT DE MAINTENANCE DAE
+Formule Simplifiée — Hors Pièces & Consommables
+ENTRE LES SOUSSIGNÉS :
+* Le Prestataire : [Nom Entreprise], [Adresse complète], SIRET : [Numéro]
+* Le Client : [Nom / Raison Sociale], [Adresse complète], SIRET / Tel : [Numéro]
+
+Article 1 — Objet & Durée
+Le présent contrat confie au Prestataire la maintenance du ou des défibrillateurs (DAE) désignés en Annexe 1. Il est conclu pour un (1) an à compter du [Date], renouvelable par tacite reconduction, sauf dénonciation par écrit (LRAR ou email) 2 mois avant l'échéance.
+
+Article 2 — Prestations
+* Maintenance préventive : Une (1) visite annuelle sur site pour contrôler l'état général, vérifier les autotests de l'appareil, tester la charge et apposer une étiquette de contrôle.
+* Maintenance curative : Assistance téléphonique et intervention sur site ou retour atelier sous [48h] ouvrées en cas de panne signalée.
+* Prêt de matériel : Mise à disposition gratuite d’un DAE de prêt si l’appareil du Client doit être immobilisé plus de 24h.
+
+Article 3 — Pièces et Consommables (Exclus)
+Le coût des consommables et pièces de rechange n'est pas inclus dans le forfait annuel. Les électrodes (périmées ou après utilisation) ainsi que les batteries seront remplacées automatiquement par le Prestataire pour garantir la sécurité du site, et facturées en sus au tarif en vigueur.
+
+Article 4 — Obligations du Client
+Le Client s'engage à vérifier une fois par mois le voyant de bon fonctionnement du DAE et à signaler immédiatement toute anomalie (voyant rouge ou bip sonore). Il garantit le libre accès aux appareils au technicien.
+
+Article 5 — Prix et Paiement
+Le présent contrat est consenti au prix annuel forfaitaire de [Montant] € HT par appareil. La facturation est émise annuellement à terme à échoir (en début de période) et payable à réception.
+
+Article 6 — Litiges
+Le contrat est soumis au droit français. À défaut d'accord amiable, tout litige sera porté devant le tribunal de commerce de [Ville].
+Fait à [Ville], le [Date], en deux exemplaires. (Mention manuscrite « Lu et approuvé » avant de signer)
+
+ANNEXE 1 : Liste du matériel couvert
+[1- Identifiant - N° de série (lister le/s défibrillateur/s ]`;
+
 interface ClientTabProps {
   clients: Client[];
   defibrillateurs?: Defibrillateur[];
@@ -86,6 +218,75 @@ export default function ClientTab({
   const [dateSignatureContrat, setDateSignatureContrat] = useState('');
   const [signeParContrat, setSigneParContrat] = useState('');
   const [signatureClientContratImage, setSignatureClientContratImage] = useState('');
+  const [fakeAiTemplateIndex, setFakeAiTemplateIndex] = useState(0);
+  const typingIntervalRef = useRef<any>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (typingIntervalRef.current) {
+        clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleGenerateWithFakeAI = () => {
+    // 1. Determine template index
+    const index = fakeAiTemplateIndex;
+    const nextIndex = (index + 1) % 3;
+    setFakeAiTemplateIndex(nextIndex);
+
+    // 2. Select the template text
+    let rawText = '';
+    if (index === 0) {
+      rawText = TEMPLATE_1;
+    } else if (index === 1) {
+      rawText = TEMPLATE_2;
+    } else {
+      rawText = TEMPLATE_3;
+    }
+
+    // 3. Perform substitutions
+    const prestName = companyInfo?.name || 'Défibeo';
+    let processedText = rawText;
+    
+    // Replace [Nom de votre entreprise / Votre Nom] and [Nom Entreprise]
+    processedText = processedText.replace(/\[Nom de votre entreprise \/ Votre Nom\]/g, prestName);
+    processedText = processedText.replace(/\[Nom Entreprise\]/g, prestName);
+
+    // Filter defibrillators associated with this client
+    const clientDefibs = defibrillateurs.filter(d => d.clientId === (editingClient?.id || ''));
+    const defibListText = clientDefibs.length > 0
+      ? clientDefibs.map((d, idx) => {
+          const v = variables.find(varItem => varItem.id === d.modeleId);
+          const brandModel = v ? `${v.marque} ${v.nom}` : 'Défibrillateur';
+          return `${idx + 1}- ${d.identifiant || 'DAE'} - N° de série : ${d.numeroSerie || 'Non renseigné'} - Marque/Modèle : ${brandModel}`;
+        }).join('\n')
+      : "1- [Identifiant DAE] - N° de série : [Numéro de série]";
+
+    processedText = processedText.replace(/\[1- Identifiant - N° de série \(lister le\/s défibrillateur\/s \]/g, defibListText);
+
+    // 4. Start typing effect (un peu plus lent, mais quand même rapide)
+    if (typingIntervalRef.current) {
+      clearInterval(typingIntervalRef.current);
+    }
+
+    let currentPos = 0;
+    const totalLen = processedText.length;
+    // Smooth fast typing
+    const step = Math.max(5, Math.floor(totalLen / 150));
+    setRedactionContrat('');
+
+    typingIntervalRef.current = setInterval(() => {
+      currentPos += step;
+      if (currentPos >= totalLen) {
+        setRedactionContrat(processedText);
+        clearInterval(typingIntervalRef.current);
+        typingIntervalRef.current = null;
+      } else {
+        setRedactionContrat(processedText.substring(0, currentPos));
+      }
+    }, 20);
+  };
 
   const contractCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingContractSig = useRef(false);
@@ -1492,9 +1693,19 @@ export default function ClientTab({
 
                   {/* Rédaction du contrat */}
                   <div className="space-y-1 pt-2">
-                    <label htmlFor="input-client-contract-redac" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Rédaction du contrat.
-                    </label>
+                    <div className="flex items-center gap-2 select-none">
+                      <label htmlFor="input-client-contract-redac" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Rédaction du contrat.
+                      </label>
+                      <span
+                        onClick={handleGenerateWithFakeAI}
+                        className="font-bold text-blue-600 hover:text-blue-800 cursor-pointer hover:underline transition-colors select-none"
+                        style={{ fontSize: '16px' }}
+                        id="btn-generate-contract-ia"
+                      >
+                        Générer le texte avec l'IA Textelp.
+                      </span>
+                    </div>
                     <textarea
                       id="input-client-contract-redac"
                       value={redactionContrat}

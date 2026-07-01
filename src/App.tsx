@@ -32,6 +32,7 @@ import {
 import { getParisTimestamp } from './utils/dateUtils';
 
 import DefibTab from './components/DefibTab';
+import HelpBubble from './components/HelpBubble';
 import AutresMaterielsTab from './components/AutresMaterielsTab';
 import ClientTab from './components/ClientTab';
 import VariableTab from './components/VariableTab';
@@ -4502,6 +4503,11 @@ export default function App() {
                   </div>
                 </div>
 
+                <HelpBubble 
+                  cacheKey="help_dismissed_fsm" 
+                  text="Abréviation de Field Service Management, orchestrez depuis cet onglet les tournées que devront réaliser les techniciens. Chaque tournée est calculée intelligemment selon de nombreux critères comme les créneaux d’accès du défibrillateur, les plages de disponibilité du technicien, la route optimisée en termes de distance et de consommation, etc. Une tournée s'affiche sur la webapp technicien uniquement lorsqu’elle est placée en situation « À faire »." 
+                />
+
                 <datalist id="fsm-techs-list">
                   {members
                     .filter(m => {
@@ -5758,6 +5764,11 @@ export default function App() {
                   </div>
                 </div>
 
+                <HelpBubble 
+                  cacheKey="help_dismissed_gmao" 
+                  text="Il s’agit des rapports générés par les techniciens. Pour actualiser votre base de données, vous devrez cliquer sur Valider, c’est un principe de modération. Vous avez trouvé une erreur : cliquez sur Corriger pour modifier le document. Attention, une fois validé conformément à la réglementation, le document PDF ne peut plus être altéré." 
+                />
+
                 {/* Main Table Records Sheet */}
                 <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>
                   <div className="overflow-x-auto">
@@ -6190,6 +6201,11 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                <HelpBubble 
+                  cacheKey="help_dismissed_crm" 
+                  text="Le CRM rassemble les demandes d'assistance, questions de vos clients, ou signalements. C'est ici également que vous pouvez rédiger des mémos rapides (sous forme de post-its virtuels), modifier l'état d'un ticket (« Nouveau », « En cours », « Résolu ») et répondre par e-mail directement au client concerné." 
+                />
 
                 {/* Memos List Container (Post-its Row) */}
                 <div className="px-4 pt-5 pb-2 max-w-[98%] mx-auto" id="crm-memos-section">
@@ -6764,6 +6780,11 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    <HelpBubble 
+                      cacheKey="help_dismissed_devis" 
+                      text="Bon à savoir : lorsqu’un technicien enregistre un rapport d’intervention, il peut cocher l’option d’émettre une facture, alors Défibeo reprend les pièces utilisées et génère une facture brouillon que vous pouvez ensuite venir ajuster. Vous avez généré un devis et souhaitez le transformer en facture ? Cliquez sur le bouton Transformer pour la ligne en question." 
+                    />
 
                     {/* Filters Pills Row */}
                     <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="devis-type-pills">

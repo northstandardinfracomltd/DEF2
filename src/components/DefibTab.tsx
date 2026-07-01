@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Defibrillateur, Client, Variable, CompanyInfo } from '../types';
 import { t } from '../utils/translate';
 import MapModal from './MapModal';
+import HelpBubble from './HelpBubble';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { runMonthlyVigilanceCampaign } from '../utils/emailService';
 import { checkIfDefibIdentifiantExistsAnywhere } from '../firebase';
@@ -1894,6 +1895,11 @@ export default function DefibTab({
               </div>
             )}
           </div>
+
+          <HelpBubble 
+            cacheKey="help_dismissed_defib" 
+            text="Sur cet onglet, retrouvez l’ensemble des défibrillateurs gérés dans votre environnement. L’identifiant est généré automatiquement, il s’agit d’une sorte de plaque d’immatriculation avec au centre l’identifiant unique de votre environnement. Cochez chaque ligne pour sélectionner un ou plusieurs défibrillateurs, et vous verrez apparaître des options au-dessus, par exemple pour insérer le ou les défibrillateurs dans une tournée, ou faire une correction de masse." 
+          />
 
       {/* Main Table Records Sheet */}
       <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>

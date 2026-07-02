@@ -723,6 +723,7 @@ export default function DefibTab({
 
   // Section 2 - Client Site Link (autopopulates from active client selection)
   const [clientId, setClientId] = useState('');
+  const [nomSite, setNomSite] = useState('');
   const [nomPrenomSite, setNomPrenomSite] = useState('');
   const [telephoneSite, setTelephoneSite] = useState('');
   const [emailSite, setEmailSite] = useState('');
@@ -933,6 +934,7 @@ export default function DefibTab({
   const [sortieFabricant, setSortieFabricant] = useState('');
 
   // Section 6 - Électrode Mixte ou Adulte (A)
+  const [hasElectrodeASecours, setHasElectrodeASecours] = useState<'Oui' | 'Non'>('Non');
   const [modeleElectrodeAId, setModeleElectrodeAId] = useState('');
   const [lotElectrodeA, setLotElectrodeA] = useState('');
   const [insertionElectrodeA, setInsertionElectrodeA] = useState('');
@@ -945,6 +947,7 @@ export default function DefibTab({
   const [lotElectrodeASecours, setLotElectrodeASecours] = useState('');
 
   // Section 7 - Électrode Pédiatrique (P)
+  const [hasElectrodePSecours, setHasElectrodePSecours] = useState<'Oui' | 'Non'>('Non');
   const [modeleElectrodePId, setModeleElectrodePId] = useState('');
   const [lotElectrodeP, setLotElectrodeP] = useState('');
   const [insertionElectrodeP, setInsertionElectrodeP] = useState('');
@@ -957,6 +960,7 @@ export default function DefibTab({
   const [lotElectrodePSecours, setLotElectrodePSecours] = useState('');
 
   // Section 8 - Batterie (B)
+  const [hasBatterieSecours, setHasBatterieSecours] = useState<'Oui' | 'Non'>('Non');
   const [modeleBatterieId, setModeleBatterieId] = useState('');
   const [lotBatterie, setLotBatterie] = useState('');
   const [insertionBatterie, setInsertionBatterie] = useState('');
@@ -965,6 +969,9 @@ export default function DefibTab({
   const [situationBatterie, setSituationBatterie] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
   const [pourcentageBatterie, setPourcentageBatterie] = useState('100');
   const [commentaireBatterie, setCommentaireBatterie] = useState('');
+  const [modeleBatterieSecoursId, setModeleBatterieSecoursId] = useState('');
+  const [lotBatterieSecours, setLotBatterieSecours] = useState('');
+  const [peremptionBatterieSecours, setPeremptionBatterieSecours] = useState('');
 
   // Section 9 - Catégories
   const [loue, setLoue] = useState<'Oui' | 'Non'>('Non');
@@ -1196,6 +1203,7 @@ export default function DefibTab({
 
     // Reset client to empty, autotriggering copy
     setClientId('');
+    setNomSite('');
     setClientSearchQuery('');
     handleClientChange('');
 
@@ -1238,6 +1246,7 @@ export default function DefibTab({
     setSortieFabricant('');
 
     // Electrodes Mixed/Adult (A)
+    setHasElectrodeASecours('Non');
     setModeleElectrodeAId('');
     setLotElectrodeA('');
     setInsertionElectrodeA('');
@@ -1250,6 +1259,7 @@ export default function DefibTab({
     setLotElectrodeASecours('');
 
     // Electrodes Pediatric (P)
+    setHasElectrodePSecours('Non');
     setModeleElectrodePId('');
     setLotElectrodeP('');
     setInsertionElectrodeP('');
@@ -1262,6 +1272,7 @@ export default function DefibTab({
     setLotElectrodePSecours('');
 
     // Battery (B)
+    setHasBatterieSecours('Non');
     setModeleBatterieId('');
     setLotBatterie('');
     setInsertionBatterie('');
@@ -1270,6 +1281,9 @@ export default function DefibTab({
     setSituationBatterie('Vert');
     setPourcentageBatterie('');
     setCommentaireBatterie('');
+    setModeleBatterieSecoursId('');
+    setLotBatterieSecours('');
+    setPeremptionBatterieSecours('');
 
     // Categories
     setLoue('Non');
@@ -1311,6 +1325,7 @@ export default function DefibTab({
     setClientId(df.clientId);
     const linkedClient = clients.find(c => c.id === df.clientId);
     setClientSearchQuery(linkedClient ? `${linkedClient.denomination} (${linkedClient.siret || ''})` : '');
+    setNomSite(df.nomSite || '');
     setNomPrenomSite(df.nomPrenomSite || '');
     setTelephoneSite(df.telephoneSite || '');
     setEmailSite(df.emailSite || '');
@@ -1377,6 +1392,7 @@ export default function DefibTab({
     setDerniereMaintenance(df.derniereMaintenance || '');
     setSortieFabricant(df.sortieFabricant || '');
 
+    setHasElectrodeASecours(df.hasElectrodeASecours || (df.modeleElectrodeASecoursId || df.lotElectrodeASecours || df.peremptionSecoursElectrodeA ? 'Oui' : 'Non'));
     setModeleElectrodeAId(df.modeleElectrodeAId || '');
     setLotElectrodeA(df.lotElectrodeA || '');
     setInsertionElectrodeA(df.insertionElectrodeA || '');
@@ -1388,6 +1404,7 @@ export default function DefibTab({
     setModeleElectrodeASecoursId(df.modeleElectrodeASecoursId || '');
     setLotElectrodeASecours(df.lotElectrodeASecours || '');
 
+    setHasElectrodePSecours(df.hasElectrodePSecours || (df.modeleElectrodePSecoursId || df.lotElectrodePSecours || df.peremptionSecoursElectrodeP ? 'Oui' : 'Non'));
     setModeleElectrodePId(df.modeleElectrodePId || '');
     setLotElectrodeP(df.lotElectrodeP || '');
     setInsertionElectrodeP(df.insertionElectrodeP || '');
@@ -1399,6 +1416,7 @@ export default function DefibTab({
     setModeleElectrodePSecoursId(df.modeleElectrodePSecoursId || '');
     setLotElectrodePSecours(df.lotElectrodePSecours || '');
 
+    setHasBatterieSecours(df.hasBatterieSecours || (df.modeleBatterieSecoursId || df.lotBatterieSecours || df.peremptionBatterieSecours ? 'Oui' : 'Non'));
     setModeleBatterieId(df.modeleBatterieId || '');
     setLotBatterie(df.lotBatterie || '');
     setInsertionBatterie(df.insertionBatterie || '');
@@ -1407,6 +1425,9 @@ export default function DefibTab({
     setSituationBatterie(df.situationBatterie || 'Vert');
     setPourcentageBatterie(df.pourcentageBatterie || '100');
     setCommentaireBatterie(df.commentaireBatterie || '');
+    setModeleBatterieSecoursId(df.modeleBatterieSecoursId || '');
+    setLotBatterieSecours(df.lotBatterieSecours || '');
+    setPeremptionBatterieSecours(df.peremptionBatterieSecours || '');
 
     setLoue(df.loue || 'Non');
     setPrete(df.prete || 'Non');
@@ -1473,6 +1494,7 @@ export default function DefibTab({
       modeleId,
 
       clientId,
+      nomSite: nomSite.trim(),
       nomPrenomSite: nomPrenomSite.trim(),
       telephoneSite: telephoneSite.trim(),
       emailSite: emailSite.trim(),
@@ -1515,9 +1537,10 @@ export default function DefibTab({
       livraisonElectrodeA,
       situationElectrodeA,
       commentaireElectrodeA: commentaireElectrodeA.trim(),
-      peremptionSecoursElectrodeA,
-      modeleElectrodeASecoursId,
-      lotElectrodeASecours: lotElectrodeASecours.trim(),
+      hasElectrodeASecours,
+      peremptionSecoursElectrodeA: hasElectrodeASecours === 'Oui' ? peremptionSecoursElectrodeA : '',
+      modeleElectrodeASecoursId: hasElectrodeASecours === 'Oui' ? modeleElectrodeASecoursId : '',
+      lotElectrodeASecours: hasElectrodeASecours === 'Oui' ? lotElectrodeASecours.trim() : '',
 
       modeleElectrodePId,
       lotElectrodeP: lotElectrodeP.trim(),
@@ -1526,9 +1549,10 @@ export default function DefibTab({
       livraisonElectrodeP,
       situationElectrodeP,
       commentaireElectrodeP: commentaireElectrodeP.trim(),
-      peremptionSecoursElectrodeP,
-      modeleElectrodePSecoursId,
-      lotElectrodePSecours: lotElectrodePSecours.trim(),
+      hasElectrodePSecours,
+      peremptionSecoursElectrodeP: hasElectrodePSecours === 'Oui' ? peremptionSecoursElectrodeP : '',
+      modeleElectrodePSecoursId: hasElectrodePSecours === 'Oui' ? modeleElectrodePSecoursId : '',
+      lotElectrodePSecours: hasElectrodePSecours === 'Oui' ? lotElectrodePSecours.trim() : '',
 
       modeleBatterieId,
       lotBatterie: lotBatterie.trim(),
@@ -1538,6 +1562,10 @@ export default function DefibTab({
       situationBatterie,
       pourcentageBatterie: pourcentageBatterie.trim(),
       commentaireBatterie: commentaireBatterie.trim(),
+      hasBatterieSecours,
+      modeleBatterieSecoursId: hasBatterieSecours === 'Oui' ? modeleBatterieSecoursId : '',
+      lotBatterieSecours: hasBatterieSecours === 'Oui' ? lotBatterieSecours.trim() : '',
+      peremptionBatterieSecours: hasBatterieSecours === 'Oui' ? peremptionBatterieSecours : '',
 
       loue,
       prete,
@@ -1941,6 +1969,7 @@ export default function DefibTab({
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Identifiant.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Série.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Client.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Nom du site.</th>
                   <th className="px-4 py-3.5 text-center whitespace-nowrap" style={thStyle}>Contrat.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Localisation.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Expir. garantie.</th>
@@ -2038,6 +2067,11 @@ export default function DefibTab({
                       {/* Client */}
                       <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }} title={linkedClient?.denomination}>
                         {linkedClient?.denomination || ''}
+                      </td>
+
+                      {/* Nom du site */}
+                      <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }} title={df.nomSite}>
+                        {df.nomSite || ''}
                       </td>
 
                       {/* Contrat Yes/No */}
@@ -2601,91 +2635,109 @@ export default function DefibTab({
                       </span>
                     </div>
 
-                    {/* Client Selector with integrated search box, filtering, and 10 results limit */}
-                    <div className="space-y-1 relative">
-                      <label htmlFor="form-client-search" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                        Client.
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          id="form-client-search"
-                          value={clientSearchQuery}
-                          onChange={(e) => {
-                            setClientSearchQuery(e.target.value);
-                            setIsClientSearchFocused(true);
-                            if (clientId) {
-                              setClientId('');
-                            }
-                          }}
-                          onFocus={() => setIsClientSearchFocused(true)}
-                          onBlur={() => {
-                            // Slight timeout so that clicks on dropdown item register before blur hide
-                            setTimeout(() => setIsClientSearchFocused(false), 250);
-                          }}
-                          placeholder="Recherchez un client."
-                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
-                        />
-                        {clientSearchQuery && !clientId && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setClientSearchQuery('');
-                              setClientId('');
+                    {/* Client Selector and Nom du site in a 50/50 grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Client Selector with integrated search box, filtering, and 10 results limit */}
+                      <div className="space-y-1 relative">
+                        <label htmlFor="form-client-search" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Client.
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="form-client-search"
+                            value={clientSearchQuery}
+                            onChange={(e) => {
+                              setClientSearchQuery(e.target.value);
                               setIsClientSearchFocused(true);
+                              if (clientId) {
+                                setClientId('');
+                              }
                             }}
-                            className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                            onFocus={() => setIsClientSearchFocused(true)}
+                            onBlur={() => {
+                              // Slight timeout so that clicks on dropdown item register before blur hide
+                              setTimeout(() => setIsClientSearchFocused(false), 250);
+                            }}
+                            placeholder="Recherchez un client."
+                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                          />
+                          {clientSearchQuery && !clientId && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setClientSearchQuery('');
+                                setClientId('');
+                                setIsClientSearchFocused(true);
+                              }}
+                              className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Dropdown list element representing select results with auto filtering (max 10 results) */}
+                        {isClientSearchFocused && (
+                          <div 
+                            className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg z-50 py-1 animate-fadeIn shadow-none text-slate-800"
+                            style={{ minWidth: '240px', fontSize: '16px' }}
                           >
-                            ✕
-                          </button>
+                            {(() => {
+                              const searchLower = clientSearchQuery.toLowerCase();
+                              const hits = clients.filter(c => 
+                                c.denomination.toLowerCase().includes(searchLower) || 
+                                (c.siret && c.siret.includes(searchLower)) ||
+                                c.id.toLowerCase().includes(searchLower)
+                              ).slice(0, 10);
+
+                              if (hits.length === 0) {
+                                return (
+                                  <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
+                                    Aucun client trouvé pour "{clientSearchQuery}"
+                                  </div>
+                                );
+                              }
+
+                              return hits.map(c => {
+                                const labelStr = `${c.denomination} (${c.siret || ''})`;
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      handleClientChange(c.id);
+                                      setClientSearchQuery(labelStr);
+                                      setIsClientSearchFocused(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 cursor-pointer text-slate-800 transition-colors ${
+                                      clientId === c.id ? 'bg-slate-50 font-semibold' : ''
+                                    }`}
+                                    style={{ fontSize: '16px' }}
+                                  >
+                                    {labelStr}
+                                  </button>
+                                );
+                              });
+                            })()}
+                          </div>
                         )}
                       </div>
 
-                      {/* Dropdown list element representing select results with auto filtering (max 10 results) */}
-                      {isClientSearchFocused && (
-                        <div 
-                          className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg z-50 py-1 animate-fadeIn shadow-none text-slate-800"
-                          style={{ minWidth: '240px', fontSize: '16px' }}
-                        >
-                          {(() => {
-                            const searchLower = clientSearchQuery.toLowerCase();
-                            const hits = clients.filter(c => 
-                              c.denomination.toLowerCase().includes(searchLower) || 
-                              (c.siret && c.siret.includes(searchLower)) ||
-                              c.id.toLowerCase().includes(searchLower)
-                            ).slice(0, 10);
-
-                            if (hits.length === 0) {
-                              return (
-                                <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
-                                  Aucun client trouvé pour "{clientSearchQuery}"
-                                </div>
-                              );
-                            }
-
-                            return hits.map(c => {
-                              const labelStr = `${c.denomination} (${c.siret || ''})`;
-                              return (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onMouseDown={() => {
-                                    handleClientChange(c.id);
-                                    setClientSearchQuery(labelStr);
-                                    setIsClientSearchFocused(false);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 cursor-pointer text-slate-800 transition-colors ${
-                                    clientId === c.id ? 'bg-slate-50 font-semibold' : ''
-                                  }`}
-                                  style={{ fontSize: '16px' }}
-                                >
-                                  {labelStr}
-                                </button>
-                              );
-                            });
-                          })()}
-                        </div>
-                      )}
+                      {/* Nom du site field */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-nom-site" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Nom du site.
+                        </label>
+                        <input
+                          type="text"
+                          id="form-nom-site"
+                          value={nomSite}
+                          onChange={(e) => setNomSite(e.target.value)}
+                          placeholder="Nom du site."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                        />
+                      </div>
                     </div>
 
                     {/* Contacts du site fields */}
@@ -3447,47 +3499,78 @@ export default function DefibTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-a-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
-                        <select
-                          id="form-elec-a-sec-lookup"
-                          value={modeleElectrodeASecoursId}
-                          onChange={(e) => setModeleElectrodeASecoursId(e.target.value)}
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                    {/* Électrode de secours radio button */}
+                    <div className="space-y-1">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Électrode de secours.</span>
+                      <div className="flex gap-4 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setHasElectrodeASecours('Oui')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
                         >
-                          <option value="">-- Sélectionner Électrode --</option>
-                          {modelesElectrode.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-a-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
-                        <input
-                          type="text"
-                          id="form-elec-a-sec-lot"
-                          value={lotElectrodeASecours || ''}
-                          onChange={(e) => setLotElectrodeASecours(e.target.value)}
-                          placeholder="Numéro de lot"
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
-                        <input
-                          type="date"
-                          id="form-elec-a-sec"
-                          value={peremptionSecoursElectrodeA}
-                          onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
-                        />
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasElectrodeASecours === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasElectrodeASecours === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHasElectrodeASecours('Non')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasElectrodeASecours === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasElectrodeASecours === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Non
+                        </button>
                       </div>
                     </div>
+
+                    {hasElectrodeASecours === 'Oui' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-a-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
+                          <select
+                            id="form-elec-a-sec-lookup"
+                            value={modeleElectrodeASecoursId}
+                            onChange={(e) => setModeleElectrodeASecoursId(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                          >
+                            <option value="">-- Sélectionner Électrode --</option>
+                            {modelesElectrode.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-a-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                          <input
+                            type="text"
+                            id="form-elec-a-sec-lot"
+                            value={lotElectrodeASecours || ''}
+                            onChange={(e) => setLotElectrodeASecours(e.target.value)}
+                            placeholder="Numéro de lot"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                          <input
+                            type="date"
+                            id="form-elec-a-sec"
+                            value={peremptionSecoursElectrodeA}
+                            onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
+                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1 bg-white">
@@ -3628,47 +3711,78 @@ export default function DefibTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-p-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
-                        <select
-                          id="form-elec-p-sec-lookup"
-                          value={modeleElectrodePSecoursId}
-                          onChange={(e) => setModeleElectrodePSecoursId(e.target.value)}
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                    {/* Électrode de secours radio button */}
+                    <div className="space-y-1">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Électrode de secours.</span>
+                      <div className="flex gap-4 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setHasElectrodePSecours('Oui')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
                         >
-                          <option value="">-- Sélectionner Électrode --</option>
-                          {modelesElectrode.map(v => (
-                            <option key={v.id} value={v.id}>
-                              {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-p-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
-                        <input
-                          type="text"
-                          id="form-elec-p-sec-lot"
-                          value={lotElectrodePSecours || ''}
-                          onChange={(e) => setLotElectrodePSecours(e.target.value)}
-                          placeholder="Numéro de lot"
-                          className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
-                        />
-                      </div>
-
-                      <div className="space-y-1 bg-white">
-                        <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
-                        <input
-                          type="date"
-                          id="form-elec-p-sec"
-                          value={peremptionSecoursElectrodeP}
-                          onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
-                          className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
-                        />
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasElectrodePSecours === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasElectrodePSecours === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHasElectrodePSecours('Non')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasElectrodePSecours === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasElectrodePSecours === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Non
+                        </button>
                       </div>
                     </div>
+
+                    {hasElectrodePSecours === 'Oui' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-p-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle d'électrode de secours.</label>
+                          <select
+                            id="form-elec-p-sec-lookup"
+                            value={modeleElectrodePSecoursId}
+                            onChange={(e) => setModeleElectrodePSecoursId(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                          >
+                            <option value="">-- Sélectionner Électrode --</option>
+                            {modelesElectrode.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-p-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                          <input
+                            type="text"
+                            id="form-elec-p-sec-lot"
+                            value={lotElectrodePSecours || ''}
+                            onChange={(e) => setLotElectrodePSecours(e.target.value)}
+                            placeholder="Numéro de lot"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                          <input
+                            type="date"
+                            id="form-elec-p-sec"
+                            value={peremptionSecoursElectrodeP}
+                            onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
+                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1 bg-white">
@@ -3808,6 +3922,79 @@ export default function DefibTab({
                         />
                       </div>
                     </div>
+
+                    {/* Batterie de secours radio button */}
+                    <div className="space-y-1">
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Batterie de secours.</span>
+                      <div className="flex gap-4 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setHasBatterieSecours('Oui')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasBatterieSecours === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasBatterieSecours === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHasBatterieSecours('Non')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasBatterieSecours === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasBatterieSecours === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Non
+                        </button>
+                      </div>
+                    </div>
+
+                    {hasBatterieSecours === 'Oui' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-bat-sec-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle de batterie de secours.</label>
+                          <select
+                            id="form-bat-sec-lookup"
+                            value={modeleBatterieSecoursId}
+                            onChange={(e) => setModeleBatterieSecoursId(e.target.value)}
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700"
+                          >
+                            <option value="">-- Sélectionner Batterie --</option>
+                            {modelesBatterie.map(v => (
+                              <option key={v.id} value={v.id}>
+                                {v.marque === 'Standard' ? v.nom : `${v.marque} - ${v.nom}`}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-bat-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de la batterie de secours.</label>
+                          <input
+                            type="text"
+                            id="form-bat-sec-lot"
+                            value={lotBatterieSecours || ''}
+                            onChange={(e) => setLotBatterieSecours(e.target.value)}
+                            placeholder="Numéro de lot"
+                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                          />
+                        </div>
+
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-bat-sec-per" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de la batterie de secours.</label>
+                          <input
+                            type="date"
+                            id="form-bat-sec-per"
+                            value={peremptionBatterieSecours}
+                            onChange={(e) => setPeremptionBatterieSecours(e.target.value)}
+                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">

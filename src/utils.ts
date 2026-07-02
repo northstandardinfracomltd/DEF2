@@ -805,3 +805,19 @@ export const INITIAL_MEMBERS: Member[] = [
     lastActive: 'En ligne'
   }
 ];
+
+export function getLocationCustomName(originalName: string): string {
+  if (typeof window === 'undefined') return originalName;
+  const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+  try {
+    const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return parsed[originalName] || originalName;
+    }
+  } catch (e) {
+    // Ignore
+  }
+  return originalName;
+}
+

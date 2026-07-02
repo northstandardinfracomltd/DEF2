@@ -22,7 +22,7 @@ import { CompanyInfo, Member, MemberSchedule, MemberAbsence } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere, updateTenantLanguage } from '../firebase';
 import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded } from '../utils/emailService';
 import { setLanguage, t } from '../utils/translate';
-import { REGIONS_FRANCAISES } from '../utils';
+import { REGIONS_FRANCAISES, getLocationCustomName } from '../utils';
 import { getRegionsForCountry } from '../utils/regions';
 
 interface SettingsModalProps {
@@ -99,6 +99,27 @@ export default function SettingsModal({
   const [isSaving, setIsSaving] = React.useState(false);
   const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
   const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
+  const [localLocationNames, setLocalLocationNames] = React.useState<Record<string, string>>(() => {
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    try {
+      const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  React.useEffect(() => {
+    if (isOpen) {
+      const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+      try {
+        const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+        setLocalLocationNames(saved ? JSON.parse(saved) : {});
+      } catch (e) {
+        setLocalLocationNames({});
+      }
+    }
+  }, [isOpen]);
 
   React.useEffect(() => {
     setEnableOtherEquipments(propEnableOtherEquipments);
@@ -670,6 +691,9 @@ export default function SettingsModal({
     // Sauvegarder l'url de l'app script
     saveAppsScriptUrl(appsScriptUrl).catch(console.error);
 
+    // Sauvegarder les intitulés personnalisés des emplacements
+    localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
+
     // Save language to the master tenant list in Firestore
     if (myTenantId && myTenantId !== 'demo') {
       updateTenantLanguage(myTenantId, selectedLang).catch(console.error);
@@ -1127,6 +1151,43 @@ export default function SettingsModal({
             )}
           </div>
           
+          {/* SECTION: INTITULÉS DES EMPLACEMENTS */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-location-names">
+            <div>
+              <h3 className="text-lg font-bold text-black font-sans mb-1">
+                {t("Intitulés des emplacements")}.
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-2">
+              {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => (
+                <div key={loc} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2">
+                  <span className="font-semibold text-[18px] text-black min-w-[120px] font-sans" style={{ fontSize: '18px', color: '#000000' }}>
+                    {t(loc)}
+                  </span>
+                  <div className="flex-1 space-y-0.5">
+                    <label className="block text-[11px] font-bold text-slate-500 font-sans">
+                      {t("Intitulé personnalisé.")}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={25}
+                      value={localLocationNames[loc] || ''}
+                      onChange={(e) => {
+                        setLocalLocationNames(prev => ({
+                          ...prev,
+                          [loc]: e.target.value
+                        }));
+                      }}
+                      className="w-full text-black placeholder-[#a0a0a0] font-sans text-xs py-1 px-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-0 focus:border-slate-200"
+                      placeholder={t("Entrez un texte")}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
           {/* SECTION 1: MEMBERS LIST */}
           <div className="space-y-4 pb-6" id="settings-section-members" style={{ order: 99 }}>
 
@@ -1214,7 +1275,7 @@ export default function SettingsModal({
                         );
                         return (
                           <option key={loc} value={loc} disabled={isTaken}>
-                            {t(loc)} {isTaken ? t(" (Déjà attribué)") : ''}
+                            {t(getLocationCustomName(loc))} {isTaken ? t(" (Déjà attribué)") : ''}
                           </option>
                         );
                       })}
@@ -1454,7 +1515,7 @@ export default function SettingsModal({
                                     );
                                     return (
                                       <option key={loc} value={loc} disabled={isTakenByOther}>
-                                        {t(loc)} {isTakenByOther ? t(" (Déjà attribué)") : ''}
+                                        {t(getLocationCustomName(loc))} {isTakenByOther ? t(" (Déjà attribué)") : ''}
                                       </option>
                                     );
                                   })}

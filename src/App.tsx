@@ -21,6 +21,7 @@ import {
   generateRandomPin,
   formatDateToFR,
   computeProchaineMaintenance,
+  getLocationCustomName,
 } from './utils';
 import {
   triggerEmail4Signalement,
@@ -4175,8 +4176,8 @@ export default function App() {
             { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
             ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
             { id: 'clients', label: t('Clients'), icon: User },
-            { id: 'fsm', label: t('FSM'), icon: Flame },
-            { id: 'gmao', label: t('GMAO'), icon: Wrench },
+            { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
+            { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
             { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
             { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
             { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
@@ -4896,7 +4897,7 @@ export default function App() {
                               >
                                 {['Aucun', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'].map((veh) => (
                                   <option key={veh} value={veh}>
-                                    {veh}
+                                    {veh === 'Aucun' ? veh : getLocationCustomName(veh)}
                                   </option>
                                 ))}
                               </select>
@@ -5031,9 +5032,9 @@ export default function App() {
                                 })();
                                 const estimatedDateValue = m.estimatedDate || (t.calculated ? calculatedDate : '');
                                 return (
-                                  <div key={m.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans">
+                                  <div key={m.id} className="rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans" style={{ border: '1px solid rgb(229, 229, 229)', backgroundColor: 'rgb(245, 245, 245)' }}>
                                       {/* Ligne 1: Numéro de passage */}
-                                      <div className="flex flex-wrap items-center gap-2 bg-white pb-0.5">
+                                      <div className="flex flex-wrap items-center gap-2 bg-transparent pb-0.5">
                                         <div
                                           style={{
                                             backgroundColor: '#fa53d5',
@@ -5114,9 +5115,9 @@ export default function App() {
                                       </div>
 
                                       {/* Ligne 2: Site., Identifiant., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 w-full bg-white">
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 w-full bg-transparent">
                                         {/* Site. (toujours disabled) */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Site.</label>
                                           <input
                                             type="text"
@@ -5128,7 +5129,7 @@ export default function App() {
                                         </div>
 
                                         {/* Identifiant. (toujours disabled) */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Identifiant.</label>
                                           <input
                                             type="text"
@@ -5140,7 +5141,7 @@ export default function App() {
                                         </div>
 
                                         {/* Raison. */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Raison.</label>
                                           <select
                                             value={m.reason}
@@ -5182,7 +5183,7 @@ export default function App() {
                                         </div>
 
                                         {/* Bon de commande. */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Bon de commande.</label>
                                           <select
                                             value={m.bonCommandeId || ''}
@@ -5262,7 +5263,7 @@ export default function App() {
                                         </div>
 
                                         {/* Date estimée. */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Date estimée.</label>
                                           <input
                                             type="date"
@@ -5282,7 +5283,7 @@ export default function App() {
                                         </div>
 
                                         {/* Créneau estimé. */}
-                                        <div className="space-y-0.5 bg-white">
+                                        <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Créneau estimé.</label>
                                           <select
                                             value={m.estimatedSlot || ''}
@@ -5326,9 +5327,9 @@ export default function App() {
                                         </div>
 
                                         {/* Situation. */}
-                                        <div className="space-y-0.5 font-sans relative bg-white">
+                                        <div className="space-y-0.5 font-sans relative bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Situation.</label>
-                                          <div className="relative flex items-center bg-white">
+                                          <div className="relative flex items-center bg-transparent">
                                             <div 
                                               style={{
                                                 position: 'absolute',
@@ -5414,21 +5415,21 @@ export default function App() {
                                           name: name,
                                           locationName: ds.locationName,
                                           volumeDisponible: ds.volumeDisponible,
-                                          label: `${name} (${ds.locationName} - Qté dispo: ${ds.volumeDisponible}${ugsString})`
+                                          label: `${name} (${getLocationCustomName(ds.locationName)} - Qté dispo: ${ds.volumeDisponible}${ugsString})`
                                         };
                                       });
 
                                     return (
-                                      <div className="pt-2 space-y-2.5 relative font-sans w-full bg-white">
-                                        <div className="flex justify-between items-center bg-white">
-                                          <span className="fsm-label-style bg-white" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>
+                                      <div className="pt-2 space-y-2.5 relative font-sans w-full bg-transparent">
+                                        <div className="flex justify-between items-center bg-transparent">
+                                          <span className="fsm-label-style bg-transparent" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>
                                             Pièces requises.
                                           </span>
                                         </div>
 
                                         {/* SELECTED PIECES BADGES */}
                                         {m.requiredParts.length > 0 && (
-                                          <div className="flex flex-wrap gap-1.5 min-h-[24px] items-center bg-white">
+                                          <div className="flex flex-wrap gap-1.5 min-h-[24px] items-center bg-transparent">
                                             {m.requiredParts.map((part: string) => (
                                               <span
                                                 key={part}
@@ -5449,7 +5450,7 @@ export default function App() {
                                         )}
 
                                         {/* NATIVE SYSTEM DROPDOWN SELECTOR */}
-                                        <div className="relative bg-white">
+                                        <div className="relative bg-transparent">
                                           <select
                                             value=""
                                             onChange={(e) => {
@@ -5487,7 +5488,7 @@ export default function App() {
                                   })()}
 
                                   {/* Full-width Supprimer button */}
-                                  <div className="pt-2 bg-white">
+                                  <div className="pt-2 bg-transparent">
                                     <button
                                       type="button"
                                       onClick={() => deleteFsmMission(t.id, m.id)}

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Variable, StockRecord, DistributedStockLocation } from '../types';
+import { getLocationCustomName } from '../utils';
 
 const CODE39_MAP: Record<string, string> = {
   '0': '101001101101',
@@ -707,7 +708,7 @@ export default function StocksDistribuesTab({
                       >
                         <option value="" disabled hidden>Choisir l'emplacement</option>
                         {ALL_LOCATIONS.map(loc => (
-                          <option key={loc} value={loc}>{loc}</option>
+                          <option key={loc} value={loc}>{getLocationCustomName(loc)}</option>
                         ))}
                       </select>
                     </div>
@@ -751,7 +752,7 @@ export default function StocksDistribuesTab({
                   }}
                   className="transition-all"
                 >
-                  {loc} ({count})
+                  {loc === 'Tous' ? loc : getLocationCustomName(loc)} ({count})
                 </button>
               );
             })}
@@ -821,7 +822,7 @@ export default function StocksDistribuesTab({
                                 fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
                               }}
                             >
-                              {item.locationName}
+                              {getLocationCustomName(item.locationName)}
                             </span>
                           </td>
                           {/* Qté disponible */}
@@ -1027,7 +1028,7 @@ export default function StocksDistribuesTab({
                     required
                   >
                     {ALL_LOCATIONS.map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
+                      <option key={loc} value={loc}>{getLocationCustomName(loc)}</option>
                     ))}
                   </select>
                 </div>

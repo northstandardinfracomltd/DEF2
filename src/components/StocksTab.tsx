@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability } from '../types';
+import { getLocationCustomName } from '../utils';
 import HelpBubble from './HelpBubble';
 
 const CODE39_MAP: Record<string, string> = {
@@ -1206,6 +1207,41 @@ export default function StocksTab({
                 </div>
               </div>
 
+              {/* Section Taux de Marge */}
+              <div className="md:col-span-4 mt-2 bg-white flex flex-col gap-1">
+                <div 
+                  style={{
+                    color: 'rgb(143 51 151)',
+                    backgroundColor: 'rgb(253 229 255)',
+                    border: 'none',
+                    fontSize: '16px'
+                  }}
+                  className="p-4 rounded-xl mb-4 font-sans font-semibold flex items-center gap-2.5"
+                >
+                  <span 
+                    className="w-3.5 h-3.5 rounded-full inline-block shrink-0" 
+                    style={{ 
+                      backgroundColor: (() => {
+                        const achat = parseFloat(newValAchat) || 0;
+                        const marge = parseFloat(newMarge) || 0;
+                        const taux = achat > 0 ? (marge / achat) * 100 : 0;
+                        if (taux >= 30) return '#10b981'; // vert
+                        if (taux >= 15) return '#f97316'; // orange
+                        return '#ef4444'; // rouge
+                      })()
+                    }}
+                  />
+                  <span>
+                    Votre taux de marge est de <strong className="font-extrabold">{(() => {
+                      const achat = parseFloat(newValAchat) || 0;
+                      const marge = parseFloat(newMarge) || 0;
+                      const taux = achat > 0 ? (marge / achat) * 100 : 0;
+                      return taux.toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+                    })()}%</strong>.
+                  </span>
+                </div>
+              </div>
+
               {/* Section Prévoyance. */}
               <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
               <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-1">
@@ -1904,7 +1940,7 @@ export default function StocksTab({
                                     >
                                       {ALL_LOCATIONS.map(loc => (
                                         <option key={loc} value={loc}>
-                                          {loc}
+                                          {getLocationCustomName(loc)}
                                         </option>
                                       ))}
                                     </select>

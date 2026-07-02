@@ -77,6 +77,7 @@ export interface Defibrillateur {
   
   // Section 2 - Client
   clientId: string; // Lookup Client
+  nomSite?: string; // Nom du site
   nomPrenomSite: string;
   telephoneSite: string;
   emailSite: string;
@@ -116,6 +117,7 @@ export interface Defibrillateur {
   sortieFabricant: string;
 
   // Section 6 - Électrode Mixte ou Adulte (A)
+  hasElectrodeASecours?: 'Oui' | 'Non';
   modeleElectrodeAId: string; // Lookup Variable category 'Modèle Électrode'
   lotElectrodeA: string;
   insertionElectrodeA: string;
@@ -128,6 +130,7 @@ export interface Defibrillateur {
   lotElectrodeASecours?: string;
 
   // Section 7 - Électrode Pédiatrique (P)
+  hasElectrodePSecours?: 'Oui' | 'Non';
   modeleElectrodePId: string; // Lookup Variable category 'Modèle Électrode'
   lotElectrodeP: string;
   insertionElectrodeP: string;
@@ -140,6 +143,7 @@ export interface Defibrillateur {
   lotElectrodePSecours?: string;
 
   // Section 8 - Batterie (B)
+  hasBatterieSecours?: 'Oui' | 'Non';
   modeleBatterieId: string; // Lookup Variable category 'Modèle Batterie'
   lotBatterie: string;
   insertionBatterie: string;
@@ -148,6 +152,9 @@ export interface Defibrillateur {
   situationBatterie: 'Vert' | 'Orange' | 'Rouge';
   pourcentageBatterie: string; // Deux chiffres max (0-99/100)
   commentaireBatterie: string;
+  modeleBatterieSecoursId?: string;
+  lotBatterieSecours?: string;
+  peremptionBatterieSecours?: string;
 
   // Section 9 - Catégories
   loue: 'Oui' | 'Non';

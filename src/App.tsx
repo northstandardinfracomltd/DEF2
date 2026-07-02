@@ -22,6 +22,7 @@ import {
   formatDateToFR,
   computeProchaineMaintenance,
   getLocationCustomName,
+  getCapsuleBgColor,
 } from './utils';
 import {
   triggerEmail4Signalement,
@@ -5088,7 +5089,7 @@ export default function App() {
                                                   fontSize: '14px',
                                                   padding: '4.5px 15px',
                                                   border: 'none',
-                                                  background: 'black'
+                                                  background: getCapsuleBgColor(rawVal)
                                                 }}
                                                 className="inline-flex items-center rounded-full font-sans font-medium"
                                               >

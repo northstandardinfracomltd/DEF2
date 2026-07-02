@@ -821,3 +821,42 @@ export function getLocationCustomName(originalName: string): string {
   return originalName;
 }
 
+export function getCapsuleBgColor(dateStr: string): string {
+  if (!dateStr) return 'black';
+  let date: Date | null = null;
+  const partsDash = dateStr.split('-');
+  if (partsDash.length === 3) {
+    const [year, month, day] = partsDash.map(Number);
+    date = new Date(year, month - 1, day);
+  } else {
+    const partsSlash = dateStr.split('/');
+    if (partsSlash.length === 3) {
+      const [day, month, year] = partsSlash.map(Number);
+      date = new Date(year, month - 1, day);
+    }
+  }
+
+  if (!date || isNaN(date.getTime())) return 'black';
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  date.setHours(0, 0, 0, 0);
+
+  const diffTime = date.getTime() - today.getTime();
+  if (diffTime < 0) {
+    return '#dc2626'; // Expired -> rouge
+  }
+
+  const threeMonthsMs = 3 * 30.44 * 24 * 60 * 60 * 1000;
+  const sixMonthsMs = 6 * 30.44 * 24 * 60 * 60 * 1000;
+
+  if (diffTime < threeMonthsMs) {
+    return '#ea580c'; // Under 3 months -> orange
+  } else if (diffTime <= sixMonthsMs) {
+    return '#2563eb'; // Between 3 and 6 months -> bleu
+  } else {
+    return 'black'; // Above 6 months -> noir
+  }
+}
+
+

@@ -367,8 +367,12 @@ export function scheduleMissions(
       }
       // Schedule slot on this date or roll forward if closed
       let assignedStartMinutesForcedDate = 0;
+      let daysChecked = 0;
       while (true) {
-        const intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+        let intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+        if (intervals.length === 0 || daysChecked > 30) {
+          intervals = [{ start: 480, end: 1080 }]; // fallback to avoid infinite loop
+        }
         let found = false;
         for (const interval of intervals) {
           const candidateStart = Math.max(currentCursorMinutes, interval.start);
@@ -378,11 +382,12 @@ export function scheduleMissions(
             break;
           }
         }
-        if (found) {
+        if (found || daysChecked > 31) {
           break;
         }
         currentCursorDate = addDays(currentCursorDate, 1);
         currentCursorMinutes = 0;
+        daysChecked++;
       }
 
       const slot = formatMinutesToSlot(assignedStartMinutesForcedDate);
@@ -401,16 +406,21 @@ export function scheduleMissions(
     // If ONLY slot is manually forced, we keep current date cursor (if open) and use that slot
     if (m.isManualSlot && m.estimatedSlot) {
       const targetSlotMinutes = parseSlotToMinutes(m.estimatedSlot);
+      let daysChecked = 0;
       while (true) {
-        const intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+        let intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+        if (intervals.length === 0 || daysChecked > 30) {
+          intervals = [{ start: 480, end: 1080 }]; // fallback to avoid infinite loop
+        }
         const foundInterval = intervals.find(interval => 
           targetSlotMinutes >= interval.start && (targetSlotMinutes + duration) <= interval.end
         );
-        if (foundInterval) {
+        if (foundInterval || daysChecked > 31) {
           break;
         }
         currentCursorDate = addDays(currentCursorDate, 1);
         currentCursorMinutes = 0;
+        daysChecked++;
       }
       const dateStr = formatDate(currentCursorDate);
       currentCursorMinutes = targetSlotMinutes + duration;
@@ -427,8 +437,12 @@ export function scheduleMissions(
 
     // Regular Auto-Scheduling: sequential slots matching open hours & days for both equipment & technician
     let assignedStartMinutes = 0;
+    let daysChecked = 0;
     while (true) {
-      const intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+      let intervals = getOverlappingIntervals(currentCursorDate, eq, tech);
+      if (intervals.length === 0 || daysChecked > 30) {
+        intervals = [{ start: 480, end: 1080 }]; // fallback to avoid infinite loop
+      }
       let found = false;
       for (const interval of intervals) {
         const candidateStart = Math.max(currentCursorMinutes, interval.start);
@@ -438,12 +452,13 @@ export function scheduleMissions(
           break;
         }
       }
-      if (found) {
+      if (found || daysChecked > 31) {
         break;
       }
       // Rollover to next day at 00:00
       currentCursorDate = addDays(currentCursorDate, 1);
       currentCursorMinutes = 0;
+      daysChecked++;
     }
 
     const assignedDate = formatDate(currentCursorDate);

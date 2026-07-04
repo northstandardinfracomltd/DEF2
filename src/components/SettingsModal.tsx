@@ -178,8 +178,10 @@ export default function SettingsModal({
   const [pennylaneSecretToken, setPennylaneSecretToken] = React.useState('');
 
   const [dropboxActive, setDropboxActive] = React.useState(false);
+  const [dropboxAppKey, setDropboxAppKey] = React.useState('');
+  const [dropboxAppSecret, setDropboxAppSecret] = React.useState('');
   const [dropboxAccessToken, setDropboxAccessToken] = React.useState('');
-  const [dropboxAccessTokenSecret, setDropboxAccessTokenSecret] = React.useState('');
+  const [dropboxError, setDropboxError] = React.useState<string | null>(null);
 
   const [cegidActive, setCegidActive] = React.useState(false);
   const [cegidApiKey, setCegidApiKey] = React.useState('');
@@ -215,8 +217,9 @@ export default function SettingsModal({
           if (data.pennylaneSecretToken !== undefined) setPennylaneSecretToken(data.pennylaneSecretToken);
 
           if (data.dropboxActive !== undefined) setDropboxActive(data.dropboxActive);
+          if (data.dropboxAppKey !== undefined) setDropboxAppKey(data.dropboxAppKey);
+          if (data.dropboxAppSecret !== undefined) setDropboxAppSecret(data.dropboxAppSecret);
           if (data.dropboxAccessToken !== undefined) setDropboxAccessToken(data.dropboxAccessToken);
-          if (data.dropboxAccessTokenSecret !== undefined) setDropboxAccessTokenSecret(data.dropboxAccessTokenSecret);
 
           if (data.cegidActive !== undefined) setCegidActive(data.cegidActive);
           if (data.cegidApiKey !== undefined) setCegidApiKey(data.cegidApiKey);
@@ -238,6 +241,26 @@ export default function SettingsModal({
 
   const handleSaveConnectors = async () => {
     setConnectorsSaveStatus('saving');
+    setDropboxError(null);
+
+    // Verify Dropbox setup if active
+    if (dropboxActive) {
+      try {
+        const { ensureDropboxSetup } = await import('../utils/dropbox');
+        await ensureDropboxSetup(dropboxAccessToken);
+      } catch (err: any) {
+        console.error("Dropbox folder setup failed on save:", err);
+        // Extract a cleaner error message if it is a missing_scope error
+        let cleanMsg = err.message || "Impossible de créer le dossier, vérifiez les identifiants.";
+        if (cleanMsg.includes("missing_scope")) {
+          cleanMsg = "Erreur Dropbox : Autorisation insuffisante. Veuillez activer la permission 'files.content.write' (et 'files.content.read') dans l'onglet Permissions de votre application Dropbox Developer, puis générez un nouveau token.";
+        } else if (cleanMsg.includes("401") || cleanMsg.includes("expired") || cleanMsg.includes("invalid_access_token") || cleanMsg.includes("Unauthorized")) {
+          cleanMsg = "Erreur Dropbox 401 : Le token d'accès est invalide ou expiré (les tokens temporaires Dropbox expirent au bout de 4 heures). Veuillez générer un nouveau Token d'accès dans votre console Dropbox Developer.";
+        }
+        setDropboxError(cleanMsg);
+      }
+    }
+
     try {
       const payload = {
         sageActive,
@@ -253,8 +276,9 @@ export default function SettingsModal({
         pennylaneCompanyToken,
         pennylaneSecretToken,
         dropboxActive,
+        dropboxAppKey,
+        dropboxAppSecret,
         dropboxAccessToken,
-        dropboxAccessTokenSecret,
         cegidActive,
         cegidApiKey,
         cegidApiSecret,
@@ -1165,13 +1189,10 @@ export default function SettingsModal({
                   <span className="font-semibold text-[18px] text-black min-w-[120px] font-sans" style={{ fontSize: '18px', color: '#000000' }}>
                     {t(loc)}
                   </span>
-                  <div className="flex-1 space-y-0.5">
-                    <label className="block text-[11px] font-bold text-slate-500 font-sans">
-                      {t("Intitulé personnalisé.")}
-                    </label>
+                  <div className="flex-1">
                     <input
                       type="text"
-                      maxLength={25}
+                      maxLength={15}
                       value={localLocationNames[loc] || ''}
                       onChange={(e) => {
                         setLocalLocationNames(prev => ({
@@ -2328,7 +2349,7 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: 'rgb(185, 28, 28)',
+                              backgroundColor: pennylaneActive ? '#fe4eba' : 'rgb(57, 169, 143)',
                               boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
@@ -2338,7 +2359,7 @@ export default function SettingsModal({
                             }}
                             className="font-bold select-none"
                           >
-                            {t("Indisponible")}
+                            {pennylaneActive ? t("Activé") : t("Disponible")}
                           </span>
                         </div>
                       </div>
@@ -2411,7 +2432,7 @@ export default function SettingsModal({
                         <div className="select-none font-sans flex items-center mt-1">
                           <span
                             style={{
-                              backgroundColor: 'rgb(185, 28, 28)',
+                              backgroundColor: dropboxActive ? '#fe4eba' : 'rgb(57, 169, 143)',
                               boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
                               color: '#ffffff',
                               fontSize: '16px',
@@ -2421,7 +2442,7 @@ export default function SettingsModal({
                             }}
                             className="font-bold select-none"
                           >
-                            {t("Indisponible")}
+                            {dropboxActive ? t("Activé") : t("Disponible")}
                           </span>
                         </div>
                       </div>
@@ -2441,10 +2462,34 @@ export default function SettingsModal({
                     </div>
                   </div>
 
-                  {dropboxActive && (
+                   {dropboxActive && (
                     <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Token d’accès.")}</label>
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("App Key")}</label>
+                        <input
+                          type="text"
+                          value={dropboxAppKey}
+                          onChange={(e) => {
+                            setDropboxAppKey(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'App Key.")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("App Secret Key")}</label>
+                        <input
+                          type="text"
+                          value={dropboxAppSecret}
+                          onChange={(e) => {
+                            setDropboxAppSecret(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez l'App Secret Key.")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Access Token")}</label>
                         <input
                           type="text"
                           value={dropboxAccessToken}
@@ -2452,21 +2497,30 @@ export default function SettingsModal({
                             setDropboxAccessToken(e.target.value);
                           }}
                           className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
-                          placeholder={t("Entrez le Token d'accès.")}
+                          placeholder={t("Entrez l'Access Token.")}
                         />
                       </div>
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Token secret d’accès.")}</label>
-                        <input
-                          type="text"
-                          value={dropboxAccessTokenSecret}
-                          onChange={(e) => {
-                            setDropboxAccessTokenSecret(e.target.value);
-                          }}
-                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
-                          placeholder={t("Entrez le Token secret d'accès.")}
-                        />
-                      </div>
+                      {dropboxError && (
+                        <div className="space-y-2 mt-2">
+                          <div className="text-red-600 font-sans font-light text-sm text-left">
+                            {dropboxError}
+                          </div>
+                          {(dropboxError.includes("Autorisation insuffisante") || dropboxError.includes("401") || dropboxError.includes("expiré")) && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 space-y-2">
+                              <p className="font-bold text-red-900">💡 Guide de configuration & génération de Token Dropbox :</p>
+                              <ol className="list-decimal list-inside space-y-1 text-[11px] text-red-700">
+                                <li>Connectez-vous sur la <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-red-900">Console Dropbox Developer</a>.</li>
+                                <li>Cliquez sur votre application liée au projet (ou créez-en une de type "Scoped App").</li>
+                                <li>Accédez à l'onglet <strong className="font-bold">Permissions</strong> dans le menu supérieur.</li>
+                                <li>Sous la section <strong className="font-bold">Files and folders</strong>, cochez la case <strong className="font-bold">files.content.write</strong> (ainsi que <strong className="font-bold">files.content.read</strong>).</li>
+                                <li>Faites défiler vers le bas et cliquez sur le bouton <strong className="font-bold">Submit</strong> pour valider les modifications de permissions.</li>
+                                <li>Revenez à l'onglet <strong className="font-bold">Settings</strong>, localisez la section <strong className="font-bold">Generated access token</strong> et cliquez sur <strong className="font-bold">Generate</strong> pour obtenir un nouveau token d'accès contenant ces droits.</li>
+                                <li>Copiez ce nouveau token dans le champ ci-dessus et cliquez sur Enregistrer.</li>
+                              </ol>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

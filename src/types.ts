@@ -302,6 +302,7 @@ export interface StockRecord {
   ugs?: string;
   traceabilityEnabled?: boolean;
   traceabilities?: StockTraceability[];
+  usageRecommandeIds?: string[];
 }
 
 export interface CommercialDocItem {

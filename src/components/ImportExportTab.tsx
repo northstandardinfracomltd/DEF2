@@ -219,6 +219,8 @@ interface ImportExportTabProps {
   saveClients?: (newClients: Client[]) => void;
   saveStocks?: (newStocks: StockRecord[]) => void;
   setActiveTab?: (tab: any) => void;
+  dropboxActive?: boolean;
+  dropboxAccessToken?: string;
 }
 
 // Helper function to robustly parse CSV
@@ -766,6 +768,8 @@ export default function ImportExportTab({
   saveClients,
   saveStocks,
   setActiveTab,
+  dropboxActive = false,
+  dropboxAccessToken = '',
 }: ImportExportTabProps) {
   const isRecordExpired = (r: ImportExportRecord): boolean => {
     if (r.expiresAt) {
@@ -820,6 +824,7 @@ export default function ImportExportTab({
   const [validationError, setValidationError] = useState<string | null>(null);
   const [importSuccessMessage, setImportSuccessMessage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [dropboxError, setDropboxError] = useState<string | null>(null);
 
   // Set expiration date automatically: today + 1 day
   useEffect(() => {
@@ -1069,6 +1074,25 @@ export default function ImportExportTab({
           await saveCollectionToFirestore('importExportRecords', updated);
         }
 
+        setDropboxError(null);
+        if (dropboxActive && dropboxAccessToken) {
+          try {
+            const { uploadToDropbox } = await import('../utils/dropbox');
+            const sanitizedCat = formCategorie.replace(/\./g, '').toLowerCase().replace(/é/g, 'e');
+            const fileName = `export_${sanitizedCat}_${formDate}.csv`;
+            await uploadToDropbox(dropboxAccessToken, fileName, csv);
+          } catch (dropboxErr: any) {
+            console.error("Dropbox upload error during export:", dropboxErr);
+            let cleanMsg = "Impossible de synchroniser avec Dropbox, vérifiez les identifiants.";
+            if (dropboxErr.message && (dropboxErr.message.includes("401") || dropboxErr.message.includes("expired") || dropboxErr.message.includes("invalid_access_token") || dropboxErr.message.includes("Unauthorized"))) {
+              cleanMsg = "Erreur Dropbox 401 : Le token d'accès est invalide ou expiré (les tokens temporaires Dropbox expirent au bout de 4 heures). Veuillez générer un nouveau token d'accès dans votre console Dropbox Developer.";
+            } else if (dropboxErr.message && dropboxErr.message.includes("missing_scope")) {
+              cleanMsg = "Erreur Dropbox : Autorisation insuffisante. Veuillez activer la permission 'files.content.write' dans votre console Dropbox Developer, puis générez un nouveau token.";
+            }
+            setDropboxError(cleanMsg);
+          }
+        }
+
         setIsSaving(false);
         setShowForm(false);
 
@@ -1269,10 +1293,33 @@ export default function ImportExportTab({
         )}
 
         {!showForm && (
-          <HelpBubble 
-            cacheKey="help_dismissed_import_export" 
-            text="Astuce : Vous souhaitez importer un fichier de données et vous avez besoin d’un fichier d’exemple, il vous suffit de télécharger un fichier d’exportation pour obtenir les entêtes des colonnes (ne les changez pas) ainsi qu’un jeu de données exemple avec les lignes exportées." 
-          />
+          <>
+            <HelpBubble 
+              cacheKey="help_dismissed_import_export" 
+              text="Astuce : Vous souhaitez importer un fichier de données et vous avez besoin d’un fichier d’exemple, il vous suffit de télécharger un fichier d’exportation pour obtenir les entêtes des colonnes (ne les changez pas) ainsi qu’un jeu de données exemple avec les lignes exportées." 
+            />
+            {dropboxError && (
+              <div className="space-y-2 my-4">
+                <div className="text-red-600 font-sans font-light text-sm text-left">
+                  {dropboxError}
+                </div>
+                {(dropboxError.includes("Autorisation insuffisante") || dropboxError.includes("401") || dropboxError.includes("expiré")) && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 space-y-2 max-w-2xl">
+                    <p className="font-bold text-red-900">💡 Guide de configuration & génération de Token Dropbox :</p>
+                    <ol className="list-decimal list-inside space-y-1 text-[11px] text-red-700">
+                      <li>Allez sur la <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-red-900">Console Dropbox Developer</a>.</li>
+                      <li>Sélectionnez votre application Dropbox.</li>
+                      <li>Allez dans l'onglet <strong className="font-bold">Permissions</strong>.</li>
+                      <li>Cochez la case <strong className="font-bold">files.content.write</strong> (et <strong className="font-bold">files.content.read</strong>).</li>
+                      <li>Cliquez sur <strong className="font-bold">Submit</strong> en bas de la page.</li>
+                      <li>Retournez dans <strong className="font-bold">Settings</strong>, puis cliquez sur <strong className="font-bold">Generate</strong> pour obtenir un nouveau token.</li>
+                      <li>Mettez à jour le token dans les réglages de l'application (bouton engrenage ⚙️).</li>
+                    </ol>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* 🛠️ Matches DefibTab's Form Structure when form is open 🛠️ */}

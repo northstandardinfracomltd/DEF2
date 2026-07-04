@@ -1,0 +1,132 @@
+import express from "express";
+import path from "path";
+import { createServer as createViteServer } from "vite";
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  // Use json middleware for API routes
+  app.use(express.json());
+
+  // Proxy route for Pennylane API to prevent CORS
+  app.all("/api/pennylane/*", async (req, res) => {
+    try {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const subPath = urlObj.pathname.replace(/^\/api\/pennylane\//, '');
+      const targetUrl = `https://app.pennylane.com/api/external/v2/${subPath}${urlObj.search}`;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (req.headers['authorization']) {
+        headers['Authorization'] = req.headers['authorization'] as string;
+      }
+      if (req.headers['x-company-token']) {
+        headers['X-Company-Token'] = req.headers['x-company-token'] as string;
+      }
+
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers,
+      };
+
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(targetUrl, fetchOptions);
+      
+      const responseText = await response.text();
+      res.status(response.status);
+      
+      try {
+        const json = JSON.parse(responseText);
+        res.json(json);
+      } catch {
+        res.send(responseText);
+      }
+    } catch (error: any) {
+      console.error("Pennylane Proxy Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error in Proxy" });
+    }
+  });
+
+  // For Dropbox files/upload, we parse as raw Buffer to handle binary file stream properly
+  app.use("/api/dropbox/files/upload", express.raw({ type: 'application/octet-stream', limit: '50mb' }));
+
+  // Proxy route for Dropbox API to prevent CORS
+  app.all("/api/dropbox/*", async (req, res) => {
+    try {
+      const urlObj = new URL(req.url, 'http://localhost');
+      const subPath = urlObj.pathname.replace(/^\/api\/dropbox\//, '');
+      
+      const isContent = subPath.includes("files/upload") || subPath.includes("files/download");
+      const baseUrl = isContent ? "https://content.dropboxapi.com/2/" : "https://api.dropboxapi.com/2/";
+      const targetUrl = `${baseUrl}${subPath}${urlObj.search}`;
+
+      const headers: Record<string, string> = {};
+
+      if (req.headers['authorization']) {
+        headers['Authorization'] = req.headers['authorization'] as string;
+      }
+      if (req.headers['dropbox-api-arg']) {
+        headers['Dropbox-API-Arg'] = req.headers['dropbox-api-arg'] as string;
+      }
+
+      const fetchOptions: RequestInit = {
+        method: req.method,
+        headers,
+      };
+
+      if (isContent) {
+        headers['Content-Type'] = 'application/octet-stream';
+        fetchOptions.body = req.body;
+      } else {
+        headers['Content-Type'] = 'application/json';
+        fetchOptions.body = JSON.stringify(req.body);
+      }
+
+      const response = await fetch(targetUrl, fetchOptions);
+      const responseText = await response.text();
+      res.status(response.status);
+
+      try {
+        const json = JSON.parse(responseText);
+        res.json(json);
+      } catch {
+        res.send(responseText);
+      }
+    } catch (error: any) {
+      console.error("Dropbox Proxy Error:", error);
+      res.status(500).json({ error: error.message || "Internal Server Error in Dropbox Proxy" });
+    }
+  });
+
+  // API health route
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // Vite middleware for development
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
+  });
+}
+
+startServer();

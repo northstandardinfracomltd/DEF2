@@ -674,6 +674,20 @@ export default function App() {
   const [customDocPieceQty, setCustomDocPieceQty] = useState(1);
   const [docSearchQuery, setDocSearchQuery] = useState('');
   const [docTypeFilter, setDocTypeFilter] = useState<'Tous' | 'Devis' | 'Facture' | 'Bon de commande'>('Tous');
+  const [pennylaneActive, setPennylaneActive] = useState(false);
+  const [pennylaneAlertMessage, setPennylaneAlertMessage] = useState<string | null>(null);
+  const [pennylaneAlertStyle, setPennylaneAlertStyle] = useState<'success' | 'error'>('error');
+  const [dropboxActive, setDropboxActive] = useState(false);
+  const [dropboxAccessToken, setDropboxAccessToken] = useState('');
+  const [dropboxError, setDropboxError] = useState<string | null>(null);
+
+  const showPennylaneAlert = (message: string, type: 'success' | 'error' = 'error') => {
+    setPennylaneAlertMessage(message);
+    setPennylaneAlertStyle(type);
+    setTimeout(() => {
+      setPennylaneAlertMessage(prev => prev === message ? null : prev);
+    }, 6000);
+  };
 
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
 
@@ -2749,6 +2763,25 @@ export default function App() {
     loadFirebaseAndSeed();
   }, [tenantId]);
 
+  useEffect(() => {
+    fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+      if (data) {
+        if (data.pennylaneActive !== undefined) setPennylaneActive(data.pennylaneActive);
+        if (data.dropboxActive !== undefined) setDropboxActive(data.dropboxActive);
+        if (data.dropboxAccessToken !== undefined) setDropboxAccessToken(data.dropboxAccessToken);
+      } else {
+        setPennylaneActive(false);
+        setDropboxActive(false);
+        setDropboxAccessToken('');
+      }
+    }).catch(err => {
+      console.error("Error loading api_connectors:", err);
+      setPennylaneActive(false);
+      setDropboxActive(false);
+      setDropboxAccessToken('');
+    });
+  }, [activeTab, isFirebaseLoaded]);
+
   // Save state changes back to Firebase
   useEffect(() => {
     if (isFirebaseLoaded && tenantId === loadedTenantIdRef.current) {
@@ -3487,6 +3520,353 @@ export default function App() {
     setDocPayeurId('');
     setDocClientIdField('');
     setIsDocFormOpen(true);
+  };
+
+  const triggerPennylaneSync = async (doc: CommercialDoc, silentOnInactive = false) => {
+    try {
+      const connectors = await fetchCollectionFromFirestore<any>('api_connectors');
+      if (!connectors || !connectors.pennylaneActive) {
+        if (!silentOnInactive) {
+          showPennylaneAlert("L'intégration Pennylane n'est pas activée. Veuillez l'activer dans les paramètres (connecteurs).", "error");
+        }
+        return;
+      }
+
+      const { pennylaneSecretToken, pennylaneCompanyToken } = connectors;
+      if (!pennylaneSecretToken || !pennylaneSecretToken.trim()) {
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+        return;
+      }
+
+      const parseDateToYmd = (dateStr: string): string => {
+        if (!dateStr) return new Date().toISOString().split('T')[0];
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+          const parts = dateStr.split('/');
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return dateStr;
+      };
+
+      const parseVatRate = (codeTaxe?: string): string => {
+        if (!codeTaxe) return "20.0";
+        const matched = codeTaxe.match(/(\d+(?:\.\d+)?)/);
+        if (matched) {
+          return matched[1];
+        }
+        return "20.0";
+      };
+
+      const clientObj = clients.find(c => c.id === doc.clientId);
+      const clientIdValue = (doc.clientIdField || clientObj?.clientIdField || '').trim();
+
+      let matchedCustomerId = '';
+
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${pennylaneSecretToken.trim()}`
+      };
+      if (pennylaneCompanyToken && pennylaneCompanyToken.trim()) {
+        authHeaders['X-Company-Token'] = pennylaneCompanyToken.trim();
+      }
+
+      try {
+        const listResponse = await fetch(`/api/pennylane/customers`, {
+          method: 'GET',
+          headers: authHeaders
+        });
+
+        if (listResponse.ok) {
+          const listData = await listResponse.json();
+          const customers = Array.isArray(listData) ? listData : (listData.customers || listData.results || []);
+
+          if (clientIdValue) {
+            const match = customers.find((c: any) => 
+              String(c.id).trim() === clientIdValue || 
+              String(c.external_id).trim() === clientIdValue
+            );
+            if (match) {
+              matchedCustomerId = match.id;
+            }
+          }
+
+          if (!matchedCustomerId) {
+            const denom = (doc.clientDenomination || '').trim().toLowerCase();
+            if (denom) {
+              const match = customers.find((c: any) => 
+                (c.company_name && c.company_name.trim().toLowerCase() === denom) ||
+                (c.first_name && c.last_name && `${c.first_name} ${c.last_name}`.trim().toLowerCase() === denom)
+              );
+              if (match) {
+                matchedCustomerId = match.id;
+              }
+            }
+          }
+        } else {
+          showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+          return;
+        }
+      } catch (err) {
+        console.error("Error searching Pennylane customers:", err);
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+        return;
+      }
+
+      if (!matchedCustomerId) {
+        try {
+          const createCustomerResponse = await fetch(`/api/pennylane/customers`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify({
+              customer: {
+                customer_type: 'company',
+                company_name: doc.clientDenomination || 'Invité Défibeo',
+                external_id: clientIdValue || doc.clientId || `client-${Date.now()}`,
+                first_name: 'Invité',
+                last_name: doc.clientDenomination || 'Défibeo',
+                emails: clientObj?.email ? [clientObj.email] : ['guest@defibeo.com'],
+                phone: clientObj?.telephone || ''
+              }
+            })
+          });
+
+          if (createCustomerResponse.ok) {
+            const createdData = await createCustomerResponse.json();
+            const createdCustomer = createdData.customer || createdData;
+            if (createdCustomer && createdCustomer.id) {
+              matchedCustomerId = createdCustomer.id;
+            }
+          } else {
+            showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+            return;
+          }
+        } catch (err) {
+          console.error("Error creating Pennylane customer:", err);
+          showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+          return;
+        }
+      }
+
+      if (!matchedCustomerId) {
+        matchedCustomerId = clientIdValue || "guest";
+      }
+
+      const invoicePayload = {
+        customer_invoice: {
+          invoice_number: doc.ref,
+          date: parseDateToYmd(doc.dateStr),
+          deadline_date: parseDateToYmd(doc.dateStr),
+          customer_id: matchedCustomerId,
+          draft: true,
+          line_items_attributes: doc.items.map(item => ({
+            description: item.nomPiece || 'Pièce',
+            quantity: item.quantite || 1,
+            unit_price: item.prixVenteHt || 0.0,
+            vat_rate: parseVatRate(doc.codeTaxe)
+          }))
+        }
+      };
+
+      const invoiceResponse = await fetch(`/api/pennylane/customer_invoices`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify(invoicePayload)
+      });
+
+      if (invoiceResponse.ok) {
+        showPennylaneAlert(`La facture ${doc.ref} pour ${doc.clientDenomination} a été poussée avec succès sur Pennylane en tant que facture BROUILLON (Draft).`, "success");
+      } else {
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+      }
+    } catch (error: any) {
+      console.error("Pennylane Sync Error:", error);
+      showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+    }
+  };
+
+  const handlePennylaneGlobalSync = async () => {
+    try {
+      const connectors = await fetchCollectionFromFirestore<any>('api_connectors');
+      if (!connectors || !connectors.pennylaneActive) {
+        showPennylaneAlert("L'intégration Pennylane n'est pas activée. Veuillez l'activer dans les paramètres (connecteurs).", "error");
+        return;
+      }
+
+      const { pennylaneSecretToken, pennylaneCompanyToken } = connectors;
+      if (!pennylaneSecretToken || !pennylaneSecretToken.trim()) {
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+        return;
+      }
+
+      const acceptedInvoices = commercialDocs.filter(
+        (doc) => doc.type === 'Facture' && doc.status === 'Accepté'
+      );
+
+      if (acceptedInvoices.length === 0) {
+        showPennylaneAlert("Aucune facture acceptée à synchroniser.", "error");
+        return;
+      }
+
+      const parseDateToYmd = (dateStr: string): string => {
+        if (!dateStr) return new Date().toISOString().split('T')[0];
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+          const parts = dateStr.split('/');
+          return `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+        return dateStr;
+      };
+
+      const parseVatRate = (codeTaxe?: string): string => {
+        if (!codeTaxe) return "20.0";
+        const matched = codeTaxe.match(/(\d+(?:\.\d+)?)/);
+        if (matched) {
+          return matched[1];
+        }
+        return "20.0";
+      };
+
+      const authHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${pennylaneSecretToken.trim()}`
+      };
+      if (pennylaneCompanyToken && pennylaneCompanyToken.trim()) {
+        authHeaders['X-Company-Token'] = pennylaneCompanyToken.trim();
+      }
+
+      let listResponse;
+      try {
+        listResponse = await fetch(`/api/pennylane/customers`, {
+          method: 'GET',
+          headers: authHeaders
+        });
+      } catch (err) {
+        console.error("Error fetching Pennylane customers:", err);
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+        return;
+      }
+
+      if (!listResponse.ok) {
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+        return;
+      }
+
+      const listData = await listResponse.json();
+      const customers = Array.isArray(listData) ? listData : (listData.customers || listData.results || []);
+
+      let successCount = 0;
+      let hasError = false;
+
+      for (const doc of acceptedInvoices) {
+        let matchedCustomerId = '';
+        const clientObj = clients.find(c => c.id === doc.clientId);
+        const clientIdValue = (doc.clientIdField || clientObj?.clientIdField || '').trim();
+
+        if (clientIdValue) {
+          const match = customers.find((c: any) => 
+            String(c.id).trim() === clientIdValue || 
+            String(c.external_id).trim() === clientIdValue
+          );
+          if (match) {
+            matchedCustomerId = match.id;
+          }
+        }
+
+        if (!matchedCustomerId) {
+          const denom = (doc.clientDenomination || '').trim().toLowerCase();
+          if (denom) {
+            const match = customers.find((c: any) => 
+              (c.company_name && c.company_name.trim().toLowerCase() === denom) ||
+              (c.first_name && c.last_name && `${c.first_name} ${c.last_name}`.trim().toLowerCase() === denom)
+            );
+            if (match) {
+              matchedCustomerId = match.id;
+            }
+          }
+        }
+
+        if (!matchedCustomerId) {
+          try {
+            const createCustomerResponse = await fetch(`/api/pennylane/customers`, {
+              method: 'POST',
+              headers: authHeaders,
+              body: JSON.stringify({
+                customer: {
+                  customer_type: 'company',
+                  company_name: doc.clientDenomination || 'Invité Défibeo',
+                  external_id: clientIdValue || doc.clientId || `client-${Date.now()}`,
+                  first_name: 'Invité',
+                  last_name: doc.clientDenomination || 'Défibeo',
+                  emails: clientObj?.email ? [clientObj.email] : ['guest@defibeo.com'],
+                  phone: clientObj?.telephone || ''
+                }
+              })
+            });
+
+            if (createCustomerResponse.ok) {
+              const createdData = await createCustomerResponse.json();
+              const createdCustomer = createdData.customer || createdData;
+              if (createdCustomer && createdCustomer.id) {
+                matchedCustomerId = createdCustomer.id;
+                customers.push(createdCustomer);
+              }
+            } else {
+              hasError = true;
+              continue;
+            }
+          } catch (err) {
+            console.error("Error creating Pennylane customer:", err);
+            hasError = true;
+            continue;
+          }
+        }
+
+        if (!matchedCustomerId) {
+          matchedCustomerId = clientIdValue || "guest";
+        }
+
+        const invoicePayload = {
+          customer_invoice: {
+            invoice_number: doc.ref,
+            date: parseDateToYmd(doc.dateStr),
+            deadline_date: parseDateToYmd(doc.dateStr),
+            customer_id: matchedCustomerId,
+            draft: true,
+            line_items_attributes: doc.items.map(item => ({
+              description: item.nomPiece || 'Pièce',
+              quantity: item.quantite || 1,
+              unit_price: item.prixVenteHt || 0.0,
+              vat_rate: parseVatRate(doc.codeTaxe)
+            }))
+          }
+        };
+
+        try {
+          const invoiceResponse = await fetch(`/api/pennylane/customer_invoices`, {
+            method: 'POST',
+            headers: authHeaders,
+            body: JSON.stringify(invoicePayload)
+          });
+
+          if (invoiceResponse.ok) {
+            successCount++;
+          } else {
+            console.error("Failed to push invoice:", await invoiceResponse.text());
+            hasError = true;
+          }
+        } catch (err) {
+          console.error("Error pushing invoice:", err);
+          hasError = true;
+        }
+      }
+
+      if (hasError) {
+        showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+      } else {
+        showPennylaneAlert(`Synchronisation réussie ! ${successCount} facture(s) synchronisée(s) sur Pennylane.`, "success");
+      }
+    } catch (error: any) {
+      console.error("Pennylane Sync Error:", error);
+      showPennylaneAlert("Impossible de synchroniser avec le compte Pennylane, vérifiez les identifiants.", "error");
+    }
   };
 
   const handleSaveDoc = (e: React.FormEvent) => {
@@ -5075,7 +5455,9 @@ export default function App() {
 
                                         {(() => {
                                           const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
-                                          if (!matchedDefib) return null;
+                                          const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                          
+                                          if (!matchedDefib && !other) return null;
                                           
                                           const renderCapsule = (label: string, rawVal: string, colorClasses: string) => {
                                             if (!rawVal || rawVal.trim() === '' || rawVal.trim() === '-') return null;
@@ -5099,19 +5481,58 @@ export default function App() {
                                             );
                                           };
 
-                                          const nextMaint = computeProchaineMaintenance(matchedDefib.derniereMaintenance);
-
-                                          return (
-                                            <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
-                                              {renderCapsule('Péremption A.', matchedDefib.peremptionElectrodeA, 'bg-rose-50 text-rose-700 border-rose-200')}
-                                              {renderCapsule('Péremption A.S.', matchedDefib.peremptionSecoursElectrodeA || '', 'bg-rose-50 text-rose-700 border-rose-200')}
-                                              {renderCapsule('Péremption P.', matchedDefib.peremptionElectrodeP, 'bg-purple-50 text-purple-700 border-purple-200')}
-                                              {renderCapsule('Péremption P.S.', matchedDefib.peremptionSecoursElectrodeP || '', 'bg-purple-50 text-purple-700 border-purple-200')}
-                                              {renderCapsule('Péremption B.', matchedDefib.peremptionBatterie, 'bg-amber-50 text-amber-700 border-amber-250')}
-                                              {renderCapsule('Expiration G.', matchedDefib.finGarantie, 'bg-blue-50 text-blue-700 border-blue-200')}
-                                              {renderCapsule('Prochaine V.', nextMaint, 'bg-emerald-50 text-emerald-700 border-emerald-250')}
-                                            </div>
-                                          );
+                                          if (matchedDefib) {
+                                            const defibModel = variables.find((v: any) => v.id === matchedDefib.modeleId);
+                                            const modelName = defibModel 
+                                              ? (defibModel.marque && defibModel.marque !== 'Standard' ? `${defibModel.marque} ${defibModel.nom}` : defibModel.nom) 
+                                              : (matchedDefib.modeleId || 'Modèle inconnu');
+                                            const nextMaint = computeProchaineMaintenance(matchedDefib.derniereMaintenance);
+                                            
+                                            return (
+                                              <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
+                                                <span 
+                                                  style={{
+                                                    color: '#fff',
+                                                    fontSize: '14px',
+                                                    padding: '4.5px 15px',
+                                                    border: 'none',
+                                                    background: '#000000'
+                                                  }}
+                                                  className="inline-flex items-center rounded-full font-sans font-medium"
+                                                >
+                                                  {modelName}
+                                                </span>
+                                                {renderCapsule('Péremption A.', matchedDefib.peremptionElectrodeA, 'bg-rose-50 text-rose-700 border-rose-200')}
+                                                {renderCapsule('Péremption A.S.', matchedDefib.peremptionSecoursElectrodeA || '', 'bg-rose-50 text-rose-700 border-rose-200')}
+                                                {renderCapsule('Péremption P.', matchedDefib.peremptionElectrodeP, 'bg-purple-50 text-purple-700 border-purple-200')}
+                                                {renderCapsule('Péremption P.S.', matchedDefib.peremptionSecoursElectrodeP || '', 'bg-purple-50 text-purple-700 border-purple-200')}
+                                                {renderCapsule('Péremption B.', matchedDefib.peremptionBatterie, 'bg-amber-50 text-amber-700 border-amber-250')}
+                                                {renderCapsule('Expiration G.', matchedDefib.finGarantie, 'bg-blue-50 text-blue-700 border-blue-200')}
+                                                {renderCapsule('Prochaine V.', nextMaint, 'bg-emerald-50 text-emerald-700 border-emerald-250')}
+                                              </div>
+                                            );
+                                          } else if (other) {
+                                            const modelName = other.categorie || 'Autre matériel';
+                                            return (
+                                              <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
+                                                <span 
+                                                  style={{
+                                                    color: '#fff',
+                                                    fontSize: '14px',
+                                                    padding: '4.5px 15px',
+                                                    border: 'none',
+                                                    background: '#000000'
+                                                  }}
+                                                  className="inline-flex items-center rounded-full font-sans font-medium"
+                                                >
+                                                  {modelName}
+                                                </span>
+                                                {renderCapsule('Expiration G.', other.expirationGarantie, 'bg-blue-50 text-blue-700 border-blue-200')}
+                                                {renderCapsule('Prochaine V.', other.prochaineMaintenance, 'bg-emerald-50 text-emerald-700 border-emerald-250')}
+                                              </div>
+                                            );
+                                          }
+                                          return null;
                                         })()}
                                       </div>
 
@@ -5400,6 +5821,8 @@ export default function App() {
 
                                   {/* Lookup field for required components with stock items selector */}
                                   {(() => {
+                                    const currentMissionDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+
                                     const stockItems = (distributedStocks || [])
                                       .filter(ds => {
                                         const vObj = variables.find(v => v.id === ds.denominationPieceId);
@@ -5416,9 +5839,17 @@ export default function App() {
                                           name: name,
                                           locationName: ds.locationName,
                                           volumeDisponible: ds.volumeDisponible,
-                                          label: `${name} (${getLocationCustomName(ds.locationName)} - Qté dispo: ${ds.volumeDisponible}${ugsString})`
+                                          label: `${name} (${getLocationCustomName(ds.locationName)} - Qté dispo: ${ds.volumeDisponible}${ugsString})`,
+                                          matchedStock
                                         };
                                       });
+
+                                    const recommendedItems = currentMissionDefib && currentMissionDefib.modeleId
+                                      ? stockItems.filter(item => Array.isArray(item.matchedStock?.usageRecommandeIds) && item.matchedStock.usageRecommandeIds.includes(currentMissionDefib.modeleId))
+                                      : [];
+                                    const otherItems = currentMissionDefib && currentMissionDefib.modeleId
+                                      ? stockItems.filter(item => !Array.isArray(item.matchedStock?.usageRecommandeIds) || !item.matchedStock.usageRecommandeIds.includes(currentMissionDefib.modeleId))
+                                      : stockItems;
 
                                     return (
                                       <div className="pt-2 space-y-2.5 relative font-sans w-full bg-transparent">
@@ -5477,11 +5908,30 @@ export default function App() {
                                             className="font-sans focus:outline-none justify-start cursor-pointer"
                                           >
                                             <option value="" disabled>Sélection d'une pièce du stock.</option>
-                                            {stockItems.map(item => (
-                                              <option key={item.id} value={item.name}>
-                                                {item.label}
-                                              </option>
-                                            ))}
+                                            {recommendedItems.length > 0 ? (
+                                              <>
+                                                <optgroup label="Pièces recommandées">
+                                                  {recommendedItems.map(item => (
+                                                    <option key={item.id} value={item.name}>
+                                                      {item.label}
+                                                    </option>
+                                                  ))}
+                                                </optgroup>
+                                                <optgroup label="Autres pièces">
+                                                  {otherItems.map(item => (
+                                                    <option key={item.id} value={item.name}>
+                                                      {item.label}
+                                                    </option>
+                                                  ))}
+                                                </optgroup>
+                                              </>
+                                            ) : (
+                                              stockItems.map(item => (
+                                                <option key={item.id} value={item.name}>
+                                                  {item.label}
+                                                </option>
+                                              ))
+                                            )}
                                           </select>
                                         </div>
                                       </div>
@@ -5771,6 +6221,28 @@ export default function App() {
                   text="Il s’agit des rapports générés par les techniciens. Pour actualiser votre base de données, vous devrez cliquer sur Valider, c’est un principe de modération. Vous avez trouvé une erreur : cliquez sur Corriger pour modifier le document. Attention, une fois validé conformément à la réglementation, le document PDF ne peut plus être altéré." 
                 />
 
+                {dropboxError && (
+                  <div className="space-y-2 mt-4 mb-4">
+                    <div className="text-red-600 font-sans font-light text-sm text-left">
+                      {dropboxError}
+                    </div>
+                    {(dropboxError.includes("Autorisation insuffisante") || dropboxError.includes("401") || dropboxError.includes("expiré")) && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 space-y-2 max-w-2xl">
+                        <p className="font-bold text-red-900">💡 Guide de configuration & génération de Token Dropbox :</p>
+                        <ol className="list-decimal list-inside space-y-1 text-[11px] text-red-700">
+                          <li>Allez sur la <a href="https://www.dropbox.com/developers/apps" target="_blank" rel="noopener noreferrer" className="underline font-bold hover:text-red-900">Console Dropbox Developer</a>.</li>
+                          <li>Sélectionnez votre application Dropbox.</li>
+                          <li>Allez dans l'onglet <strong className="font-bold">Permissions</strong>.</li>
+                          <li>Cochez la case <strong className="font-bold">files.content.write</strong> (et <strong className="font-bold">files.content.read</strong>).</li>
+                          <li>Cliquez sur <strong className="font-bold">Submit</strong> en bas de la page.</li>
+                          <li>Retournez dans <strong className="font-bold">Settings</strong>, puis cliquez sur <strong className="font-bold">Generate</strong> pour obtenir un nouveau token.</li>
+                          <li>Mettez à jour le token dans les réglages de l'application (bouton engrenage ⚙️).</li>
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Main Table Records Sheet */}
                 <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>
                   <div className="overflow-x-auto">
@@ -5967,6 +6439,30 @@ export default function App() {
                                           } catch (err6) {
                                             console.error("Error sending validation email during GMAO validation:", err6);
                                           }
+                                        }
+
+                                        // Upload validated intervention report to Dropbox if active
+                                        setDropboxError(null);
+                                        if (dropboxActive && dropboxAccessToken) {
+                                          (async () => {
+                                            try {
+                                              const { generateReportPDF, uploadToDropbox } = await import('./utils/dropbox');
+                                              const pdfBytes = generateReportPDF(rep);
+                                              const ident = snap ? (snap.identifiant || rep.defibIdentifiant) : (rep.defibIdentifiant || rep.id);
+                                              const fileName = `Rapport_Intervention_${ident}_${rep.date || 'sans-date'}.pdf`;
+                                              await uploadToDropbox(dropboxAccessToken, fileName, pdfBytes);
+                                            } catch (dropboxErr: any) {
+                                              console.error("Dropbox report upload failed on validation:", dropboxErr);
+                                              let cleanMsg = "Impossible d'uploader le rapport sur Dropbox, vérifiez les identifiants.";
+                                              if (dropboxErr.message && (dropboxErr.message.includes("401") || dropboxErr.message.includes("expired") || dropboxErr.message.includes("invalid_access_token") || dropboxErr.message.includes("Unauthorized"))) {
+                                                cleanMsg = "Erreur Dropbox 401 : Le token d'accès est invalide ou expiré (les tokens temporaires Dropbox expirent au bout de 4 heures). Veuillez générer un nouveau token d'accès dans votre console Dropbox Developer.";
+                                              } else
+                                              if (dropboxErr.message && dropboxErr.message.includes("missing_scope")) {
+                                                cleanMsg = "Erreur Dropbox : Autorisation insuffisante. Veuillez activer la permission 'files.content.write' dans votre console Dropbox Developer, puis générez un nouveau token.";
+                                              }
+                                              setDropboxError(cleanMsg);
+                                            }
+                                          })();
                                         }
 
                                         alert("Le rapport d'intervention a été validé avec succès ! L'état de l'équipement a été mis à jour et un e-mail avec le rapport a été envoyé au client.");
@@ -6772,6 +7268,20 @@ export default function App() {
                             />
                           </div>
 
+                          {pennylaneActive && (
+                            <button
+                              onClick={handlePennylaneGlobalSync}
+                              style={{
+                                ...customButtonStyle,
+                                backgroundColor: '#000000',
+                                color: '#ffffff',
+                              }}
+                              className="font-sans"
+                            >
+                              {t("Synchroniser")}
+                            </button>
+                          )}
+
                           <button 
                             onClick={startNewDoc}
                             style={customButtonStyle}
@@ -6782,6 +7292,22 @@ export default function App() {
                         </div>
                       </div>
                     </div>
+
+                    {pennylaneAlertMessage && (
+                      <div 
+                        style={{
+                          color: pennylaneAlertStyle === 'error' ? '#ef4444' : '#10b981',
+                          fontSize: '18px',
+                          fontWeight: 100,
+                          textAlign: 'left',
+                          marginTop: '16px',
+                          marginBottom: '16px',
+                          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif"
+                        }}
+                      >
+                        {pennylaneAlertMessage}
+                      </div>
+                    )}
 
                     <HelpBubble 
                       cacheKey="help_dismissed_devis" 
@@ -6960,6 +7486,21 @@ export default function App() {
                                         >
                                           {t("Modifier")}
                                         </button>
+                                        {doc.type === 'Facture' && doc.status === 'Accepté' && (
+                                          <button
+                                            type="button"
+                                            onClick={() => triggerPennylaneSync(doc)}
+                                            style={{
+                                              ...rowActionButton18Style,
+                                              backgroundColor: '#fe4eba',
+                                              color: '#ffffff',
+                                              border: 'none',
+                                            }}
+                                            className="cursor-pointer font-sans shadow-md"
+                                          >
+                                            {t("Pennylane Sync")}
+                                          </button>
+                                        )}
                                       </div>
                                     </td>
                                   </tr>
@@ -7677,6 +8218,8 @@ export default function App() {
               saveClients={saveClients}
               saveStocks={saveStocks}
               setActiveTab={setActiveTab}
+              dropboxActive={dropboxActive}
+              dropboxAccessToken={dropboxAccessToken}
             />
           )}
 

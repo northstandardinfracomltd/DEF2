@@ -41,6 +41,7 @@ interface SettingsModalProps {
   onUpdateOtherEquipments?: (val: string) => void;
   otherEquipments?: any[];
   onClearOtherEquipments?: () => void;
+  onConnectorsUpdated?: () => void;
 }
 
 export default function SettingsModal({
@@ -58,7 +59,8 @@ export default function SettingsModal({
   enableOtherEquipments: propEnableOtherEquipments = 'Non',
   onUpdateOtherEquipments,
   otherEquipments = [],
-  onClearOtherEquipments
+  onClearOtherEquipments,
+  onConnectorsUpdated
 }: SettingsModalProps) {
   const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
   const [shortEnvId, setShortEnvId] = React.useState(() => localStorage.getItem('defib_short_env_id') || 'D18');
@@ -291,6 +293,9 @@ export default function SettingsModal({
       };
       await saveCollectionToFirestore('api_connectors', payload);
       setConnectorsSaveStatus('saved');
+      if (onConnectorsUpdated) {
+        onConnectorsUpdated();
+      }
     } catch (e) {
       console.error('Error saving API connectors to Firestore:', e);
       setConnectorsSaveStatus('idle');

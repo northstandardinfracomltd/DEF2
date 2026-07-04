@@ -2763,7 +2763,7 @@ export default function App() {
     loadFirebaseAndSeed();
   }, [tenantId]);
 
-  useEffect(() => {
+  const loadApiConnectors = React.useCallback(() => {
     fetchCollectionFromFirestore<any>('api_connectors').then(data => {
       if (data) {
         if (data.pennylaneActive !== undefined) setPennylaneActive(data.pennylaneActive);
@@ -2780,7 +2780,11 @@ export default function App() {
       setDropboxActive(false);
       setDropboxAccessToken('');
     });
-  }, [activeTab, isFirebaseLoaded]);
+  }, []);
+
+  useEffect(() => {
+    loadApiConnectors();
+  }, [activeTab, isFirebaseLoaded, loadApiConnectors]);
 
   // Save state changes back to Firebase
   useEffect(() => {
@@ -7486,7 +7490,7 @@ export default function App() {
                                         >
                                           {t("Modifier")}
                                         </button>
-                                        {doc.type === 'Facture' && doc.status === 'Accepté' && (
+                                        {pennylaneActive && doc.type === 'Facture' && doc.status === 'Accepté' && (
                                           <button
                                             type="button"
                                             onClick={() => triggerPennylaneSync(doc)}
@@ -8202,6 +8206,7 @@ export default function App() {
               onUpdateOtherEquipments={handleUpdateOtherEquipments}
               otherEquipments={otherEquipments}
               onClearOtherEquipments={() => saveOtherEquipments([])}
+              onConnectorsUpdated={loadApiConnectors}
             />
           )}
 
@@ -8249,6 +8254,7 @@ export default function App() {
         onUpdateOtherEquipments={handleUpdateOtherEquipments}
         otherEquipments={otherEquipments}
         onClearOtherEquipments={() => saveOtherEquipments([])}
+        onConnectorsUpdated={loadApiConnectors}
       />
 
       <StatsModal

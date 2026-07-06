@@ -64,6 +64,10 @@ export interface Variable {
   category: VariableCategory;
   imageUrl?: string; // Appliqué si category === 'Modèle Défibrillateur'
   identifiant?: string;
+  rappelAlerteOption?: string;
+  rappelDateDebut?: string;
+  rappelDateFin?: string;
+  rappelObservation?: string;
 }
 
 export interface Defibrillateur {
@@ -237,6 +241,8 @@ export interface CompanyInfo {
   nomLogiciel?: string;
   conditionsLegalesLink?: string;
   mentionsLegalesFactures?: string;
+  locationNames?: Record<string, string>;
+  enableAutoEmails?: 'Oui' | 'Non';
 }
 
 export interface PointageLog {

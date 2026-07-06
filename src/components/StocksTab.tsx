@@ -915,14 +915,6 @@ export default function StocksTab({
                           <td className="px-4 py-5 whitespace-nowrap">
                             <div className="flex flex-col">
                               <span className="font-sans font-semibold text-[#000000] text-sm">{rawName}</span>
-                              {st.usageRecommandeIds && st.usageRecommandeIds.length > 0 && (
-                                <span className="text-[10px] text-slate-500 font-sans mt-0.5">
-                                  Usage : {st.usageRecommandeIds.map(id => {
-                                    const v = variables.find(x => x.id === id);
-                                    return v ? (v.marque && v.marque !== 'Standard' ? `${v.marque} ${v.nom}` : v.nom) : '';
-                                  }).filter(Boolean).join(', ')}
-                                </span>
-                              )}
                             </div>
                           </td>
                           <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>

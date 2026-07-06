@@ -105,6 +105,12 @@ export async function sendScriptEmail(payload: {
  * Scheduled for 15 minutes in the future.
  */
 export async function triggerEmail1Inscription(emailEntreprise: string, passwordHexOrPlain: string): Promise<boolean> {
+  const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+  const savedOption = localStorage.getItem(`defib_${tenantId}_enable_auto_emails`);
+  if (savedOption === 'Non') {
+    console.log(`[Email 1] Inscription email to ${emailEntreprise} skipped because automatic emails are disabled.`);
+    return false;
+  }
   console.log(`[Email 1] Sending welcome/inscription email to ${emailEntreprise} immediately.`);
   const subject = "Défibeo : Confirmation pour l’ouverture de votre environnement.";
   const body = `Bravo pour l’ouverture de votre environnement Défibeo! Pour rappel, pour vous connecter, accédez à https://defibeo.com/ et cliquez sur Connexion, ensuite veuillez utiliser votre email ${emailEntreprise} ainsi que le mot de passe que vous avez ajouté.`;
@@ -213,6 +219,12 @@ export async function triggerEmail5AvisageFSM(
   pinCode?: string,
   estimatedSlot?: string
 ): Promise<boolean> {
+  const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+  const savedOption = localStorage.getItem(`defib_${tenantId}_enable_auto_emails`);
+  if (savedOption === 'Non') {
+    console.log(`[Email 5] Avisage FSM to ${clientEmail} skipped because automatic emails are disabled.`);
+    return false;
+  }
   const subject = `${companyName} : Nouvelle visite prévue pour votre matériel.`;
   const pinText = pinCode ? `\n\nVoici le code pin à fournir au technicien pour signer la visite sur site : ${pinCode}\n` : '';
   const slotStr = estimatedSlot || '09:00am';
@@ -237,6 +249,12 @@ export async function triggerEmail6RapportIntervention(
   companyName: string, 
   companyEmail: string
 ): Promise<boolean> {
+  const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+  const savedOption = localStorage.getItem(`defib_${tenantId}_enable_auto_emails`);
+  if (savedOption === 'Non') {
+    console.log(`[Email 6] Rapport Intervention to ${clientEmail} skipped because automatic emails are disabled.`);
+    return false;
+  }
   const subject = `${companyName} : Document relatif à votre matériel.`;
   const body = `Un document a été généré pour l’intervention effectuée sur votre matériel ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client https://defibeo.deroesch.com/ pour le télécharger. Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/`;
   

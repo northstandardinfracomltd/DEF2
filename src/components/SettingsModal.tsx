@@ -42,6 +42,7 @@ interface SettingsModalProps {
   otherEquipments?: any[];
   onClearOtherEquipments?: () => void;
   onConnectorsUpdated?: () => void;
+  onUpdateLocationNames?: (names: Record<string, string>) => void;
 }
 
 export default function SettingsModal({
@@ -60,7 +61,8 @@ export default function SettingsModal({
   onUpdateOtherEquipments,
   otherEquipments = [],
   onClearOtherEquipments,
-  onConnectorsUpdated
+  onConnectorsUpdated,
+  onUpdateLocationNames
 }: SettingsModalProps) {
   const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
   const [shortEnvId, setShortEnvId] = React.useState(() => localStorage.getItem('defib_short_env_id') || 'D18');
@@ -102,6 +104,9 @@ export default function SettingsModal({
   const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
   const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
   const [localLocationNames, setLocalLocationNames] = React.useState<Record<string, string>>(() => {
+    if (companyInfo && companyInfo.locationNames) {
+      return companyInfo.locationNames;
+    }
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     try {
       const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
@@ -110,18 +115,80 @@ export default function SettingsModal({
       return {};
     }
   });
+  const [enableAutoEmails, setEnableAutoEmails] = React.useState<'Oui' | 'Non'>(() => {
+    if (companyInfo && companyInfo.enableAutoEmails) {
+      return companyInfo.enableAutoEmails;
+    }
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    return (localStorage.getItem(`defib_${tenantId}_enable_auto_emails`) as 'Oui' | 'Non') || 'Oui';
+  });
+
+  const renderSectionHeader = (text: string, showSave: boolean = true) => (
+    <div className="flex items-center justify-between mb-3 bg-transparent select-none w-full">
+      <span 
+        className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+        style={{
+          backgroundColor: 'oklch(0.44 0.16 324.65)',
+          borderRadius: '1000px',
+          cursor: 'default',
+          fontWeight: 100,
+          textTransform: 'none',
+        }}
+      >
+        {text}
+      </span>
+      {isPage && showSave && (
+        <button
+          disabled={isSaving}
+          onClick={handleSaveAll}
+          style={{
+            backgroundColor: 'rgb(53, 86, 236)',
+            color: '#ffffff',
+            boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+            borderRadius: '0.75rem',
+            fontSize: '18px',
+            padding: '11px 22px',
+            fontWeight: '100',
+            transition: 'all 0s ease-in-out',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.6 : 1,
+            border: 'none',
+            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+          }}
+          className="transition-all"
+        >
+          Enregistrer
+        </button>
+      )}
+    </div>
+  );
 
   React.useEffect(() => {
     if (isOpen) {
-      const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
-      try {
-        const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
-        setLocalLocationNames(saved ? JSON.parse(saved) : {});
-      } catch (e) {
-        setLocalLocationNames({});
+      if (companyInfo && companyInfo.locationNames) {
+        setLocalLocationNames(companyInfo.locationNames);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        try {
+          const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+          setLocalLocationNames(saved ? JSON.parse(saved) : {});
+        } catch (e) {
+          setLocalLocationNames({});
+        }
+      }
+
+      if (companyInfo && companyInfo.enableAutoEmails) {
+        setEnableAutoEmails(companyInfo.enableAutoEmails);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        setEnableAutoEmails((localStorage.getItem(`defib_${tenantId}_enable_auto_emails`) as 'Oui' | 'Non') || 'Oui');
       }
     }
-  }, [isOpen]);
+  }, [isOpen, companyInfo]);
 
   React.useEffect(() => {
     setEnableOtherEquipments(propEnableOtherEquipments);
@@ -197,6 +264,10 @@ export default function SettingsModal({
   const [civilpromWebsiteUrl, setCivilpromWebsiteUrl] = React.useState('');
   const [civilpromAssetsFileUrl, setCivilpromAssetsFileUrl] = React.useState('');
 
+  const [atlasanteActive, setAtlasanteActive] = React.useState(false);
+  const [atlasanteUrlAuth, setAtlasanteUrlAuth] = React.useState('https://catalogue.atlasante.fr/api/login');
+  const [atlasanteDeclarantId, setAtlasanteDeclarantId] = React.useState('');
+
   const [connectorsSaveStatus, setConnectorsSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
 
   React.useEffect(() => {
@@ -234,6 +305,14 @@ export default function SettingsModal({
           if (data.civilpromActive !== undefined) setCivilpromActive(data.civilpromActive);
           if (data.civilpromWebsiteUrl !== undefined) setCivilpromWebsiteUrl(data.civilpromWebsiteUrl);
           if (data.civilpromAssetsFileUrl !== undefined) setCivilpromAssetsFileUrl(data.civilpromAssetsFileUrl);
+
+          if (data.atlasanteActive !== undefined) setAtlasanteActive(data.atlasanteActive);
+          if (data.atlasanteDeclarantId !== undefined) setAtlasanteDeclarantId(data.atlasanteDeclarantId);
+          if (data.atlasanteUrlAuth !== undefined) {
+            setAtlasanteUrlAuth(data.atlasanteUrlAuth);
+          } else {
+            setAtlasanteUrlAuth('https://catalogue.atlasante.fr/api/login');
+          }
         }
       }).catch(err => {
         console.error('Error loading API connectors from Firestore:', err);
@@ -289,7 +368,10 @@ export default function SettingsModal({
         textelpSecretId,
         civilpromActive,
         civilpromWebsiteUrl,
-        civilpromAssetsFileUrl
+        civilpromAssetsFileUrl,
+        atlasanteActive,
+        atlasanteDeclarantId,
+        atlasanteUrlAuth
       };
       await saveCollectionToFirestore('api_connectors', payload);
       setConnectorsSaveStatus('saved');
@@ -697,7 +779,12 @@ export default function SettingsModal({
       setIsVerifyingEmail(false);
     }
 
-    onUpdateCompanyInfo(localCompany);
+    const companyToSave = {
+      ...localCompany,
+      locationNames: localLocationNames,
+      enableAutoEmails: enableAutoEmails
+    };
+    onUpdateCompanyInfo(companyToSave);
     onUpdateMembers(localMembers);
 
     // Envoi des emails aux nouveaux membres (Email de bienvenue personnalisé)
@@ -722,6 +809,10 @@ export default function SettingsModal({
 
     // Sauvegarder les intitulés personnalisés des emplacements
     localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
+    localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
+    if (onUpdateLocationNames) {
+      onUpdateLocationNames(localLocationNames);
+    }
 
     // Save language to the master tenant list in Firestore
     if (myTenantId && myTenantId !== 'demo') {
@@ -853,65 +944,56 @@ export default function SettingsModal({
       >
         
         {/* Header aligned with other modules */}
-        <div 
-          className="flex items-center justify-between"
-          style={isPage ? {
-            border: '1px solid #dadada',
-            borderTop: 'none',
-            borderRadius: '0px 0px 18px 18px',
-            maxWidth: '98%',
-            width: '100%',
-            margin: '0 auto',
-            padding: '20px',
-            backgroundColor: '#ffffff'
-          } : {
-            padding: '16px 24px',
-            backgroundColor: '#ffffff',
-            borderBottom: '1px solid rgba(226, 232, 240, 0.8)'
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div>
-              <h3 className="text-2xl font-bold text-black font-gochi" style={{ color: '#000000', cursor: 'default' }}>Paramètres</h3>
+        {!isPage && (
+          <div 
+            className="flex items-center justify-between"
+            style={{
+              padding: '16px 24px',
+              backgroundColor: '#ffffff',
+              borderBottom: '1px solid rgba(226, 232, 240, 0.8)'
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <div>
+                <h3 className="text-2xl font-bold text-black font-gochi" style={{ color: '#000000', cursor: 'default' }}>Paramètres</h3>
+              </div>
             </div>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              disabled={isSaving}
-              onClick={handleSaveAll}
-              style={{
-                backgroundColor: 'rgb(53, 86, 236)',
-                color: '#ffffff',
-                boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
-                borderRadius: '0.75rem',
-                fontSize: '18px',
-                padding: '11px 22px',
-                fontWeight: '100',
-                transition: 'all 0s ease-in-out',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem',
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.6 : 1,
-                border: 'none',
-                fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
-              }}
-              className="transition-all"
-            >
-              Enregistrer
-            </button>
-            {!isPage && (
+            
+            <div className="flex items-center gap-3">
+              <button
+                disabled={isSaving}
+                onClick={handleSaveAll}
+                style={{
+                  backgroundColor: 'rgb(53, 86, 236)',
+                  color: '#ffffff',
+                  boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+                  borderRadius: '0.75rem',
+                  fontSize: '18px',
+                  padding: '11px 22px',
+                  fontWeight: '100',
+                  transition: 'all 0s ease-in-out',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  opacity: isSaving ? 0.6 : 1,
+                  border: 'none',
+                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                }}
+                className="transition-all"
+              >
+                Enregistrer
+              </button>
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <X className="w-4.5 h-4.5" />
               </button>
-            )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Content Body */}
         <div 
@@ -920,8 +1002,9 @@ export default function SettingsModal({
           style={isPage ? { maxWidth: '98%', margin: '0 auto', width: '100%' } : {}}
         >
           
-          {/* SECTION 0: INFORMATION ENTREPRISE */}
-          <div className="space-y-4 pb-6" id="settings-section-company">
+          {/* SECTION 1: RÉGLAGES */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left" id="settings-section-company">
+            {renderSectionHeader(t("Réglages"))}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -1044,10 +1127,9 @@ export default function SettingsModal({
                 />
               </div>
             </div>
-          </div>
-          
-          {/* SECTION: OTHER EQUIPMENTS INTEGRATION */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-2 mt-4 text-left">
+
+            {/* OTHER EQUIPMENTS INTEGRATION */}
+            <div className="space-y-2 mt-4">
             <label className="block text-[16px] font-bold text-black font-sans leading-tight">
               {t("Activer l'infogérance et la maintenance de d'autres types d'équipements")}.
             </label>
@@ -1179,14 +1261,69 @@ export default function SettingsModal({
               </div>
             )}
           </div>
-          
-          {/* SECTION: INTITULÉS DES EMPLACEMENTS */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-location-names">
-            <div>
-              <h3 className="text-lg font-bold text-black font-sans mb-1">
-                {t("Intitulés des emplacements")}.
-              </h3>
+
+          {/* AUTOMATIC CLIENT EMAILS */}
+          <div className="space-y-2 mt-4">
+            <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+              {t("Activer les emails automatiques destinés aux clients.")}
+            </label>
+            <div className="flex items-center space-x-6 py-1 font-sans">
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableAutoEmails("Oui");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableAutoEmails === "Oui" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableAutoEmails === "Oui" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">Oui</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableAutoEmails("Non");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableAutoEmails === "Non" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableAutoEmails === "Non" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">Non</span>
+              </button>
             </div>
+          </div>
+          </div>
+          
+          {/* SECTION 2: INTITULÉS DES EMPLACEMENTS */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-location-names">
+            {renderSectionHeader(t("Intitulés des emplacements"))}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 pt-2">
               {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => (
@@ -1214,11 +1351,12 @@ export default function SettingsModal({
             </div>
           </div>
           
-          {/* SECTION 1: MEMBERS LIST */}
-          <div className="space-y-4 pb-6" id="settings-section-members" style={{ order: 99 }}>
+          {/* SECTION 6: MEMBRES DE L'ENVIRONNEMENT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 pb-6 mt-4 text-left" id="settings-section-members" style={{ order: 99 }}>
+            {renderSectionHeader(t("Membres de l’environnement"))}
 
             {/* Formulaire d'ajout rapide de collaborateur */}
-            <form onSubmit={handleAddMemberSubmit} className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
+            <form onSubmit={handleAddMemberSubmit} className="space-y-4">
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
                 <div className="space-y-1">
@@ -1326,8 +1464,8 @@ export default function SettingsModal({
               </div>
             </form>
 
-            {/* Liste des membres */}
-            <div className="bg-white overflow-hidden mt-6 rounded-xl animate-fadeIn border border-slate-200" style={{ boxShadow: 'none' }}>
+            {/* Liste des membres - full width horizontal dividers via -mx-5 and border-t */}
+            <div className="bg-white overflow-hidden mt-6 animate-fadeIn -mx-5 border-t border-slate-200" style={{ boxShadow: 'none' }}>
               <table className="w-full text-left font-sans border-collapse text-xs" style={{ borderTop: 'none', borderBottom: 'none' }}>
                 <tbody className="text-slate-700 text-xs text-black">
                   {localMembers.map((m, idx) => {
@@ -2105,32 +2243,46 @@ export default function SettingsModal({
             </div>
           </div>
 
-          {/* SECTION: CONNECTEURS */}
+          {/* SECTION 3: CONNECTIONS */}
           <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn" id="settings-section-connectors">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-                  {t("Connecteurs")}.
-                </h4>
-              </div>
+            <div className="flex items-center justify-between w-full mb-3 select-none bg-transparent">
+              <span 
+                className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                style={{
+                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  borderRadius: '1000px',
+                  cursor: 'default',
+                  fontWeight: 100,
+                  textTransform: 'none',
+                }}
+              >
+                {t("Connections")}
+              </span>
               <button
                 type="button"
-                onClick={handleSaveConnectors}
                 disabled={connectorsSaveStatus === 'saving'}
+                onClick={handleSaveConnectors}
                 style={{
-                  backgroundColor: '#000000',
+                  backgroundColor: 'rgb(53, 86, 236)',
                   color: '#ffffff',
-                  border: 'none',
+                  boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, 0 4px 4px #ffffff00, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff36',
+                  borderRadius: '0.75rem',
                   fontSize: '18px',
-                  borderRadius: '13px',
-                  padding: '10px 20px',
-                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                  cursor: 'pointer',
-                  opacity: connectorsSaveStatus !== 'idle' ? 0.6 : 1
+                  padding: '11px 22px',
+                  fontWeight: '100',
+                  transition: 'all 0s ease-in-out',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
+                  cursor: connectorsSaveStatus === 'saving' ? 'not-allowed' : 'pointer',
+                  opacity: connectorsSaveStatus === 'saving' ? 0.6 : 1,
+                  border: 'none',
+                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
                 }}
-                className="font-bold select-none transition-all flex items-center gap-1.5"
+                className="transition-all"
               >
-                <span>{t("Enregistrer")}</span>
+                {connectorsSaveStatus === 'saving' ? t("Enregistrement...") : t("Enregistrer")}
               </button>
             </div>
 
@@ -2203,16 +2355,14 @@ export default function SettingsModal({
                     </div>
                     {/* Toggle switch */}
                     <div className="flex items-center gap-2">
-                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                      <label className="relative inline-flex items-center cursor-not-allowed select-none opacity-50" style={{ cursor: 'not-allowed' }}>
                         <input
                           type="checkbox"
                           checked={sageActive}
-                          onChange={(e) => {
-                            setSageActive(e.target.checked);
-                          }}
+                          disabled
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-not-allowed peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'not-allowed' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2287,16 +2437,14 @@ export default function SettingsModal({
                     </div>
                     {/* Toggle switch */}
                     <div className="flex items-center gap-2">
-                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                      <label className="relative inline-flex items-center cursor-not-allowed select-none opacity-50" style={{ cursor: 'not-allowed' }}>
                         <input
                           type="checkbox"
                           checked={sage4197Active}
-                          onChange={(e) => {
-                            setSage4197Active(e.target.checked);
-                          }}
+                          disabled
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-not-allowed peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'not-allowed' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2557,16 +2705,14 @@ export default function SettingsModal({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                      <label className="relative inline-flex items-center cursor-not-allowed select-none opacity-50" style={{ cursor: 'not-allowed' }}>
                         <input
                           type="checkbox"
                           checked={cegidActive}
-                          onChange={(e) => {
-                            setCegidActive(e.target.checked);
-                          }}
+                          disabled
                           className="sr-only peer"
                         />
-                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-not-allowed peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'not-allowed' }}></div>
                       </label>
                     </div>
                   </div>
@@ -2752,163 +2898,266 @@ export default function SettingsModal({
                 </div>
               </div>
 
-            </div>
-          </div>
-
-          {/* Ad 1: Textelp */}
-          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn">
-            <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-              {t("Découvrez Textelp pour l’IA agentique")}.
-            </h4>
-            <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black">
-              {t("Installez Textelp sur le site internet de votre entreprise pour permettre à vos clients et visiteurs d’obtenir des renseignements précis sur vos offres, produits et processus. Contactez Défibeo pour en savoir plus.")}
-            </p>
-            <div className="flex justify-start">
-              <a
-                href="mailto:support@defibeo.com"
-                className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
-                style={{
-                  backgroundColor: 'rgb(53, 86, 236)',
-                  borderRadius: '13px',
-                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                }}
-              >
-                {t("Contacter un spécialiste")}
-              </a>
-            </div>
-          </div>
-
-          {/* Ad 2: Civilprom */}
-          <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn">
-            <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-              {t("Développez une marque forte avec Civilprom")}.
-            </h4>
-            <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black">
-              {t("Civilprom est une agence artistique qui peut vous accompagner sur vos sujets de marque (logo, charte graphique) ainsi que sur vos supports de communication (site internet, plaquette commerciale). Contactez-nous pour en savoir plus.")}
-            </p>
-            <div className="flex justify-start">
-              <a
-                href="https://civilprom.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
-                style={{
-                  backgroundColor: 'rgb(53, 86, 236)',
-                  borderRadius: '13px',
-                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                  border: 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                }}
-              >
-                {t("En savoir plus")}
-              </a>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* SECTION 2: SUBSCRIPTION */}
-            <div 
-              className="rounded-2xl p-5 space-y-3 bg-[#311833] text-white flex flex-col justify-between animate-fadeIn" 
-              id="settings-section-subscription"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-bold text-white cursor-default select-none" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
-                    {t("Facturation Défibeo")}.
-                  </h4>
-                </div>
-                <div style={{ backgroundColor: '#ffffff1c', border: 'none', padding: '20px', borderRadius: '13px' }}>
-                  <div className="font-semibold text-white text-[16px] font-sans text-center" style={{ textTransform: 'none' }}>
-                    {t("Votre abonnement Défibeo")}.
+              {/* ATLASANTÉ GEODAE */}
+              <div id="connector-block-atlasante" style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Atlasanté GEODAE</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: selectedLang === 'Français, France' 
+                                ? (atlasanteActive ? '#fe4eba' : 'rgb(57, 169, 143)')
+                                : 'rgb(185, 28, 28)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {selectedLang === 'Français, France' 
+                              ? (atlasanteActive ? t("Activé") : t("Disponible"))
+                              : t("Indisponible")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label 
+                        className={`relative inline-flex items-center select-none ${selectedLang === 'Français, France' ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`} 
+                        style={{ cursor: selectedLang === 'Français, France' ? 'pointer' : 'not-allowed' }}
+                      >
+                        <input
+                          type="checkbox"
+                          id="toggle-atlasante-active"
+                          checked={selectedLang === 'Français, France' && atlasanteActive}
+                          disabled={selectedLang !== 'Français, France'}
+                          onChange={(e) => {
+                            setAtlasanteActive(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]"></div>
+                      </label>
+                    </div>
                   </div>
-                  <div className="mt-4">
-                    <a
-                      href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8P432259DF5486110NIYZTWY"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all w-full"
-                      style={{
-                        backgroundColor: 'rgb(53, 86, 236)',
-                        borderRadius: '0.75rem',
-                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                        fontWeight: '100',
-                        boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, inset 0 6px 12px #ffffff25',
-                        border: 'none',
-                        cursor: 'pointer',
-                        width: '100%'
-                      }}
+
+                  {selectedLang === 'Français, France' && atlasanteActive && (
+                    <div className="mt-4 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("URL Auth.")}</label>
+                        <input
+                          type="text"
+                          id="input-atlasante-url-auth"
+                          value={atlasanteUrlAuth}
+                          onChange={(e) => {
+                            setAtlasanteUrlAuth(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("https://catalogue.atlasante.fr/api/login")}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Identifiant du déclarant.")}</label>
+                        <input
+                          type="text"
+                          id="input-atlasante-declarant-id"
+                          value={atlasanteDeclarantId}
+                          onChange={(e) => {
+                            setAtlasanteDeclarantId(e.target.value);
+                          }}
+                          className="w-full text-black placeholder-[#a8a8a8] font-sans text-xs bg-white"
+                          placeholder={t("Entrez votre identifiant de déclarant.")}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedLang !== 'Français, France' && (
+                    <div className="mt-2 text-xs text-slate-500 font-sans italic">
+                      {t("Disponible uniquement pour la région France (Français, France)")}.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* SECTION 4: RECOMMANDATIONS */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left mt-4" id="settings-section-recommendations">
+            {renderSectionHeader(t("Recommandations"), false)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Ad 1: Textelp */}
+              <div className="bg-white space-y-4 animate-fadeIn flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+                    {t("Découvrez Textelp pour l’IA agentique")}.
+                  </h4>
+                  <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black mt-2">
+                    {t("Installez Textelp sur le site internet de votre entreprise pour permettre à vos clients et visitors d’obtenir des renseignements précis sur vos offres, produits et processus. Contactez Défibeo pour en savoir plus.")}
+                  </p>
+                </div>
+                <div className="flex justify-start mt-4">
+                  <a
+                    href="mailto:support@defibeo.com"
+                    className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
+                    style={{
+                      backgroundColor: 'rgb(53, 86, 236)',
+                      borderRadius: '13px',
+                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {t("Contacter un spécialiste")}
+                  </a>
+                </div>
+              </div>
+
+              {/* Ad 2: Civilprom */}
+              <div className="bg-white space-y-4 animate-fadeIn flex flex-col justify-between">
+                <div>
+                  <h4 className="font-bold text-black cursor-default select-none animate-fadeIn" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+                    {t("Développez une marque forte avec Civilprom")}.
+                  </h4>
+                  <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black mt-2">
+                    {t("Civilprom est une agence artistique qui peut vous accompagner sur vos sujets de marque (logo, charte graphique) ainsi que sur vos supports de communication (site internet, plaquette commerciale). Contactez-nous pour en savoir plus.")}
+                  </p>
+                </div>
+                <div className="flex justify-start mt-4">
+                  <a
+                    href="https://civilprom.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all text-center select-none"
+                    style={{
+                      backgroundColor: 'rgb(53, 86, 236)',
+                      borderRadius: '13px',
+                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {t("En savoir plus")}
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* SECTION 5: ASSISTANCE DÉFIBEO */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left mt-4" id="settings-section-assistance-group">
+            {renderSectionHeader(t("Assistance Défibeo"), false)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* SECTION 2: SUBSCRIPTION */}
+              <div 
+                className="rounded-2xl p-5 space-y-3 bg-[#311833] text-white flex flex-col justify-between animate-fadeIn" 
+                id="settings-section-subscription"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white cursor-default select-none" style={{ fontSize: '18px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+                      {t("Facturation Défibeo")}.
+                    </h4>
+                  </div>
+                  <div style={{ backgroundColor: '#ffffff1c', border: 'none', padding: '20px', borderRadius: '13px' }}>
+                    <div className="font-semibold text-white text-[16px] font-sans text-center" style={{ textTransform: 'none' }}>
+                      {t("Votre abonnement Défibeo")}.
+                    </div>
+                    <div className="mt-4">
+                      <a
+                        href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8P432259DF5486110NIYZTWY"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all w-full"
+                        style={{
+                          backgroundColor: 'rgb(53, 86, 236)',
+                          borderRadius: '0.75rem',
+                          fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                          fontWeight: '100',
+                          boxShadow: 'inset 0 1px 1px #ffffff00, 0 1px 2px #08080833, inset 0 6px 12px #ffffff25',
+                          border: 'none',
+                          cursor: 'pointer',
+                          width: '100%'
+                        }}
+                      >
+                        {t("Mettre à jour")}
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 flex flex-col">
+                    <span className="block text-[16px] text-white font-sans leading-relaxed" style={{ color: '#ffffff' }}>
+                      {t("Les factures sont automatiquement envoyées par e-mail. Les taxes et frais sont inclus dans le montant de l'abonnement. Vous trouverez ci-dessous l'identifiant de votre environnement logiciel.")}
+                    </span>
+                    <div className="inline-flex items-center justify-center rounded-full bg-transparent text-white border border-white/30 px-3 py-1.5 text-sm font-semibold w-fit select-none" style={{ backgroundColor: 'transparent' }}>
+                      Défibeo {shortEnvId.toUpperCase()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* SECTION 3: ASSISTANCE SUPPORT */}
+              <div className="flex flex-col justify-between bg-white animate-fadeIn" id="settings-section-support">
+                <div className="space-y-2">
+                  <p className="text-[16px] text-black leading-relaxed font-sans">
+                    {t("L'assistance Défibeo est disponible tous les jours, y compris les jours fériés, en Français et en Anglais par email à")}{' '}
+                    <a href="mailto:support@defibeo.com" className="text-blue-600 hover:underline hover:text-blue-700 font-bold">
+                      support@defibeo.com
+                    </a>
+                    .
+                  </p>
+                  <div className="space-y-2 pt-1 font-sans flex flex-col">
+                    <a 
+                      href="https://defibeo.com/#pricing" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
                     >
-                      {t("Mettre à jour")}
+                      {t("Informations sur mon offre")}.
+                    </a>
+                    <a 
+                      href="https://defibeo.com/eula" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
+                    >
+                      {t("Licence et agrément EULA")}.
                     </a>
                   </div>
                 </div>
-
-                <div className="space-y-2 pt-2 flex flex-col">
-                  <span className="block text-[16px] text-white font-sans leading-relaxed" style={{ color: '#ffffff' }}>
-                    {t("Les factures sont automatiquement envoyées par e-mail. Les taxes et frais sont inclus dans le montant de l'abonnement. Vous trouverez ci-dessous l'identifiant de votre environnement logiciel.")}
-                  </span>
-                  <div className="inline-flex items-center justify-center rounded-full bg-transparent text-white border border-white/30 px-3 py-1.5 text-sm font-semibold w-fit select-none" style={{ backgroundColor: 'transparent' }}>
-                    Défibeo {shortEnvId.toUpperCase()}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SECTION 3: ASSISTANCE SUPPORT */}
-            <div className="border border-slate-200 rounded-2xl p-5 flex flex-col justify-between bg-white animate-fadeIn" id="settings-section-support">
-              <div className="space-y-2 bg-white">
-                <p className="text-[16px] text-black leading-relaxed font-sans">
-                  {t("L'assistance Défibeo est disponible tous les jours, y compris les jours fériés, en Français et en Anglais par email à")}{' '}
-                  <a href="mailto:support@defibeo.com" className="text-blue-600 hover:underline hover:text-blue-700 font-bold">
-                    support@defibeo.com
-                  </a>
-                  .
-                </p>
-                <div className="space-y-2 pt-1 font-sans flex flex-col bg-white">
-                  <a 
-                    href="https://defibeo.com/#pricing" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
+                
+                <div className="flex flex-col space-y-3 mt-4">
+                  <a
+                    href="https://defibeo.com/school/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: 'rgb(53, 86, 236)', color: '#fff' }}
+                    className="text-center cursor-pointer"
                   >
-                    {t("Informations sur mon offre")}.
+                    {t("Centre de connaissances")}
                   </a>
-                  <a 
-                    href="https://defibeo.com/eula" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
+
+                  <a
+                    href="mailto:support@defibeo.com"
+                    style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: '#000', color: '#fff' }}
+                    className="text-center cursor-pointer"
                   >
-                    {t("Licence et agrément EULA")}.
+                    {t("Envoyer un message")}
                   </a>
                 </div>
               </div>
-              
-              <div className="flex flex-col space-y-3 mt-4">
-                <a
-                  href="https://defibeo.com/school/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: 'rgb(53, 86, 236)', color: '#fff' }}
-                  className="text-center cursor-pointer"
-                >
-                  {t("Centre de connaissances")}
-                </a>
 
-                <a
-                  href="mailto:support@defibeo.com"
-                  style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: '#000', color: '#fff' }}
-                  className="text-center cursor-pointer"
-                >
-                  {t("Envoyer un message")}
-                </a>
-              </div>
             </div>
-
           </div>
 
           {onLogout && (

@@ -104,6 +104,135 @@ async function startServer() {
     }
   });
 
+  // GÉODAE Atlasanté API upload endpoint
+  app.post("/api/atlasante/upload", async (req, res) => {
+    try {
+      const { atlasanteUrlAuth, atlasanteDeclarantId, items } = req.body;
+
+      if (!atlasanteUrlAuth || !atlasanteDeclarantId) {
+        return res.status(400).json({ error: "Missing GÉODAE configuration fields (URL Auth or Identifiant)" });
+      }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "No defibrillators to upload" });
+      }
+
+      // Step 1: Authenticate with GÉODAE
+      const authUrl = atlasanteUrlAuth || 'https://catalogue.atlasante.fr/api/login';
+      const authHeaderValue = atlasanteDeclarantId.startsWith('Basic ') ? atlasanteDeclarantId : `Basic ${atlasanteDeclarantId}`;
+
+      console.log(`[GÉODAE] Authenticating with ${authUrl}...`);
+      const authResponse = await fetch(authUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeaderValue,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!authResponse.ok) {
+        const errText = await authResponse.text();
+        return res.status(401).json({ 
+          error: `Authentication failed on GÉODAE server. Status: ${authResponse.status}`,
+          details: errText
+        });
+      }
+
+      // Extract Set-Cookie header
+      const setCookieHeader = authResponse.headers.get('set-cookie');
+      let phpSessId = '';
+      if (setCookieHeader) {
+        const match = setCookieHeader.match(/PHPSESSID=([^;]+)/);
+        if (match) {
+          phpSessId = match[1];
+        }
+      }
+
+      // As backup, check if there's any other way or try to look inside headers
+      if (!phpSessId && (authResponse.headers as any).getSetCookie) {
+        const cookiesList = (authResponse.headers as any).getSetCookie();
+        for (const cookie of cookiesList) {
+          const match = cookie.match(/PHPSESSID=([^;]+)/);
+          if (match) {
+            phpSessId = match[1];
+            break;
+          }
+        }
+      }
+
+      if (!phpSessId) {
+        console.warn("[GÉODAE] Warning: Authenticated but PHPSESSID was not found in headers.");
+      }
+
+      // Determine upload url
+      let uploadUrl = 'https://catalogue.atlasante.fr/api/data/8777a504-6c3e-4abe-8100-60bb58767faa';
+      try {
+        const parsed = new URL(authUrl);
+        uploadUrl = `${parsed.origin}/api/data/8777a504-6c3e-4abe-8100-60bb58767faa`;
+      } catch (e) {}
+
+      const results = [];
+
+      // Step 2: Upload each DAE one by one
+      for (const item of items) {
+        const { id, identifiant, numeroSerie, geojson } = item;
+        try {
+          console.log(`[GÉODAE] Uploading DAE ${identifiant} (${numeroSerie}) to ${uploadUrl}...`);
+          const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+          };
+          if (phpSessId) {
+            headers['Cookie'] = `PHPSESSID=${phpSessId}`;
+          }
+
+          const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(geojson)
+          });
+
+          const responseText = await uploadResponse.text();
+          if (uploadResponse.ok) {
+            let parsedRes = null;
+            try {
+              parsedRes = JSON.parse(responseText);
+            } catch (e) {}
+
+            results.push({
+              id,
+              identifiant,
+              numeroSerie,
+              success: true,
+              data: parsedRes || responseText
+            });
+          } else {
+            results.push({
+              id,
+              identifiant,
+              numeroSerie,
+              success: false,
+              error: `Status ${uploadResponse.status}`,
+              details: responseText
+            });
+          }
+        } catch (itemErr: any) {
+          results.push({
+            id,
+            identifiant,
+            numeroSerie,
+            success: false,
+            error: itemErr.message || "Network Error"
+          });
+        }
+      }
+
+      res.json({ success: true, results });
+    } catch (err: any) {
+      console.error("[GÉODAE] Proxy Upload Error:", err);
+      res.status(500).json({ error: err.message || "Internal Server Error in GÉODAE upload" });
+    }
+  });
+
   // API health route
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });

@@ -127,6 +127,12 @@ export default function VariableTab({
   const [identifiant, setIdentifiant] = useState('');
   const [error, setError] = useState('');
 
+  // Rappel or Alert section fields
+  const [rappelAlerteOption, setRappelAlerteOption] = useState('');
+  const [rappelDateDebut, setRappelDateDebut] = useState('');
+  const [rappelDateFin, setRappelDateFin] = useState('');
+  const [rappelObservation, setRappelObservation] = useState('');
+
   // Filtering variables
   const filteredVariables = useMemo(() => {
     return variables.filter((v) => {
@@ -150,6 +156,10 @@ export default function VariableTab({
     setDescription('');
     setImageUrl('');
     setIdentifiant('');
+    setRappelAlerteOption('');
+    setRappelDateDebut('');
+    setRappelDateFin('');
+    setRappelObservation('');
     setError('');
     setIsModalOpen(true);
   };
@@ -162,6 +172,10 @@ export default function VariableTab({
     setDescription(v.description);
     setImageUrl(v.imageUrl || '');
     setIdentifiant(v.identifiant || '');
+    setRappelAlerteOption(v.rappelAlerteOption || '');
+    setRappelDateDebut(v.rappelDateDebut || '');
+    setRappelDateFin(v.rappelDateFin || '');
+    setRappelObservation(v.rappelObservation || '');
     setError('');
     setIsModalOpen(true);
   };
@@ -179,6 +193,8 @@ export default function VariableTab({
       return;
     }
 
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur';
+
     const payload = {
       category: category as VariableCategory,
       nom: nom.trim(),
@@ -186,6 +202,10 @@ export default function VariableTab({
       description: description.trim(),
       imageUrl: category === 'Modèle Défibrillateur' ? imageUrl.trim() : undefined,
       identifiant: identifiant.trim() || undefined,
+      rappelAlerteOption: hideRappelAlerte ? undefined : (rappelAlerteOption || undefined),
+      rappelDateDebut: hideRappelAlerte ? undefined : (rappelDateDebut || undefined),
+      rappelDateFin: hideRappelAlerte ? undefined : (rappelDateFin || undefined),
+      rappelObservation: hideRappelAlerte ? undefined : (rappelObservation || undefined),
     };
 
     if (editingVariable) {
@@ -201,6 +221,8 @@ export default function VariableTab({
   };
 
   if (isModalOpen) {
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur';
+
     return (
       <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="variable-form-overlay">
         {/* Form Header */}
@@ -425,6 +447,93 @@ export default function VariableTab({
                   />
                 </div>
               </div>
+
+              {/* Section Rappel ou alerte */}
+              {!hideRappelAlerte && (
+                <div 
+                  className="bg-white p-5 space-y-4 animate-fadeIn"
+                  style={{
+                    border: '1px solid rgb(218, 218, 218)',
+                    borderRadius: '18px',
+                  }}
+                >
+                  <div className="mb-2 bg-transparent">
+                    <span 
+                      className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                      style={{
+                        backgroundColor: '#7b2882',
+                        borderRadius: '1000px',
+                        cursor: 'default',
+                        fontWeight: 100,
+                        textTransform: 'none',
+                      }}
+                    >
+                      Rappel ou alerte
+                    </span>
+                  </div>
+
+                  <div className="p-3.5 bg-sky-50 border border-sky-100 rounded-xl text-sky-900 text-sm font-sans leading-relaxed">
+                    Défibeo ne peut légalement pas être un tiers pour notifier les remontées sur les incidents techniques de matériel médical. C’est pourquoi cet emplacement est réservé à l’enregistrement des remontées des fabricants, communément appelées FSCA (Field Safety Corrective Action). Votre alerte remonte visuellement sur votre onglet « Défibrillateurs » et votre client voit également, depuis son portail, un incident relatif au matériel.
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="select-variable-rappel-option" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Type d'alerte / rappel.
+                    </label>
+                    <select
+                      id="select-variable-rappel-option"
+                      value={rappelAlerteOption}
+                      onChange={(e) => setRappelAlerteOption(e.target.value)}
+                    >
+                      <option value="">Aucun rappel ou alerte actif.</option>
+                      <option value="Mise à jour logicielle — Orange">Mise à jour logicielle — Orange</option>
+                      <option value="Rappel atelier — Rouge">Rappel atelier — Rouge</option>
+                      <option value="Modification notice d'utilisation — Orange">Modification notice d'utilisation — Orange</option>
+                      <option value="Retrait du marché — Rouge">Retrait du marché — Rouge</option>
+                      <option value="Observation courante — Orange">Observation courante — Orange</option>
+                      <option value="Observation grave — Rouge">Observation grave — Rouge</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label htmlFor="input-variable-rappel-debut" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Date de début.
+                      </label>
+                      <input
+                        type="date"
+                        id="input-variable-rappel-debut"
+                        value={rappelDateDebut}
+                        onChange={(e) => setRappelDateDebut(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label htmlFor="input-variable-rappel-fin" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Date de fin.
+                      </label>
+                      <input
+                        type="date"
+                        id="input-variable-rappel-fin"
+                        value={rappelDateFin}
+                        onChange={(e) => setRappelDateFin(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label htmlFor="input-variable-rappel-obs" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Observation sur le rappel ou l’alerte.
+                    </label>
+                    <textarea
+                      id="input-variable-rappel-obs"
+                      value={rappelObservation}
+                      onChange={(e) => setRappelObservation(e.target.value)}
+                      placeholder="Observation sur le rappel ou l’alerte."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </div>

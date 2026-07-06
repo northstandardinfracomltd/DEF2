@@ -1902,13 +1902,6 @@ export default function ClientTab({
 
             <div className="flex flex-wrap items-center gap-2">
               <button
-                onClick={() => window.location.reload()}
-                id="btn-refresh-clients"
-                style={customButtonStyle}
-              >
-                Actualiser
-              </button>
-              <button
                 onClick={openAddModal}
                 id="btn-add-client"
                 style={{

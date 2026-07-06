@@ -729,10 +729,12 @@ export default function StocksDistribuesTab({
 
           {/* Filters Pills Row - identical style to Centrale des stocks */}
           <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="stocks-distributed-storage-pills">
-            {['Tous', ...ALL_LOCATIONS].map((loc) => {
-              const count = countMap[loc] || 0;
-              const isSelected = locationFilter === loc;
-              return (
+            {['Tous', ...ALL_LOCATIONS]
+              .filter((loc) => loc === 'Tous' || (countMap[loc] || 0) > 0)
+              .map((loc) => {
+                const count = countMap[loc] || 0;
+                const isSelected = locationFilter === loc;
+                return (
                 <button
                   key={loc}
                   type="button"

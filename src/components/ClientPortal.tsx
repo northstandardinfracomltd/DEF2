@@ -1854,6 +1854,28 @@ export default function ClientPortal({
                       const electrodePPeremp = formatDateToFR(df.peremptionElectrodeP) || df.peremptionElectrodeP;
                       const batteriePeremp = formatDateToFR(df.peremptionBatterie) || df.peremptionBatterie;
 
+                      const activeAlerts: any[] = [];
+                      const modelIds = [
+                        df.modeleId,
+                        df.modeleCoffretId,
+                        df.modeleElectrodeAId,
+                        df.modeleElectrodeASecoursId,
+                        df.modeleElectrodePId,
+                        df.modeleElectrodePSecoursId,
+                        df.modeleBatterieId
+                      ].filter(Boolean);
+                      modelIds.forEach(id => {
+                        const v = variables.find(x => x.id === id);
+                        if (v && v.rappelAlerteOption) {
+                          activeAlerts.push({
+                            option: v.rappelAlerteOption,
+                            desc: v.rappelObservation || '',
+                            debut: v.rappelDateDebut,
+                            fin: v.rappelDateFin
+                          });
+                        }
+                      });
+
                       return (
                         <div
                           key={df.id}
@@ -1882,6 +1904,24 @@ export default function ClientPortal({
                               Défibrillateur
                             </span>
                           </div>
+
+                          {/* Active Alert warning banner */}
+                          {activeAlerts.length > 0 && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-2 text-red-950 font-sans leading-relaxed text-sm animate-pulse">
+                              <h4 className="font-bold flex items-center gap-1.5 text-red-800">
+                                ⚠️ Signalement incident matériel (Fabricant)
+                              </h4>
+                              {activeAlerts.map((a, idx) => (
+                                <div key={idx} className="space-y-1">
+                                  <div className="font-semibold text-red-700">
+                                    {a.option}
+                                    {a.debut && ` (depuis le ${a.debut}${a.fin ? ` jusqu'au ${a.fin}` : ''})`}
+                                  </div>
+                                  {a.desc && <p className="text-xs text-red-900 font-light">{a.desc}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           
                           {/* Barcode and Download button in first place */}
                           <div className="flex flex-col items-center gap-2">

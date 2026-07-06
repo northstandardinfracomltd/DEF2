@@ -5,7 +5,7 @@ import MapModal from './MapModal';
 import HelpBubble from './HelpBubble';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { runMonthlyVigilanceCampaign } from '../utils/emailService';
-import { checkIfDefibIdentifiantExistsAnywhere } from '../firebase';
+import { checkIfDefibIdentifiantExistsAnywhere, fetchCollectionFromFirestore } from '../firebase';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -516,6 +516,35 @@ export default function DefibTab({
   // Selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // GÉODAE Atlasanté State
+  const [atlasanteActive, setAtlasanteActive] = useState(false);
+  const [atlasanteUrlAuth, setAtlasanteUrlAuth] = useState('');
+  const [atlasanteDeclarantId, setAtlasanteDeclarantId] = useState('');
+  const [isAtlasantePaneOpen, setIsAtlasantePaneOpen] = useState(false);
+  const [isAtlasanteUploading, setIsAtlasanteUploading] = useState(false);
+  const [atlasanteUploadResults, setAtlasanteUploadResults] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+      if (data) {
+        if (data.atlasanteActive !== undefined) setAtlasanteActive(data.atlasanteActive);
+        if (data.atlasanteUrlAuth !== undefined) setAtlasanteUrlAuth(data.atlasanteUrlAuth);
+        if (data.atlasanteDeclarantId !== undefined) setAtlasanteDeclarantId(data.atlasanteDeclarantId);
+      }
+    }).catch(err => {
+      console.error("Error fetching api_connectors inside DefibTab:", err);
+    });
+  }, []);
+
+  // Modals state
+  const [isFormOpen, setIsFormOpen] = useState(false);
+
+  useEffect(() => {
+    if (isFormOpen) {
+      setSelectedIds([]);
+    }
+  }, [isFormOpen]);
+
   const isAnySelectedInTour = selectedIds.some(id => {
     const defib = defibrillateurs.find(d => d.id === id);
     if (!defib) return false;
@@ -523,9 +552,6 @@ export default function DefibTab({
       (t.missions || []).some((m: any) => m.defibIdentifiant === defib.identifiant)
     );
   });
-
-  // Modals state
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [isClientSearchFocused, setIsClientSearchFocused] = useState(false);
   const [editingDefib, setEditingDefib] = useState<Defibrillateur | null>(null);
@@ -627,6 +653,124 @@ export default function DefibTab({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleTransmitToAtlasante = async () => {
+    setIsAtlasanteUploading(true);
+    setAtlasanteUploadResults([]);
+
+    const selectedDefibs = defibrillateurs.filter(d => selectedIds.includes(d.id));
+    const clientMap = new Map(clients.map(c => [c.id, c]));
+    const variableMap = new Map(variables.map(v => [v.id, v]));
+
+    const items = selectedDefibs.map(df => {
+      const cl = clientMap.get(df.clientId);
+      const modDef = variableMap.get(df.modeleId);
+
+      const clientDenom = cl ? cl.denomination : '';
+      const identifiantVal = df.identifiant || '';
+      const nomVal = `${identifiantVal} ${clientDenom}`.trim();
+
+      const formatDateForApi = (dateStr: string | undefined) => {
+        if (!dateStr) return '2000-01-01';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+        const pts = dateStr.split('/');
+        if (pts.length === 3) {
+          const d = pts[0].padStart(2, '0');
+          const m = pts[1].padStart(2, '0');
+          const y = pts[2];
+          return `${y}-${m}-${d}`;
+        }
+        return '2000-01-01';
+      };
+
+      const latNum = df.latitude ? parseFloat(df.latitude) : 48.8566;
+      const lngNum = df.longitude ? parseFloat(df.longitude) : 2.3522;
+
+      const geojsonFeature = {
+        type: 'Feature',
+        properties: {
+          nom: nomVal,
+          lat_coor1: latNum,
+          long_coor1: lngNum,
+          acc: 'Intérieur',
+          acc_lib: false,
+          disp_j: ['lundi'],
+          disp_h: ['heures ouvrables'],
+          tel1: cl && cl.phone ? cl.phone : (df.telephoneSite || '+33600000000'),
+          etat_fonct: 'En fonctionnement',
+          fab_rais: clientDenom || 'DGSDAE',
+          modele: modDef ? modDef.nom : 'DGSDAE',
+          num_serie: df.numeroSerie || '',
+          dermnt: formatDateForApi(df.derniereMaintenance),
+          expt_siren: '00000000000000',
+          expt_rais: companyInfo?.name || 'Défibeo Solutions',
+          expt_tel1: companyInfo?.phone || '+33147200001',
+          expt_email: companyInfo?.email || 'contact@defibeo-solutions.com',
+          dae_mobile: false
+        },
+        geometry: {
+          type: 'MultiPoint',
+          coordinates: [
+            [lngNum, latNum]
+          ]
+        }
+      };
+
+      const geojsonCollection = {
+        type: 'FeatureCollection',
+        name: 'sql_statement',
+        crs: {
+          type: 'name',
+          properties: {
+            name: 'urn:ogc:def:crs:OGC:1.3:CRS84'
+          }
+        },
+        features: [geojsonFeature]
+      };
+
+      return {
+        id: df.id,
+        identifiant: df.identifiant,
+        numeroSerie: df.numeroSerie || 'N/A',
+        geojson: geojsonCollection
+      };
+    });
+
+    try {
+      const response = await fetch('/api/atlasante/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          atlasanteUrlAuth,
+          atlasanteDeclarantId,
+          items
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setAtlasanteUploadResults(data.results || []);
+      } else {
+        setAtlasanteUploadResults(items.map(item => ({
+          ...item,
+          success: false,
+          error: data.error || "Échec de l'authentification ou de l'upload",
+          details: data.details || ""
+        })));
+      }
+    } catch (err: any) {
+      setAtlasanteUploadResults(items.map(item => ({
+        ...item,
+        success: false,
+        error: err.message || "Erreur de connexion"
+      })));
+    } finally {
+      setIsAtlasanteUploading(false);
+      setIsAtlasantePaneOpen(true);
+    }
   };
 
   const executeNouvelleTournee = () => {
@@ -1911,10 +2055,30 @@ export default function DefibTab({
                       CSV Atlasanté
                     </button>
                   )}
+                  {typeof window !== 'undefined' && (localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' && atlasanteActive && (
+                    <button
+                      onClick={handleTransmitToAtlasante}
+                      disabled={isAtlasanteUploading}
+                      style={{
+                        ...rowActionButton18Style,
+                        opacity: isAtlasanteUploading ? 0.6 : 1,
+                        cursor: isAtlasanteUploading ? 'not-allowed' : 'pointer'
+                      }}
+                      className="cursor-pointer"
+                    >
+                      Envoyer vers Atlasanté
+                    </button>
+                  )}
                   <button
                     onClick={handleBulkDeleteAction}
                     id="btn-bulk-delete"
-                    style={rowActionButton18Style}
+                    disabled={isAnySelectedInTour}
+                    style={{
+                      ...rowActionButton18Style,
+                      opacity: isAnySelectedInTour ? 0.4 : 1,
+                      cursor: isAnySelectedInTour ? 'not-allowed' : 'pointer'
+                    }}
+                    title={isAnySelectedInTour ? "Action impossible : l'un des défibrillateurs sélectionnés fait déjà partie d'une tournée." : "Supprimer"}
                     className="cursor-pointer"
                   >
                     Supprimer
@@ -1988,6 +2152,28 @@ export default function DefibTab({
                   const isChecked = selectedIds.includes(df.id);
                   const prochaineMaint = computeProchaineMaintenance(df.derniereMaintenance);
 
+                  const activeAlerts: any[] = [];
+                  const modelIds = [
+                    df.modeleId,
+                    df.modeleCoffretId,
+                    df.modeleElectrodeAId,
+                    df.modeleElectrodeASecoursId,
+                    df.modeleElectrodePId,
+                    df.modeleElectrodePSecoursId,
+                    df.modeleBatterieId
+                  ].filter(Boolean);
+                  modelIds.forEach(id => {
+                    const v = variableMap.get(id);
+                    if (v && v.rappelAlerteOption) {
+                      activeAlerts.push({
+                        option: v.rappelAlerteOption,
+                        desc: v.rappelObservation || '',
+                        debut: v.rappelDateDebut,
+                        fin: v.rappelDateFin
+                      });
+                    }
+                  });
+
                   return (
                     <tr
                       key={df.id}
@@ -2034,28 +2220,48 @@ export default function DefibTab({
 
                       {/* Identifiant */}
                       <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                        <div 
-                          style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '8px',
-                            border: '1px solid rgb(231, 231, 231)',
-                            borderRadius: '1000px',
-                            padding: '4px 12px',
-                            backgroundColor: '#ffffff'
-                          }} 
-                          className="whitespace-nowrap"
-                        >
-                          {(() => {
-                            const status = getSafetyStatus(df);
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <div 
+                            style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '8px',
+                              border: '1px solid rgb(231, 231, 231)',
+                              borderRadius: '1000px',
+                              padding: '4px 12px',
+                              backgroundColor: '#ffffff'
+                            }} 
+                            className="whitespace-nowrap shrink-0"
+                          >
+                            {(() => {
+                              const status = getSafetyStatus(df);
+                              return (
+                                <span 
+                                  className={`w-2 h-2 rounded-full shrink-0 ${status.colorClass}`} 
+                                  title={status.title}
+                                />
+                              );
+                            })()}
+                            <span className="whitespace-nowrap">{df.identifiant}</span>
+                          </div>
+
+                          {activeAlerts.map((a, idx) => {
+                            const isRed = a.option.includes('Rouge');
+                            const bgColor = isRed ? '#fee2e2' : '#ffedd5';
+                            const borderColor = isRed ? '#fca5a5' : '#fed7aa';
+                            const textColor = isRed ? '#991b1b' : '#9a3412';
+                            const text = a.option.split(' — ')[0];
                             return (
                               <span 
-                                className={`w-2 h-2 rounded-full shrink-0 ${status.colorClass}`} 
-                                title={status.title}
-                              />
+                                key={idx}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap animate-pulse shrink-0 border"
+                                style={{ backgroundColor: bgColor, borderColor: borderColor, color: textColor }}
+                                title={`${a.option}${a.debut ? ` (du ${a.debut}${a.fin ? ` au ${a.fin}` : ''})` : ''}${a.desc ? ` : ${a.desc}` : ''}`}
+                              >
+                                ⚠️ {text}
+                              </span>
                             );
-                          })()}
-                          <span className="whitespace-nowrap">{df.identifiant}</span>
+                          })}
                         </div>
                       </td>
 
@@ -2226,16 +2432,6 @@ export default function DefibTab({
                             style={rowActionButton18Style}
                           >
                             Modifier
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm(`Supprimer définitivement l'appareil ${df.identifiant} (${df.numeroSerie}) ?`)) {
-                                onDeleteDefib(df.id);
-                              }
-                            }}
-                            style={rowActionButton18Style}
-                          >
-                            Supprimer
                           </button>
                         </div>
                       </td>
@@ -4271,35 +4467,6 @@ export default function DefibTab({
                         </div>
                       </div>
 
-                      {/* Survie */}
-                      <div className="p-2 space-y-1">
-                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Utilisé par une victime.</span>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setVictimeSurvie('Oui')}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {victimeSurvie === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Oui
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setVictimeSurvie('Non')}
-                            className="inline-flex items-center cursor-pointer gap-2 select-none"
-                            style={{ fontSize: '16px', color: '#000' }}
-                          >
-                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                              {victimeSurvie === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                            </span>
-                            Non
-                          </button>
-                        </div>
-                      </div>
-
                       {/* Email Mensuel Auto-Vigilence */}
                       <div className="p-2 space-y-1">
                         <span className="block text-[9px] font-bold text-slate-400 uppercase">{t("Email mensuel d'auto-vigilance")}.</span>
@@ -4398,11 +4565,40 @@ export default function DefibTab({
                           </button>
                         </div>
                       </div>
+
+                      {/* Survie */}
+                      <div className="p-2 space-y-1">
+                        <span className="block text-[9px] font-bold text-slate-400 uppercase">Utilisé par une victime.</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setVictimeSurvie('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {victimeSurvie === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVictimeSurvie('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${victimeSurvie === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {victimeSurvie === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
                       {/* Âge Victime */}
-                      <div className="space-y-1 sm:col-span-1">
+                      <div className="space-y-1 sm:col-span-4">
                         <label htmlFor="form-age" className="block text-[10px] font-bold text-slate-400 uppercase">Âge de la victime.</label>
                         <input
                           type="number"
@@ -4410,19 +4606,7 @@ export default function DefibTab({
                           value={ageVictime}
                           onChange={(e) => setAgeVictime(e.target.value)}
                           className="w-full px-2 py-1 border border-slate-200 rounded text-xs text-slate-800"
-                        />
-                      </div>
-
-                      {/* Rappel Fabricant */}
-                      <div className="space-y-1 sm:col-span-3">
-                        <label htmlFor="form-rappel" className="block text-[10px] font-bold text-slate-400 uppercase">Commentaire vigilance ou rappel fabricant.</label>
-                        <input
-                          type="text"
-                          id="form-rappel"
-                          value={commentaireCampagneRappel}
-                          onChange={(e) => setCommentaireCampagneRappel(e.target.value)}
-                          placeholder="Entrez votre commentaire."
-                          className="w-full px-2.5 py-1 border border-slate-200 rounded text-xs text-slate-750"
+                          style={{ maxWidth: '240px' }}
                         />
                       </div>
                     </div>
@@ -4967,6 +5151,116 @@ export default function DefibTab({
       {isBulkEditOpen && (
         <div 
           onClick={() => setIsBulkEditOpen(false)}
+          className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-[85]"
+        />
+      )}
+
+      {/* ============================================== */}
+      {/* 📡 GÉODAE ATLASANTÉ TRANSMISSION SIDE PANE 📡 */}
+      {/* ============================================== */}
+      {isAtlasantePaneOpen && (
+        <div 
+          className="fixed inset-y-0 right-0 w-80 sm:w-[450px] bg-white shadow-2xl z-[90] flex flex-col border-l border-slate-200" 
+          id="atlasante-side-pane"
+          style={{ height: '100%' }}
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 shrink-0">
+            <h3 className="text-lg font-bold font-sans text-black">
+              Résultat de la transmission.
+            </h3>
+            <button 
+              onClick={() => setIsAtlasantePaneOpen(false)}
+              style={{
+                backgroundColor: '#000',
+                color: '#fff',
+                fontSize: '18px',
+                padding: '8px 20px',
+                borderRadius: '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                border: 'none',
+                fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+              }}
+              className="hover:opacity-95 active:scale-95 transition-all"
+            >
+              Fermer
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-3">
+                {atlasanteUploadResults.map((res, idx) => (
+                  <div 
+                    key={idx} 
+                    className="p-4 rounded-xl border border-slate-200 bg-white flex flex-col gap-2"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex flex-col gap-1">
+                        <div className="font-sans font-bold text-black text-[18px]">
+                          {res.identifiant || 'Sans ID'}
+                        </div>
+                        <div className="font-sans font-bold text-black text-[18px]">
+                          {res.numeroSerie || 'N/A'}
+                        </div>
+                      </div>
+                      <div>
+                        <span 
+                          style={{ backgroundColor: '#7b2882', color: '#fff', fontSize: '16px' }}
+                          className="px-3.5 py-1.5 font-semibold rounded-full font-sans inline-block text-center"
+                        >
+                          {res.success ? 'Transmis' : 'Échec'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {res.success && res.data && (
+                      <div className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-100/50 mt-1">
+                        {Array.isArray(res.data) && res.data[0] ? (
+                          <>
+                            <div>Statut: {res.data[0].msg || 'Enregistré'}</div>
+                            {res.data[0].gid && <div className="font-mono">ID GÉODAE: {res.data[0].gid}</div>}
+                          </>
+                        ) : typeof res.data === 'object' ? (
+                          JSON.stringify(res.data)
+                        ) : (
+                          String(res.data)
+                        )}
+                      </div>
+                    )}
+
+                    {!res.success && (
+                      <div 
+                        style={{ color: '#ef4444', fontSize: '18px' }} 
+                        className="mt-1 space-y-1 font-sans"
+                      >
+                        <div className="font-bold">Erreur : {res.error}</div>
+                        {res.details && (
+                          <div 
+                            style={{ color: '#ef4444', fontSize: '18px' }}
+                            className="opacity-90 font-mono break-all max-h-24 overflow-y-auto mt-1"
+                          >
+                            {res.details}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GÉODAE overlay background backdrop */}
+      {isAtlasantePaneOpen && (
+        <div 
+          onClick={() => {
+            if (!isAtlasanteUploading) setIsAtlasantePaneOpen(false);
+          }}
           className="fixed inset-0 bg-slate-900/30 backdrop-blur-xs z-[85]"
         />
       )}

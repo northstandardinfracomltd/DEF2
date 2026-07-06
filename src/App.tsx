@@ -161,6 +161,17 @@ export default function App() {
   const [isBlockedByPrez, setIsBlockedByPrez] = useState<boolean>(false);
   const [prezCountdown, setPrezCountdown] = useState<number>(5);
 
+  const [locationNames, setLocationNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+      setLocationNames(saved ? JSON.parse(saved) : {});
+    } catch (e) {
+      setLocationNames({});
+    }
+  }, [tenantId]);
+
   useEffect(() => {
     if (tenantId === 'demo') {
       localStorage.setItem('defib_short_env_id', 'D18');
@@ -487,6 +498,7 @@ export default function App() {
   const [fsmPieceSearch, setFsmPieceSearch] = useState('');
   const [fsmSearchQuery, setFsmSearchQuery] = useState('');
   const [gmaoSearchQuery, setGmaoSearchQuery] = useState('');
+  const [gmaoFilter, setGmaoFilter] = useState<'validated' | 'moderation'>('validated');
   const [fsmDateFilter, setFsmDateFilter] = useState<string>('Tous');
   const [fsmTourDrafts, setFsmTourDrafts] = useState<Record<string, any>>({});
   const [savingTourIds, setSavingTourIds] = useState<Record<string, boolean>>({});
@@ -641,6 +653,44 @@ export default function App() {
     email: "contact@defibeo-solutions.com",
     phone: "+33 1 47 20 00 01"
   });
+
+  useEffect(() => {
+    if (companyInfo) {
+      let updated = false;
+      const nextCompanyInfo = { ...companyInfo };
+
+      if (companyInfo.locationNames) {
+        setLocationNames(companyInfo.locationNames);
+        localStorage.setItem(`defib_${tenantId}_location_names`, JSON.stringify(companyInfo.locationNames));
+      } else {
+        try {
+          const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Object.keys(parsed).length > 0) {
+              nextCompanyInfo.locationNames = parsed;
+              setLocationNames(parsed);
+              updated = true;
+            }
+          }
+        } catch (e) {}
+      }
+
+      if (companyInfo.enableAutoEmails) {
+        localStorage.setItem(`defib_${tenantId}_enable_auto_emails`, companyInfo.enableAutoEmails);
+      } else {
+        const saved = localStorage.getItem(`defib_${tenantId}_enable_auto_emails`) as 'Oui' | 'Non' | null;
+        if (saved) {
+          nextCompanyInfo.enableAutoEmails = saved;
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        setCompanyInfo(nextCompanyInfo);
+      }
+    }
+  }, [companyInfo, tenantId]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -6092,6 +6142,9 @@ export default function App() {
             };
 
             const filteredReports = generatedReports.filter((rep) => {
+              if (gmaoFilter === 'validated' && !rep.validated) return false;
+              if (gmaoFilter === 'moderation' && rep.validated) return false;
+
               const query = gmaoSearchQuery.toLowerCase().trim();
               if (!query) return true;
               
@@ -6207,15 +6260,52 @@ export default function App() {
                         />
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2">
-                        <button
-                          onClick={() => window.location.reload()}
-                          id="btn-refresh-gmao"
-                          style={customButtonStyle}
+                      {/* Apple-style toggle for filtering 'Modération' / 'Validé(s)' */}
+                      <div className="flex items-center gap-3 select-none">
+                        <span 
+                          onClick={() => setGmaoFilter('moderation')}
+                          className="font-sans font-bold text-sm transition-colors duration-200 cursor-pointer"
+                          style={{
+                            color: gmaoFilter === 'moderation' ? '#fe4eba' : '#000000',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                            fontSize: '18px'
+                          }}
                         >
-                          Actualiser
+                          {t("Modération")}
+                        </span>
+                        
+                        <button
+                          type="button"
+                          onClick={() => setGmaoFilter(gmaoFilter === 'validated' ? 'moderation' : 'validated')}
+                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none"
+                          style={{
+                            backgroundColor: gmaoFilter === 'validated' ? '#fe4eba' : '#cbd5e1',
+                            cursor: 'pointer',
+                            border: 'none',
+                          }}
+                        >
+                          <span
+                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 shadow-sm"
+                            style={{
+                              transform: gmaoFilter === 'validated' ? 'translateX(24px)' : 'translateX(4px)',
+                            }}
+                          />
                         </button>
+
+                        <span 
+                          onClick={() => setGmaoFilter('validated')}
+                          className="font-sans font-bold text-sm transition-colors duration-200 cursor-pointer"
+                          style={{
+                            color: gmaoFilter === 'validated' ? '#fe4eba' : '#000000',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                            fontSize: '18px'
+                          }}
+                        >
+                          {t("Validé(s)")}
+                        </span>
                       </div>
+
+                      {/* No Actualiser button */}
                     </div>
                   </div>
                 </div>
@@ -8207,6 +8297,7 @@ export default function App() {
               otherEquipments={otherEquipments}
               onClearOtherEquipments={() => saveOtherEquipments([])}
               onConnectorsUpdated={loadApiConnectors}
+              onUpdateLocationNames={setLocationNames}
             />
           )}
 
@@ -8255,6 +8346,7 @@ export default function App() {
         otherEquipments={otherEquipments}
         onClearOtherEquipments={() => saveOtherEquipments([])}
         onConnectorsUpdated={loadApiConnectors}
+        onUpdateLocationNames={setLocationNames}
       />
 
       <StatsModal

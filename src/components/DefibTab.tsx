@@ -2046,7 +2046,7 @@ export default function DefibTab({
                   >
                     CSV
                   </button>
-                  {typeof window !== 'undefined' && (localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' && (
+                  {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
                     <button
                       onClick={handleExportToAtlasanteCSV}
                       style={rowActionButton18Style}
@@ -2055,7 +2055,7 @@ export default function DefibTab({
                       CSV Atlasanté
                     </button>
                   )}
-                  {typeof window !== 'undefined' && (localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' && atlasanteActive && (
+                  {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && atlasanteActive && (
                     <button
                       onClick={handleTransmitToAtlasante}
                       disabled={isAtlasanteUploading}

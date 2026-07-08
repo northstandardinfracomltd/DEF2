@@ -64,7 +64,10 @@ export default function SettingsModal({
   onConnectorsUpdated,
   onUpdateLocationNames
 }: SettingsModalProps) {
-  const [selectedLang, setSelectedLang] = React.useState(() => localStorage.getItem('defib_lang') || 'Français, France');
+  const [selectedLang, setSelectedLang] = React.useState(() => {
+    const lang = localStorage.getItem('defib_lang') || 'Français, France';
+    return lang === 'Français' ? 'Français, France' : lang;
+  });
   const [shortEnvId, setShortEnvId] = React.useState(() => localStorage.getItem('defib_short_env_id') || 'D18');
 
   React.useEffect(() => {

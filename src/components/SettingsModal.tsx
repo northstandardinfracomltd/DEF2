@@ -1018,7 +1018,7 @@ export default function SettingsModal({
           <HelpBubble 
             cacheKey="help_dismissed_settings_advise"
             text="Le saviez-vous ? Invitez vos clients à utiliser le formulaire intitulé « Signaler un problème avec un défibrillateur, envoyer un message en tant que client ou passant », disponible sur la page https://defibeo.deroesch.com/. C'est un outil très pratique ! En le complétant, la demande est directement intégrée à votre CRM et vous recevez instantanément un e-mail automatique de notification."
-            style={{ margin: '0px', maxWidth: '100%' }}
+            style={{ margin: '0px 0px 16px 0px', maxWidth: '100%' }}
           />
           
           {/* SECTION 1: RÉGLAGES */}

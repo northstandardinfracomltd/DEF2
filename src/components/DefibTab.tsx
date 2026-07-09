@@ -2049,8 +2049,8 @@ export default function DefibTab({
                             style={{
                               ...rowActionButton18Style,
                               width: '100%',
-                              backgroundColor: '#fa53d5',
-                              borderColor: '#fa53d5',
+                              backgroundColor: '#000000',
+                              borderColor: '#000000',
                               color: '#ffffff'
                             }}
                             className="w-full text-center transition-colors cursor-pointer hover:opacity-90"

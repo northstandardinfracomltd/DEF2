@@ -4,9 +4,10 @@ import { t } from '../utils/translate';
 interface HelpBubbleProps {
   cacheKey: string;
   text: string;
+  style?: React.CSSProperties;
 }
 
-export default function HelpBubble({ cacheKey, text }: HelpBubbleProps) {
+export default function HelpBubble({ cacheKey, text, style }: HelpBubbleProps) {
   const [isVisible, setIsVisible] = useState<boolean>(false);
 
   useEffect(() => {
@@ -32,6 +33,7 @@ export default function HelpBubble({ cacheKey, text }: HelpBubbleProps) {
         boxShadow: 'none',
         maxWidth: '98%',
         margin: '15px auto 5px auto',
+        ...style,
       }}
     >
       <div className="flex items-start gap-3">

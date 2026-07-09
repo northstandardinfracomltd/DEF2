@@ -5059,16 +5059,6 @@ export default function App() {
                       if (t.id === 'a-trier') {
                         return (
                           <div key={t.id} className="bg-white relative space-y-6 animate-fadeIn" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px', maxWidth: '98%', margin: '24px auto', backgroundColor: '#ffffff', overflow: 'hidden' }}>
-                            {/* Header for Tournées à trier */}
-                            <div className="bg-white px-5 py-5 flex flex-col gap-2 font-sans" style={{ borderBottom: '1px solid rgb(218, 218, 218)', borderRadius: '17px 17px 0px 0px', backgroundColor: '#ffffff' }}>
-                              <h3 className="text-xl font-bold tracking-tight text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
-                                Tournées à trier
-                              </h3>
-                              <p className="text-sm font-light text-slate-500" style={{ cursor: 'default' }}>
-                                Retrouvez ici les missions en attente d'affectation. Sélectionnez une tournée en brouillon pour les y transférer.
-                              </p>
-                            </div>
-
                             {/* Tour missions list */}
                             <div className="p-4 space-y-4">
                               {t.missions.length === 0 ? (
@@ -5080,26 +5070,8 @@ export default function App() {
                                   {t.missions.map((m: any, idx: number) => {
                                     return (
                                       <div key={m.id} className="rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans" style={{ border: '1px solid rgb(229, 229, 229)', backgroundColor: 'rgb(245, 245, 245)' }}>
-                                        {/* Row 1: Passage number & Gélules */}
+                                        {/* Row 1: Gélules */}
                                         <div className="flex flex-wrap items-center gap-2 bg-transparent pb-0.5">
-                                          <div
-                                            style={{
-                                              backgroundColor: '#fa53d5',
-                                              color: '#ffffff',
-                                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                                              fontWeight: 610,
-                                              width: '28px',
-                                              height: '28px',
-                                              borderRadius: '50%',
-                                              display: 'flex',
-                                              alignItems: 'center',
-                                              justifyContent: 'center',
-                                              fontSize: '14px',
-                                              cursor: 'default'
-                                            }}
-                                          >
-                                            {idx + 1}
-                                          </div>
                                           <span
                                             style={{
                                               backgroundColor: 'rgb(77, 21, 83)',
@@ -5201,8 +5173,8 @@ export default function App() {
                                           })()}
                                         </div>
 
-                                        {/* Row 2: Site & Identifiant */}
-                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-transparent">
+                                        {/* Row 2: Site & Identifiant & Localisation */}
+                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-transparent">
                                           <div className="space-y-0.5 bg-transparent">
                                             <label className="block mb-1 fsm-label-style">Site.</label>
                                             <input
@@ -5225,9 +5197,26 @@ export default function App() {
                                             />
                                           </div>
 
+                                          <div className="space-y-0.5 bg-transparent">
+                                            <label className="block mb-1 fsm-label-style">Localisation.</label>
+                                            <input
+                                              type="text"
+                                              value={(() => {
+                                                const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                                const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                                const ville = matchedDefib ? matchedDefib.ville : (other ? other.ville : '');
+                                                const cp = matchedDefib ? (matchedDefib.codePostal || matchedDefib.cp || '') : (other ? (other.codePostal || other.cp || '') : '');
+                                                return (ville && cp) ? `${ville}, ${cp}` : (ville || cp || '');
+                                              })()}
+                                              disabled={true}
+                                              className="w-full font-sans cursor-not-allowed"
+                                              placeholder="Ville, CP"
+                                            />
+                                          </div>
+
                                           {/* Transférer section */}
                                           <div className="space-y-0.5 bg-transparent md:col-span-2">
-                                            <label className="block mb-1 fsm-label-style">Transférer dans la tournée.</label>
+                                            <label className="block mb-1 fsm-label-style" style={{ fontSize: '18px' }}>Transférer.</label>
                                             <div className="flex gap-2">
                                               <select
                                                 id={`transfer-select-${m.id}`}
@@ -5294,14 +5283,14 @@ export default function App() {
                                                   color: '#ffffff',
                                                   padding: '12px 18px',
                                                   borderRadius: '13px',
-                                                  fontSize: '16px',
+                                                  fontSize: '18px',
                                                   fontWeight: 'bold',
                                                   cursor: 'pointer',
                                                   border: 'none',
                                                 }}
                                                 className="hover:opacity-90 transition-opacity whitespace-nowrap"
                                               >
-                                                Transférer dans la tournée.
+                                                Transférer
                                               </button>
                                             </div>
                                           </div>
@@ -5893,8 +5882,8 @@ export default function App() {
                                         })()}
                                       </div>
 
-                                      {/* Ligne 2: Site., Identifiant., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 w-full bg-transparent">
+                                      {/* Ligne 2: Site., Identifiant., Localisation., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full bg-transparent">
                                         {/* Site. (toujours disabled) */}
                                         <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Site.</label>
@@ -5916,6 +5905,24 @@ export default function App() {
                                             disabled={true}
                                             className="w-full font-mono cursor-not-allowed"
                                             placeholder="ID Défib"
+                                          />
+                                        </div>
+
+                                        {/* Localisation. */}
+                                        <div className="space-y-0.5 bg-transparent">
+                                          <label className="block mb-1 fsm-label-style">Localisation.</label>
+                                          <input
+                                            type="text"
+                                            value={(() => {
+                                              const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                              const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                              const ville = matchedDefib ? matchedDefib.ville : (other ? other.ville : '');
+                                              const cp = matchedDefib ? (matchedDefib.codePostal || matchedDefib.cp || '') : (other ? (other.codePostal || other.cp || '') : '');
+                                              return (ville && cp) ? `${ville}, ${cp}` : (ville || cp || '');
+                                            })()}
+                                            disabled={true}
+                                            className="w-full font-sans cursor-not-allowed"
+                                            placeholder="Ville, CP"
                                           />
                                         </div>
 

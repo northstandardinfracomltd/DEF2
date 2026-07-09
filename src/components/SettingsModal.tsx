@@ -1018,6 +1018,7 @@ export default function SettingsModal({
           <HelpBubble 
             cacheKey="help_dismissed_settings_advise"
             text="Le saviez-vous ? Invitez vos clients à utiliser le formulaire intitulé « Signaler un problème avec un défibrillateur, envoyer un message en tant que client ou passant », disponible sur la page https://defibeo.deroesch.com/. C'est un outil très pratique ! En le complétant, la demande est directement intégrée à votre CRM et vous recevez instantanément un e-mail automatique de notification."
+            style={{ margin: '0px', maxWidth: '100%' }}
           />
           
           {/* SECTION 1: RÉGLAGES */}
@@ -3137,8 +3138,8 @@ export default function SettingsModal({
                 <div className="space-y-2">
                   <p className="text-[16px] text-black leading-relaxed font-sans">
                     {t("L'assistance Défibeo est disponible tous les jours, y compris les jours fériés, en Français et en Anglais par email à")}{' '}
-                    <a href="mailto:support@defibeo.com" className="text-blue-600 hover:underline hover:text-blue-700 font-bold">
-                      support@defibeo.com
+                    <a href="mailto:contact@defibeo.com" className="text-blue-600 hover:underline hover:text-blue-700 font-bold">
+                      contact@defibeo.com
                     </a>
                     .
                   </p>
@@ -3157,7 +3158,7 @@ export default function SettingsModal({
                       rel="noopener noreferrer" 
                       className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
                     >
-                      {t("Licence et agrément EULA")}.
+                      {t("Licence et agrément EULA.")}
                     </a>
                     <a 
                       href="https://civilprom.s3.eu-north-1.amazonaws.com/Data_Process_France.pdf.pdf" 
@@ -3165,7 +3166,7 @@ export default function SettingsModal({
                       rel="noopener noreferrer" 
                       className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
                     >
-                      {t("Comment nous protégeons vos données.")}.
+                      {t("Comment nous protégeons vos données.")}
                     </a>
                     <a 
                       href="https://civilprom.s3.eu-north-1.amazonaws.com/Addendum_Defibeo_5JL26.pdf.pdf" 
@@ -3173,7 +3174,7 @@ export default function SettingsModal({
                       rel="noopener noreferrer" 
                       className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
                     >
-                      {t("Information de conformité HDS.")}.
+                      {t("Information de conformité HDS.")}
                     </a>
                   </div>
                 </div>
@@ -3190,7 +3191,7 @@ export default function SettingsModal({
                   </a>
 
                   <a
-                    href="mailto:support@defibeo.com"
+                    href="mailto:contact@defibeo.com"
                     style={{ ...rowActionButtonStyle, width: '100%', fontSize: '18px', backgroundColor: '#000', color: '#fff' }}
                     className="text-center cursor-pointer"
                   >

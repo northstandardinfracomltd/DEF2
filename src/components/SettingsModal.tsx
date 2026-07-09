@@ -24,6 +24,7 @@ import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, 
 import { setLanguage, t } from '../utils/translate';
 import { REGIONS_FRANCAISES, getLocationCustomName } from '../utils';
 import { getRegionsForCountry } from '../utils/regions';
+import HelpBubble from './HelpBubble';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -1014,6 +1015,10 @@ export default function SettingsModal({
           id="settings-tab-container-harmonized"
           style={isPage ? { maxWidth: '98%', margin: '0 auto', width: '100%' } : {}}
         >
+          <HelpBubble 
+            cacheKey="help_dismissed_settings_advise"
+            text="Le saviez-vous ? Invitez vos clients à utiliser le formulaire intitulé « Signaler un problème avec un défibrillateur, envoyer un message en tant que client ou passant », disponible sur la page https://defibeo.deroesch.com/. C'est un outil très pratique ! En le complétant, la demande est directement intégrée à votre CRM et vous recevez instantanément un e-mail automatique de notification."
+          />
           
           {/* SECTION 1: RÉGLAGES */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left" id="settings-section-company">
@@ -3147,12 +3152,28 @@ export default function SettingsModal({
                       {t("Informations sur mon offre")}.
                     </a>
                     <a 
-                      href="https://defibeo.com/eula" 
+                      href="https://civilprom.s3.eu-north-1.amazonaws.com/DEFIBEO+ACCORD+%EF%BD%9C+FRANCE%2C+FRANC%CC%A7AIS+%EF%BD%9C+2026.pdf" 
                       target="_blank" 
                       rel="noopener noreferrer" 
                       className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
                     >
                       {t("Licence et agrément EULA")}.
+                    </a>
+                    <a 
+                      href="https://civilprom.s3.eu-north-1.amazonaws.com/Data_Process_France.pdf.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
+                    >
+                      {t("Comment nous protégeons vos données.")}.
+                    </a>
+                    <a 
+                      href="https://civilprom.s3.eu-north-1.amazonaws.com/Addendum_Defibeo_5JL26.pdf.pdf" 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="block text-[16px] font-semibold text-blue-600 hover:underline hover:text-blue-700 cursor-pointer w-fit"
+                    >
+                      {t("Information de conformité HDS.")}.
                     </a>
                   </div>
                 </div>

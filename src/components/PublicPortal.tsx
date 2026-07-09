@@ -8969,51 +8969,50 @@ export default function PublicPortal({
                     <div className="space-y-4">
                       {/* Live map link replaced by toggle */}
                       <div className="space-y-1.5" style={{ marginTop: "24px" }}>
-                        <label
-                          style={{ fontSize: "18px", color: "#000000" }}
-                          className="block font-bold select-none"
+                        <div
+                          className="bg-white border px-4 py-[25px]"
+                          style={{
+                            borderColor: "rgb(201, 190, 205)",
+                            borderRadius: "14px",
+                          }}
                         >
-                          Partage de localisation avec Google Maps.
-                        </label>
-                        <div className="grid grid-cols-2 gap-3" style={{ marginTop: "8px" }}>
-                          <button
-                            type="button"
-                            onClick={() => setGpsSharingLink("Non partagé")}
-                            style={{
-                              fontSize: "16px",
-                              padding: "14px",
-                              borderRadius: "13px",
-                              fontWeight: "bold",
-                              border: "1.5px solid",
-                              borderColor: (gpsSharingLink !== "Partagé") ? "#e11d48" : "#dedede",
-                              backgroundColor: (gpsSharingLink !== "Partagé") ? "#fff1f2" : "#ffffff",
-                              color: (gpsSharingLink !== "Partagé") ? "#e11d48" : "#5f6368",
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
-                            }}
-                            className="text-center flex items-center justify-center font-sans hover:opacity-90 active:scale-[0.98]"
-                          >
-                            Non partagé
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setGpsSharingLink("Partagé")}
-                            style={{
-                              fontSize: "16px",
-                              padding: "14px",
-                              borderRadius: "13px",
-                              fontWeight: "bold",
-                              border: "1.5px solid",
-                              borderColor: (gpsSharingLink === "Partagé") ? "#16a34a" : "#dedede",
-                              backgroundColor: (gpsSharingLink === "Partagé") ? "#f0fdf4" : "#ffffff",
-                              color: (gpsSharingLink === "Partagé") ? "#16a34a" : "#5f6368",
-                              cursor: "pointer",
-                              transition: "all 0.15s ease",
-                            }}
-                            className="text-center flex items-center justify-center font-sans hover:opacity-90 active:scale-[0.98]"
-                          >
-                            Partagé
-                          </button>
+                          <div className="flex items-center justify-between">
+                            <span className="text-[18px] font-bold text-black font-sans select-none">
+                              Partage de localisation avec Google Maps.
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <span
+                                className="text-[18px] font-bold"
+                                style={{
+                                  color: gpsSharingLink === "Partagé" ? "#16a34a" : "#e11d48"
+                                }}
+                              >
+                                {gpsSharingLink === "Partagé" ? "Partagé" : "Non partagé"}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newVal = gpsSharingLink === "Partagé" ? "Non partagé" : "Partagé";
+                                  setGpsSharingLink(newVal);
+                                }}
+                                className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden"
+                                style={{
+                                  backgroundColor: gpsSharingLink === "Partagé"
+                                    ? "#16a34a"
+                                    : "#cbd5e1",
+                                }}
+                              >
+                                <span
+                                  className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                                  style={{
+                                    transform: gpsSharingLink === "Partagé"
+                                      ? "translateX(20px)"
+                                      : "translateX(0px)",
+                                  }}
+                                />
+                              </button>
+                            </div>
+                          </div>
                         </div>
                         <div style={{ marginTop: "12px" }}>
                           <a

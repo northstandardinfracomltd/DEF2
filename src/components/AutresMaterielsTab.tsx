@@ -659,7 +659,7 @@ export default function AutresMaterielsTab({
     const missions = selectedIds.map((id, index) => {
       const item = otherEquipments.find(e => e.id === id);
       const client = clients.find(c => c.id === item?.clientId);
-      const clientName = client ? client.denomination : (item?.nomPrenomSite || 'Nom du Site');
+      const clientName = item?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
       return {
         id: 'fsm-m-auto-' + Date.now() + '-' + index,
         clientName,
@@ -692,17 +692,76 @@ export default function AutresMaterielsTab({
     }
   };
 
+  const executeAddToTrier = () => {
+    if (!onUpdateFsmTours) return;
+    const missionsToAdd = selectedIds.map((id, index) => {
+      const item = otherEquipments.find(e => e.id === id);
+      const client = clients.find(c => c.id === item?.clientId);
+      const clientName = item?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
+      return {
+        id: 'fsm-m-auto-' + Date.now() + '-' + index,
+        clientName,
+        defibIdentifiant: item?.identifiant || item?.categorie || 'Autre Matériel',
+        equipmentType: item?.categorie || 'Autre Matériel',
+        reason: 'Maintenance Autre matériel',
+        requiredParts: [],
+        status: 'À faire',
+        priority: 'Normale',
+        time: '14:00'
+      };
+    });
+
+    let existingTrierTour = fsmTours.find(t => t.id === 'a-trier');
+    let updated;
+    if (existingTrierTour) {
+      updated = fsmTours.map(t => {
+        if (t.id === 'a-trier') {
+          return {
+            ...t,
+            missions: [...t.missions, ...missionsToAdd]
+          };
+        }
+        return t;
+      });
+    } else {
+      const newTrierTour = {
+        id: 'a-trier',
+        title: 'Tournées à trier',
+        techName: '',
+        startDate: 'A trier',
+        status: 'Brouillon',
+        missions: missionsToAdd,
+        vehicule: 'Aucun',
+        calculated: false
+      };
+      updated = [newTrierTour, ...fsmTours];
+    }
+
+    onUpdateFsmTours(updated);
+    setSelectedIds([]);
+    setIsTourDropdownOpen(false);
+    setSelectedDraftId(null);
+    if (setActiveTab) {
+      setActiveTab('fsm');
+    }
+  };
+
   const executeAddTournee = (targetTourId: string) => {
     if (!onUpdateFsmTours) return;
     const targetTour = fsmTours.find(t => t.id === targetTourId);
     if (!targetTour) return;
+
+    if ((targetTour.status || 'Brouillon') !== 'Brouillon') {
+      alert("Erreur : vous ne pouvez ajouter des missions qu'à une tournée en situation Brouillon.");
+      return;
+    }
 
     const updated = fsmTours.map(t => {
       if (t.id === targetTourId) {
         const addedMissions = selectedIds.map((id, index) => {
           const item = otherEquipments.find(e => e.id === id);
           const client = clients.find(c => c.id === item?.clientId);
-          const clientName = client ? client.denomination : (item?.nomPrenomSite || 'Nom du Site');
+          const clientName = item?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
           return {
             id: 'fsm-m-auto-' + Date.now() + '-' + index,
             clientName,
@@ -1006,7 +1065,7 @@ export default function AutresMaterielsTab({
                         color: '#000000',
                       }}
                     >
-                      <div className="px-3 pb-2 bg-transparent text-center">
+                      <div className="px-3 pb-2 bg-transparent text-center flex flex-col gap-2">
                         <button
                           type="button"
                           onClick={() => {
@@ -1019,6 +1078,23 @@ export default function AutresMaterielsTab({
                           className="w-full text-center transition-colors cursor-pointer"
                         >
                           Nouvelle Tournée
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            executeAddToTrier();
+                          }}
+                          style={{
+                            ...rowActionButton18Style,
+                            width: '100%',
+                            backgroundColor: '#fa53d5',
+                            borderColor: '#fa53d5',
+                            color: '#ffffff'
+                          }}
+                          className="w-full text-center transition-colors cursor-pointer hover:opacity-90"
+                        >
+                          À trier
                         </button>
                       </div>
 
@@ -1043,7 +1119,7 @@ export default function AutresMaterielsTab({
                       )}
                       
                       {(() => {
-                        const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon');
+                        const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon' && t.id !== 'a-trier');
                         if (drafts.length === 0) {
                           return (
                             <div className="px-4 py-2 text-black font-sans text-center font-normal" style={{ fontSize: '15px' }}>

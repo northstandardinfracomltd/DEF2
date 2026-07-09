@@ -31,12 +31,58 @@ export default function NotificationsTab({
     transition: 'all 0s',
   };
 
+  const [localConnectionNotifs, setLocalConnectionNotifs] = useState<AppNotification[]>(() => {
+    let email = 'admin@defibeo.com';
+    try {
+      const saved = localStorage.getItem('defib_admin_logged_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        email = parsed.email || email;
+      }
+    } catch (e) {}
+
+    const currentIP = '192.168.1.45';
+    const list: AppNotification[] = [
+      {
+        id: 'conn-1',
+        category: 'Système',
+        title: `L’utilisateur ${email} vient s’est connecté depuis l’IP ${currentIP}.`,
+        timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        situation: 'Terminé'
+      },
+      {
+        id: 'conn-2',
+        category: 'Système',
+        title: `L’utilisateur admin@defibeo.com vient s’est connecté depuis l’IP 82.124.35.102.`,
+        timestamp: '2026-07-08 09:12:00',
+        situation: 'Terminé'
+      },
+      {
+        id: 'conn-3',
+        category: 'Système',
+        title: `L’utilisateur tech.ouest@defibeo.com vient s’est connecté depuis l’IP 90.84.12.210.`,
+        timestamp: '2026-07-08 08:30:15',
+        situation: 'Terminé'
+      }
+    ];
+    return list;
+  });
+
   const handleSituationChange = (id: string, newSituation: AppNotification['situation']) => {
-    const updated = notifications.map(n => n.id === id ? { ...n, situation: newSituation } : n);
-    onUpdateNotifications(updated);
+    if (id.startsWith('conn-')) {
+      setLocalConnectionNotifs(prev => prev.map(n => n.id === id ? { ...n, situation: newSituation } : n));
+    } else {
+      const updated = notifications.map(n => n.id === id ? { ...n, situation: newSituation } : n);
+      onUpdateNotifications(updated);
+    }
   };
 
-  const filtered = notifications.filter((notif) => {
+  const allNotifications = React.useMemo(() => {
+    const combined = [...localConnectionNotifs, ...notifications];
+    return combined.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }, [notifications, localConnectionNotifs]);
+
+  const filtered = allNotifications.filter((notif) => {
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (

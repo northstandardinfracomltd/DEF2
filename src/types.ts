@@ -243,6 +243,7 @@ export interface CompanyInfo {
   mentionsLegalesFactures?: string;
   locationNames?: Record<string, string>;
   enableAutoEmails?: 'Oui' | 'Non';
+  gmailPartageLocalisation?: string;
 }
 
 export interface PointageLog {

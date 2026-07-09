@@ -778,7 +778,7 @@ export default function DefibTab({
     const missions = selectedIds.map((id, index) => {
       const defib = defibrillateurs.find(d => d.id === id);
       const client = clients.find(c => c.id === defib?.clientId);
-      const clientName = client ? client.denomination : (defib?.nomPrenomSite || 'Nom du Site');
+      const clientName = defib?.nomSite || defib?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
       return {
         id: 'fsm-m-auto-' + Date.now() + '-' + index,
         clientName,
@@ -813,17 +813,76 @@ export default function DefibTab({
     }
   };
 
+  const executeAddToTrier = () => {
+    if (!onUpdateFsmTours) return;
+    const missionsToAdd = selectedIds.map((id, index) => {
+      const defib = defibrillateurs.find(d => d.id === id);
+      const client = clients.find(c => c.id === defib?.clientId);
+      const clientName = defib?.nomSite || defib?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
+      return {
+        id: 'fsm-m-auto-' + Date.now() + '-' + index,
+        clientName,
+        defibIdentifiant: defib?.identifiant || 'PAR-101',
+        equipmentType: 'Défibrillateur',
+        reason: 'Maintenance',
+        requiredParts: [],
+        status: 'À faire',
+        priority: 'Normale',
+        time: '14:00'
+      };
+    });
+
+    let existingTrierTour = fsmTours.find(t => t.id === 'a-trier');
+    let updated;
+    if (existingTrierTour) {
+      updated = fsmTours.map(t => {
+        if (t.id === 'a-trier') {
+          return {
+            ...t,
+            missions: [...t.missions, ...missionsToAdd]
+          };
+        }
+        return t;
+      });
+    } else {
+      const newTrierTour = {
+        id: 'a-trier',
+        title: 'Tournées à trier',
+        techName: '',
+        startDate: 'A trier',
+        status: 'Brouillon',
+        missions: missionsToAdd,
+        vehicule: 'Aucun',
+        calculated: false
+      };
+      updated = [newTrierTour, ...fsmTours];
+    }
+
+    onUpdateFsmTours(updated);
+    setSelectedIds([]);
+    setIsTourDropdownOpen(false);
+    setSelectedDraftId(null);
+    if (setActiveTab) {
+      setActiveTab('fsm');
+    }
+  };
+
   const executeAddTournee = (targetTourId: string) => {
     if (!onUpdateFsmTours) return;
     const targetTour = fsmTours.find(t => t.id === targetTourId);
     if (!targetTour) return;
+
+    if ((targetTour.status || 'Brouillon') !== 'Brouillon') {
+      alert("Erreur : vous ne pouvez ajouter des missions qu'à une tournée en situation Brouillon.");
+      return;
+    }
 
     const updated = fsmTours.map(t => {
       if (t.id === targetTourId) {
         const addedMissions = selectedIds.map((id, index) => {
           const defib = defibrillateurs.find(d => d.id === id);
           const client = clients.find(c => c.id === defib?.clientId);
-          const clientName = client ? client.denomination : (defib?.nomPrenomSite || 'Nom du Site');
+          const clientName = defib?.nomSite || defib?.nomPrenomSite || (client ? client.denomination : 'Nom du Site');
           return {
             id: 'fsm-m-auto-' + Date.now() + '-' + index,
             clientName,
@@ -1967,7 +2026,7 @@ export default function DefibTab({
                           boxShadow: 'none'
                         }}
                       >
-                        <div className="px-3 pb-2 bg-transparent">
+                        <div className="px-3 pb-2 bg-transparent flex flex-col gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -1980,6 +2039,23 @@ export default function DefibTab({
                             className="w-full text-center transition-colors cursor-pointer"
                           >
                             Nouvelle Tournée
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              executeAddToTrier();
+                            }}
+                            style={{
+                              ...rowActionButton18Style,
+                              width: '100%',
+                              backgroundColor: '#fa53d5',
+                              borderColor: '#fa53d5',
+                              color: '#ffffff'
+                            }}
+                            className="w-full text-center transition-colors cursor-pointer hover:opacity-90"
+                          >
+                            À trier
                           </button>
                         </div>
 
@@ -2004,7 +2080,7 @@ export default function DefibTab({
                         )}
                         
                         {(() => {
-                          const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon');
+                          const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon' && t.id !== 'a-trier');
                           if (drafts.length === 0) {
                             return (
                               <div className="px-4 py-2 text-black font-sans text-center" style={{ fontSize: '15px' }}>

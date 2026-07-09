@@ -1184,7 +1184,13 @@ export default function App() {
 
   const deleteFsmTour = (tourId: string) => {
     const tour = fsmTours.find(t => t.id === tourId);
-    if (tour && tour.missions) {
+    if (!tour) return;
+    const currentStatus = tour.status || 'Brouillon';
+    if (currentStatus === 'À faire' || currentStatus === 'En cours') {
+      alert("Impossible de supprimer une tournée dont le statut est À faire ou En cours.");
+      return;
+    }
+    if (tour.missions) {
       let updatedStocks = stocks.map(st => ({
         ...st,
         quantite: Number(st.quantite) || 0,
@@ -4807,12 +4813,17 @@ export default function App() {
               border: 'none',
             };
 
-            const uniqueDates = Array.from(new Set(fsmTours.map((t: any) => t.startDate).filter(Boolean))).sort() as string[];
-            const activeDateFilter = fsmDateFilter === 'Tous' ? (uniqueDates[0] || 'Tous') : fsmDateFilter;
+            const uniqueDates = Array.from(new Set(fsmTours.map((t: any) => t.startDate).filter(Boolean))).filter(d => d !== 'A trier').sort() as string[];
+            const activeDateFilter = fsmDateFilter === 'Tous' ? 'A trier' : fsmDateFilter;
 
             const filteredTours = fsmTours.filter((tour) => {
-              if (activeDateFilter !== 'Tous' && tour.startDate !== activeDateFilter) {
-                return false;
+              if (activeDateFilter !== 'Tous') {
+                if (activeDateFilter === 'A trier') {
+                  return tour.id === 'a-trier' || tour.startDate === 'A trier';
+                }
+                if (tour.startDate !== activeDateFilter) {
+                  return false;
+                }
               }
               const query = fsmSearchQuery.toLowerCase().trim();
               if (!query) return true;
@@ -4988,6 +4999,26 @@ export default function App() {
 
                   return (
                     <div className="px-4 flex flex-wrap gap-2.5 justify-center sm:justify-start pt-5" id="fsm-dates-pills">
+                      <button
+                        type="button"
+                        onClick={() => setFsmDateFilter('A trier')}
+                        style={{
+                          borderRadius: '1000px',
+                          padding: '10px 20px',
+                          fontSize: '15px',
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                          backgroundColor: activeDateFilter === 'A trier' ? '#fa53d5' : '#ffffff',
+                          color: activeDateFilter === 'A trier' ? '#ffffff' : '#000000',
+                          border: activeDateFilter === 'A trier' ? '1px solid #fa53d5' : '1px solid rgb(218, 218, 218)',
+                          transition: 'all 0.15s ease'
+                        }}
+                        className="transition-all"
+                      >
+                        Tournées à trier
+                      </button>
+
                       {uniqueDates.map(dateStr => (
                         <button
                           key={dateStr}
@@ -5025,6 +5056,266 @@ export default function App() {
                 ) : (
                   <div className="space-y-8">
                     {filteredTours.map((t) => {
+                      if (t.id === 'a-trier') {
+                        return (
+                          <div key={t.id} className="bg-white relative space-y-6 animate-fadeIn" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px', maxWidth: '98%', margin: '24px auto', backgroundColor: '#ffffff', overflow: 'hidden' }}>
+                            {/* Header for Tournées à trier */}
+                            <div className="bg-white px-5 py-5 flex flex-col gap-2 font-sans" style={{ borderBottom: '1px solid rgb(218, 218, 218)', borderRadius: '17px 17px 0px 0px', backgroundColor: '#ffffff' }}>
+                              <h3 className="text-xl font-bold tracking-tight text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                                Tournées à trier
+                              </h3>
+                              <p className="text-sm font-light text-slate-500" style={{ cursor: 'default' }}>
+                                Retrouvez ici les missions en attente d'affectation. Sélectionnez une tournée en brouillon pour les y transférer.
+                              </p>
+                            </div>
+
+                            {/* Tour missions list */}
+                            <div className="p-4 space-y-4">
+                              {t.missions.length === 0 ? (
+                                <div className="py-12 text-center font-sans bg-white rounded-xl" style={{ color: '#000000', fontSize: '16px', border: 'none' }}>
+                                  Aucune mission à trier.
+                                </div>
+                              ) : (
+                                <div className="space-y-4 bg-white">
+                                  {t.missions.map((m: any, idx: number) => {
+                                    return (
+                                      <div key={m.id} className="rounded-xl p-4 shadow-3xs transition-shadow space-y-4 font-sans" style={{ border: '1px solid rgb(229, 229, 229)', backgroundColor: 'rgb(245, 245, 245)' }}>
+                                        {/* Row 1: Passage number & Gélules */}
+                                        <div className="flex flex-wrap items-center gap-2 bg-transparent pb-0.5">
+                                          <div
+                                            style={{
+                                              backgroundColor: '#fa53d5',
+                                              color: '#ffffff',
+                                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                              fontWeight: 610,
+                                              width: '28px',
+                                              height: '28px',
+                                              borderRadius: '50%',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              fontSize: '14px',
+                                              cursor: 'default'
+                                            }}
+                                          >
+                                            {idx + 1}
+                                          </div>
+                                          <span
+                                            style={{
+                                              backgroundColor: 'rgb(77, 21, 83)',
+                                              color: 'rgb(255, 255, 255)',
+                                              borderRadius: '1000px',
+                                              padding: '4px 12px',
+                                              fontSize: '15px',
+                                              fontWeight: 700,
+                                              border: 'none',
+                                              cursor: 'default'
+                                            }}
+                                          >
+                                            {m.equipmentType || 'Défibrillateur'}
+                                          </span>
+
+                                          {(() => {
+                                            const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                            const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                            
+                                            if (!matchedDefib && !other) return null;
+                                            
+                                            const renderCapsule = (label: string, rawVal: string) => {
+                                              if (!rawVal || rawVal.trim() === '' || rawVal.trim() === '-') return null;
+                                              const formatted = formatDateToFR(rawVal);
+                                              if (!formatted || formatted === '-') return null;
+                                              return (
+                                                <span 
+                                                  key={label}
+                                                  style={{
+                                                    color: '#fff',
+                                                    fontSize: '14px',
+                                                    padding: '4.5px 15px',
+                                                    border: 'none',
+                                                    background: getCapsuleBgColor(rawVal),
+                                                    cursor: 'default'
+                                                  }}
+                                                  className="inline-flex items-center rounded-full font-sans font-medium"
+                                                >
+                                                  <span className="font-extrabold mr-1">{label}</span>
+                                                  {formatted}
+                                                </span>
+                                              );
+                                            };
+
+                                            if (matchedDefib) {
+                                              const defibModel = variables.find((v: any) => v.id === matchedDefib.modeleId);
+                                              const modelName = defibModel 
+                                                ? (defibModel.marque && defibModel.marque !== 'Standard' ? `${defibModel.marque} ${defibModel.nom}` : defibModel.nom) 
+                                                : (matchedDefib.modeleId || 'Modèle inconnu');
+                                              const nextMaint = computeProchaineMaintenance(matchedDefib.derniereMaintenance);
+                                              
+                                              return (
+                                                <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
+                                                  <span 
+                                                    style={{
+                                                      color: '#fff',
+                                                      fontSize: '14px',
+                                                      padding: '4.5px 15px',
+                                                      border: 'none',
+                                                      background: '#000000',
+                                                      cursor: 'default'
+                                                    }}
+                                                    className="inline-flex items-center rounded-full font-sans font-medium"
+                                                  >
+                                                    {modelName}
+                                                  </span>
+                                                  {renderCapsule('Péremption A.', matchedDefib.peremptionElectrodeA)}
+                                                  {renderCapsule('Péremption A.S.', matchedDefib.peremptionSecoursElectrodeA || '')}
+                                                  {renderCapsule('Péremption P.', matchedDefib.peremptionElectrodeP)}
+                                                  {renderCapsule('Péremption P.S.', matchedDefib.peremptionSecoursElectrodeP || '')}
+                                                  {renderCapsule('Péremption B.', matchedDefib.peremptionBatterie)}
+                                                  {renderCapsule('Expiration G.', matchedDefib.finGarantie)}
+                                                  {renderCapsule('Prochaine V.', nextMaint)}
+                                                </div>
+                                              );
+                                            } else if (other) {
+                                              const modelName = other.categorie || 'Autre matériel';
+                                              return (
+                                                <div className="flex flex-wrap gap-1 md:gap-1.5 ml-1 md:ml-2 items-center">
+                                                  <span 
+                                                    style={{
+                                                      color: '#fff',
+                                                      fontSize: '14px',
+                                                      padding: '4.5px 15px',
+                                                      border: 'none',
+                                                      background: '#000000',
+                                                      cursor: 'default'
+                                                    }}
+                                                    className="inline-flex items-center rounded-full font-sans font-medium"
+                                                  >
+                                                    {modelName}
+                                                  </span>
+                                                  {renderCapsule('Expiration G.', other.expirationGarantie)}
+                                                  {renderCapsule('Prochaine V.', other.prochaineMaintenance)}
+                                                </div>
+                                              );
+                                            }
+                                            return null;
+                                          })()}
+                                        </div>
+
+                                        {/* Row 2: Site & Identifiant */}
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-transparent">
+                                          <div className="space-y-0.5 bg-transparent">
+                                            <label className="block mb-1 fsm-label-style">Site.</label>
+                                            <input
+                                              type="text"
+                                              value={m.clientName || ""}
+                                              disabled={true}
+                                              className="w-full font-sans cursor-not-allowed"
+                                              placeholder="Nom du Site"
+                                            />
+                                          </div>
+
+                                          <div className="space-y-0.5 bg-transparent">
+                                            <label className="block mb-1 fsm-label-style">Identifiant.</label>
+                                            <input
+                                              type="text"
+                                              value={m.defibIdentifiant || ""}
+                                              disabled={true}
+                                              className="w-full font-mono cursor-not-allowed"
+                                              placeholder="ID Matériel"
+                                            />
+                                          </div>
+
+                                          {/* Transférer section */}
+                                          <div className="space-y-0.5 bg-transparent md:col-span-2">
+                                            <label className="block mb-1 fsm-label-style">Transférer dans la tournée.</label>
+                                            <div className="flex gap-2">
+                                              <select
+                                                id={`transfer-select-${m.id}`}
+                                                style={{
+                                                  border: '1px solid #dedede',
+                                                  borderRadius: '13px',
+                                                  padding: '12px',
+                                                  fontSize: '16px',
+                                                  fontWeight: '100',
+                                                  backgroundColor: '#ffffff',
+                                                  color: '#000000',
+                                                  flex: 1
+                                                }}
+                                                className="font-sans cursor-pointer focus:outline-none"
+                                              >
+                                                <option value="">Sélectionnez une tournée Brouillon...</option>
+                                                {fsmTours
+                                                  .filter(tour => tour.id !== 'a-trier' && (tour.status || 'Brouillon') === 'Brouillon')
+                                                  .map(tour => (
+                                                    <option key={tour.id} value={tour.id}>
+                                                      {tour.title} ({tour.startDate || 'Sans date'})
+                                                    </option>
+                                                  ))
+                                                }
+                                              </select>
+
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const selectEl = document.getElementById(`transfer-select-${m.id}`) as HTMLSelectElement;
+                                                  const targetId = selectEl?.value;
+                                                  if (!targetId) {
+                                                    alert("Veuillez sélectionner une tournée en Brouillon.");
+                                                    return;
+                                                  }
+                                                  
+                                                  const targetTour = fsmTours.find(tour => tour.id === targetId);
+                                                  if (targetTour && (targetTour.status || 'Brouillon') !== 'Brouillon') {
+                                                    alert("Erreur : vous ne pouvez transférer des missions qu'à une tournée en situation Brouillon.");
+                                                    return;
+                                                  }
+                                                  
+                                                  // Perform transfer!
+                                                  const updated = fsmTours.map(tour => {
+                                                    if (tour.id === 'a-trier') {
+                                                      return {
+                                                        ...tour,
+                                                        missions: tour.missions.filter((miss: any) => miss.id !== m.id)
+                                                      };
+                                                    }
+                                                    if (tour.id === targetId) {
+                                                      return {
+                                                        ...tour,
+                                                        missions: [...tour.missions, m]
+                                                      };
+                                                    }
+                                                    return tour;
+                                                  });
+                                                  saveFsmTours(updated);
+                                                  alert("Mission transférée avec succès !");
+                                                }}
+                                                style={{
+                                                  backgroundColor: '#000000',
+                                                  color: '#ffffff',
+                                                  padding: '12px 18px',
+                                                  borderRadius: '13px',
+                                                  fontSize: '16px',
+                                                  fontWeight: 'bold',
+                                                  cursor: 'pointer',
+                                                  border: 'none',
+                                                }}
+                                                className="hover:opacity-90 transition-opacity whitespace-nowrap"
+                                              >
+                                                Transférer dans la tournée.
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const draft = fsmTourDrafts[t.id] || {};
                       const tourTitle = draft.title !== undefined ? draft.title : (t.title || '');
                       const tourTechName = draft.techName !== undefined ? draft.techName : (t.techName || '');
@@ -5071,6 +5362,7 @@ export default function App() {
                               {/* Supprimer button */}
                               <button
                                 type="button"
+                                disabled={tourStatus === 'À faire' || tourStatus === 'En cours'}
                                 onClick={() => deleteFsmTour(t.id)}
                                 style={{
                                   ...rowActionButtonStyle,
@@ -5082,9 +5374,12 @@ export default function App() {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  width: '100%'
+                                  width: '100%',
+                                  opacity: (tourStatus === 'À faire' || tourStatus === 'En cours') ? 0.4 : 1,
+                                  cursor: (tourStatus === 'À faire' || tourStatus === 'En cours') ? 'not-allowed' : 'pointer'
                                 }}
-                                className="cursor-pointer md:w-auto flex-1 md:flex-initial"
+                                className={`${(tourStatus === 'À faire' || tourStatus === 'En cours') ? '' : 'cursor-pointer'} md:w-auto flex-1 md:flex-initial`}
+                                title={(tourStatus === 'À faire' || tourStatus === 'En cours') ? "Impossible de supprimer une tournée dont le statut est À faire ou En cours" : ""}
                               >
                                 Supprimer
                               </button>
@@ -5092,6 +5387,7 @@ export default function App() {
                               {/* Calculer button */}
                               <button
                                 type="button"
+                                disabled={(t.missions ? t.missions.length : 0) <= 1}
                                 onClick={async () => {
                                   const draftVal = fsmTourDrafts[t.id] || {};
                                   const finalTitle = draftVal.title !== undefined ? draftVal.title : (t.title || '');
@@ -5145,9 +5441,11 @@ export default function App() {
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  width: '100%'
+                                  width: '100%',
+                                  opacity: (t.missions ? t.missions.length : 0) <= 1 ? 0.5 : 1,
+                                  cursor: (t.missions ? t.missions.length : 0) <= 1 ? 'not-allowed' : 'pointer'
                                 }}
-                                className="cursor-pointer md:w-auto flex-1 md:flex-initial"
+                                className={`${(t.missions ? t.missions.length : 0) <= 1 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'} md:w-auto flex-1 md:flex-initial`}
                               >
                                 Calculer
                               </button>
@@ -5482,7 +5780,8 @@ export default function App() {
                                             display: 'flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            fontSize: '14px'
+                                            fontSize: '14px',
+                                            cursor: 'default'
                                           }}
                                         >
                                           {!t.calculated ? '?' : (idx + 1)}
@@ -5495,7 +5794,8 @@ export default function App() {
                                             padding: '4px 12px',
                                             fontSize: '15px',
                                             fontWeight: 700,
-                                            border: 'none'
+                                            border: 'none',
+                                            cursor: 'default'
                                           }}
                                         >
                                           {m.equipmentType || (() => {
@@ -5525,7 +5825,8 @@ export default function App() {
                                                   fontSize: '14px',
                                                   padding: '4.5px 15px',
                                                   border: 'none',
-                                                  background: getCapsuleBgColor(rawVal)
+                                                  background: getCapsuleBgColor(rawVal),
+                                                  cursor: 'default'
                                                 }}
                                                 className="inline-flex items-center rounded-full font-sans font-medium"
                                               >
@@ -5550,7 +5851,8 @@ export default function App() {
                                                     fontSize: '14px',
                                                     padding: '4.5px 15px',
                                                     border: 'none',
-                                                    background: '#000000'
+                                                    background: '#000000',
+                                                    cursor: 'default'
                                                   }}
                                                   className="inline-flex items-center rounded-full font-sans font-medium"
                                                 >
@@ -5575,7 +5877,8 @@ export default function App() {
                                                     fontSize: '14px',
                                                     padding: '4.5px 15px',
                                                     border: 'none',
-                                                    background: '#000000'
+                                                    background: '#000000',
+                                                    cursor: 'default'
                                                   }}
                                                   className="inline-flex items-center rounded-full font-sans font-medium"
                                                 >
@@ -6266,7 +6569,7 @@ export default function App() {
                           onClick={() => setGmaoFilter('moderation')}
                           className="font-sans font-bold text-sm transition-colors duration-200 cursor-pointer"
                           style={{
-                            color: gmaoFilter === 'moderation' ? '#fe4eba' : '#000000',
+                            color: '#000000',
                             fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
                             fontSize: '18px'
                           }}
@@ -7586,7 +7889,7 @@ export default function App() {
                                             onClick={() => triggerPennylaneSync(doc)}
                                             style={{
                                               ...rowActionButton18Style,
-                                              backgroundColor: '#fe4eba',
+                                              backgroundColor: '#000000',
                                               color: '#ffffff',
                                               border: 'none',
                                             }}
@@ -8046,7 +8349,7 @@ export default function App() {
                                 className="inline-flex items-center cursor-pointer gap-2 select-none font-sans bg-transparent"
                                 style={{ fontSize: '16px', color: '#000000', border: 'none', padding: 0 }}
                               >
-                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === false ? 'border-slate-300 bg-white' : 'border-slate-300 bg-white'}`}>
+                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${docHasBonCommande === false ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
                                   {docHasBonCommande === false && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                                 </span>
                                 {t("Non")}

@@ -725,6 +725,16 @@ export default function SettingsModal({
         return;
       }
 
+      if (localCompany.gmailPartageLocalisation && localCompany.gmailPartageLocalisation.trim()) {
+        const val = localCompany.gmailPartageLocalisation.trim();
+        if (!val.toLowerCase().endsWith('@gmail.com')) {
+          alert("Le champ 'Gmail Partage Localisation.' doit se terminer par @gmail.com.");
+          setIsSaving(false);
+          setIsVerifyingEmail(false);
+          return;
+        }
+      }
+
       // Check for duplicate location assignments among technicians
       const locationsAssigned = new Set<string>();
       for (const m of localMembers) {
@@ -1118,7 +1128,7 @@ export default function SettingsModal({
                 />
               </div>
 
-              <div className="space-y-1 md:col-span-2">
+              <div className="space-y-1 md:col-span-1">
                 <label className="block text-[16px] font-bold text-black font-sans">{t("Mentions légales pour les pièces comptables")}.</label>
                 <input
                   type="text"
@@ -1127,6 +1137,18 @@ export default function SettingsModal({
                   className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
                   style={{ backgroundColor: '#ffffff' }}
                   placeholder={t("Saisissez les mentions légales pour vos devis et factures")}
+                />
+              </div>
+
+              <div className="space-y-1 md:col-span-1">
+                <label className="block text-[16px] font-bold text-black font-sans">{t("Gmail Partage Localisation.")}</label>
+                <input
+                  type="email"
+                  value={localCompany.gmailPartageLocalisation ?? ''}
+                  onChange={(e) => handleCompanyChange('gmailPartageLocalisation', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
+                  style={{ backgroundColor: '#ffffff' }}
+                  placeholder="Ex: partage@gmail.com"
                 />
               </div>
             </div>
@@ -2982,11 +3004,7 @@ export default function SettingsModal({
                     </div>
                   )}
 
-                  {selectedLang !== 'Français, France' && (
-                    <div className="mt-2 text-xs text-slate-500 font-sans italic">
-                      {t("Disponible uniquement pour la région France (Français, France)")}.
-                    </div>
-                  )}
+                  {/* Language restriction warning removed as requested */}
                 </div>
               </div>
 

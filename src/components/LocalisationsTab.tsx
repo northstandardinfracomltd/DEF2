@@ -149,7 +149,7 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
               <thead>
                 <tr className="bg-transparent">
                   <th className="px-5 py-3.5 w-[50%]" style={thStyle}>Technicien.</th>
-                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>Lien Google Maps.</th>
+                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>Situation du partage.</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs">
@@ -164,19 +164,13 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
                         <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>{m.name}</div>
                       </td>
 
-                      {/* Google Maps link (no emoji, blank if empty) */}
+                      {/* Situation du partage status text */}
                       <td className="px-5 py-5 font-sans bg-transparent" onClick={(e) => e.stopPropagation()}>
-                        {locationLink ? (
-                          <a
-                            href={locationLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={linkButtonStyle}
-                            className="transition-all text-[18px]"
-                          >
-                            <span className="bg-transparent">Ouvrir</span>
-                          </a>
-                        ) : null}
+                        {locationLink === "Partagé" ? (
+                          <span className="text-emerald-600 font-bold text-[18px]">Partagé</span>
+                        ) : (
+                          <span className="text-rose-600 font-bold text-[18px]">Non partagé</span>
+                        )}
                       </td>
 
                     </tr>

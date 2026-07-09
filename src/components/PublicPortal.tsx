@@ -2784,13 +2784,12 @@ export default function PublicPortal({
       const liveMember = members.find((m) => m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase());
       if (liveMember) {
         setTechLocationLink(liveMember.locationLink || "");
-        setGpsSharingLink(
-          liveMember.gpsSharingLink ||
+        const loadedGpsLink = liveMember.gpsSharingLink ||
             localStorage.getItem(
               `defib_tech_location_link_${liveMember.name}`,
             ) ||
-            "",
-        );
+            "";
+        setGpsSharingLink(loadedGpsLink === "Partagé" ? "Partagé" : "Non partagé");
         // Sync Google Calendar email from master database Member record
         if (liveMember.googleCalEmail) {
           setSyncedGoogleEmail(liveMember.googleCalEmail);
@@ -8968,29 +8967,70 @@ export default function PublicPortal({
                     id="auth-main-card"
                   >
                     <div className="space-y-4">
-                      {/* Live map link */}
+                      {/* Live map link replaced by toggle */}
                       <div className="space-y-1.5" style={{ marginTop: "24px" }}>
                         <label
                           style={{ fontSize: "18px", color: "#000000" }}
                           className="block font-bold select-none"
                         >
-                          Lien de partage de localisation Google Maps.
+                          Partage de localisation avec Google Maps.
                         </label>
-                        <input
-                          type="text"
-                          required
-                          value={gpsSharingLink}
-                          onChange={(e) => setGpsSharingLink(e.target.value)}
-                          placeholder="Collez le lien Google Maps"
-                          style={{
-                            fontSize: "16px",
-                            padding: "14px",
-                            borderRadius: "13px",
-                            border: "1px solid #dedede",
-                            outline: "none",
-                          }}
-                          className="w-full bg-white focus:border-indigo-500 font-sans"
-                        />
+                        <div className="grid grid-cols-2 gap-3" style={{ marginTop: "8px" }}>
+                          <button
+                            type="button"
+                            onClick={() => setGpsSharingLink("Non partagé")}
+                            style={{
+                              fontSize: "16px",
+                              padding: "14px",
+                              borderRadius: "13px",
+                              fontWeight: "bold",
+                              border: "1.5px solid",
+                              borderColor: (gpsSharingLink !== "Partagé") ? "#e11d48" : "#dedede",
+                              backgroundColor: (gpsSharingLink !== "Partagé") ? "#fff1f2" : "#ffffff",
+                              color: (gpsSharingLink !== "Partagé") ? "#e11d48" : "#5f6368",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                            className="text-center flex items-center justify-center font-sans hover:opacity-90 active:scale-[0.98]"
+                          >
+                            Non partagé
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setGpsSharingLink("Partagé")}
+                            style={{
+                              fontSize: "16px",
+                              padding: "14px",
+                              borderRadius: "13px",
+                              fontWeight: "bold",
+                              border: "1.5px solid",
+                              borderColor: (gpsSharingLink === "Partagé") ? "#16a34a" : "#dedede",
+                              backgroundColor: (gpsSharingLink === "Partagé") ? "#f0fdf4" : "#ffffff",
+                              color: (gpsSharingLink === "Partagé") ? "#16a34a" : "#5f6368",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                            className="text-center flex items-center justify-center font-sans hover:opacity-90 active:scale-[0.98]"
+                          >
+                            Partagé
+                          </button>
+                        </div>
+                        <div style={{ marginTop: "12px" }}>
+                          <a
+                            href="https://defibeo.com/school/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              fontSize: "18px",
+                              color: "#3556ec",
+                              textDecoration: "underline",
+                              fontWeight: "bold",
+                            }}
+                            className="font-sans block hover:opacity-85 text-blue-600 cursor-pointer"
+                          >
+                            Vous devez partager avec {companyInfo?.gmailPartageLocalisation || "(Manquant)"}, consultez l’aide.
+                          </a>
+                        </div>
                       </div>
 
                       {/* Mon adresse structured fields */}

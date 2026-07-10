@@ -276,7 +276,8 @@ export default function SettingsModal({
 
   React.useEffect(() => {
     if (isOpen || isPage) {
-      fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+      const activeTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+      fetchCollectionFromFirestore<any>('api_connectors', activeTenant).then(data => {
         if (data) {
           if (data.sageActive !== undefined) setSageActive(data.sageActive);
           if (data.sageClientId !== undefined) setSageClientId(data.sageClientId);

@@ -22,7 +22,9 @@ import {
   XCircle,
   HelpCircle,
   RotateCcw,
-  Calendar
+  Calendar,
+  Lock,
+  Key
 } from 'lucide-react';
 
 interface MegaAdminDashboardProps {
@@ -35,6 +37,49 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState<string | null>(null);
   const [resettingId, setResettingId] = useState<string | null>(null);
+
+  const [selectedTenantForPassword, setSelectedTenantForPassword] = useState<Tenant | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
+  const [passwordToastSuccess, setPasswordToastSuccess] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+
+  const handleSavePassword = async () => {
+    if (!selectedTenantForPassword) return;
+    if (!newPasswordValue.trim()) {
+      alert('Veuillez saisir un mot de passe valide.');
+      return;
+    }
+
+    setIsSavingPassword(true);
+    const tenantId = selectedTenantForPassword.id;
+    const updatedList = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, adminPasswordHexOrPlain: newPasswordValue.trim() };
+      }
+      return t;
+    });
+    setTenants(updatedList);
+
+    try {
+      // Sync to Firestore
+      const docRef = doc(db, 'appData', 'registered_tenants');
+      await setDoc(docRef, { value: updatedList });
+      
+      // Sync to local cache so other reads are coherent immediately
+      localStorage.setItem('fs_cache_registered_tenants', JSON.stringify(updatedList));
+      
+      setPasswordToastSuccess(true);
+      setTimeout(() => setPasswordToastSuccess(false), 4000);
+      setSelectedTenantForPassword(null);
+      setNewPasswordValue('');
+    } catch (err) {
+      console.error('Failed to sync tenant password update:', err);
+      alert('Une erreur est survenue lors de la mise à jour du mot de passe. Rétablissement...');
+      await fetchTenants();
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
 
   const fetchTenants = async () => {
     setIsLoading(true);
@@ -358,10 +403,30 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
                     </div>
 
                     {/* Main Administrator */}
-                    <div className="bg-neutral-950/60 p-3 rounded-xl border border-neutral-800/40 space-y-1">
-                      <span className="block text-[10px] text-neutral-500 font-bold uppercase">Compte Super-Admin Parent</span>
-                      <p className="text-xs font-bold text-white truncate">{tnt.adminName || "—"}</p>
-                      <p className="text-[11px] text-neutral-400 font-medium truncate">{tnt.adminEmail || "—"}</p>
+                    <div className="bg-neutral-950/60 p-3 rounded-xl border border-neutral-800/40 space-y-1.5" id={`main-admin-${tnt.id}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="min-w-0 flex-1">
+                          <span className="block text-[10px] text-neutral-500 font-bold uppercase">Compte Super-Admin Parent</span>
+                          <p className="text-xs font-bold text-white truncate">{tnt.adminName || "—"}</p>
+                          <p className="text-[11px] text-neutral-400 font-medium truncate">{tnt.adminEmail || "—"}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTenantForPassword(tnt);
+                            setNewPasswordValue(tnt.adminPasswordHexOrPlain || '');
+                          }}
+                          className="p-1.5 bg-neutral-900 hover:bg-neutral-800 hover:text-pink-400 text-neutral-400 rounded-lg transition-all cursor-pointer flex items-center justify-center border border-neutral-800 self-center"
+                          title="Définir un nouveau mot de passe"
+                          id={`btn-edit-pass-${tnt.id}`}
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="text-[10.5px] text-neutral-400 font-mono bg-neutral-900/50 px-2 py-1 rounded border border-neutral-850 flex items-center justify-between">
+                        <span>Mot de passe :</span>
+                        <span className="font-bold text-pink-400">{tnt.adminPasswordHexOrPlain || "—"}</span>
+                      </div>
                     </div>
 
                     {/* Toggle "Bloqué pour RDV Prez" */}
@@ -455,6 +520,90 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
         </div>
       )}
 
+      {/* Password Edit Modal */}
+      {selectedTenantForPassword !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" id="modal-edit-password">
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 bg-neutral-950/85 backdrop-blur-sm transition-opacity"
+            onClick={() => {
+              if (!isSavingPassword) {
+                setSelectedTenantForPassword(null);
+                setNewPasswordValue('');
+              }
+            }}
+          />
+          
+          {/* Modal Card */}
+          <div className="relative w-full max-w-md transform overflow-hidden rounded-2xl bg-neutral-900 border border-neutral-800 p-6 shadow-2xl transition-all">
+            <div className="flex flex-col">
+              {/* Key Icon */}
+              <div className="w-12 h-12 rounded-full bg-pink-950/50 border border-pink-500/30 flex items-center justify-center mb-4 text-pink-400 self-center">
+                <Key className="w-6 h-6" />
+              </div>
+              
+              <h3 className="text-lg font-bold text-neutral-100 mb-2 text-center" id="modal-edit-password-title">
+                Définir un mot de passe
+              </h3>
+              
+              <p className="text-xs text-neutral-400 mb-4 text-center">
+                Définition d'un nouveau mot de passe pour le super-admin de l'environnement <strong className="text-white">{selectedTenantForPassword.companyName}</strong>.
+              </p>
+
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">
+                    Super-Admin
+                  </label>
+                  <p className="text-sm font-semibold text-neutral-200 bg-neutral-950/40 p-2.5 rounded-xl border border-neutral-800/40 truncate">
+                    {selectedTenantForPassword.adminName} ({selectedTenantForPassword.adminEmail})
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-neutral-400 uppercase mb-1">
+                    Nouveau mot de passe
+                  </label>
+                  <input
+                    type="text"
+                    value={newPasswordValue}
+                    onChange={(e) => setNewPasswordValue(e.target.value)}
+                    placeholder="Saisissez le nouveau mot de passe"
+                    className="w-full bg-neutral-950 border border-neutral-800 rounded-xl py-3 px-4 text-sm text-white placeholder-neutral-500 focus:outline-hidden focus:border-pink-600 transition-colors font-mono font-bold"
+                    id="input-new-password"
+                    disabled={isSavingPassword}
+                  />
+                </div>
+              </div>
+              
+              {/* Buttons */}
+              <div className="flex gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedTenantForPassword(null);
+                    setNewPasswordValue('');
+                  }}
+                  disabled={isSavingPassword}
+                  className="flex-1 px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 active:bg-neutral-900 border border-neutral-700 rounded-xl text-xs font-semibold text-neutral-300 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSavePassword}
+                  disabled={isSavingPassword || !newPasswordValue.trim()}
+                  className="flex-1 px-4 py-2.5 bg-pink-600 hover:bg-pink-500 active:bg-pink-700 rounded-xl text-xs font-semibold text-white shadow-lg shadow-pink-600/10 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                  id="btn-confirm-save-password"
+                >
+                  {isSavingPassword ? "Enregistrement..." : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Elegant Toast Notifications */}
       {showSuccessToast && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 shadow-2xl animate-bounce-short">
@@ -464,6 +613,18 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
           <div>
             <h4 className="text-xs font-bold text-neutral-200">Succès !</h4>
             <p className="text-[10px] text-neutral-400">L'environnement a été réinitialisé avec succès.</p>
+          </div>
+        </div>
+      )}
+
+      {passwordToastSuccess && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-neutral-900 border border-neutral-800 rounded-2xl px-4 py-3 shadow-2xl animate-bounce-short" id="toast-password-success">
+          <div className="w-8 h-8 rounded-full bg-green-950 flex items-center justify-center text-green-400 border border-green-500/30">
+            <CheckCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-neutral-200">Succès !</h4>
+            <p className="text-[10px] text-neutral-400">Le mot de passe du super-admin a été mis à jour avec succès.</p>
           </div>
         </div>
       )}

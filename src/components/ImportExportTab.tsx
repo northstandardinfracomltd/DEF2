@@ -57,17 +57,17 @@ function generateCSV(
     case 'Défibrillateurs.':
       items = data.defibrillateurs || [];
       keys = [
-        'identifiant', 'numeroSerie', 'modeleId', 'commentaire', 'clientId', 
-        'nomSite', 'nomPrenomSite', 'telephoneSite', 'emailSite', 'nomContrat', 'contrat', 
+        'identifiant', 'numeroSerie', 'modeleId', 'numeroAtlasante', 'commentaire', 'clientId', 
+        'nomSite', 'categorieEtablissement', 'nomPrenomSite', 'telephoneSite', 'emailSite', 'nomContrat', 'contrat', 
         'payeurId', 'clientIdField', 'referenceContrat', 'debutContrat', 'finContrat', 
         'modeleCoffretId', 'numeroLotCoffret', 'commentaireCoffret', 'numVoie', 'ville', 
         'cp', 'region', 'pays', 'latitude', 'longitude', 
         'commentaireAdresse', 'finGarantie', 'fabrication', 'miseEnService', 'derniereMaintenance', 
         'sortieFabricant', 'prochaineMaintenance', 'modeleElectrodeAId', 'lotElectrodeA', 'insertionElectrodeA', 
         'peremptionElectrodeA', 'livraisonElectrodeA', 'modeleElectrodeASecoursId', 'lotElectrodeASecours', 'peremptionSecoursElectrodeA', 
-        'situationElectrodeA', 'commentaireElectrodeA', 'modeleElectrodePId', 'lotElectrodeP', 'insertionElectrodeP', 
+        'situationElectrodeA', 'commentaireElectrodeA', 'lotPadpakA', 'peremptionPadpakA', 'modeleElectrodePId', 'lotElectrodeP', 'insertionElectrodeP', 
         'peremptionElectrodeP', 'livraisonElectrodeP', 'modeleElectrodePSecoursId', 'lotElectrodePSecours', 'peremptionSecoursElectrodeP', 
-        'situationElectrodeP', 'commentaireElectrodeP', 'modeleBatterieId', 'lotBatterie', 'insertionBatterie', 
+        'situationElectrodeP', 'commentaireElectrodeP', 'lotPadpakP', 'peremptionPadpakP', 'modeleBatterieId', 'lotBatterie', 'insertionBatterie', 
         'peremptionBatterie', 'livraisonBatterie', 'situationBatterie', 'pourcentageBatterie', 'commentaireBatterie', 
         'loue', 'prete', 'stocke', 'archive', 'conforme', 
         'sousTraitance', 'fsmAutorise'
@@ -76,9 +76,11 @@ function generateCSV(
         "Section 1 — Identification : Identifiant.",
         "Section 1 — Identification : Série.",
         "Section 1 — Identification : Modèle. (Identifiant unique)",
+        "Section 1 — Identification : Numero Atlasante.",
         "Section 1 — Identification : Commentaire.",
         "Section 2 — Client : Client. (Identifiant unique)",
         "Section 2 — Client : Site.",
+        "Section 2 — Client : Categorie etablissement.",
         "Section 2 — Client : Nom et prénom.",
         "Section 2 — Client : Téléphone portable.",
         "Section 2 — Client : Email.",
@@ -116,6 +118,8 @@ function generateCSV(
         "Section 6 — Électrode Adulte ou Mixte : Péremption de l’électrode de secours.",
         "Section 6 — Électrode Adulte ou Mixte : Statut.",
         "Section 6 — Électrode Adulte ou Mixte : Commentaire.",
+        "Section 6 — Électrode Adulte ou Mixte : Lot PadPak A.",
+        "Section 6 — Électrode Adulte ou Mixte : Péremption PadPak A.",
         "Section 7 — Électrode Pédiatrique : Modèle.",
         "Section 7 — Électrode Pédiatrique : Lot.",
         "Section 7 — Électrode Pédiatrique : Insertion.",
@@ -126,6 +130,8 @@ function generateCSV(
         "Section 7 — Électrode Pédiatrique : Péremption de l’électrode de secours.",
         "Section 7 — Électrode Pédiatrique : Statut.",
         "Section 7 — Électrode Pédiatrique : Commentaire.",
+        "Section 7 — Électrode Pédiatrique : Lot PadPak P.",
+        "Section 7 — Électrode Pédiatrique :  Péremption PadPak P.",
         "Section 8 — Batterie : Modèle.",
         "Section 8 — Batterie : Lot.",
         "Section 8 — Batterie : Insertion.",
@@ -279,9 +285,11 @@ const validateAndParseDefibs = (
     "Section 1 — Identification : Identifiant.",
     "Section 1 — Identification : Série.",
     "Section 1 — Identification : Modèle. (Identifiant unique)",
+    "Section 1 — Identification : Numero Atlasante.",
     "Section 1 — Identification : Commentaire.",
     "Section 2 — Client : Client. (Identifiant unique)",
     "Section 2 — Client : Site.",
+    "Section 2 — Client : Categorie etablissement.",
     "Section 2 — Client : Nom et prénom.",
     "Section 2 — Client : Téléphone portable.",
     "Section 2 — Client : Email.",
@@ -319,6 +327,8 @@ const validateAndParseDefibs = (
     "Section 6 — Électrode Adulte ou Mixte : Péremption de l’électrode de secours.",
     "Section 6 — Électrode Adulte ou Mixte : Statut.",
     "Section 6 — Électrode Adulte ou Mixte : Commentaire.",
+    "Section 6 — Électrode Adulte ou Mixte : Lot PadPak A.",
+    "Section 6 — Électrode Adulte ou Mixte : Péremption PadPak A.",
     "Section 7 — Électrode Pédiatrique : Modèle.",
     "Section 7 — Électrode Pédiatrique : Lot.",
     "Section 7 — Électrode Pédiatrique : Insertion.",
@@ -329,6 +339,8 @@ const validateAndParseDefibs = (
     "Section 7 — Électrode Pédiatrique : Péremption de l’électrode de secours.",
     "Section 7 — Électrode Pédiatrique : Statut.",
     "Section 7 — Électrode Pédiatrique : Commentaire.",
+    "Section 7 — Électrode Pédiatrique : Lot PadPak P.",
+    "Section 7 — Électrode Pédiatrique :  Péremption PadPak P.",
     "Section 8 — Batterie : Modèle.",
     "Section 8 — Batterie : Lot.",
     "Section 8 — Batterie : Insertion.",
@@ -389,71 +401,79 @@ const validateAndParseDefibs = (
     const identifiant = row[0] ? row[0].trim() : "";
     const serie = row[1] ? row[1].trim() : "";
     const modelVal = row[2] ? row[2].trim() : "";
-    const commentaire = row[3] ? row[3].trim() : "";
-    const clientVal = row[4] ? row[4].trim() : "";
-    const nomSite = row[5] ? row[5].trim() : "";
-    const nomPrenomSite = row[6] ? row[6].trim() : "";
-    const telephoneSite = row[7] ? row[7].trim() : "";
-    const emailSite = row[8] ? row[8].trim() : "";
-    const nomContrat = row[9] ? row[9].trim() : "";
-    const contrat = sanitizeYesNo(row[10] ? row[10].trim() : "", 'Non');
-    const payeurId = row[11] ? row[11].trim() : "";
-    const clientIdField = row[12] ? row[12].trim() : "";
-    const referenceContrat = row[13] ? row[13].trim() : "";
-    const debutContrat = row[14] ? row[14].trim() : "";
-    const finContrat = row[15] ? row[15].trim() : "";
-    const modeleCoffretId = row[16] ? row[16].trim() : "";
-    const numeroLotCoffret = row[17] ? row[17].trim() : "";
-    const commentaireCoffret = row[18] ? row[18].trim() : "";
-    const numVoie = row[19] ? row[19].trim() : "";
-    const ville = row[20] ? row[20].trim() : "";
-    const cp = row[21] ? row[21].trim() : "";
-    const region = row[22] ? row[22].trim() : "";
-    const pays = row[23] ? row[23].trim() : "";
-    const latitude = row[24] ? row[24].trim() : "";
-    const longitude = row[25] ? row[25].trim() : "";
-    const commentaireAdresse = row[26] ? row[26].trim() : "";
-    const finGarantie = row[27] ? row[27].trim() : "";
-    const fabrication = row[28] ? row[28].trim() : "";
-    const miseEnService = row[29] ? row[29].trim() : "";
-    const derniereMaintenance = row[30] ? row[30].trim() : "";
-    const sortieFabricant = row[31] ? row[31].trim() : "";
+    const numeroAtlasante = row[3] ? row[3].trim() : "";
+    const commentaire = row[4] ? row[4].trim() : "";
+    const clientVal = row[5] ? row[5].trim() : "";
+    const nomSite = row[6] ? row[6].trim() : "";
+    const categorieEtablissement = row[7] ? row[7].trim() : "";
+    const nomPrenomSite = row[8] ? row[8].trim() : "";
+    const telephoneSite = row[9] ? row[9].trim() : "";
+    const emailSite = row[10] ? row[10].trim() : "";
+    const nomContrat = row[11] ? row[11].trim() : "";
+    const contrat = sanitizeYesNo(row[12] ? row[12].trim() : "", 'Non');
+    const payeurId = row[13] ? row[13].trim() : "";
+    const clientIdField = row[14] ? row[14].trim() : "";
+    const referenceContrat = row[15] ? row[15].trim() : "";
+    const debutContrat = row[16] ? row[16].trim() : "";
+    const finContrat = row[17] ? row[17].trim() : "";
+    const modeleCoffretId = row[18] ? row[18].trim() : "";
+    const numeroLotCoffret = row[19] ? row[19].trim() : "";
+    const commentaireCoffret = row[20] ? row[20].trim() : "";
+    const numVoie = row[21] ? row[21].trim() : "";
+    const ville = row[22] ? row[22].trim() : "";
+    const cp = row[23] ? row[23].trim() : "";
+    const region = row[24] ? row[24].trim() : "";
+    const pays = row[25] ? row[25].trim() : "";
+    const latitude = row[26] ? row[26].trim() : "";
+    const longitude = row[27] ? row[27].trim() : "";
+    const commentaireAdresse = row[28] ? row[28].trim() : "";
+    const finGarantie = row[29] ? row[29].trim() : "";
+    const fabrication = row[30] ? row[30].trim() : "";
+    const miseEnService = row[31] ? row[31].trim() : "";
+    const derniereMaintenance = row[32] ? row[32].trim() : "";
+    const sortieFabricant = row[33] ? row[33].trim() : "";
     
-    const modeleElectrodeAId = row[33] ? row[33].trim() : "";
-    const lotElectrodeA = row[34] ? row[34].trim() : "";
-    const insertionElectrodeA = row[35] ? row[35].trim() : "";
-    const peremptionElectrodeA = row[36] ? row[36].trim() : "";
-    const livraisonElectrodeA = row[37] ? row[37].trim() : "";
-    const modeleElectrodeASecoursId = row[38] ? row[38].trim() : "";
-    const lotElectrodeASecours = row[39] ? row[39].trim() : "";
-    const peremptionSecoursElectrodeA = row[40] ? row[40].trim() : "";
-    const situationElectrodeAVal = row[41] ? row[41].trim() : "";
-    const commentaireElectrodeA = row[42] ? row[42].trim() : "";
-    const modeleElectrodePId = row[43] ? row[43].trim() : "";
-    const lotElectrodeP = row[44] ? row[44].trim() : "";
-    const insertionElectrodeP = row[45] ? row[45].trim() : "";
-    const peremptionElectrodeP = row[46] ? row[46].trim() : "";
-    const livraisonElectrodeP = row[47] ? row[47].trim() : "";
-    const modeleElectrodePSecoursId = row[48] ? row[48].trim() : "";
-    const lotElectrodePSecours = row[49] ? row[49].trim() : "";
-    const peremptionSecoursElectrodeP = row[50] ? row[50].trim() : "";
-    const situationElectrodePVal = row[51] ? row[51].trim() : "";
-    const commentaireElectrodeP = row[52] ? row[52].trim() : "";
-    const modeleBatterieId = row[53] ? row[53].trim() : "";
-    const lotBatterie = row[54] ? row[54].trim() : "";
-    const insertionBatterie = row[55] ? row[55].trim() : "";
-    const peremptionBatterie = row[56] ? row[56].trim() : "";
-    const livraisonBatterie = row[57] ? row[57].trim() : "";
-    const situationBatterieVal = row[58] ? row[58].trim() : "";
-    const pourcentageBatterie = row[59] ? row[59].trim() : "";
-    const commentaireBatterie = row[60] ? row[60].trim() : "";
-    const loue = row[61] ? row[61].trim() : "";
-    const prete = row[62] ? row[62].trim() : "";
-    const stocke = row[63] ? row[63].trim() : "";
-    const archive = row[64] ? row[64].trim() : "";
-    const conforme = row[65] ? row[65].trim() : "";
-    const sousTraitance = row[66] ? row[66].trim() : "";
-    const fsmAutorise = row[67] ? row[67].trim() : "";
+    const modeleElectrodeAId = row[35] ? row[35].trim() : "";
+    const lotElectrodeA = row[36] ? row[36].trim() : "";
+    const insertionElectrodeA = row[37] ? row[37].trim() : "";
+    const peremptionElectrodeA = row[38] ? row[38].trim() : "";
+    const livraisonElectrodeA = row[39] ? row[39].trim() : "";
+    const modeleElectrodeASecoursId = row[40] ? row[40].trim() : "";
+    const lotElectrodeASecours = row[41] ? row[41].trim() : "";
+    const peremptionSecoursElectrodeA = row[42] ? row[42].trim() : "";
+    const situationElectrodeAVal = row[43] ? row[43].trim() : "";
+    const commentaireElectrodeA = row[44] ? row[44].trim() : "";
+    const lotPadpakA = row[45] ? row[45].trim() : "";
+    const peremptionPadpakA = row[46] ? row[46].trim() : "";
+
+    const modeleElectrodePId = row[47] ? row[47].trim() : "";
+    const lotElectrodeP = row[48] ? row[48].trim() : "";
+    const insertionElectrodeP = row[49] ? row[49].trim() : "";
+    const peremptionElectrodeP = row[50] ? row[50].trim() : "";
+    const livraisonElectrodeP = row[51] ? row[51].trim() : "";
+    const modeleElectrodePSecoursId = row[52] ? row[52].trim() : "";
+    const lotElectrodePSecours = row[53] ? row[53].trim() : "";
+    const peremptionSecoursElectrodeP = row[54] ? row[54].trim() : "";
+    const situationElectrodePVal = row[55] ? row[55].trim() : "";
+    const commentaireElectrodeP = row[56] ? row[56].trim() : "";
+    const lotPadpakP = row[57] ? row[57].trim() : "";
+    const peremptionPadpakP = row[58] ? row[58].trim() : "";
+
+    const modeleBatterieId = row[59] ? row[59].trim() : "";
+    const lotBatterie = row[60] ? row[60].trim() : "";
+    const insertionBatterie = row[61] ? row[61].trim() : "";
+    const peremptionBatterie = row[62] ? row[62].trim() : "";
+    const livraisonBatterie = row[63] ? row[63].trim() : "";
+    const situationBatterieVal = row[64] ? row[64].trim() : "";
+    const pourcentageBatterie = row[65] ? row[65].trim() : "";
+    const commentaireBatterie = row[66] ? row[66].trim() : "";
+    const loue = row[67] ? row[67].trim() : "";
+    const prete = row[68] ? row[68].trim() : "";
+    const stocke = row[69] ? row[69].trim() : "";
+    const archive = row[70] ? row[70].trim() : "";
+    const conforme = row[71] ? row[71].trim() : "";
+    const sousTraitance = row[72] ? row[72].trim() : "";
+    const fsmAutorise = row[73] ? row[73].trim() : "";
 
     // Erreur A : Identifiant must be empty
     if (identifiant !== "") {
@@ -555,9 +575,11 @@ const validateAndParseDefibs = (
       identifiant: assignedIdentifiant,
       numeroSerie: serie,
       modeleId: matchingVar ? matchingVar.id : '',
+      numeroAtlasante: numeroAtlasante,
       commentaire: commentaire,
       clientId: clientVal,
       nomSite: nomSite,
+      categorieEtablissement: categorieEtablissement,
       nomPrenomSite: nomPrenomSite,
       telephoneSite: telephoneSite,
       emailSite: emailSite,
@@ -588,7 +610,7 @@ const validateAndParseDefibs = (
       miseEnService: miseEnService,
       derniereMaintenance: derniereMaintenance,
       sortieFabricant: sortieFabricant,
-      modeleElectrodeAId: modeleElectrodeAId,
+       modeleElectrodeAId: modeleElectrodeAId,
       lotElectrodeA: lotElectrodeA,
       insertionElectrodeA: insertionElectrodeA,
       peremptionElectrodeA: peremptionElectrodeA,
@@ -598,6 +620,8 @@ const validateAndParseDefibs = (
       peremptionSecoursElectrodeA: peremptionSecoursElectrodeA,
       modeleElectrodeASecoursId: modeleElectrodeASecoursId,
       lotElectrodeASecours: lotElectrodeASecours,
+      lotPadpakA: lotPadpakA,
+      peremptionPadpakA: peremptionPadpakA,
       modeleElectrodePId: modeleElectrodePId,
       lotElectrodeP: lotElectrodeP,
       insertionElectrodeP: insertionElectrodeP,
@@ -608,6 +632,8 @@ const validateAndParseDefibs = (
       peremptionSecoursElectrodeP: peremptionSecoursElectrodeP,
       modeleElectrodePSecoursId: modeleElectrodePSecoursId,
       lotElectrodePSecours: lotElectrodePSecours,
+      lotPadpakP: lotPadpakP,
+      peremptionPadpakP: peremptionPadpakP,
       modeleBatterieId: modeleBatterieId,
       lotBatterie: lotBatterie,
       insertionBatterie: insertionBatterie,
@@ -872,7 +898,7 @@ export default function ImportExportTab({
       }
 
       if (isFirebaseLoaded) {
-        const cloudRecords = await fetchCollectionFromFirestore<ImportExportRecord[]>('importExportRecords');
+        const cloudRecords = await fetchCollectionFromFirestore<ImportExportRecord[]>('importExportRecords', tenantId);
         if (cloudRecords && Array.isArray(cloudRecords)) {
           // Expiration and cleanup check using isRecordExpired
           const cleanedRecords = cloudRecords.filter(r => !isRecordExpired(r));

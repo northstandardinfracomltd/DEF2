@@ -78,10 +78,12 @@ export interface Defibrillateur {
   numeroSerie: string;
   commentaire: string;
   modeleId: string; // Lookup Variable category 'Modèle Défibrillateur'
+  numeroAtlasante?: string;
   
   // Section 2 - Client
   clientId: string; // Lookup Client
   nomSite?: string; // Nom du site
+  categorieEtablissement?: string; // Catégorie d'établissement
   nomPrenomSite: string;
   telephoneSite: string;
   emailSite: string;
@@ -132,6 +134,9 @@ export interface Defibrillateur {
   peremptionSecoursElectrodeA: string;
   modeleElectrodeASecoursId?: string;
   lotElectrodeASecours?: string;
+  hasPadpakA?: 'Oui' | 'Non';
+  lotPadpakA?: string;
+  peremptionPadpakA?: string;
 
   // Section 7 - Électrode Pédiatrique (P)
   hasElectrodePSecours?: 'Oui' | 'Non';
@@ -145,6 +150,9 @@ export interface Defibrillateur {
   peremptionSecoursElectrodeP: string;
   modeleElectrodePSecoursId?: string;
   lotElectrodePSecours?: string;
+  hasPadpakP?: 'Oui' | 'Non';
+  lotPadpakP?: string;
+  peremptionPadpakP?: string;
 
   // Section 8 - Batterie (B)
   hasBatterieSecours?: 'Oui' | 'Non';

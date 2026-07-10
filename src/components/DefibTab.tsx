@@ -525,7 +525,8 @@ export default function DefibTab({
   const [atlasanteUploadResults, setAtlasanteUploadResults] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+    const activeTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+    fetchCollectionFromFirestore<any>('api_connectors', activeTenant).then(data => {
       if (data) {
         if (data.atlasanteActive !== undefined) setAtlasanteActive(data.atlasanteActive);
         if (data.atlasanteUrlAuth !== undefined) setAtlasanteUrlAuth(data.atlasanteUrlAuth);
@@ -923,10 +924,12 @@ export default function DefibTab({
   const [numeroSerie, setNumeroSerie] = useState('');
   const [commentaire, setCommentaire] = useState('');
   const [modeleId, setModeleId] = useState('');
+  const [numeroAtlasante, setNumeroAtlasante] = useState('');
 
   // Section 2 - Client Site Link (autopopulates from active client selection)
   const [clientId, setClientId] = useState('');
   const [nomSite, setNomSite] = useState('');
+  const [categorieEtablissement, setCategorieEtablissement] = useState('');
   const [nomPrenomSite, setNomPrenomSite] = useState('');
   const [telephoneSite, setTelephoneSite] = useState('');
   const [emailSite, setEmailSite] = useState('');
@@ -1148,6 +1151,9 @@ export default function DefibTab({
   const [peremptionSecoursElectrodeA, setPeremptionSecoursElectrodeA] = useState('');
   const [modeleElectrodeASecoursId, setModeleElectrodeASecoursId] = useState('');
   const [lotElectrodeASecours, setLotElectrodeASecours] = useState('');
+  const [lotPadpakA, setLotPadpakA] = useState('');
+  const [peremptionPadpakA, setPeremptionPadpakA] = useState('');
+  const [hasPadpakA, setHasPadpakA] = useState<'Oui' | 'Non'>('Oui');
 
   // Section 7 - Électrode Pédiatrique (P)
   const [hasElectrodePSecours, setHasElectrodePSecours] = useState<'Oui' | 'Non'>('Non');
@@ -1161,6 +1167,9 @@ export default function DefibTab({
   const [peremptionSecoursElectrodeP, setPeremptionSecoursElectrodeP] = useState('');
   const [modeleElectrodePSecoursId, setModeleElectrodePSecoursId] = useState('');
   const [lotElectrodePSecours, setLotElectrodePSecours] = useState('');
+  const [lotPadpakP, setLotPadpakP] = useState('');
+  const [peremptionPadpakP, setPeremptionPadpakP] = useState('');
+  const [hasPadpakP, setHasPadpakP] = useState<'Oui' | 'Non'>('Oui');
 
   // Section 8 - Batterie (B)
   const [hasBatterieSecours, setHasBatterieSecours] = useState<'Oui' | 'Non'>('Non');
@@ -1268,10 +1277,13 @@ export default function DefibTab({
       const isMatchSearch =
         (df.identifiant || '').toLowerCase().includes(search.toLowerCase()) ||
         (df.numeroSerie || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.numeroAtlasante || '').toLowerCase().includes(search.toLowerCase()) ||
         (df.ville || '').toLowerCase().includes(search.toLowerCase()) ||
         (clientName || '').toLowerCase().includes(search.toLowerCase()) ||
         (modelName || '').toLowerCase().includes(search.toLowerCase()) ||
-        (df.nomPrenomSite || '').toLowerCase().includes(search.toLowerCase());
+        (df.nomPrenomSite || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.nomSite || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.categorieEtablissement || '').toLowerCase().includes(search.toLowerCase());
 
       const isMatchRegion = activeFilters.region === 'Tous' || df.region === activeFilters.region;
       const isMatchModele = activeFilters.modeleId === 'Tous' || df.modeleId === activeFilters.modeleId;
@@ -1400,6 +1412,7 @@ export default function DefibTab({
     // Reset standard fields
     setNumeroSerie('');
     setCommentaire('');
+    setNumeroAtlasante('');
     // Auto-select to the most recently created model variable, or CSPG5, or the first model
     const defaultModel = modelesDefib.length > 0 ? modelesDefib[modelesDefib.length - 1] : null;
     setModeleId(defaultModel ? defaultModel.id : '');
@@ -1407,6 +1420,7 @@ export default function DefibTab({
     // Reset client to empty, autotriggering copy
     setClientId('');
     setNomSite('');
+    setCategorieEtablissement('');
     setClientSearchQuery('');
     handleClientChange('');
 
@@ -1460,6 +1474,9 @@ export default function DefibTab({
     setPeremptionSecoursElectrodeA('');
     setModeleElectrodeASecoursId('');
     setLotElectrodeASecours('');
+    setLotPadpakA('');
+    setPeremptionPadpakA('');
+    setHasPadpakA('Oui');
 
     // Electrodes Pediatric (P)
     setHasElectrodePSecours('Non');
@@ -1473,6 +1490,9 @@ export default function DefibTab({
     setPeremptionSecoursElectrodeP('');
     setModeleElectrodePSecoursId('');
     setLotElectrodePSecours('');
+    setLotPadpakP('');
+    setPeremptionPadpakP('');
+    setHasPadpakP('Oui');
 
     // Battery (B)
     setHasBatterieSecours('Non');
@@ -1524,11 +1544,13 @@ export default function DefibTab({
     setNumeroSerie(df.numeroSerie);
     setCommentaire(df.commentaire || '');
     setModeleId(df.modeleId);
+    setNumeroAtlasante(df.numeroAtlasante || '');
 
     setClientId(df.clientId);
     const linkedClient = clients.find(c => c.id === df.clientId);
     setClientSearchQuery(linkedClient ? `${linkedClient.denomination} (${linkedClient.siret || ''})` : '');
     setNomSite(df.nomSite || '');
+    setCategorieEtablissement(df.categorieEtablissement || '');
     setNomPrenomSite(df.nomPrenomSite || '');
     setTelephoneSite(df.telephoneSite || '');
     setEmailSite(df.emailSite || '');
@@ -1606,6 +1628,9 @@ export default function DefibTab({
     setPeremptionSecoursElectrodeA(df.peremptionSecoursElectrodeA || '');
     setModeleElectrodeASecoursId(df.modeleElectrodeASecoursId || '');
     setLotElectrodeASecours(df.lotElectrodeASecours || '');
+    setLotPadpakA(df.lotPadpakA || '');
+    setPeremptionPadpakA(df.peremptionPadpakA || '');
+    setHasPadpakA(df.hasPadpakA || 'Oui');
 
     setHasElectrodePSecours(df.hasElectrodePSecours || (df.modeleElectrodePSecoursId || df.lotElectrodePSecours || df.peremptionSecoursElectrodeP ? 'Oui' : 'Non'));
     setModeleElectrodePId(df.modeleElectrodePId || '');
@@ -1618,6 +1643,9 @@ export default function DefibTab({
     setPeremptionSecoursElectrodeP(df.peremptionSecoursElectrodeP || '');
     setModeleElectrodePSecoursId(df.modeleElectrodePSecoursId || '');
     setLotElectrodePSecours(df.lotElectrodePSecours || '');
+    setLotPadpakP(df.lotPadpakP || '');
+    setPeremptionPadpakP(df.peremptionPadpakP || '');
+    setHasPadpakP(df.hasPadpakP || 'Oui');
 
     setHasBatterieSecours(df.hasBatterieSecours || (df.modeleBatterieSecoursId || df.lotBatterieSecours || df.peremptionBatterieSecours ? 'Oui' : 'Non'));
     setModeleBatterieId(df.modeleBatterieId || '');
@@ -1692,12 +1720,14 @@ export default function DefibTab({
  
      const payload = {
       identifiant: identifiant.trim().toUpperCase(),
+      numeroAtlasante: numeroAtlasante.trim(),
       numeroSerie: numeroSerie.trim(),
       commentaire: commentaire.trim(),
       modeleId,
 
       clientId,
       nomSite: nomSite.trim(),
+      categorieEtablissement: categorieEtablissement.trim(),
       nomPrenomSite: nomPrenomSite.trim(),
       telephoneSite: telephoneSite.trim(),
       emailSite: emailSite.trim(),
@@ -1744,6 +1774,9 @@ export default function DefibTab({
       peremptionSecoursElectrodeA: hasElectrodeASecours === 'Oui' ? peremptionSecoursElectrodeA : '',
       modeleElectrodeASecoursId: hasElectrodeASecours === 'Oui' ? modeleElectrodeASecoursId : '',
       lotElectrodeASecours: hasElectrodeASecours === 'Oui' ? lotElectrodeASecours.trim() : '',
+      hasPadpakA,
+      lotPadpakA: hasPadpakA === 'Oui' ? lotPadpakA.trim() : '',
+      peremptionPadpakA: hasPadpakA === 'Oui' ? peremptionPadpakA : '',
 
       modeleElectrodePId,
       lotElectrodeP: lotElectrodeP.trim(),
@@ -1756,6 +1789,9 @@ export default function DefibTab({
       peremptionSecoursElectrodeP: hasElectrodePSecours === 'Oui' ? peremptionSecoursElectrodeP : '',
       modeleElectrodePSecoursId: hasElectrodePSecours === 'Oui' ? modeleElectrodePSecoursId : '',
       lotElectrodePSecours: hasElectrodePSecours === 'Oui' ? lotElectrodePSecours.trim() : '',
+      hasPadpakP,
+      lotPadpakP: hasPadpakP === 'Oui' ? lotPadpakP.trim() : '',
+      peremptionPadpakP: hasPadpakP === 'Oui' ? peremptionPadpakP : '',
 
       modeleBatterieId,
       lotBatterie: lotBatterie.trim(),
@@ -2343,7 +2379,12 @@ export default function DefibTab({
 
                       {/* Série */}
                       <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                        {df.numeroSerie}
+                        <div>{df.numeroSerie}</div>
+                        {df.numeroAtlasante ? (
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5" title="Numéro Atlasanté">
+                            Atlas: {df.numeroAtlasante}
+                          </div>
+                        ) : null}
                       </td>
 
                       {/* Client */}
@@ -2353,7 +2394,12 @@ export default function DefibTab({
 
                       {/* Nom du site */}
                       <td className="px-4 py-5 font-sans whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }} title={df.nomSite}>
-                        {df.nomSite || ''}
+                        <div>{df.nomSite || ''}</div>
+                        {df.categorieEtablissement ? (
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5" title="Catégorie d'établissement">
+                            Catégorie: {df.categorieEtablissement}
+                          </div>
+                        ) : null}
                       </td>
 
                       {/* Contrat Yes/No */}
@@ -2844,7 +2890,7 @@ export default function DefibTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Modèle Lookup select - spans full column */}
                       <div className="space-y-1">
                         <label htmlFor="form-modeleid" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -2864,6 +2910,21 @@ export default function DefibTab({
                             </option>
                           ))}
                         </select>
+                      </div>
+
+                      {/* Numéro Atlasanté - single line input */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-numeroatlasante" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Numéro Atlasanté.
+                        </label>
+                        <input
+                          type="text"
+                          id="form-numeroatlasante"
+                          value={numeroAtlasante}
+                          onChange={(e) => setNumeroAtlasante(e.target.value)}
+                          placeholder="Entrez le numéro Atlasanté"
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        />
                       </div>
                     </div>
 
@@ -2907,8 +2968,8 @@ export default function DefibTab({
                       </span>
                     </div>
 
-                    {/* Client Selector and Nom du site in a 50/50 grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Client Selector, Nom du site, and Catégorie d'établissement in an equal 3-column grid (33% / 33% / 33%) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       {/* Client Selector with integrated search box, filtering, and 10 results limit */}
                       <div className="space-y-1 relative">
                         <label htmlFor="form-client-search" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -2964,11 +3025,11 @@ export default function DefibTab({
                               ).slice(0, 10);
 
                               if (hits.length === 0) {
-                                return (
-                                  <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
-                                    Aucun client trouvé pour "{clientSearchQuery}"
-                                  </div>
-                                );
+                                  return (
+                                    <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
+                                      Aucun client trouvé pour "{clientSearchQuery}"
+                                    </div>
+                                  );
                               }
 
                               return hits.map(c => {
@@ -3010,41 +3071,64 @@ export default function DefibTab({
                           className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
                         />
                       </div>
+
+                      {/* Catégorie d'établissement field */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-categorie-etablissement" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Catégorie d'établissement.
+                        </label>
+                        <input
+                          type="text"
+                          id="form-categorie-etablissement"
+                          value={categorieEtablissement}
+                          onChange={(e) => setCategorieEtablissement(e.target.value)}
+                          placeholder="Catégorie d'établissement."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                        />
+                      </div>
                     </div>
 
                     {/* Contacts du site fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="space-y-1">
-                        <label htmlFor="form-site-nom" className="block text-[10px] uppercase font-semibold text-slate-400">Nom et prénom.</label>
+                        <label htmlFor="form-site-nom" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Nom et prénom.
+                        </label>
                         <input
                           type="text"
                           id="form-site-nom"
                           value={nomPrenomSite}
                           onChange={(e) => setNomPrenomSite(e.target.value)}
-                          placeholder="Auto-complété."
-                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 font-semibold"
+                          placeholder="Nom et prénom du contact."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold transition-colors"
                         />
                       </div>
+
                       <div className="space-y-1">
-                        <label htmlFor="form-site-tel" className="block text-[10px] uppercase font-semibold text-slate-400">Téléphone portable.</label>
+                        <label htmlFor="form-site-tel" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Téléphone portable.
+                        </label>
                         <input
                           type="text"
                           id="form-site-tel"
                           value={telephoneSite}
                           onChange={(e) => setTelephoneSite(e.target.value)}
-                          placeholder="Auto-complété."
-                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 font-mono"
+                          placeholder="Téléphone du contact."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-mono font-semibold transition-colors"
                         />
                       </div>
+
                       <div className="space-y-1">
-                        <label htmlFor="form-site-mail" className="block text-[10px] uppercase font-semibold text-slate-400">Email.</label>
+                        <label htmlFor="form-site-mail" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          Email.
+                        </label>
                         <input
                           type="text"
                           id="form-site-mail"
                           value={emailSite}
                           onChange={(e) => setEmailSite(e.target.value)}
-                          placeholder="Auto-complété."
-                          className="w-full px-2 py-1 bg-slate-55 border border-slate-200 rounded-md text-xs text-slate-800 truncate"
+                          placeholder="Email du contact."
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold transition-colors truncate"
                         />
                       </div>
                     </div>
@@ -3873,6 +3957,66 @@ export default function DefibTab({
                         />
                       </div>
                     </div>
+
+                    {/* PadPak radio button */}
+                    <div className="space-y-1 bg-white">
+                      <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
+                      <div className="flex gap-4 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setHasPadpakA('Oui')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasPadpakA === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHasPadpakA('Non')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasPadpakA === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Non
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lot PadPak A & Péremption PadPak A */}
+                    {hasPadpakA === 'Oui' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-lot-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                            Lot PadPak A.
+                          </label>
+                          <input
+                            type="text"
+                            id="form-lot-padpak-a"
+                            value={lotPadpakA}
+                            onChange={(e) => setLotPadpakA(e.target.value)}
+                            placeholder="Entrez le numéro de lot."
+                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-per-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                            Péremption PadPak A.
+                          </label>
+                          <input
+                            type="date"
+                            id="form-per-padpak-a"
+                            value={peremptionPadpakA}
+                            onChange={(e) => setPeremptionPadpakA(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Section 7 - Électrode Pédiatrique (P) */}
@@ -4085,6 +4229,66 @@ export default function DefibTab({
                         />
                       </div>
                     </div>
+
+                    {/* PadPak radio button */}
+                    <div className="space-y-1 bg-white">
+                      <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
+                      <div className="flex gap-4 py-1">
+                        <button
+                          type="button"
+                          onClick={() => setHasPadpakP('Oui')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasPadpakP === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Oui
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setHasPadpakP('Non')}
+                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                          style={{ fontSize: '16px', color: '#000' }}
+                        >
+                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                            {hasPadpakP === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                          </span>
+                          Non
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Lot PadPak P & Péremption PadPak P */}
+                    {hasPadpakP === 'Oui' && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-lot-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                            Lot PadPak P.
+                          </label>
+                          <input
+                            type="text"
+                            id="form-lot-padpak-p"
+                            value={lotPadpakP}
+                            onChange={(e) => setLotPadpakP(e.target.value)}
+                            placeholder="Entrez le numéro de lot."
+                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                          />
+                        </div>
+                        <div className="space-y-1 bg-white">
+                          <label htmlFor="form-per-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                            Péremption PadPak P.
+                          </label>
+                          <input
+                            type="date"
+                            id="form-per-padpak-p"
+                            value={peremptionPadpakP}
+                            onChange={(e) => setPeremptionPadpakP(e.target.value)}
+                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Section 8 - Batterie (B) */}

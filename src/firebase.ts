@@ -86,8 +86,8 @@ export function getFromLocalCache<T>(key: string): T | null {
  * Fetches a collection (stored as a single document with a 'list' array or object data) 
  * from Firestore. Returns null if the document does not exist yet.
  */
-export async function fetchCollectionFromFirestore<T>(collectionName: string): Promise<T | null> {
-  const key = getCollectionKey(collectionName);
+export async function fetchCollectionFromFirestore<T>(collectionName: string, tenantId?: string): Promise<T | null> {
+  const key = getCollectionKey(collectionName, tenantId || getTenantId());
   try {
     const docRef = doc(db, 'appData', key);
     let snap;
@@ -598,6 +598,9 @@ export async function seedTenantDemoData(tenantId: string): Promise<void> {
       situationElectrodeA: 'Vert',
       commentaireElectrodeA: 'Neuves',
       peremptionSecoursElectrodeA: '',
+      hasPadpakA: 'Oui',
+      lotPadpakA: 'PADPAK-A-123',
+      peremptionPadpakA: '2028-06-01',
       modeleElectrodePId: '',
       lotElectrodeP: '',
       insertionElectrodeP: '',
@@ -606,6 +609,9 @@ export async function seedTenantDemoData(tenantId: string): Promise<void> {
       situationElectrodeP: 'Vert',
       commentaireElectrodeP: '',
       peremptionSecoursElectrodeP: '',
+      hasPadpakP: 'Oui',
+      lotPadpakP: '',
+      peremptionPadpakP: '',
       modeleBatterieId: '',
       lotBatterie: 'LOTB-00912',
       insertionBatterie: '2026-01-15',

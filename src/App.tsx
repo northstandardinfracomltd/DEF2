@@ -2423,27 +2423,27 @@ export default function App() {
           fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance,
           fDistributedStocks, fAchatsFournisseurs, fNotifications, fVeilles
         ] = await Promise.all([
-          fetchCollectionFromFirestore<Client[]>('clients'),
-          fetchCollectionFromFirestore<Variable[]>('variables'),
-          fetchCollectionFromFirestore<Defibrillateur[]>('defibrillateurs'),
-          fetchCollectionFromFirestore<CompanyInfo>('companyInfo'),
-          fetchCollectionFromFirestore<Member[]>('members'),
-          fetchCollectionFromFirestore<SupportTicket[]>('tickets'),
-          fetchCollectionFromFirestore<CommercialDoc[]>('commercialDocs'),
-          fetchCollectionFromFirestore<GedDocument[]>('gedDocs'),
-          fetchCollectionFromFirestore<StockRecord[]>('stocks'),
-          fetchCollectionFromFirestore<any[]>('customerReviews'),
-          fetchCollectionFromFirestore<PointageLog[]>('pointages'),
-          fetchCollectionFromFirestore<any[]>('expenses'),
-          fetchCollectionFromFirestore<any[]>('generatedReports'),
-          fetchCollectionFromFirestore<any[]>('fsmTours'),
-          fetchCollectionFromFirestore<Memo[]>('memos'),
-          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments'),
-          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance'),
-          fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks'),
-          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs'),
-          fetchCollectionFromFirestore<AppNotification[]>('notifications'),
-          fetchCollectionFromFirestore<VeilleRecord[]>('veilles')
+          fetchCollectionFromFirestore<Client[]>('clients', tenantId),
+          fetchCollectionFromFirestore<Variable[]>('variables', tenantId),
+          fetchCollectionFromFirestore<Defibrillateur[]>('defibrillateurs', tenantId),
+          fetchCollectionFromFirestore<CompanyInfo>('companyInfo', tenantId),
+          fetchCollectionFromFirestore<Member[]>('members', tenantId),
+          fetchCollectionFromFirestore<SupportTicket[]>('tickets', tenantId),
+          fetchCollectionFromFirestore<CommercialDoc[]>('commercialDocs', tenantId),
+          fetchCollectionFromFirestore<GedDocument[]>('gedDocs', tenantId),
+          fetchCollectionFromFirestore<StockRecord[]>('stocks', tenantId),
+          fetchCollectionFromFirestore<any[]>('customerReviews', tenantId),
+          fetchCollectionFromFirestore<PointageLog[]>('pointages', tenantId),
+          fetchCollectionFromFirestore<any[]>('expenses', tenantId),
+          fetchCollectionFromFirestore<any[]>('generatedReports', tenantId),
+          fetchCollectionFromFirestore<any[]>('fsmTours', tenantId),
+          fetchCollectionFromFirestore<Memo[]>('memos', tenantId),
+          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments', tenantId),
+          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance', tenantId),
+          fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks', tenantId),
+          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs', tenantId),
+          fetchCollectionFromFirestore<AppNotification[]>('notifications', tenantId),
+          fetchCollectionFromFirestore<VeilleRecord[]>('veilles', tenantId)
         ]);
 
         // Helper block to query local storage fallback safely when firestore responds with null/error
@@ -2820,7 +2820,7 @@ export default function App() {
   }, [tenantId]);
 
   const loadApiConnectors = React.useCallback(() => {
-    fetchCollectionFromFirestore<any>('api_connectors').then(data => {
+    fetchCollectionFromFirestore<any>('api_connectors', tenantId).then(data => {
       if (data) {
         if (data.pennylaneActive !== undefined) setPennylaneActive(data.pennylaneActive);
         if (data.dropboxActive !== undefined) setDropboxActive(data.dropboxActive);
@@ -2836,7 +2836,7 @@ export default function App() {
       setDropboxActive(false);
       setDropboxAccessToken('');
     });
-  }, []);
+  }, [tenantId]);
 
   useEffect(() => {
     loadApiConnectors();
@@ -3584,7 +3584,7 @@ export default function App() {
 
   const triggerPennylaneSync = async (doc: CommercialDoc, silentOnInactive = false) => {
     try {
-      const connectors = await fetchCollectionFromFirestore<any>('api_connectors');
+      const connectors = await fetchCollectionFromFirestore<any>('api_connectors', tenantId);
       if (!connectors || !connectors.pennylaneActive) {
         if (!silentOnInactive) {
           showPennylaneAlert("L'intégration Pennylane n'est pas activée. Veuillez l'activer dans les paramètres (connecteurs).", "error");
@@ -3745,7 +3745,7 @@ export default function App() {
 
   const handlePennylaneGlobalSync = async () => {
     try {
-      const connectors = await fetchCollectionFromFirestore<any>('api_connectors');
+      const connectors = await fetchCollectionFromFirestore<any>('api_connectors', tenantId);
       if (!connectors || !connectors.pennylaneActive) {
         showPennylaneAlert("L'intégration Pennylane n'est pas activée. Veuillez l'activer dans les paramètres (connecteurs).", "error");
         return;

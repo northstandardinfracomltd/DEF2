@@ -561,7 +561,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               const tenantId = tnt.id;
               const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
               try {
-                const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+                const fetchedMembers = await fetchRawCollectionFromFirestore<any[]>(key);
                 if (fetchedMembers && Array.isArray(fetchedMembers)) {
                   const found = fetchedMembers.find(
                     (m: any) =>
@@ -618,7 +618,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             const tenantId = tnt.id;
             const key = tenantId === 'demo' ? 'clients' : `${tenantId}_clients`;
             try {
-              const fetchedClients = await fetchCollectionFromFirestore<any[]>(key);
+              const fetchedClients = await fetchRawCollectionFromFirestore<any[]>(key);
               if (fetchedClients && Array.isArray(fetchedClients)) {
                 const found = fetchedClients.find(
                   (c: any) =>
@@ -680,7 +680,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
             const tenantId = tnt.id;
             const key = tenantId === 'demo' ? 'members' : `${tenantId}_members`;
             try {
-              const fetchedMembers = await fetchCollectionFromFirestore<any[]>(key);
+              const fetchedMembers = await fetchRawCollectionFromFirestore<any[]>(key);
               if (fetchedMembers && Array.isArray(fetchedMembers)) {
                 const found = fetchedMembers.find(
                   (m: any) =>

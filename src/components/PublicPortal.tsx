@@ -5813,244 +5813,253 @@ export default function PublicPortal({
               </div>
             )}
 
-            {/* Top Bar Navigation for Mobile - requested Header style: 
-                TOUT EN HAUT À GAUCHE: Le nom de l'entreprise
-                À DROITE: Le Prénom/Nom de l'utilisateur */}
-            <header
-              className="px-5 pb-3.5 pt-8 flex flex-col gap-2.5 shrink-0 select-none text-white"
-              style={{ backgroundColor: "#5d1f74", borderBottom: "none" }}
-            >
-              {/* Ligne 1 : Nom de l'entreprise - centré */}
-              <div className="flex items-center justify-center text-center pt-2">
-                <div
-                  style={{ color: "#ffffff", paddingTop: "10px" }}
-                  className="font-gochi text-2xl text-center tracking-wide"
-                >
-                  {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
-                    ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
-                    : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
-                </div>
-              </div>
-
-              {/* Ligne 2 : Technicien et Quitter - 50% / 50% */}
-              <div className="flex items-center justify-between gap-2.5 w-full">
-                <span
-                  style={{
-                    fontSize: "16px",
-                    padding: "10px",
-                    background: "transparent",
-                    border: "1px solid #ffffff2b",
-                    color: "#fff",
-                    borderRadius: "9999px",
-                    textAlign: "center",
-                    width: "50%",
-                    fontWeight: "bold",
-                  }}
-                  className="truncate"
-                >
-                  {authenticatedUser.name}
-                </span>
-                <button
-                  onClick={handleLogout}
-                  style={{
-                    fontSize: "16px",
-                    padding: "10px",
-                    background: "#ffffff1a",
-                    border: "1px solid #ffffff2b",
-                    color: "#fff",
-                    borderRadius: "9999px",
-                    width: "50%",
-                    fontWeight: "bold",
-                    cursor: "pointer",
-                  }}
-                  className="hover:bg-[#ffffff2a] transition-all text-center"
-                >
-                  Quitter
-                </button>
-              </div>
-            </header>
-
-            {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
-            <nav
-              className="py-0 px-0 relative shrink-0"
-              id="nav-tabs"
-              style={{ backgroundColor: "#5d1f74" }}
-            >
-              {showLeftFade && (
-                <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-[#5d1f74] to-transparent pointer-events-none z-10" />
-              )}
-              {showRightFade && (
-                <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-[#5d1f74] to-transparent pointer-events-none z-10" />
-              )}
-
-              <div
-                ref={navRef}
-                onScroll={handleNavScroll}
-                className="flex p-2.5 gap-3.5 shrink-0 overflow-x-auto no-scrollbar scroll-smooth min-w-full"
-                style={{ backgroundColor: "#5d1f74" }}
+            {/* Top Bar Navigation and Tab Selector Wrapper with Linear Gradient */}
+            <div style={{ background: "linear-gradient(rgb(126, 46, 134), rgb(54, 9, 58))" }}>
+              {/* Top Bar Navigation for Mobile - requested Header style: 
+                  TOUT EN HAUT À GAUCHE: Le nom de l'entreprise
+                  À DROITE: Le Prénom/Nom de l'utilisateur */}
+              <header
+                className="px-5 pb-3.5 pt-8 flex flex-col gap-2.5 shrink-0 select-none text-white"
+                style={{ background: "transparent", borderBottom: "none" }}
               >
-                <button
-                  onClick={() => setActiveTab("interventions")}
-                  style={
-                    activeTab === "interventions"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Interventions</span>
-                </button>
+                {/* Ligne 1 : Nom de l'entreprise - centré */}
+                <div className="flex items-center justify-center text-center pt-2">
+                  <div
+                    style={{ color: "#ffffff", paddingTop: "10px" }}
+                    className="font-gochi text-2xl text-center tracking-wide"
+                  >
+                    {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
+                      ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
+                      : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
+                  </div>
+                </div>
 
-                <button
-                  onClick={() => setActiveTab("rapports")}
-                  style={
-                    activeTab === "rapports"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Rapports</span>
-                </button>
+                {/* Ligne 2 : Technicien et Quitter - 50% / 50% */}
+                <div className="flex items-center justify-between gap-2.5 w-full">
+                  <span
+                    style={{
+                      fontSize: "16px",
+                      padding: "10px",
+                      background: "transparent",
+                      border: "1px solid #ffffff2b",
+                      color: "#fff",
+                      borderRadius: "9999px",
+                      textAlign: "center",
+                      width: "50%",
+                      fontWeight: "bold",
+                    }}
+                    className="truncate"
+                  >
+                    {authenticatedUser.name}
+                  </span>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      fontSize: "16px",
+                      padding: "10px",
+                      background: "#ffffff1a",
+                      border: "1px solid #ffffff2b",
+                      color: "#fff",
+                      borderRadius: "9999px",
+                      width: "50%",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                    className="hover:bg-[#ffffff2a] transition-all text-center"
+                  >
+                    Quitter
+                  </button>
+                </div>
+              </header>
 
-                <button
-                  onClick={() => setActiveTab("stocks")}
-                  style={
-                    activeTab === "stocks"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Stocks</span>
-                </button>
+              {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
+              <nav
+                className="py-0 px-0 relative shrink-0"
+                id="nav-tabs"
+                style={{ background: "transparent" }}
+              >
+                {showLeftFade && (
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 w-8 pointer-events-none z-10" 
+                    style={{ background: "linear-gradient(to right, rgb(54, 9, 58), transparent)" }}
+                  />
+                )}
+                {showRightFade && (
+                  <div 
+                    className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none z-10" 
+                    style={{ background: "linear-gradient(to left, rgb(54, 9, 58), transparent)" }}
+                  />
+                )}
 
-                <button
-                  onClick={() => setActiveTab("temps")}
-                  style={
-                    activeTab === "temps"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                <div
+                  ref={navRef}
+                  onScroll={handleNavScroll}
+                  className="flex p-2.5 gap-3.5 shrink-0 overflow-x-auto no-scrollbar scroll-smooth min-w-full"
+                  style={{ background: "transparent" }}
                 >
-                  <span>Temps</span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("interventions")}
+                    style={
+                      activeTab === "interventions"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Interventions</span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("frais")}
-                  style={
-                    activeTab === "frais"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Frais</span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("rapports")}
+                    style={
+                      activeTab === "rapports"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Rapports</span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("veille")}
-                  style={
-                    activeTab === "veille"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Relevé Concurrentiel</span>
-                </button>
+                  <button
+                    onClick={() => setActiveTab("stocks")}
+                    style={
+                      activeTab === "stocks"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Stocks</span>
+                  </button>
 
-                <button
-                  onClick={() => setActiveTab("localisation")}
-                  style={
-                    activeTab === "localisation"
-                      ? {
-                          backgroundColor: "rgb(254, 78, 187)",
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                          borderRadius: "12px",
-                          boxShadow: "none",
-                        }
-                      : {
-                          color: "#ffffff",
-                          fontSize: "18px",
-                          fontWeight: "bold",
-                        }
-                  }
-                  className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  <span>Réglages</span>
-                </button>
-              </div>
-            </nav>
+                  <button
+                    onClick={() => setActiveTab("temps")}
+                    style={
+                      activeTab === "temps"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Temps</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("frais")}
+                    style={
+                      activeTab === "frais"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Frais</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("veille")}
+                    style={
+                      activeTab === "veille"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Relevé Concurrentiel</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("localisation")}
+                    style={
+                      activeTab === "localisation"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Réglages</span>
+                  </button>
+                </div>
+              </nav>
+            </div>
 
             {/* Scrollable Contents Body */}
             <div

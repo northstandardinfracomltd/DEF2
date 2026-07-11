@@ -1318,7 +1318,7 @@ export default function GmaoCorrectionForm({
         type="button"
         onClick={onCancel}
         id="btn-close-gmao-modal"
-        style={{ ...rowActionButton18Style, width: '100%', borderRadius: '0px' }}
+        style={{ ...rowActionButton18Style, width: '100%', borderRadius: '0px', padding: '15px 20px' }}
         className="transition-colors cursor-pointer font-sans"
       >
         Annuler

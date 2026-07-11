@@ -797,13 +797,20 @@ export default function StocksDistribuesTab({
                       const rowStats = getPieceOutgoingStats(item.denominationPieceId);
 
                       return (
-                        <tr key={item.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
+                        <tr
+                          key={item.id}
+                          className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                            handleEditClick(item);
+                          }}
+                        >
                           {/* UGS */}
-                          <td className="px-4 py-5 whitespace-nowrap font-sans text-slate-800" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '16px', color: '#000000', cursor: 'default' }}>
+                          <td className="px-4 py-5 whitespace-nowrap font-sans text-slate-800" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '16px', color: '#000000' }}>
                             {ugsCode || '-'}
                           </td>
                           {/* Pièce ou service */}
-                          <td className="px-4 py-5 whitespace-nowrap font-sans text-black" style={{ fontSize: '16px', color: '#000000', cursor: 'default', whiteSpace: 'nowrap' }}>
+                          <td className="px-4 py-5 whitespace-nowrap font-sans text-black" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>
                             <span className="font-semibold">{pieceName}</span> <span className="text-black font-normal">({pieceCat})</span>
                           </td>
                           {/* Emplacement */}
@@ -828,27 +835,27 @@ export default function StocksDistribuesTab({
                             </span>
                           </td>
                           {/* Qté disponible */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {item.volumeDisponible}
                           </td>
                           {/* Qté réservée */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {item.volumeReserve}
                           </td>
                           {/* Qté entrante */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {item.volumeEntrant}
                           </td>
                           {/* Sortant Sem */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap font-semibold" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {rowStats.week1.vol}
                           </td>
                           {/* Sortant Sem Pro */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {rowStats.week2.vol}
                           </td>
                           {/* Sortant 7 à 30 jours */}
-                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                          <td className="px-4 py-5 text-center whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                             {rowStats.next30.vol}
                           </td>
                           {/* Actions */}

@@ -646,7 +646,10 @@ export default function VariableTab({
                   <tr
                     key={v.id}
                     id={`variable-row-${v.id}`}
-                    onClick={() => openEditModal(v)}
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                      openEditModal(v);
+                    }}
                     className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
                   >
                     {/* Visual box column */}

@@ -400,6 +400,10 @@ export default function AchatsFournisseursTab({
                         <tr
                           key={achat.id}
                           className="group hover:bg-[#ffecf8] transition-all cursor-pointer border-b border-slate-100"
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                            startEditAchat(achat);
+                          }}
                         >
                           {/* Reference */}
                           <td

@@ -256,7 +256,8 @@ export async function triggerEmail6RapportIntervention(
     return false;
   }
   const subject = `${companyName} : Document relatif à votre matériel.`;
-  const body = `Un document a été généré pour l’intervention effectuée sur votre matériel ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client https://defibeo.deroesch.com/ pour le télécharger. Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/`;
+  const enableAvis = localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) !== 'Non';
+  const body = `Un document a été généré pour l’intervention effectuée sur votre matériel ${defibIdentifiant} le ${dateStr}. Connectez-vous sur votre portail client https://defibeo.deroesch.com/ pour le télécharger.${enableAvis ? ' Nous vous invitons à laisser un avis sur : https://defibeo.deroesch.com/satisfaction/' : ''}`;
   
   return sendScriptEmail({
     to: `defibeo@gmail.com, ${clientEmail}`,

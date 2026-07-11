@@ -155,10 +155,14 @@ export default function StocksTab({
   const [expirationDate, setExpirationDate] = useState<string>('');
   const [situation, setSituation] = useState<'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant'>('Disponible');
 
+  const filteredDistributedStocks = useMemo(() => {
+    return distributedStocks.filter(ds => ds.denominationPieceId === newDenomStr);
+  }, [distributedStocks, newDenomStr]);
+
   useEffect(() => {
     if (newMvType === 'Distribution' || newMvType === 'Rapatriement') {
-      if (distributedStocks.length > 0) {
-        const ds = distributedStocks[0];
+      if (filteredDistributedStocks.length > 0) {
+        const ds = filteredDistributedStocks[0];
         const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
         const itemName = matchedVar ? matchedVar.nom : 'Pièce';
         const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
@@ -176,7 +180,7 @@ export default function StocksTab({
     } else {
       setNewMvEmplacement('');
     }
-  }, [newMvType, distributedStocks, variables, stocks, achatsFournisseurs]);
+  }, [newMvType, filteredDistributedStocks, variables, stocks, achatsFournisseurs]);
 
   const handleAddMovementInline = () => {
     if (newMvVolume <= 0) {
@@ -908,7 +912,30 @@ export default function StocksTab({
                       const besoin2to6M = st.besoinProjete2a6Mois !== undefined ? Math.max(st.besoinProjete2a6Mois, prev.bis2to6M) : prev.bis2to6M;
 
                       return (
-                        <tr key={st.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
+                        <tr
+                          key={st.id}
+                          className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
+                          onClick={(e) => {
+                            if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                            setEditingStockId(st.id);
+                            setNewDenomStr(st.denominationPieceId);
+                            setNewQty(st.quantite);
+                            setNewQtyReservee(st.quantiteReservee ?? 0);
+                            setNewLivDate(st.livraisonDate || '');
+                            setNewReapDate(st.reapprovisionnementDate || '');
+                            setNewValAchat((st.valeurAchat ?? 0).toString());
+                            setNewMarge((st.marge ?? 0).toString());
+                            setNewPrixHt((st.prixVenteHt ?? 0).toString());
+                            setNewStorage(st.stockage);
+                            setNewCommentaire(st.commentaire || '');
+                            setNewUsageRecommandeIds(st.usageRecommandeIds ?? []);
+                            setMouvements(st.mouvements || []);
+                            setNewUgs(st.ugs || '');
+                            setTraceabilityEnabled(st.traceabilityEnabled ?? false);
+                            setTraceabilities(st.traceabilities ?? []);
+                            setShowStockForm(true);
+                          }}
+                        >
                           <td className="px-4 py-5 whitespace-nowrap font-sans text-xs font-bold text-slate-800 uppercase tracking-wide" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '15px' }}>
                             {st.ugs || '0001'}
                           </td>
@@ -1268,6 +1295,59 @@ export default function StocksTab({
                     Prévoyance
                   </span>
                 </div>
+
+                {/* Field Usage recommandé. */}
+                <div className="flex flex-col gap-1 bg-white mb-4">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
+                    Usage recommandé.
+                  </label>
+                  <div className="flex flex-wrap gap-2 mb-1">
+                    {newUsageRecommandeIds.map(id => {
+                      const vObj = variables.find(v => v.id === id);
+                      if (!vObj) return null;
+                      const formattedName = vObj.marque && vObj.marque !== 'Standard'
+                        ? `${vObj.marque} ${vObj.nom}`
+                        : vObj.nom;
+                      return (
+                        <span
+                          key={id}
+                          onClick={() => {
+                            setNewUsageRecommandeIds(prev => prev.filter(x => x !== id));
+                          }}
+                          className="inline-flex items-center px-3 py-1 bg-[#3B5BEE] text-white border border-[#3B5BEE] rounded-full text-xs font-medium font-sans cursor-pointer hover:bg-[#F9383C] hover:border-[#F9383C] hover:text-white transition-colors"
+                          title="Cliquez pour supprimer"
+                        >
+                          <span>{formattedName}</span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <select
+                    value=""
+                    onChange={(e) => {
+                      const selectedId = e.target.value;
+                      if (selectedId && !newUsageRecommandeIds.includes(selectedId)) {
+                        setNewUsageRecommandeIds(prev => [...prev, selectedId]);
+                      }
+                    }}
+                    className="focus:outline-none w-full cursor-pointer font-sans p-2 border border-slate-200 rounded text-slate-700 text-sm"
+                  >
+                    <option value="" disabled>Choisir le matériel adéquat.</option>
+                    {variables
+                      .filter(v => v.category === 'Modèle Défibrillateur' && !newUsageRecommandeIds.includes(v.id))
+                      .map(v => {
+                        const label = v.marque && v.marque !== 'Standard'
+                          ? `${v.marque} - ${v.nom}`
+                          : v.nom;
+                        return (
+                          <option key={v.id} value={v.id}>
+                            {label}
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+
                 <div 
                   style={{
                     color: 'rgb(143 51 151)',
@@ -1314,58 +1394,6 @@ export default function StocksTab({
                       placeholder="0"
                       className="focus:outline-none w-full font-sans cursor-not-allowed bg-slate-100 text-slate-700 p-2 border border-slate-200 rounded"
                     />
-                  </div>
-
-                  {/* Field Usage recommandé. */}
-                  <div className="flex flex-col gap-1 bg-white md:col-span-3 mt-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
-                      Usage recommandé.
-                    </label>
-                    <div className="flex flex-wrap gap-2 mb-1">
-                      {newUsageRecommandeIds.map(id => {
-                        const vObj = variables.find(v => v.id === id);
-                        if (!vObj) return null;
-                        const formattedName = vObj.marque && vObj.marque !== 'Standard'
-                          ? `${vObj.marque} ${vObj.nom}`
-                          : vObj.nom;
-                        return (
-                          <span
-                            key={id}
-                            onClick={() => {
-                              setNewUsageRecommandeIds(prev => prev.filter(x => x !== id));
-                            }}
-                            className="inline-flex items-center px-3 py-1 bg-purple-100 text-purple-900 border border-purple-200 rounded-full text-xs font-medium font-sans cursor-pointer hover:bg-purple-200 transition-colors"
-                            title="Cliquez pour supprimer"
-                          >
-                            <span>{formattedName}</span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        const selectedId = e.target.value;
-                        if (selectedId && !newUsageRecommandeIds.includes(selectedId)) {
-                          setNewUsageRecommandeIds(prev => [...prev, selectedId]);
-                        }
-                      }}
-                      className="focus:outline-none w-full cursor-pointer font-sans p-2 border border-slate-200 rounded text-slate-700 text-sm"
-                    >
-                      <option value="" disabled>Rechercher et choisir un modèle de défibrillateur...</option>
-                      {variables
-                        .filter(v => v.category === 'Modèle Défibrillateur' && !newUsageRecommandeIds.includes(v.id))
-                        .map(v => {
-                          const label = v.marque && v.marque !== 'Standard'
-                            ? `${v.marque} - ${v.nom}`
-                            : v.nom;
-                          return (
-                            <option key={v.id} value={v.id}>
-                              {label}
-                            </option>
-                          );
-                        })}
-                    </select>
                   </div>
                 </div>
               </div>
@@ -1449,7 +1477,7 @@ export default function StocksTab({
                               required
                             >
                               <option value="" disabled hidden>Sélectionnez un emplacement</option>
-                              {distributedStocks.map(ds => {
+                              {filteredDistributedStocks.map(ds => {
                                 const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
                                 const itemName = matchedVar ? matchedVar.nom : 'Pièce';
                                 const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
@@ -1474,7 +1502,7 @@ export default function StocksTab({
                               disabled
                             >
                               <option value="" disabled hidden>Pas d'emplacement</option>
-                              {distributedStocks.map(ds => {
+                              {filteredDistributedStocks.map(ds => {
                                 const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
                                 const itemName = matchedVar ? matchedVar.nom : 'Pièce';
                                 const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);

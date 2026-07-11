@@ -5232,7 +5232,7 @@ export default function App() {
                                                 }}
                                                 className="font-sans cursor-pointer focus:outline-none"
                                               >
-                                                <option value="">Sélectionnez une tournée Brouillon...</option>
+                                                <option value="">Sélection tournée brouillon.</option>
                                                 {fsmTours
                                                   .filter(tour => tour.id !== 'a-trier' && (tour.status || 'Brouillon') === 'Brouillon')
                                                   .map(tour => (
@@ -6887,8 +6887,17 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => handleDownloadReport(rep)}
-                                      style={rowActionButtonStyle}
-                                      className="cursor-pointer"
+                                      disabled={!rep.validated}
+                                      style={{
+                                        ...rowActionButtonStyle,
+                                        backgroundColor: !rep.validated ? '#cbd5e1' : rowActionButtonStyle.backgroundColor,
+                                        color: !rep.validated ? '#64748b' : rowActionButtonStyle.color,
+                                        opacity: !rep.validated ? 0.35 : 1,
+                                        boxShadow: !rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
+                                        cursor: !rep.validated ? 'not-allowed' : 'pointer',
+                                        border: 'none',
+                                      }}
+                                      className={!rep.validated ? "cursor-not-allowed opacity-35" : "cursor-pointer"}
                                     >
                                       Télécharger
                                     </button>
@@ -7791,7 +7800,14 @@ export default function App() {
                                 };
 
                                 return (
-                                  <tr key={doc.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
+                                  <tr
+                                    key={doc.id}
+                                    className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
+                                    onClick={(e) => {
+                                      if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                                      startEditDoc(doc);
+                                    }}
+                                  >
                                     {/* Référence */}
                                     <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                                       {doc.ref}

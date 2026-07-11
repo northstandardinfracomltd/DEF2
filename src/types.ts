@@ -251,6 +251,7 @@ export interface CompanyInfo {
   mentionsLegalesFactures?: string;
   locationNames?: Record<string, string>;
   enableAutoEmails?: 'Oui' | 'Non';
+  enableSatisfactionAvis?: 'Oui' | 'Non';
   gmailPartageLocalisation?: string;
 }
 

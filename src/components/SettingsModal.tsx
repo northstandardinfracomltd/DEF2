@@ -126,6 +126,13 @@ export default function SettingsModal({
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     return (localStorage.getItem(`defib_${tenantId}_enable_auto_emails`) as 'Oui' | 'Non') || 'Oui';
   });
+  const [enableSatisfactionAvis, setEnableSatisfactionAvis] = React.useState<'Oui' | 'Non'>(() => {
+    if (companyInfo && companyInfo.enableSatisfactionAvis) {
+      return companyInfo.enableSatisfactionAvis;
+    }
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    return (localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) as 'Oui' | 'Non') || 'Oui';
+  });
 
   const renderSectionHeader = (text: string, showSave: boolean = true) => (
     <div className="flex items-center justify-between mb-3 bg-transparent select-none w-full">
@@ -797,7 +804,8 @@ export default function SettingsModal({
     const companyToSave = {
       ...localCompany,
       locationNames: localLocationNames,
-      enableAutoEmails: enableAutoEmails
+      enableAutoEmails: enableAutoEmails,
+      enableSatisfactionAvis: enableSatisfactionAvis
     };
     onUpdateCompanyInfo(companyToSave);
     onUpdateMembers(localMembers);
@@ -825,6 +833,7 @@ export default function SettingsModal({
     // Sauvegarder les intitulés personnalisés des emplacements
     localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
     localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
+    localStorage.setItem(`defib_${myTenantId}_enable_satisfaction_avis`, enableSatisfactionAvis);
     if (onUpdateLocationNames) {
       onUpdateLocationNames(localLocationNames);
     }
@@ -1160,6 +1169,64 @@ export default function SettingsModal({
               </div>
             </div>
 
+            {/* SATISFACTION REVIEW TEXT OPTION */}
+            <div className="space-y-2 mt-4">
+              <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+                {t("Activer le texte invitant le client à laisser un avis (mesure de satisfaction).")}
+              </label>
+              <div className="flex items-center space-x-6 py-1 font-sans">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEnableSatisfactionAvis("Oui");
+                  }}
+                  className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+                >
+                  <span 
+                    className="rounded-full flex items-center justify-center transition-all bg-white"
+                    style={{
+                      border: enableSatisfactionAvis === "Oui" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                      width: '20px',
+                      height: '20px',
+                      minWidth: '20px',
+                      minHeight: '20px',
+                      backgroundColor: '#ffffff'
+                    }}
+                  >
+                    {enableSatisfactionAvis === "Oui" && (
+                      <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                    )}
+                  </span>
+                  <span className="text-[15px] font-semibold text-black">{t("Oui")}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEnableSatisfactionAvis("Non");
+                  }}
+                  className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+                >
+                  <span 
+                    className="rounded-full flex items-center justify-center transition-all bg-white"
+                    style={{
+                      border: enableSatisfactionAvis === "Non" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                      width: '20px',
+                      height: '20px',
+                      minWidth: '20px',
+                      minHeight: '20px',
+                      backgroundColor: '#ffffff'
+                    }}
+                  >
+                    {enableSatisfactionAvis === "Non" && (
+                      <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                    )}
+                  </span>
+                  <span className="text-[15px] font-semibold text-black">{t("Non")}</span>
+                </button>
+              </div>
+            </div>
+
             {/* OTHER EQUIPMENTS INTEGRATION */}
             <div className="space-y-2 mt-4">
             <label className="block text-[16px] font-bold text-black font-sans leading-tight">
@@ -1465,16 +1532,15 @@ export default function SettingsModal({
                       className="w-full text-black font-semibold text-xs font-sans cursor-pointer"
                     >
                       <option value="">{t("Sélect. un emplacement")}</option>
-                      {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => {
-                        const isTaken = localMembers.some(
-                          mem => mem.role === 'Technicien' && mem.locationLink === loc
-                        );
-                        return (
-                          <option key={loc} value={loc} disabled={isTaken}>
-                            {t(getLocationCustomName(loc))} {isTaken ? t(" (Déjà attribué)") : ''}
-                          </option>
-                        );
-                      })}
+                      {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const)
+                        .filter(loc => !localMembers.some(mem => mem.role === 'Technicien' && mem.locationLink === loc))
+                        .map(loc => {
+                          return (
+                            <option key={loc} value={loc}>
+                              {t(getLocationCustomName(loc))}
+                            </option>
+                          );
+                        })}
                     </select>
                   </div>
                 )}
@@ -1704,17 +1770,21 @@ export default function SettingsModal({
                                   style={{ height: '36px', padding: '6px 10px' }}
                                 >
                                   <option value="">{t("Sélect. un emplacement")}</option>
-                                  {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const).map(loc => {
-                                    // Check if this location is taken by ANOTHER technician
-                                    const isTakenByOther = localMembers.some(
-                                      (mem, otherIdx) => otherIdx !== idx && mem.role === 'Technicien' && mem.locationLink === loc
-                                    );
-                                    return (
-                                      <option key={loc} value={loc} disabled={isTakenByOther}>
-                                        {t(getLocationCustomName(loc))} {isTakenByOther ? t(" (Déjà attribué)") : ''}
-                                      </option>
-                                    );
-                                  })}
+                                  {(['Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J', 'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'] as const)
+                                    .filter(loc => {
+                                      if (loc === m.locationLink) return true;
+                                      const isTakenByOther = localMembers.some(
+                                        (mem, otherIdx) => otherIdx !== idx && mem.role === 'Technicien' && mem.locationLink === loc
+                                      );
+                                      return !isTakenByOther;
+                                    })
+                                    .map(loc => {
+                                      return (
+                                        <option key={loc} value={loc}>
+                                          {t(getLocationCustomName(loc))}
+                                        </option>
+                                      );
+                                    })}
                                 </select>
                               </div>
                             )}

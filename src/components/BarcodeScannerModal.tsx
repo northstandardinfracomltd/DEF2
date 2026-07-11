@@ -255,7 +255,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
         </div>
 
         {/* Footer with Close Button */}
-        <div className="p-4 bg-white border-t border-slate-100 w-full">
+        <div className="p-4 bg-white border-t border-slate-100 w-full text-center">
           <button 
             type="button"
             onClick={onClose}
@@ -272,10 +272,13 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({ isOpen
               cursor: 'pointer',
               border: 'none'
             }}
-            className="font-sans hover:bg-neutral-900 cursor-pointer transition-all"
+            className="font-sans hover:bg-neutral-900 cursor-pointer transition-all mb-3"
           >
             Fermer
           </button>
+          <p className="text-[12px] text-slate-500 font-sans leading-relaxed">
+            Compatible uniquement avec les codes-barres émis par Défibeo et ceux du système GS1.
+          </p>
         </div>
       </div>
     </div>

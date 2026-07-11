@@ -841,9 +841,7 @@ export default function GmaoCorrectionForm({
     // 1. PIN Code validation
     const enteredPinTrimmed = clientPinCode.trim().toUpperCase();
     let isPinValid = true;
-    if (!clientPinCode.trim()) {
-      isPinValid = false;
-    } else {
+    if (clientPinCode.trim()) {
       const relatedClient = clients.find(c => c.id === snapshot.clientId);
       const isOriginalPin = report && report.clientPinCode && report.clientPinCode.trim().toUpperCase() === enteredPinTrimmed;
 
@@ -876,9 +874,9 @@ export default function GmaoCorrectionForm({
           isPinValid = false;
         }
       }
-    }
-    if (!isPinValid) {
-      errors.push("À la section 11, le code PIN de signature client est requis et doit être valide pour ce client.");
+      if (!isPinValid) {
+        errors.push("À la section 11, le code PIN de signature client saisi est invalide pour ce client.");
+      }
     }
 
     // 2. Dates validation
@@ -1308,25 +1306,25 @@ export default function GmaoCorrectionForm({
   };
 
   return (
-    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-[440px] mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl force-smartphone-layout" id="gmao-correction-layout">
+    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-[440px] mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg force-smartphone-layout" id="gmao-correction-layout">
       {/* Header section identical in looks to Defibrillateurs with limited width */}
       <div 
-        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"
-        style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px 0px 18px 18px', maxWidth: '100%', margin: 'auto', padding: '20px' }}
+        className="flex flex-col gap-4 bg-white w-full"
+        style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px', maxWidth: '100%', margin: 'auto', padding: '20px' }}
         id="defib-form-header-box"
       >
-        <div>
-          <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#000000', cursor: 'default' }}>
+        <div className="text-center w-full">
+          <h3 className="text-2xl font-bold font-gochi text-center" id="form-modal-title" style={{ color: '#000000', cursor: 'default', textAlign: 'center' }}>
             {isNew || !report ? 'Nouveau Rapport' : 'Correction Document'}
           </h3>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full">
           <button
             type="button"
             onClick={onCancel}
             id="btn-close-gmao-modal"
-            style={rowActionButton18Style}
+            style={{ ...rowActionButton18Style, width: '50%', flexGrow: 1 }}
             className="transition-colors cursor-pointer font-sans"
           >
             Fermer
@@ -1337,7 +1335,7 @@ export default function GmaoCorrectionForm({
             disabled={isSaving}
             form="gmao-correction-form"
             id="btn-submit-gmao-form"
-            style={{ ...registerButtonStyle, opacity: isSaving ? 0.5 : (hasClickedOnce ? 0.85 : 1) }}
+            style={{ ...registerButtonStyle, opacity: isSaving ? 0.5 : (hasClickedOnce ? 0.85 : 1), width: '50%', flexGrow: 1 }}
             className="transition-colors cursor-pointer font-sans"
           >
             Enregistrer
@@ -1360,10 +1358,10 @@ export default function GmaoCorrectionForm({
           <div 
             className="p-5 font-sans animate-fadeIn space-y-4" 
             style={{ 
-              backgroundColor: '#a14fa8', 
+              backgroundColor: '#501655', 
               color: '#ffffff',
               fontSize: '18px',
-              borderRadius: '13px',
+              borderRadius: '0px',
               border: 'none',
               maxWidth: '100%',
               margin: '12px auto'
@@ -1599,7 +1597,7 @@ export default function GmaoCorrectionForm({
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
-              borderRadius: '18px 18px 0px 0px',
+              borderRadius: '0px',
             }}
           >
             <div className="mb-2 bg-transparent">
@@ -3828,7 +3826,7 @@ export default function GmaoCorrectionForm({
             style={{
               border: '1px solid rgb(218, 218, 218)',
               borderTop: 'none',
-              borderRadius: '0px 0px 18px 18px',
+              borderRadius: '0px',
             }}
           >
             <div className="mb-2 bg-transparent">
@@ -3884,15 +3882,23 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div 
-              className="p-4 space-y-3 bg-white"
-              style={{
-                border: '1px solid #D5D5D5',
-                borderRadius: '13px'
-              }}
-            >
-              <label htmlFor="client-pin-code" className="block text-[11px] font-bold text-black uppercase tracking-wider">
-                Signature client avec PIN. <span className="text-red-500">*</span>
+            <div className="space-y-1">
+              <label htmlFor="snap-commentaire" className="block text-[11px] font-bold text-black uppercase">
+                Commentaire de diagnostic et de clôture.
+              </label>
+              <textarea
+                id="snap-commentaire"
+                rows={4}
+                value={snapshot.commentaire || ''}
+                onChange={(e) => handleSnapshotChange('commentaire', e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 text-xs rounded-lg leading-relaxed focus:ring-1 focus:ring-indigo-500"
+                placeholder="Entrez un commentaire."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="client-pin-code" className="block text-[11px] font-bold text-black uppercase">
+                Signature client avec PIN.
               </label>
               <div className="flex gap-2 max-w-sm">
                 <input
@@ -3903,7 +3909,6 @@ export default function GmaoCorrectionForm({
                   onChange={(e) => setClientPinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
                   placeholder="Ex: ABC123"
                   className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-800 tracking-widest placeholder:tracking-normal placeholder:font-sans"
-                  required
                 />
               </div>
             </div>
@@ -3957,20 +3962,6 @@ export default function GmaoCorrectionForm({
                 />
               </div>
             </div>
-
-            <div className="space-y-1">
-              <label htmlFor="snap-commentaire" className="block text-[11px] font-bold text-black uppercase">
-                Commentaire de diagnostic et de clôture.
-              </label>
-              <textarea
-                id="snap-commentaire"
-                rows={4}
-                value={snapshot.commentaire || ''}
-                onChange={(e) => handleSnapshotChange('commentaire', e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 text-xs rounded-lg leading-relaxed focus:ring-1 focus:ring-indigo-500"
-                placeholder="Entrez un commentaire."
-              />
-            </div>
           </div>
 
         </div>
@@ -3985,8 +3976,8 @@ export default function GmaoCorrectionForm({
           maxWidth: '1000px',
           marginLeft: 'auto',
           marginRight: 'auto',
-          borderTopLeftRadius: '20px',
-          borderTopRightRadius: '20px'
+          borderTopLeftRadius: '0px',
+          borderTopRightRadius: '0px'
         }} 
         id="error-code-helper-panel"
       >

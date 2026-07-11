@@ -2193,6 +2193,54 @@ export default function ClientPortal({
            {/* Section: Pointages auto-vigilance */}
           {activePortalTab === 'autovigilance' && (
             <div className="space-y-8">
+              {/* Info-div for verification items */}
+              <div 
+                className="p-5 rounded-2xl border flex flex-col gap-3 font-sans text-[16px] text-black bg-slate-50/50"
+                style={{
+                  borderColor: 'rgb(226, 232, 240)',
+                  maxWidth: '100%',
+                }}
+              >
+                <div className="font-bold text-[18px] text-black">
+                  {t("Quatre vérifications simples pour votre pointage :")}
+                </div>
+                <ul className="space-y-2 list-none pl-0 m-0">
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-400 select-none">—</span>
+                    <span>
+                      <strong className="font-semibold">{t("Témoin lumineux :")}</strong> {t("Vert, prêt à l'emploi. Rouge, intervention nécessaire.")}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-400 select-none">—</span>
+                    <span>
+                      <strong className="font-semibold">{t("Électrodes :")}</strong> {t("Contrôlez la date de péremption, car un gel asséché perd en efficacité.")}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-400 select-none">—</span>
+                    <span>
+                      <strong className="font-semibold">{t("Batterie :")}</strong> {t("Contrôlez sa validité pour garantir puissance du choc.")}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-400 select-none">—</span>
+                    <span>
+                      <strong className="font-semibold">{t("Signalétique :")}</strong> {t("Les panneaux doivent êtres visibles, vérifiez les.")}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-slate-400 select-none">—</span>
+                    <span>
+                      <strong className="font-semibold">{t("Boîtier/Armoire :")}</strong> {t("Vérifiez le bon état")}
+                    </span>
+                  </li>
+                </ul>
+                <div className="mt-1 font-semibold text-[#7e2e86]">
+                  {t("En cas de doute, anticipez et contactez-nous.")}
+                </div>
+              </div>
+
               <div id="new-pointage-container">
                 {assignedEquipment.length === 0 ? null : (
                   <form onSubmit={handleSavePointage} className="space-y-4">

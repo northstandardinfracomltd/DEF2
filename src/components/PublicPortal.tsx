@@ -5847,10 +5847,13 @@ export default function PublicPortal({
                       textAlign: "center",
                       width: "50%",
                       fontWeight: "bold",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
                     }}
                     className="truncate"
                   >
-                    {authenticatedUser.name}
+                    {authenticatedUser.name.length > 10 ? authenticatedUser.name.substring(0, 10) + "..." : authenticatedUser.name}
                   </span>
                   <button
                     onClick={handleLogout}
@@ -6150,7 +6153,10 @@ export default function PublicPortal({
                               <button
                                 type="button"
                                 onClick={handleRecalculateTour}
-                                className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-bold text-[18px] rounded-[13px] transition-all shadow-sm"
+                                style={{
+                                  boxShadow: "rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset",
+                                }}
+                                className="px-5 py-2.5 bg-black hover:bg-neutral-900 text-white font-bold text-[18px] rounded-[13px] transition-all"
                               >
                                 {t("Re/Calculer")}
                               </button>
@@ -6469,7 +6475,7 @@ export default function PublicPortal({
                                             borderRadius: "12px",
                                             padding: "11px 20px",
                                             border: "none",
-                                            boxShadow: "none",
+                                            boxShadow: isCompleted ? "none" : "rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset",
                                             cursor: isCompleted
                                               ? "not-allowed"
                                               : "pointer",
@@ -6535,7 +6541,7 @@ export default function PublicPortal({
                                           style={{
                                             backgroundColor: isCompleted
                                               ? "#e2e8f0"
-                                              : "#3556ec",
+                                              : "rgb(53, 86, 236)",
                                             color: isCompleted
                                               ? "#94a3b8"
                                               : "#fff",
@@ -6546,7 +6552,7 @@ export default function PublicPortal({
                                             border: "none",
                                             boxShadow: isCompleted
                                               ? "none"
-                                              : "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                                              : "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                                             cursor: isCompleted
                                               ? "not-allowed"
                                               : "pointer",
@@ -6790,7 +6796,7 @@ export default function PublicPortal({
                       setIsReportOverlayOpen(true);
                     }}
                     style={{
-                      backgroundColor: "#3556ec",
+                      backgroundColor: "rgb(53, 86, 236)",
                       color: "#ffffff",
                       fontSize: "18px",
                       fontWeight: "bold",
@@ -6798,7 +6804,7 @@ export default function PublicPortal({
                       padding: "14px 20px",
                       border: "none",
                       boxShadow:
-                        "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                        "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                       cursor: "pointer",
                       width: "100%",
                     }}
@@ -6916,7 +6922,7 @@ export default function PublicPortal({
                             type="button"
                             onClick={() => handleDownloadReport(rep)}
                             style={{
-                              backgroundColor: "#3556ec",
+                              backgroundColor: "rgb(53, 86, 236)",
                               color: "#fff",
                               fontSize: "18px",
                               fontWeight: "bold",
@@ -6924,7 +6930,7 @@ export default function PublicPortal({
                               padding: "12px 20px",
                               border: "none",
                               boxShadow:
-                                "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                                "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                               cursor: "pointer",
                               width: "100%",
                             }}
@@ -6955,7 +6961,7 @@ export default function PublicPortal({
                               padding: "12px 20px",
                               border: "none",
                               boxShadow:
-                                "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, inset 0 6px 12px #ffffff1f",
+                                "rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset",
                               cursor: "pointer",
                               width: "100%",
                               marginTop: "8px",
@@ -8148,15 +8154,16 @@ export default function PublicPortal({
                           type="button"
                           onClick={handleTogglePointage}
                           style={{
-                            backgroundColor: isTracking ? "#dc2626" : "#3556ec",
+                            backgroundColor: isTracking ? "#dc2626" : "rgb(53, 86, 236)",
                             color: "#fff",
                             fontSize: "18px",
                             fontWeight: "bold",
                             borderRadius: "12px",
                             padding: "14px 20px",
                             border: "none",
-                            boxShadow:
-                              "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                            boxShadow: isTracking
+                              ? "none"
+                              : "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                             cursor: "pointer",
                             width: "100%",
                           }}
@@ -8628,7 +8635,7 @@ export default function PublicPortal({
                               padding: "9px 18px",
                               border: "none",
                               boxShadow:
-                                "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                                "rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset",
                               cursor: "pointer",
                             }}
                             className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center font-bold"
@@ -8674,7 +8681,7 @@ export default function PublicPortal({
                     <button
                       type="submit"
                       style={{
-                        backgroundColor: "#3556ec",
+                        backgroundColor: "rgb(53, 86, 236)",
                         color: "#fff",
                         fontSize: "18px",
                         fontWeight: "bold",
@@ -8682,7 +8689,7 @@ export default function PublicPortal({
                         padding: "14px 20px",
                         border: "none",
                         boxShadow:
-                          "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                          "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                         cursor: "pointer",
                         width: "100%",
                       }}
@@ -8910,7 +8917,7 @@ export default function PublicPortal({
                     <button
                       type="submit"
                       style={{
-                        backgroundColor: "#3556ec",
+                        backgroundColor: "rgb(53, 86, 236)",
                         color: "#fff",
                         fontSize: "18px",
                         fontWeight: "bold",
@@ -8918,7 +8925,7 @@ export default function PublicPortal({
                         padding: "14px 20px",
                         border: "none",
                         boxShadow:
-                          "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                          "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                         cursor: "pointer",
                         width: "100%",
                       }}
@@ -9279,7 +9286,7 @@ export default function PublicPortal({
                     <button
                       type="submit"
                       style={{
-                        backgroundColor: "#3556ec",
+                        backgroundColor: "rgb(53, 86, 236)",
                         color: "#fff",
                         fontSize: "18px",
                         fontWeight: "bold",
@@ -9287,7 +9294,7 @@ export default function PublicPortal({
                         padding: "14px 20px",
                         border: "none",
                         boxShadow:
-                          "inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f",
+                          "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
                         cursor: "pointer",
                         width: "100%",
                       }}
@@ -9474,6 +9481,8 @@ export default function PublicPortal({
                             borderRadius: "12px",
                             padding: "14px 20px",
                             border: "none",
+                            boxShadow:
+                              "rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset",
                             cursor: "pointer",
                             width: "100%",
                           }}

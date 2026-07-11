@@ -458,6 +458,105 @@ export default function GmaoCorrectionForm({
   const [tempLat, setTempLat] = useState<number>(48.8566);
   const [tempLng, setTempLng] = useState<number>(2.3522);
 
+  // Active Section horizontal navigation bar on mobile
+  const [activeSection, setActiveSection] = useState<number>(0);
+  const pillsContainerRef = useRef<HTMLDivElement>(null);
+
+  const SECTIONS_METADATA = useMemo(() => [
+    { id: 0, label: "0 — Configuration" },
+    { id: 1, label: "1 — Identification" },
+    { id: 2, label: "2 — Client" },
+    { id: 3, label: "3 — Coffret" },
+    { id: 4, label: "4 — Accès" },
+    { id: 5, label: "5 — Dates" },
+    { id: 6, label: "6 — Électrode Adulte" },
+    { id: 7, label: "7 — Électrode Pédiatrique" },
+    { id: 8, label: "8 — Batterie" },
+    { id: 9, label: "9 — Vérifications" },
+    { id: 10, label: "10 — Kit de secours" },
+    { id: 11, label: "11 — Clôture" },
+  ], []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sectionIds = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+      let currentActive = 0;
+      let minDiff = Infinity;
+      const refLine = 120; // threshold from the top of the viewport
+
+      for (const id of sectionIds) {
+        const el = document.getElementById(`gmao-sec-${id}`);
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          const diff = Math.abs(rect.top - refLine);
+          if (diff < minDiff) {
+            minDiff = diff;
+            currentActive = id;
+          }
+        }
+      }
+      setActiveSection(currentActive);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    const overlay = document.getElementById('report-form-overlay');
+    if (overlay) {
+      overlay.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    const interval = setInterval(handleScroll, 400);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (overlay) {
+        overlay.removeEventListener('scroll', handleScroll);
+      }
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pillsContainerRef.current) {
+      const activePill = pillsContainerRef.current.querySelector(`[data-pill-id="${activeSection}"]`);
+      if (activePill) {
+        const container = pillsContainerRef.current;
+        const pillRect = activePill.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        const scrollLeft = (activePill as HTMLElement).offsetLeft - (containerRect.width / 2) + (pillRect.width / 2);
+        container.scrollTo({
+          left: scrollLeft,
+          behavior: 'smooth'
+        });
+      }
+    }
+  }, [activeSection]);
+
+  const scrollToSection = (id: number) => {
+    const el = document.getElementById(`gmao-sec-${id}`);
+    if (el) {
+      const overlay = document.getElementById('report-form-overlay');
+      if (overlay) {
+        const containerRect = overlay.getBoundingClientRect();
+        const elRect = el.getBoundingClientRect();
+        const relativeTop = elRect.top - containerRect.top + overlay.scrollTop;
+        overlay.scrollTo({
+          top: relativeTop - 10,
+          behavior: 'smooth'
+        });
+      } else {
+        const rect = el.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        window.scrollTo({
+          top: rect.top + scrollTop - 80,
+          behavior: 'smooth'
+        });
+      }
+      setActiveSection(id);
+    }
+  };
+
   // S3 Alarme & Armoire
   const [equipeAlarme, setEquipeAlarme] = useState<'Oui' | 'Non' | ''>(report?.equipeAlarme || 'Oui');
   const [alarme, setAlarme] = useState<'Oui' | 'Non' | ''>(report?.alarme || 'Non');
@@ -1482,6 +1581,13 @@ export default function GmaoCorrectionForm({
             font-weight: 900 !important;
             display: block !important;
           }
+          .scrollbar-none::-webkit-scrollbar {
+            display: none !important;
+          }
+          .scrollbar-none {
+            -ms-overflow-style: none !important;
+            scrollbar-width: none !important;
+          }
         `}</style>
         
         {/* Stacked Layout: Sections layered one on top of the other, identical to DefibTab.tsx */}
@@ -1489,6 +1595,7 @@ export default function GmaoCorrectionForm({
           
           {/* Section 0 - Document Configuration & Lookup */}
           <div 
+            id="gmao-sec-0"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -1713,6 +1820,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 1 - Appareil Défibrillateur Raccordé */}
           <div 
+            id="gmao-sec-1"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -1806,6 +1914,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 2 - Client & Contrat */}
           <div 
+            id="gmao-sec-2"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -2051,6 +2160,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 3 - Coffret */}
           <div 
+            id="gmao-sec-3"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -2216,6 +2326,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 4 - Accès */}
           <div 
+            id="gmao-sec-4"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -2365,6 +2476,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 5 - Dates */}
           <div 
+            id="gmao-sec-5"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -2431,6 +2543,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 6 - Électrode Adulte */}
           <div 
+            id="gmao-sec-6"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -2763,6 +2876,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 7 - Électrode Pédiatrique */}
           <div 
+            id="gmao-sec-7"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -3083,6 +3197,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 8 - Batterie */}
           <div 
+            id="gmao-sec-8"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -3296,6 +3411,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 9 - Vérifications techniques */}
           <div 
+            id="gmao-sec-9"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -3503,6 +3619,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 10 - Vérifications du kit de secours */}
           <div 
+            id="gmao-sec-10"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -3706,6 +3823,7 @@ export default function GmaoCorrectionForm({
 
           {/* Section 11 - Diagnostics et clôture */}
           <div 
+            id="gmao-sec-11"
             className="bg-white p-5 relative space-y-3"
             style={{
               border: '1px solid rgb(218, 218, 218)',
@@ -3861,9 +3979,9 @@ export default function GmaoCorrectionForm({
 
       {/* Fixed Error Code Helper Box */}
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-4 z-40 space-y-3 w-full" 
+        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-4 z-40 space-y-3 w-full animate-fade-in" 
         style={{ 
-          boxShadow: 'none',
+          boxShadow: '0 -4px 20px -2px rgba(0, 0, 0, 0.08)',
           maxWidth: '1000px',
           marginLeft: 'auto',
           marginRight: 'auto',
@@ -3872,6 +3990,40 @@ export default function GmaoCorrectionForm({
         }} 
         id="error-code-helper-panel"
       >
+        {/* Horizontal Sections Carousel Selector */}
+        <div className="w-full pb-2 border-b border-slate-100">
+          <div 
+            ref={pillsContainerRef}
+            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 whitespace-nowrap"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {SECTIONS_METADATA.map((sec) => {
+              const isActive = activeSection === sec.id;
+              return (
+                <button
+                  key={sec.id}
+                  type="button"
+                  data-pill-id={sec.id}
+                  onClick={() => scrollToSection(sec.id)}
+                  className="px-3 py-1 text-[11px] rounded-full font-medium transition-all duration-200 shrink-0 select-none cursor-pointer"
+                  style={{
+                    backgroundColor: isActive ? '#3B5BEE' : '#F8FAFC',
+                    color: isActive ? '#FFFFFF' : '#64748B',
+                    border: isActive ? '1px solid #3B5BEE' : '1px solid #E2E8F0',
+                    transform: isActive ? 'scale(1.05)' : 'scale(1)',
+                    fontWeight: isActive ? '600' : '400',
+                    boxShadow: isActive ? '0 2px 5px rgba(59, 91, 238, 0.2)' : 'none'
+                  }}
+                >
+                  {sec.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="w-full">
           <select
             value={selectedErrorCode}

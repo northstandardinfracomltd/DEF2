@@ -5881,19 +5881,6 @@ export default function PublicPortal({
                 id="nav-tabs"
                 style={{ background: "transparent" }}
               >
-                {showLeftFade && (
-                  <div 
-                    className="absolute left-0 top-0 bottom-0 w-8 pointer-events-none z-10" 
-                    style={{ background: "linear-gradient(to right, rgb(54, 9, 58), transparent)" }}
-                  />
-                )}
-                {showRightFade && (
-                  <div 
-                    className="absolute right-0 top-0 bottom-0 w-8 pointer-events-none z-10" 
-                    style={{ background: "linear-gradient(to left, rgb(54, 9, 58), transparent)" }}
-                  />
-                )}
-
                 <div
                   ref={navRef}
                   onScroll={handleNavScroll}

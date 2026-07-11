@@ -4123,6 +4123,24 @@ export default function GmaoCorrectionForm({
           </select>
         </div>
 
+        {selectedErrorCode && (
+          <div className="bg-white space-y-3 animate-fadeIn">
+            <p className="text-black font-medium leading-relaxed" style={{ fontSize: '18px' }}>
+              {ERROR_CODES_DB.find(e => e.label === selectedErrorCode)?.description}
+            </p>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={() => setSelectedErrorCode('')}
+                style={{ fontSize: '18px' }}
+                className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="w-full">
           <button
             type="submit"
@@ -4144,24 +4162,6 @@ export default function GmaoCorrectionForm({
             {isSaving ? "Enregistrement..." : "Valider et enregistrer"}
           </button>
         </div>
-
-        {selectedErrorCode && (
-          <div className="bg-white space-y-3 animate-fadeIn">
-            <p className="text-black font-medium leading-relaxed" style={{ fontSize: '18px' }}>
-              {ERROR_CODES_DB.find(e => e.label === selectedErrorCode)?.description}
-            </p>
-            <div className="pt-1">
-              <button
-                type="button"
-                onClick={() => setSelectedErrorCode('')}
-                style={{ fontSize: '18px' }}
-                className="w-full py-2.5 bg-black hover:bg-neutral-900 text-white font-bold rounded-xl transition-all cursor-pointer"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {isMapPickerOpen && (

@@ -578,7 +578,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   };
 
   return (
-    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[440px] mx-auto text-black pb-12 px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl force-smartphone-layout" id="gmao-other-eq-correction-layout">
+    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-[440px] mx-auto text-black pb-12 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl force-smartphone-layout" id="gmao-other-eq-correction-layout">
       {/* Header */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"

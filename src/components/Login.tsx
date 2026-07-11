@@ -75,8 +75,12 @@ const translations = {
     selectLang: "Langue Logiciel",
     superAdminInfo: "Créez vos informations pour le compte super administrateur, il s'agit du compte qui est parent de tous les autres comptes.",
     activateSub: "Activer l’abonnement",
-    paymentDisclaimer: "Paiement sécurisé par carte bancaire ou Paypal, pour un paiement sur présentation facture avec virement bancaire, veuillez nous contacter. Vous payerez aujourd'hui le premier mois (380€ TTC) ainsi que le frais d'activation (une seule fois) de 620€ TTC. En continuant, vous acceptez nos",
+    paymentDisclaimer: "Vous paierez aujourd'hui le premier mois de votre abonnement par carte bancaire ou PayPal pour activer votre profil super-admin. Le frais unique de déploiement de votre environnement, quant à lui, est payé par virement bancaire ; une facture vous sera envoyée sous 1 à 3 jours. En continuant, vous acceptez nos ",
     eula: "conditions EULA",
+    disclaimerMid1: ", notre ",
+    privacyPolicy: "politique de gestion des données",
+    disclaimerMid2: ", et confirmez avoir lu les informations relatives à notre ",
+    hdsCertification: "certification HDS",
     returnToSite: "Retour au site",
     reportTitle: "Formulaire",
     close: "Fermer",
@@ -139,8 +143,12 @@ const translations = {
     selectLang: "Software Language",
     superAdminInfo: "Create your credentials for the super administrator account, this is the parent account of all other accounts.",
     activateSub: "Activate subscription",
-    paymentDisclaimer: "Secure payment by credit card or Paypal, for payment on invoice presentation with bank transfer, please contact us. You will pay the first month (€380 incl. tax) today as well as the activation fee (one-time) of €620 incl. tax. By continuing, you accept our",
+    paymentDisclaimer: "Today you will pay the first month of your subscription by credit card or PayPal to activate your super-admin profile. The one-time deployment fee for your environment is paid by bank transfer; an invoice will be sent to you within 1 to 3 days. By continuing, you accept our ",
     eula: "EULA terms",
+    disclaimerMid1: ", our ",
+    privacyPolicy: "data management policy",
+    disclaimerMid2: ", and confirm that you have read the information relative to our ",
+    hdsCertification: "HDS certification",
     returnToSite: "Return to site",
     reportTitle: "Form",
     close: "Close",
@@ -203,8 +211,12 @@ const translations = {
     selectLang: "Software-Sprache",
     superAdminInfo: "Erstellen Sie Ihre Anmeldedaten für das Super-Administrator-Konto. Dies ist das übergeordnete Konto aller anderen Konten.",
     activateSub: "Abonnement aktivieren",
-    paymentDisclaimer: "Sichere Zahlung per Kreditkarte oder Paypal. Für Zahlungen auf Rechnung mit Banküberweisung kontaktieren Sie uns bitte. Sie zahlen heute den ersten Monat (380 € inkl. MwSt.) sowie die Aktivierungsgebühr (einmalig) von 620 € inkl. MwSt. Indem Sie fortfahren, akzeptieren Sie unsere",
+    paymentDisclaimer: "Sie zahlen heute den ersten Monat Ihres Abonnements per Kreditkarte oder PayPal, um Ihr Super-Admin-Profil zu aktivieren. Die einmalige Bereitstellungsgebühr für Ihre Umgebung wird per Banküberweisung bezahlt; eine Rechnung wird Ihnen innerhalb von 1 bis 3 Tagen zugesandt. Indem Sie fortfahren, akzeptieren Sie unsere ",
     eula: "EULA-Bedingungen",
+    disclaimerMid1: ", unsere ",
+    privacyPolicy: "Datenmanagement-Richtlinie",
+    disclaimerMid2: ", und bestätigen Sie, dass Sie die Informationen zu unserer ",
+    hdsCertification: "HDS-Zertifizierung",
     returnToSite: "Zurück zur Website",
     reportTitle: "Formular",
     close: "Schließen",
@@ -267,8 +279,12 @@ const translations = {
     selectLang: "Idioma do Software",
     superAdminInfo: "Crie suas credenciais para a conta de super administrador, esta é a conta-mãe de todas as outras contas.",
     activateSub: "Ativar assinatura",
-    paymentDisclaimer: "Pagamento seguro por cartão de crédito ou Paypal. Para pagamento por fatura com transferência bancária, entre em contato conosco. Você pagará hoje o primeiro mês (€380 com impostos) e a taxa de ativação única de €620 com impostos. Ao continuar, você aceita os nossos",
+    paymentDisclaimer: "Hoje você pagará o primeiro mês de sua assinatura por cartão de crédito ou PayPal para ativar seu perfil de super-admin. A taxa única de implantação do seu ambiente é paga por transferência bancária; uma fatura será enviada em até 1 a 3 dias. Ao continuar, você aceita nossos ",
     eula: "termos do EULA",
+    disclaimerMid1: ", nossa ",
+    privacyPolicy: "política de gerenciamento de dados",
+    disclaimerMid2: ", e confirma ter lido as informações relativas à nossa ",
+    hdsCertification: "certificação HDS",
     returnToSite: "Voltar ao site",
     reportTitle: "Formulário",
     close: "Fechar",
@@ -331,8 +347,12 @@ const translations = {
     selectLang: "Idioma del Software",
     superAdminInfo: "Cree sus credenciales para la cuenta de súper administrador, esta es la cuenta principal de todas las demás cuentas.",
     activateSub: "Activar suscripción",
-    paymentDisclaimer: "Pago seguro con tarjeta bancaria o Paypal, para un pago contra factura con transferencia bancaria, póngase en contacto con nosotros. Pagará hoy el primer mes (380 € IVA incluido) así como la tasa de activación única de 620 € IVA incluido. Al continuar, acepta nuestras",
+    paymentDisclaimer: "Hoy pagará el primer mes de su suscripción con tarjeta de crédito o PayPal para activar su perfil de super-admin. La tarifa única de despliegue de su entorno se paga mediante transferencia bancaria; se le enviará una factura en un plazo de 1 a 3 días. Al continuar, acepta nuestras ",
     eula: "condiciones EULA",
+    disclaimerMid1: ", nuestra ",
+    privacyPolicy: "política de gestión de datos",
+    disclaimerMid2: ", y confirma haber leído la información relativa a nuestra ",
+    hdsCertification: "certificación HDS",
     returnToSite: "Volver al sitio",
     reportTitle: "Formulario",
     close: "Cerrar",
@@ -1434,8 +1454,38 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                       </button>
 
                       {/* Small text disclaimer with terms and secure info */}
-                      <p className="text-[14px] leading-relaxed text-center font-medium font-sans" style={{ color: '#000000', cursor: 'default' }}>
-                        {t.paymentDisclaimer} <a href="https://civilprom.s3.eu-north-1.amazonaws.com/DEFIBEO+ACCORD+%EF%BD%9C+FRANCE%2C+FRANC%CC%A7AIS+%EF%BD%9C+2026.pdf" target="_blank" rel="noopener noreferrer" className="font-extrabold" style={{ color: 'oklch(51.1% 0.262 276.966)' }}>{t.eula}</a>.
+                      <p className="text-[14px] leading-relaxed text-center font-medium font-sans animate-fade-in" style={{ color: '#000000', cursor: 'default' }}>
+                        {t.paymentDisclaimer}
+                        <a 
+                          href="https://civilprom.s3.eu-north-1.amazonaws.com/DEFIBEO+ACCORD+%EF%BD%9C+FRANCE%2C+FRANC%CC%A7AIS+%EF%BD%9C+2026.pdf" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="font-extrabold hover:underline" 
+                          style={{ color: 'oklch(51.1% 0.262 276.966)' }}
+                        >
+                          {t.eula}
+                        </a>
+                        {(t as any).disclaimerMid1}
+                        <a 
+                          href="https://civilprom.s3.eu-north-1.amazonaws.com/Data_Process_France.pdf.pdf" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="font-extrabold hover:underline" 
+                          style={{ color: 'oklch(51.1% 0.262 276.966)' }}
+                        >
+                          {(t as any).privacyPolicy}
+                        </a>
+                        {(t as any).disclaimerMid2}
+                        <a 
+                          href="https://civilprom.s3.eu-north-1.amazonaws.com/Addendum_Defibeo_5JL26.pdf.pdf" 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="font-extrabold hover:underline" 
+                          style={{ color: 'oklch(51.1% 0.262 276.966)' }}
+                        >
+                          {(t as any).hdsCertification}
+                        </a>
+                        .
                       </p>
 
                       {/* Payment Methods Logo Badge */}

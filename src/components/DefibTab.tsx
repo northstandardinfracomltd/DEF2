@@ -1376,6 +1376,7 @@ export default function DefibTab({
   // Synchronization components for top and bottom horizontal scrollbars
   const topScrollRef = React.useRef<HTMLDivElement>(null);
   const bottomScrollRef = React.useRef<HTMLDivElement>(null);
+  const theadRef = React.useRef<HTMLTableSectionElement>(null);
   const [tableScrollWidth, setTableScrollWidth] = useState<number>(0);
 
   const handleTopScroll = () => {
@@ -1390,12 +1391,38 @@ export default function DefibTab({
     }
   };
 
+  const updateHeaderStickyPosition = React.useCallback(() => {
+    if (!bottomScrollRef.current || !theadRef.current) return;
+    const rect = bottomScrollRef.current.getBoundingClientRect();
+    const theadHeight = theadRef.current.offsetHeight || 40;
+    
+    let translateY = 0;
+    // We want the headers to stick to the top of the viewport (0px)
+    if (rect.top < 0) {
+      const maxTranslate = rect.height - theadHeight - 60; // leave some room for table bottom
+      translateY = Math.max(0, Math.min(maxTranslate, -rect.top));
+    }
+    
+    const ths = theadRef.current.querySelectorAll('th');
+    ths.forEach(th => {
+      (th as HTMLElement).style.transform = `translateY(${translateY}px)`;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', updateHeaderStickyPosition, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updateHeaderStickyPosition);
+    };
+  }, [updateHeaderStickyPosition]);
+
   useEffect(() => {
     if (!bottomScrollRef.current) return;
 
     const updateWidth = () => {
       if (bottomScrollRef.current) {
         setTableScrollWidth(bottomScrollRef.current.scrollWidth);
+        updateHeaderStickyPosition();
       }
     };
 
@@ -1412,7 +1439,7 @@ export default function DefibTab({
       observer.disconnect();
       window.removeEventListener('resize', updateWidth);
     };
-  }, [filteredDefibs, isFormOpen]);
+  }, [filteredDefibs, isFormOpen, updateHeaderStickyPosition]);
 
   // Row selectors
   const handleSelectRow = (id: string, e: React.MouseEvent) => {
@@ -2273,7 +2300,7 @@ export default function DefibTab({
             </div>
           ) : (
             <table className="w-full text-left font-sans border-collapse text-xs" id="records-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
-              <thead>
+              <thead ref={theadRef}>
                 <tr className="bg-transparent">
                   <th className="px-4 py-3.5 w-12 text-center select-none" style={{ cursor: 'default', position: 'sticky', top: 0, backgroundColor: '#ffffff', zIndex: 10, borderBottom: '1px solid rgb(218, 218, 218)' }}>
                     <button

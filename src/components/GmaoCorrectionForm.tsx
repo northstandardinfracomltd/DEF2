@@ -96,7 +96,14 @@ const DEFAULT_DEFIB: Defibrillateur = {
   commentaireCampagneRappel: '',
   rappelMensuelAuto: 'Non',
   rappelHebdoAuto: 'Non',
-  rappelJournalierAuto: 'Non'
+  rappelJournalierAuto: 'Non',
+  hasPadpakA: 'Oui',
+  lotPadpakA: '',
+  peremptionPadpakA: '',
+  hasPadpakP: 'Oui',
+  lotPadpakP: '',
+  peremptionPadpakP: '',
+  numeroAtlasante: ''
 };
 
 const ERROR_CODES_DB = [
@@ -1908,6 +1915,20 @@ export default function GmaoCorrectionForm({
                 ))}
               </select>
             </div>
+
+            <div className="space-y-1">
+              <label htmlFor="snap-numeroAtlasante" className="block text-[11px] font-bold text-black uppercase">
+                Numéro Atlasanté.
+              </label>
+              <input
+                type="text"
+                id="snap-numeroAtlasante"
+                value={snapshot.numeroAtlasante || ''}
+                onChange={(e) => handleSnapshotChange('numeroAtlasante', e.target.value)}
+                placeholder="Entrez le numéro Atlasanté."
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+              />
+            </div>
           </div>
 
           {/* Section 2 - Client & Contrat */}
@@ -2857,6 +2878,46 @@ export default function GmaoCorrectionForm({
               </div>
             )}
 
+            <div className="space-y-1 bg-white">
+              <label className="block text-[11px] font-bold text-black uppercase">
+                PadPak.
+              </label>
+              <div className="flex gap-6 items-center pt-1 bg-white">
+                <FormRadio label="Oui" checked={snapshot.hasPadpakA === 'Oui'} onChange={() => handleSnapshotChange('hasPadpakA', 'Oui')} />
+                <FormRadio label="Non" checked={snapshot.hasPadpakA === 'Non'} onChange={() => handleSnapshotChange('hasPadpakA', 'Non')} />
+              </div>
+            </div>
+
+            {snapshot.hasPadpakA === 'Oui' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white animate-fadeIn">
+                <div className="space-y-1">
+                  <label htmlFor="snap-lotPadpakA" className="block text-[11px] font-bold text-black uppercase">
+                    Lot PadPak A.
+                  </label>
+                  <input
+                    type="text"
+                    id="snap-lotPadpakA"
+                    value={snapshot.lotPadpakA || ''}
+                    onChange={(e) => handleSnapshotChange('lotPadpakA', e.target.value)}
+                    placeholder="Entrez le numéro de lot."
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="snap-peremptionPadpakA" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption PadPak A.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionPadpakA"
+                    value={snapshot.peremptionPadpakA || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionPadpakA', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="pt-3 space-y-1 bg-white">
               <label htmlFor="snap-commentaireElectrodeA" className="block text-[11px] font-bold text-black uppercase">
                 Commentaire concernant l’électrode A.
@@ -3175,6 +3236,46 @@ export default function GmaoCorrectionForm({
                     />
                   </div>
                 )}
+              </div>
+            )}
+
+            <div className="space-y-1 bg-white">
+              <label className="block text-[11px] font-bold text-black uppercase">
+                PadPak.
+              </label>
+              <div className="flex gap-6 items-center pt-1 bg-white">
+                <FormRadio label="Oui" checked={snapshot.hasPadpakP === 'Oui'} onChange={() => handleSnapshotChange('hasPadpakP', 'Oui')} />
+                <FormRadio label="Non" checked={snapshot.hasPadpakP === 'Non'} onChange={() => handleSnapshotChange('hasPadpakP', 'Non')} />
+              </div>
+            </div>
+
+            {snapshot.hasPadpakP === 'Oui' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white animate-fadeIn">
+                <div className="space-y-1">
+                  <label htmlFor="snap-lotPadpakP" className="block text-[11px] font-bold text-black uppercase">
+                    Lot PadPak P.
+                  </label>
+                  <input
+                    type="text"
+                    id="snap-lotPadpakP"
+                    value={snapshot.lotPadpakP || ''}
+                    onChange={(e) => handleSnapshotChange('lotPadpakP', e.target.value)}
+                    placeholder="Entrez le numéro de lot."
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label htmlFor="snap-peremptionPadpakP" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption PadPak P.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionPadpakP"
+                    value={snapshot.peremptionPadpakP || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionPadpakP', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
               </div>
             )}
 
@@ -3970,7 +4071,7 @@ export default function GmaoCorrectionForm({
 
       {/* Fixed Error Code Helper Box */}
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-4 z-40 space-y-3 w-full animate-fade-in" 
+        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-2.5 px-3 z-40 space-y-2 w-full animate-fade-in" 
         style={{ 
           boxShadow: '0 -4px 20px -2px rgba(0, 0, 0, 0.08)',
           maxWidth: '1000px',
@@ -3982,10 +4083,16 @@ export default function GmaoCorrectionForm({
         id="error-code-helper-panel"
       >
         {/* Horizontal Sections Carousel Selector */}
-        <div className="w-full -mx-4 overflow-hidden">
+        <div className="relative w-[calc(100%+1.5rem)] -mx-3 overflow-hidden">
+          {/* Left Fade Overlay */}
+          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none z-10" />
+          
+          {/* Right Fade Overlay */}
+          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
+
           <div 
             ref={pillsContainerRef}
-            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 whitespace-nowrap px-4"
+            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1 whitespace-nowrap px-6"
             style={{
               WebkitOverflowScrolling: 'touch',
             }}
@@ -3998,14 +4105,14 @@ export default function GmaoCorrectionForm({
                   type="button"
                   data-pill-id={sec.id}
                   onClick={() => scrollToSection(sec.id)}
-                  className="px-3.5 py-1.5 text-[13px] rounded-full font-medium transition-all duration-200 shrink-0 select-none cursor-pointer"
+                  className="px-4 py-1.5 text-[14px] rounded-full font-medium transition-all duration-200 shrink-0 select-none cursor-pointer"
                   style={{
-                    backgroundColor: isActive ? '#3B5BEE' : 'rgba(92, 27, 98, 0.08)',
-                    color: isActive ? '#FFFFFF' : '#5C1B62',
+                    backgroundColor: isActive ? '#3B5BEE' : '#5C1B62',
+                    color: '#FFFFFF',
                     border: 'none',
                     transform: isActive ? 'scale(1.03)' : 'scale(1)',
                     fontWeight: isActive ? '600' : '500',
-                    boxShadow: isActive ? '0 2px 6px rgba(59, 91, 238, 0.35)' : 'none'
+                    boxShadow: 'none'
                   }}
                 >
                   {sec.label}
@@ -4027,7 +4134,7 @@ export default function GmaoCorrectionForm({
               MozAppearance: 'none',
               border: '1px solid #dedede',
               borderRadius: '13px',
-              padding: '12px 14px',
+              padding: '8px 12px',
               boxSizing: 'border-box',
               display: 'block',
               width: '100%',

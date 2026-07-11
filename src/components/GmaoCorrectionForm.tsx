@@ -1314,41 +1314,15 @@ export default function GmaoCorrectionForm({
 
   return (
     <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-[440px] mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg force-smartphone-layout" id="gmao-correction-layout">
-      {/* Header section identical in looks to Defibrillateurs with limited width */}
-      <div 
-        className="flex flex-col gap-4 bg-white w-full"
-        style={{ border: '1px solid #dadada', borderTop: 'none', borderRadius: '0px', maxWidth: '100%', margin: 'auto', padding: '20px' }}
-        id="defib-form-header-box"
+      <button
+        type="button"
+        onClick={onCancel}
+        id="btn-close-gmao-modal"
+        style={{ ...rowActionButton18Style, width: '100%', borderRadius: '0px' }}
+        className="transition-colors cursor-pointer font-sans"
       >
-        <div className="text-center w-full">
-          <h3 className="text-2xl font-bold font-gochi text-center" id="form-modal-title" style={{ color: '#000000', cursor: 'default', textAlign: 'center' }}>
-            {isNew || !report ? 'Nouveau Rapport' : 'Correction Document'}
-          </h3>
-        </div>
-        
-        <div className="flex items-center gap-3 w-full">
-          <button
-            type="button"
-            onClick={onCancel}
-            id="btn-close-gmao-modal"
-            style={{ ...rowActionButton18Style, width: '50%', flexGrow: 1 }}
-            className="transition-colors cursor-pointer font-sans"
-          >
-            Fermer
-          </button>
-
-          <button
-            type="submit"
-            disabled={isSaving}
-            form="gmao-correction-form"
-            id="btn-submit-gmao-form"
-            style={{ ...registerButtonStyle, opacity: isSaving ? 0.5 : (hasClickedOnce ? 0.85 : 1), width: '50%', flexGrow: 1 }}
-            className="transition-colors cursor-pointer font-sans"
-          >
-            Enregistrer
-          </button>
-        </div>
-      </div>
+        Annuler
+      </button>
 
       {alertInfoErrors && alertInfoErrors.length > 0 && (() => {
         const isErrorBlocking = (err: string) => {
@@ -1611,7 +1585,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -1836,7 +1810,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -1944,7 +1918,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -2190,7 +2164,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -2356,7 +2330,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -2506,7 +2480,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -2573,7 +2547,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -2946,7 +2920,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -3307,7 +3281,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -3521,7 +3495,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -3729,7 +3703,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -3934,7 +3908,7 @@ export default function GmaoCorrectionForm({
               <span 
                 className="text-white px-3 py-1 text-[13px] inline-block font-sans"
                 style={{
-                  backgroundColor: 'oklch(0.44 0.16 324.65)',
+                  backgroundColor: '#5C1B62',
                   borderRadius: '1000px',
                   cursor: 'default',
                   fontWeight: 100,
@@ -4147,6 +4121,28 @@ export default function GmaoCorrectionForm({
               <option key={idx} value={item.label}>{item.label}</option>
             ))}
           </select>
+        </div>
+
+        <div className="w-full">
+          <button
+            type="submit"
+            disabled={isSaving}
+            form="gmao-correction-form"
+            className="w-full text-white font-medium focus:outline-none cursor-pointer text-center"
+            style={{ 
+              fontSize: '18px', 
+              border: '1px solid #3B5BEE',
+              backgroundColor: '#3B5BEE',
+              borderRadius: '13px',
+              padding: '8px 12px',
+              boxSizing: 'border-box',
+              display: 'block',
+              width: '100%',
+              opacity: isSaving ? 0.6 : 1
+            }}
+          >
+            {isSaving ? "Enregistrement..." : "Valider et enregistrer"}
+          </button>
         </div>
 
         {selectedErrorCode && (

@@ -133,6 +133,19 @@ export default function SettingsModal({
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     return (localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) as 'Oui' | 'Non') || 'Oui';
   });
+  const [showEpsonBanner, setShowEpsonBanner] = React.useState<boolean>(() => {
+    const val = localStorage.getItem("help_dismissed_settings_epson");
+    if (val) {
+      const timestamp = parseInt(val, 10);
+      if (!isNaN(timestamp)) {
+        const diffMs = Date.now() - timestamp;
+        if (diffMs < 24 * 60 * 60 * 1000) {
+          return false;
+        }
+      }
+    }
+    return true;
+  });
 
   const renderSectionHeader = (text: string, showSave: boolean = true) => (
     <div className="flex items-center justify-between mb-3 bg-transparent select-none w-full">
@@ -1030,6 +1043,56 @@ export default function SettingsModal({
             text="Le saviez-vous ? Invitez vos clients à utiliser le formulaire intitulé « Signaler un problème avec un défibrillateur, envoyer un message en tant que client ou passant », disponible sur la page https://defibeo.deroesch.com/. C'est un outil très pratique ! En le complétant, la demande est directement intégrée à votre CRM et vous recevez instantanément un e-mail automatique de notification."
             style={{ margin: '0px 0px 16px 0px', maxWidth: '100%' }}
           />
+
+          {showEpsonBanner && (
+            <div 
+              className="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fadeIn transition-all"
+              style={{
+                borderColor: 'rgb(218, 218, 218)',
+                background: '#ffffff00',
+                boxShadow: 'none',
+                maxWidth: '100%',
+                margin: '0px 0px 16px 0px',
+              }}
+            >
+              <div className="flex items-center gap-4">
+                <img 
+                  src="https://civilprom.s3.eu-north-1.amazonaws.com/EpsonRecommended.png" 
+                  alt="Epson Recommended" 
+                  referrerPolicy="no-referrer"
+                  style={{ height: '50px', width: 'auto', objectFit: 'contain' }}
+                />
+                <p 
+                  className="font-sans leading-relaxed"
+                  style={{ 
+                    fontSize: '16px', 
+                    fontWeight: 400, 
+                    color: '#000000', 
+                    cursor: 'default' 
+                  }}
+                >
+                  {t("Recommandé : Imprimez vos codes-barres sur le terrain avec la Epson LabelWorks.")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem("help_dismissed_settings_epson", Date.now().toString());
+                  setShowEpsonBanner(false);
+                }}
+                className="font-sans font-semibold active:scale-95 transition-all border-0 cursor-pointer shrink-0"
+                style={{
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  fontSize: '18px',
+                  borderRadius: '13px',
+                  padding: '8px 20px',
+                }}
+              >
+                {t("J'ai compris")}
+              </button>
+            </div>
+          )}
           
           {/* SECTION 1: RÉGLAGES */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left" id="settings-section-company">

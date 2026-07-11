@@ -3982,10 +3982,10 @@ export default function GmaoCorrectionForm({
         id="error-code-helper-panel"
       >
         {/* Horizontal Sections Carousel Selector */}
-        <div className="w-full pb-2 border-b border-slate-100">
+        <div className="w-full -mx-4 overflow-hidden">
           <div 
             ref={pillsContainerRef}
-            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 whitespace-nowrap"
+            className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1.5 whitespace-nowrap px-4"
             style={{
               WebkitOverflowScrolling: 'touch',
             }}
@@ -3998,14 +3998,14 @@ export default function GmaoCorrectionForm({
                   type="button"
                   data-pill-id={sec.id}
                   onClick={() => scrollToSection(sec.id)}
-                  className="px-3 py-1 text-[11px] rounded-full font-medium transition-all duration-200 shrink-0 select-none cursor-pointer"
+                  className="px-3.5 py-1.5 text-[13px] rounded-full font-medium transition-all duration-200 shrink-0 select-none cursor-pointer"
                   style={{
-                    backgroundColor: isActive ? '#3B5BEE' : '#F8FAFC',
-                    color: isActive ? '#FFFFFF' : '#64748B',
-                    border: isActive ? '1px solid #3B5BEE' : '1px solid #E2E8F0',
-                    transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                    fontWeight: isActive ? '600' : '400',
-                    boxShadow: isActive ? '0 2px 5px rgba(59, 91, 238, 0.2)' : 'none'
+                    backgroundColor: isActive ? '#3B5BEE' : 'rgba(92, 27, 98, 0.08)',
+                    color: isActive ? '#FFFFFF' : '#5C1B62',
+                    border: 'none',
+                    transform: isActive ? 'scale(1.03)' : 'scale(1)',
+                    fontWeight: isActive ? '600' : '500',
+                    boxShadow: isActive ? '0 2px 6px rgba(59, 91, 238, 0.35)' : 'none'
                   }}
                 >
                   {sec.label}

@@ -759,7 +759,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       }
 
       // Redirect current window directly to PayPal subscription to capture payment smoothly without popups being blocked
-      window.location.href = "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-4CN80785CH979970XNIYZVJA";
+      window.location.href = "https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1J0318296F988751YNJI6Z3A";
     } catch (err: any) {
       console.error('Registration failed:', err);
       setReqError(err.message || String(err));

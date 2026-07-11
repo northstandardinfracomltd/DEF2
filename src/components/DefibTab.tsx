@@ -487,6 +487,11 @@ export default function DefibTab({
     color: '#000000',
     cursor: 'default',
     whiteSpace: 'nowrap',
+    position: 'sticky',
+    top: 0,
+    backgroundColor: '#ffffff',
+    zIndex: 10,
+    borderBottom: '1px solid rgb(218, 218, 218)',
   };
 
   // Active applied filters (1 to 10 filters)
@@ -1238,8 +1243,6 @@ export default function DefibTab({
   const modelesElectrode = useMemo(() => variables.filter(v => v.category === 'Modèle Électrode'), [variables]);
   const modelesBatterie = useMemo(() => variables.filter(v => v.category === 'Modèle Batterie'), [variables]);
 
-
-
   // Autopopulate site / contract fields on Client lookup change
   const handleClientChange = (selectedClientId: string) => {
     setClientId(selectedClientId);
@@ -1369,6 +1372,47 @@ export default function DefibTab({
              isMatchRejected;
     });
   }, [defibrillateurs, search, activeFilters, clientMap, variableMap, fsmTours]);
+
+  // Synchronization components for top and bottom horizontal scrollbars
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const bottomScrollRef = React.useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState<number>(0);
+
+  const handleTopScroll = () => {
+    if (topScrollRef.current && bottomScrollRef.current) {
+      bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+  };
+
+  const handleBottomScroll = () => {
+    if (topScrollRef.current && bottomScrollRef.current) {
+      topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
+    }
+  };
+
+  useEffect(() => {
+    if (!bottomScrollRef.current) return;
+
+    const updateWidth = () => {
+      if (bottomScrollRef.current) {
+        setTableScrollWidth(bottomScrollRef.current.scrollWidth);
+      }
+    };
+
+    // Delay slightly to make sure the DOM has rendered completely
+    const timer = setTimeout(updateWidth, 100);
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(bottomScrollRef.current);
+
+    window.addEventListener('resize', updateWidth);
+
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+      window.removeEventListener('resize', updateWidth);
+    };
+  }, [filteredDefibs, isFormOpen]);
 
   // Row selectors
   const handleSelectRow = (id: string, e: React.MouseEvent) => {
@@ -2207,7 +2251,22 @@ export default function DefibTab({
 
       {/* Main Table Records Sheet */}
       <div className="bg-white overflow-hidden mt-6 rounded-none" style={{ border: 'none', borderRadius: '0px', boxShadow: 'none' }}>
-        <div className="overflow-x-auto">
+        {/* Scrollbar supérieur pour faciliter la navigation horizontale sur ordinateur fixe */}
+        {filteredDefibs.length > 0 && tableScrollWidth > 0 && (
+          <div 
+            ref={topScrollRef} 
+            onScroll={handleTopScroll} 
+            className="overflow-x-auto overflow-y-hidden bg-slate-50 border-b border-slate-100" 
+            style={{ height: '14px' }}
+          >
+            <div style={{ width: `${tableScrollWidth}px`, height: '1px' }}></div>
+          </div>
+        )}
+        <div 
+          ref={bottomScrollRef} 
+          onScroll={handleBottomScroll} 
+          className="overflow-x-auto"
+        >
           {filteredDefibs.length === 0 ? (
             <div className="p-16 text-center font-sans lg:py-24" id="no-defibs-view">
               <p style={{ color: '#000000', fontSize: '16px', fontWeight: 100 }}>Aucun résultat.</p>
@@ -2216,7 +2275,7 @@ export default function DefibTab({
             <table className="w-full text-left font-sans border-collapse text-xs" id="records-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
-                  <th className="px-4 py-3.5 w-12 text-center select-none" style={{ cursor: 'default' }}>
+                  <th className="px-4 py-3.5 w-12 text-center select-none" style={{ cursor: 'default', position: 'sticky', top: 0, backgroundColor: '#ffffff', zIndex: 10, borderBottom: '1px solid rgb(218, 218, 218)' }}>
                     <button
                       type="button"
                       onClick={() => {

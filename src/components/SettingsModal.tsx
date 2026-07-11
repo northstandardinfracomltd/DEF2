@@ -3103,7 +3103,7 @@ export default function SettingsModal({
                     </div>
                     <div className="mt-4">
                       <a
-                        href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-8P432259DF5486110NIYZTWY"
+                        href="https://www.paypal.com/webapps/billing/plans/subscribe?plan_id=P-1J0318296F988751YNJI6Z3A"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center justify-center font-bold px-5 py-2.5 text-[18px] text-white hover:opacity-90 active:scale-95 transition-all w-full"

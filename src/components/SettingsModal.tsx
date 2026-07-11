@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import { CompanyInfo, Member, MemberSchedule, MemberAbsence } from '../types';
 import { getRegisteredTenants, fetchCollectionFromFirestore, saveCollectionToFirestore, checkIfEmailExistsAnywhere, updateTenantLanguage } from '../firebase';
-import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded } from '../utils/emailService';
+import { getAppsScriptUrl, saveAppsScriptUrl, triggerEmail2TechnicianConnexion, triggerEmail3AdminConnexion, triggerEmailNewMemberAdded, sendScriptEmail } from '../utils/emailService';
 import { setLanguage, t } from '../utils/translate';
 import { REGIONS_FRANCAISES, getLocationCustomName } from '../utils';
 import { getRegionsForCountry } from '../utils/regions';
@@ -146,6 +146,32 @@ export default function SettingsModal({
     }
     return true;
   });
+
+  const [referralCompany, setReferralCompany] = React.useState('');
+  const [referralSent, setReferralSent] = React.useState(false);
+  const [isSendingReferral, setIsSendingReferral] = React.useState(false);
+
+  const handleSendReferral = async () => {
+    if (!referralCompany.trim()) return;
+    setIsSendingReferral(true);
+    setReferralSent(false);
+    const envName = companyInfo?.name || localStorage.getItem('defib_tenant_id') || 'un utilisateur';
+    
+    try {
+      await sendScriptEmail({
+        to: 'support@defibeo.com',
+        subject: `Nouveau parrainage de ${envName}.`,
+        body: referralCompany,
+        replyTo: companyInfo?.email || 'support@defibeo.com'
+      });
+      setReferralSent(true);
+      setReferralCompany('');
+    } catch (err) {
+      console.error('Error sending referral:', err);
+    } finally {
+      setIsSendingReferral(false);
+    }
+  };
 
   const renderSectionHeader = (text: string, showSave: boolean = true) => (
     <div className="flex items-center justify-between mb-3 bg-transparent select-none w-full">
@@ -1071,7 +1097,7 @@ export default function SettingsModal({
                     cursor: 'default' 
                   }}
                 >
-                  {t("Recommandé : Imprimez vos codes-barres sur le terrain avec la Epson LabelWorks.")}
+                  {t("Recommandé : Imprimez vos codes-barres sur le terrain et au bureau avec la Epson LabelWorks.")}
                 </p>
               </div>
               <button
@@ -1093,6 +1119,86 @@ export default function SettingsModal({
               </button>
             </div>
           )}
+
+          <div 
+            className="p-5 rounded-xl border flex flex-col gap-4"
+            style={{
+              borderColor: 'rgb(218, 218, 218)',
+              background: '#ffffff00',
+              boxShadow: 'none',
+              maxWidth: '100%',
+              margin: '0px 0px 16px 0px',
+            }}
+          >
+            <div className="space-y-2">
+              <p 
+                className="font-sans leading-relaxed"
+                style={{ 
+                  fontSize: '16px', 
+                  fontWeight: 400, 
+                  color: '#000000', 
+                  cursor: 'default' 
+                }}
+              >
+                {t("Parrainez une nouvelle entreprise et obtenez 4 mois d’abonnement gratuits. Indiquez-nous l'entreprise à laquelle vous avez recommandé Defibeo afin que nous puissions suivre son inscription et vous attribuer votre récompense.")}
+              </p>
+            </div>
+            
+            <div className="space-y-1 w-full">
+              <label className="block text-sm font-bold text-black font-sans">
+                {t("Entreprise filleul.")}
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                <input
+                  type="text"
+                  value={referralCompany}
+                  onChange={(e) => {
+                    setReferralCompany(e.target.value);
+                    if (referralSent) setReferralSent(false);
+                  }}
+                  className="flex-1 w-full text-black placeholder-[#747474] font-sans text-sm"
+                  placeholder={t("Entrez un texte.")}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    height: '48px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSendReferral}
+                  disabled={isSendingReferral || !referralCompany.trim()}
+                  className="font-sans font-semibold active:scale-95 transition-all cursor-pointer shrink-0"
+                  style={{
+                    backgroundColor: '#000000',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                    borderRadius: '13px',
+                    padding: '0px 24px',
+                    opacity: (!referralCompany.trim() || isSendingReferral) ? 0.5 : 1,
+                    cursor: (!referralCompany.trim() || isSendingReferral) ? 'not-allowed' : 'pointer',
+                    height: '48px',
+                    border: '1px solid #000000',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {isSendingReferral ? t("Envoi...") : t("Valider")}
+                </button>
+              </div>
+            </div>
+
+            {referralSent && (
+              <p className="text-emerald-600 font-sans text-sm font-medium mt-1">
+                {t("Merci ! Votre demande de parrainage a été envoyée avec succès.")}
+              </p>
+            )}
+          </div>
           
           {/* SECTION 1: RÉGLAGES */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left" id="settings-section-company">

@@ -160,6 +160,8 @@ export default function App() {
 
   const [isBlockedByPrez, setIsBlockedByPrez] = useState<boolean>(false);
   const [prezCountdown, setPrezCountdown] = useState<number>(5);
+  const [isSubscriptionInactive, setIsSubscriptionInactive] = useState<boolean>(false);
+  const [paymentUrl, setPaymentUrl] = useState<string>('');
 
   const [locationNames, setLocationNames] = useState<Record<string, string>>({});
 
@@ -176,6 +178,8 @@ export default function App() {
     if (tenantId === 'demo') {
       localStorage.setItem('defib_short_env_id', 'D18');
       setIsBlockedByPrez(false);
+      setIsSubscriptionInactive(false);
+      setPaymentUrl('');
     } else {
       getRegisteredTenants().then(tenants => {
         const found = tenants.find(t => t.id === tenantId);
@@ -190,9 +194,13 @@ export default function App() {
           }
           const loggedRole = localStorage.getItem('defib_logged_user_role') || '';
           setIsBlockedByPrez(!!found.blockedForPrez && loggedRole !== 'megaadmin');
+          setIsSubscriptionInactive(found.subscriptionActive === false);
+          setPaymentUrl(found.paymentUrl || '');
         } else {
           localStorage.setItem('defib_short_env_id', 'D18');
           setIsBlockedByPrez(false);
+          setIsSubscriptionInactive(false);
+          setPaymentUrl('');
         }
       }).catch(err => {
         console.error('Error fetching tenant details on startup/change:', err);
@@ -4695,6 +4703,27 @@ export default function App() {
 
       {/* RIGHT SIDE CONTAINER */}
       <div className="flex-1 min-w-0 flex flex-col min-h-screen bg-[#f6f6f6]">
+        {isSubscriptionInactive && (
+          <div 
+            className="sticky top-0 z-[100] w-full bg-[#F9383C] text-white py-3.5 px-6 flex items-center justify-between font-sans shadow-md"
+            id="subscription-inactive-banner"
+          >
+            <span className="font-bold text-[15px] sm:text-[16px] text-left">
+              {t("Attention requise : Votre abonnement est inactif, veuillez compléter le paiement pour l'activation.")}
+            </span>
+            {paymentUrl && (
+              <a 
+                href={paymentUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-[#F9383C] hover:bg-slate-100 active:scale-[0.98] transition-all font-extrabold text-[14px] px-5 py-2 rounded-xl flex items-center justify-center shadow-sm shrink-0"
+                style={{ textDecoration: 'none' }}
+              >
+                {t("Continuer")}
+              </a>
+            )}
+          </div>
+        )}
         {/* Dashboard Workspace Viewports wrapper */}
         <main className="flex-1 w-full" id="main-content">
           {/* Sub-component Active tab wrapper */}

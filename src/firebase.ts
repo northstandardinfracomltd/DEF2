@@ -44,6 +44,8 @@ export interface Tenant {
   nomLogiciel?: string;
   disabled?: boolean;
   blockedForPrez?: boolean;
+  subscriptionActive?: boolean;
+  paymentUrl?: string;
 }
 
 let currentTenantId: string = localStorage.getItem('defib_tenant_id') || 'demo';

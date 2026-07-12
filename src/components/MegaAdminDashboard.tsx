@@ -42,6 +42,7 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [passwordToastSuccess, setPasswordToastSuccess] = useState(false);
   const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [paymentUrlDrafts, setPaymentUrlDrafts] = useState<Record<string, string>>({});
 
   const handleSavePassword = async () => {
     if (!selectedTenantForPassword) return;
@@ -150,6 +151,56 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
     } catch (err) {
       console.error('Failed to sync tenant prez block update:', err);
       alert('Une erreur est survenue lors du basculement. Rétablissement...');
+      await fetchTenants();
+    } finally {
+      setIsSyncing(null);
+    }
+  };
+
+  const handleToggleSubscription = async (tenantId: string, currentActiveStatus: boolean) => {
+    setIsSyncing(tenantId);
+    
+    const updatedList = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, subscriptionActive: !currentActiveStatus };
+      }
+      return t;
+    });
+    setTenants(updatedList);
+
+    try {
+      const docRef = doc(db, 'appData', 'registered_tenants');
+      await setDoc(docRef, { value: updatedList });
+      localStorage.setItem('fs_cache_registered_tenants', JSON.stringify(updatedList));
+      console.log(`Successfully toggled subscriptionActive for ${tenantId} to ${!currentActiveStatus}`);
+    } catch (err) {
+      console.error('Failed to sync tenant subscription status update:', err);
+      alert('Une erreur est survenue lors de la mise à jour. Rétablissement...');
+      await fetchTenants();
+    } finally {
+      setIsSyncing(null);
+    }
+  };
+
+  const handleUpdatePaymentUrl = async (tenantId: string, newUrl: string) => {
+    setIsSyncing(tenantId);
+    
+    const updatedList = tenants.map(t => {
+      if (t.id === tenantId) {
+        return { ...t, paymentUrl: newUrl.trim() };
+      }
+      return t;
+    });
+    setTenants(updatedList);
+
+    try {
+      const docRef = doc(db, 'appData', 'registered_tenants');
+      await setDoc(docRef, { value: updatedList });
+      localStorage.setItem('fs_cache_registered_tenants', JSON.stringify(updatedList));
+      alert('URL de paiement mise à jour avec succès !');
+    } catch (err) {
+      console.error('Failed to sync tenant payment URL update:', err);
+      alert('Une erreur est survenue lors de l\'enregistrement. Rétablissement...');
       await fetchTenants();
     } finally {
       setIsSyncing(null);
@@ -450,6 +501,58 @@ export default function MegaAdminDashboard({ onLogout }: MegaAdminDashboardProps
                           }`}
                         />
                       </button>
+                    </div>
+
+                    {/* Toggle "Abonnement actif." */}
+                    <div className="flex items-center justify-between pt-2.5 border-t border-neutral-800/50">
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-neutral-400 uppercase tracking-wide">Abonnement actif.</span>
+                        <span className="text-[10px] text-neutral-500 font-medium truncate">Bloque l'accès si inactif</span>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={isCurrentlySyncing}
+                        onClick={() => handleToggleSubscription(tnt.id, tnt.subscriptionActive !== false)}
+                        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-hidden disabled:opacity-50 ${
+                          tnt.subscriptionActive !== false ? 'bg-green-600' : 'bg-neutral-800'
+                        }`}
+                        aria-label="Toggle active subscription status"
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                            tnt.subscriptionActive !== false ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {/* Payment URL Input */}
+                    <div className="pt-2.5 border-t border-neutral-800/50 space-y-1.5 text-left">
+                      <label className="block text-[11px] font-bold text-neutral-400 uppercase">
+                        URL de paiement
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={paymentUrlDrafts[tnt.id] !== undefined ? paymentUrlDrafts[tnt.id] : (tnt.paymentUrl || '')}
+                          onChange={(e) => {
+                            setPaymentUrlDrafts({
+                              ...paymentUrlDrafts,
+                              [tnt.id]: e.target.value
+                            });
+                          }}
+                          placeholder="https://checkout.stripe.com/..."
+                          className="flex-1 bg-neutral-950 border border-neutral-800 rounded-lg py-1.5 px-2 text-xs text-white placeholder-neutral-600 focus:outline-hidden focus:border-pink-600 transition-colors"
+                        />
+                        <button
+                          type="button"
+                          disabled={isCurrentlySyncing}
+                          onClick={() => handleUpdatePaymentUrl(tnt.id, paymentUrlDrafts[tnt.id] !== undefined ? paymentUrlDrafts[tnt.id] : (tnt.paymentUrl || ''))}
+                          className="px-2.5 py-1.5 bg-pink-600 hover:bg-pink-500 text-white rounded-lg text-xs font-bold transition-all cursor-pointer border-0 shrink-0 disabled:opacity-50"
+                        >
+                          Enregistrer
+                        </button>
+                      </div>
                     </div>
 
                     {/* Reset Button */}

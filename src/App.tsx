@@ -4716,8 +4716,15 @@ export default function App() {
                 href={paymentUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-white text-[#F9383C] hover:bg-slate-100 active:scale-[0.98] transition-all font-extrabold text-[14px] px-5 py-2 rounded-xl flex items-center justify-center shadow-sm shrink-0"
-                style={{ textDecoration: 'none' }}
+                className="text-white active:scale-[0.98] transition-all font-semibold shrink-0 border-0 flex items-center justify-center cursor-pointer select-none"
+                style={{ 
+                  textDecoration: 'none',
+                  backgroundColor: '#D82C30',
+                  borderRadius: '13px',
+                  fontSize: '18px',
+                  padding: '8px 24px',
+                  boxShadow: 'none'
+                }}
               >
                 {t("Continuer")}
               </a>

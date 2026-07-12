@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { t } from '../utils/translate';
 import { Member } from '../types';
 import { MapPin } from 'lucide-react';
 
@@ -148,8 +149,8 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
             <table className="w-full text-left font-sans border-collapse text-xs" id="localisations-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
-                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>Technicien.</th>
-                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>Situation du partage.</th>
+                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>{t("Technicien.")}</th>
+                  <th className="px-5 py-3.5 w-[50%]" style={thStyle}>{t("Situation du partage.")}</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs">
@@ -167,9 +168,9 @@ export default function LocalisationsTab({ members }: LocalisationsTabProps) {
                       {/* Situation du partage status text */}
                       <td className="px-5 py-5 font-sans bg-transparent" onClick={(e) => e.stopPropagation()}>
                         {locationLink === "Partagé" ? (
-                          <span className="text-emerald-600 font-bold text-[18px]">Partagé</span>
+                          <span className="text-emerald-600 font-bold text-[18px]">{t("Partagé")}</span>
                         ) : (
-                          <span className="text-rose-600 font-bold text-[18px]">Non partagé</span>
+                          <span className="text-rose-600 font-bold text-[18px]">{t("Non partagé")}</span>
                         )}
                       </td>
 

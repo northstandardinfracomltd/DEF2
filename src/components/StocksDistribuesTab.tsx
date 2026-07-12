@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { t } from '../utils/translate';
 import { Variable, StockRecord, DistributedStockLocation } from '../types';
 import { getLocationCustomName } from '../utils';
 
@@ -670,7 +671,7 @@ export default function StocksDistribuesTab({
                   }}
                   className="font-sans transition-all select-none"
                 >
-                  Attention requise
+                  {t("Attention requise")}
                 </button>
 
                 {/* Export inv. traça. button with dropdown lookup */}
@@ -686,7 +687,7 @@ export default function StocksDistribuesTab({
                     }}
                     className="font-sans transition-all select-none"
                   >
-                    Export inv. traça.
+                    {t("Export inv. traça.")}
                   </button>
                   {showExportDropdown && (
                     <div 
@@ -917,7 +918,7 @@ export default function StocksDistribuesTab({
           >
             <div>
               <h3 className="text-2xl font-bold font-gochi" id="distributed-form-title" style={{ color: '#000', cursor: 'default' }}>
-                {editingId ? "Modification Stock Distribué" : "Nouveau Stock Distribué"}
+                {editingId ? t("Modification Stock Distribué") : t("Nouveau Stock Distribué")}
               </h3>
             </div>
             
@@ -931,7 +932,7 @@ export default function StocksDistribuesTab({
                 style={rowActionButton18Style}
                 className="transition-colors cursor-pointer"
               >
-                <span>Annuler</span>
+                <span>{t("Annuler")}</span>
               </button>
 
               <button
@@ -945,7 +946,7 @@ export default function StocksDistribuesTab({
                 }}
                 className="transition-all cursor-pointer"
               >
-                <span>Enregistrer</span>
+                <span>{t("Enregistrer")}</span>
               </button>
             </div>
           </div>
@@ -1385,7 +1386,7 @@ export default function StocksDistribuesTab({
                           letterSpacing: 'normal'
                         }}
                       >
-                        Inventaire de traçabilité
+                        {t("Inventaire de traçabilité")}
                       </span>
                     </div>
 

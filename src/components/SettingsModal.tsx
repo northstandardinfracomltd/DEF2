@@ -134,17 +134,7 @@ export default function SettingsModal({
     return (localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) as 'Oui' | 'Non') || 'Oui';
   });
   const [showEpsonBanner, setShowEpsonBanner] = React.useState<boolean>(() => {
-    const val = localStorage.getItem("help_dismissed_settings_epson");
-    if (val) {
-      const timestamp = parseInt(val, 10);
-      if (!isNaN(timestamp)) {
-        const diffMs = Date.now() - timestamp;
-        if (diffMs < 24 * 60 * 60 * 1000) {
-          return false;
-        }
-      }
-    }
-    return true;
+    return !sessionStorage.getItem("help_dismissed_settings_epson");
   });
 
   const [referralCompany, setReferralCompany] = React.useState('');
@@ -1103,7 +1093,7 @@ export default function SettingsModal({
               <button
                 type="button"
                 onClick={() => {
-                  localStorage.setItem("help_dismissed_settings_epson", Date.now().toString());
+                  sessionStorage.setItem("help_dismissed_settings_epson", "true");
                   setShowEpsonBanner(false);
                 }}
                 className="font-sans font-semibold active:scale-95 transition-all border-0 cursor-pointer shrink-0"
@@ -1333,7 +1323,7 @@ export default function SettingsModal({
                   onChange={(e) => handleCompanyChange('gmailPartageLocalisation', e.target.value)}
                   className="w-full text-black placeholder-[#747474] font-sans text-sm bg-white"
                   style={{ backgroundColor: '#ffffff' }}
-                  placeholder="Ex: partage@gmail.com"
+                  placeholder={t("Ex: partage@gmail.com")}
                 />
               </div>
             </div>

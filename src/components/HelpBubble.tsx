@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { t } from '../utils/translate';
 
 interface HelpBubbleProps {
@@ -8,25 +8,12 @@ interface HelpBubbleProps {
 }
 
 export default function HelpBubble({ cacheKey, text, style }: HelpBubbleProps) {
-  const [isVisible, setIsVisible] = useState<boolean>(false);
-
-  useEffect(() => {
-    const dismissedValue = localStorage.getItem(cacheKey);
-    if (dismissedValue) {
-      const timestamp = parseInt(dismissedValue, 10);
-      if (!isNaN(timestamp)) {
-        const diffMs = Date.now() - timestamp;
-        if (diffMs < 24 * 60 * 60 * 1000) {
-          setIsVisible(false);
-          return;
-        }
-      }
-    }
-    setIsVisible(true);
-  }, [cacheKey]);
+  const [isVisible, setIsVisible] = useState<boolean>(() => {
+    return !sessionStorage.getItem(cacheKey);
+  });
 
   const handleDismiss = () => {
-    localStorage.setItem(cacheKey, Date.now().toString());
+    sessionStorage.setItem(cacheKey, "true");
     setIsVisible(false);
   };
 

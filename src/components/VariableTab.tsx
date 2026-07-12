@@ -468,37 +468,37 @@ export default function VariableTab({
                         textTransform: 'none',
                       }}
                     >
-                      Rappel ou alerte
+                      {t("Rappel ou alerte")}
                     </span>
                   </div>
 
                   <div className="p-3.5 bg-sky-50 border border-sky-100 rounded-xl text-sky-900 text-sm font-sans leading-relaxed">
-                    Défibeo ne peut légalement pas être un tiers pour notifier les remontées sur les incidents techniques de matériel médical. C’est pourquoi cet emplacement est réservé à l’enregistrement des remontées des fabricants, communément appelées FSCA (Field Safety Corrective Action). Votre alerte remonte visuellement sur votre onglet « Défibrillateurs » et votre client voit également, depuis son portail, un incident relatif au matériel.
+                    {t("Défibeo ne peut légalement pas être un tiers pour notifier les remontées sur les incidents techniques de matériel médical. C’est pourquoi cet emplacement est réservé à l’enregistrement des remontées des fabricants, communément appelées FSCA (Field Safety Corrective Action). Votre alerte remonte visuellement sur votre onglet « Défibrillateurs » et votre client voit également, depuis son portail, un incident relatif au matériel.")}
                   </div>
 
                   <div className="space-y-1">
                     <label htmlFor="select-variable-rappel-option" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Type d'alerte / rappel.
+                      {t("Type d'alerte / rappel.")}
                     </label>
                     <select
                       id="select-variable-rappel-option"
                       value={rappelAlerteOption}
                       onChange={(e) => setRappelAlerteOption(e.target.value)}
                     >
-                      <option value="">Aucun rappel ou alerte actif.</option>
-                      <option value="Mise à jour logicielle — Orange">Mise à jour logicielle — Orange</option>
-                      <option value="Rappel atelier — Rouge">Rappel atelier — Rouge</option>
-                      <option value="Modification notice d'utilisation — Orange">Modification notice d'utilisation — Orange</option>
-                      <option value="Retrait du marché — Rouge">Retrait du marché — Rouge</option>
-                      <option value="Observation courante — Orange">Observation courante — Orange</option>
-                      <option value="Observation grave — Rouge">Observation grave — Rouge</option>
+                      <option value="">{t("Aucun rappel ou alerte actif.")}</option>
+                      <option value="Mise à jour logicielle — Orange">{t("Mise à jour logicielle — Orange")}</option>
+                      <option value="Rappel atelier — Rouge">{t("Rappel atelier — Rouge")}</option>
+                      <option value="Modification notice d'utilisation — Orange">{t("Modification notice d'utilisation — Orange")}</option>
+                      <option value="Retrait du marché — Rouge">{t("Retrait du marché — Rouge")}</option>
+                      <option value="Observation courante — Orange">{t("Observation courante — Orange")}</option>
+                      <option value="Observation grave — Rouge">{t("Observation grave — Rouge")}</option>
                     </select>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label htmlFor="input-variable-rappel-debut" className="block text-[11px] font-bold text-slate-500 uppercase">
-                        Date de début.
+                        {t("Date de début.")}
                       </label>
                       <input
                         type="date"
@@ -509,7 +509,7 @@ export default function VariableTab({
                     </div>
                     <div className="space-y-1">
                       <label htmlFor="input-variable-rappel-fin" className="block text-[11px] font-bold text-slate-500 uppercase">
-                        Date de fin.
+                        {t("Date de fin.")}
                       </label>
                       <input
                         type="date"
@@ -522,13 +522,13 @@ export default function VariableTab({
 
                   <div className="space-y-1">
                     <label htmlFor="input-variable-rappel-obs" className="block text-[11px] font-bold text-slate-500 uppercase">
-                      Observation sur le rappel ou l’alerte.
+                      {t("Observation sur le rappel ou l’alerte.")}
                     </label>
                     <textarea
                       id="input-variable-rappel-obs"
                       value={rappelObservation}
                       onChange={(e) => setRappelObservation(e.target.value)}
-                      placeholder="Observation sur le rappel ou l’alerte."
+                      placeholder={t("Observation sur le rappel ou l’alerte.")}
                       rows={3}
                     />
                   </div>

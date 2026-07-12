@@ -351,6 +351,25 @@ export default function App() {
     localStorage.removeItem('defib_admin_logged_user');
     localStorage.removeItem('defib_logged_user_role');
     localStorage.removeItem('defib_active_tech_session');
+    
+    // Clear help_dismissed keys from sessionStorage and localStorage on logout
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('help_dismissed')) {
+          sessionStorage.removeItem(key);
+        }
+      }
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('help_dismissed')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
     setIsPublicPortalOpen(false);
     setIsClientPortalOpen(false);
     setActivePortalClient(null);
@@ -7980,7 +7999,7 @@ export default function App() {
                     >
                       <div>
                         <h3 className="text-2xl font-bold font-gochi" id="devis-form-modal-title" style={{ color: '#000', cursor: 'default' }}>
-                          {editingDocId ? 'Modification pièce comptable' : 'Nouvelle pièce comptable'}
+                          {editingDocId ? t('Modification pièce comptable') : t('Nouvelle pièce comptable')}
                         </h3>
                       </div>
                       
@@ -8116,7 +8135,7 @@ export default function App() {
 
                         {/* Date */}
                         <div className="flex flex-col gap-1 bg-white">
-                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">Émission.</label>
+                          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Émission.")}</label>
                           <input
                             type="date"
                             value={docDateStr}

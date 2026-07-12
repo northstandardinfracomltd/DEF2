@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { t } from '../utils/translate';
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { REGIONS_FRANCAISES } from '../utils';
@@ -2866,20 +2867,20 @@ export default function GmaoCorrectionForm({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white animate-fadeIn">
                 <div className="space-y-1">
                   <label htmlFor="snap-lotPadpakA" className="block text-[11px] font-bold text-black uppercase">
-                    Lot PadPak A.
+                    {t("Lot PadPak A.")}
                   </label>
                   <input
                     type="text"
                     id="snap-lotPadpakA"
                     value={snapshot.lotPadpakA || ''}
                     onChange={(e) => handleSnapshotChange('lotPadpakA', e.target.value)}
-                    placeholder="Entrez le numéro de lot."
+                    placeholder={t("Entrez le numéro de lot.")}
                     className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
                   />
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="snap-peremptionPadpakA" className="block text-[11px] font-bold text-black uppercase">
-                    Péremption PadPak A.
+                    {t("Péremption PadPak A.")}
                   </label>
                   <input
                     type="date"
@@ -3227,20 +3228,20 @@ export default function GmaoCorrectionForm({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white animate-fadeIn">
                 <div className="space-y-1">
                   <label htmlFor="snap-lotPadpakP" className="block text-[11px] font-bold text-black uppercase">
-                    Lot PadPak P.
+                    {t("Lot PadPak P.")}
                   </label>
                   <input
                     type="text"
                     id="snap-lotPadpakP"
                     value={snapshot.lotPadpakP || ''}
                     onChange={(e) => handleSnapshotChange('lotPadpakP', e.target.value)}
-                    placeholder="Entrez le numéro de lot."
+                    placeholder={t("Entrez le numéro de lot.")}
                     className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
                   />
                 </div>
                 <div className="space-y-1">
                   <label htmlFor="snap-peremptionPadpakP" className="block text-[11px] font-bold text-black uppercase">
-                    Péremption PadPak P.
+                    {t("Péremption PadPak P.")}
                   </label>
                   <input
                     type="date"

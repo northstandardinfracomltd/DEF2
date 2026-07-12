@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { X } from 'lucide-react';
+import { t } from '../utils/translate';
 import { Defibrillateur, Client, Variable, StockRecord, PointageLog } from '../types';
 
 interface StatsModalProps {
@@ -262,7 +263,7 @@ export default function StatsModal({
       >
         <div className="flex items-center gap-2">
           <div>
-            <h3 className="text-2xl font-bold text-black font-gochi cursor-default" style={{ cursor: 'default' }}>Statistiques</h3>
+            <h3 className="text-2xl font-bold text-black font-gochi cursor-default" style={{ cursor: 'default' }}>{t("Statistiques")}</h3>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -272,7 +273,7 @@ export default function StatsModal({
             style={roundedButton18Style}
             className="transition-all text-white bg-black rounded cursor-pointer"
           >
-            <span>Actualiser</span>
+            <span>{t("Actualiser")}</span>
           </button>
           {!isPage && (
             <button
@@ -317,7 +318,7 @@ export default function StatsModal({
               {item.value}
             </div>
             <div style={{ fontSize: '16px', fontWeight: 500, color: '#000000', marginTop: '8px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default', letterSpacing: 'normal' }}>
-              {item.label}
+              {t(item.label)}
             </div>
           </div>
         ))}

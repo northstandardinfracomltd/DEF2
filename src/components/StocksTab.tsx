@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { t } from '../utils/translate';
 import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability } from '../types';
 import { getLocationCustomName } from '../utils';
 import HelpBubble from './HelpBubble';
@@ -1299,7 +1300,7 @@ export default function StocksTab({
                 {/* Field Usage recommandé. */}
                 <div className="flex flex-col gap-1 bg-white mb-4">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
-                    Usage recommandé.
+                    {t("Usage recommandé.")}
                   </label>
                   <div className="flex flex-wrap gap-2 mb-1">
                     {newUsageRecommandeIds.map(id => {
@@ -1332,7 +1333,7 @@ export default function StocksTab({
                     }}
                     className="focus:outline-none w-full cursor-pointer font-sans p-2 border border-slate-200 rounded text-slate-700 text-sm"
                   >
-                    <option value="" disabled>Choisir le matériel adéquat.</option>
+                    <option value="" disabled>{t("Choisir le matériel adéquat.")}</option>
                     {variables
                       .filter(v => v.category === 'Modèle Défibrillateur' && !newUsageRecommandeIds.includes(v.id))
                       .map(v => {
@@ -1357,7 +1358,7 @@ export default function StocksTab({
                   }}
                   className="p-4 rounded-xl mb-4 font-sans font-semibold"
                 >
-                  Nous estimons votre besoin de trésorerie à <strong className="font-extrabold">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>€, pour l'achat des stocks requis aux actions de maintenances.
+                  Nous estimons votre besoin de trésorerie à <strong className="font-extrabold">{((Number(newValAchat) || 0) * (prevoianceData.totalToOrder || 0)).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}</strong>€{t(", pour l'achat des stocks requis aux actions de maintenances.")}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5 bg-white">
                   <div className="flex flex-col gap-1 bg-white">
@@ -1798,7 +1799,7 @@ export default function StocksTab({
                           letterSpacing: 'normal'
                         }}
                       >
-                        Inventaire de traçabilité
+                        {t("Inventaire de traçabilité")}
                       </span>
                       <div className="flex gap-2">
                         <button
@@ -1824,7 +1825,7 @@ export default function StocksTab({
                         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-transparent">
                           {/* Sélection du mouvement */}
                           <div className="flex flex-col gap-1 bg-transparent">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Sélection du mouvement *</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t("Sélection du mouvement *")}</label>
                             <select
                               value={selectedMovementId}
                               onChange={(e) => setSelectedMovementId(e.target.value)}
@@ -1844,7 +1845,7 @@ export default function StocksTab({
 
                           {/* Numéro de lot ou série */}
                           <div className="flex flex-col gap-1 bg-transparent">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Numéro de lot ou série *</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t("Numéro de lot ou série *")}</label>
                             <input
                               type="text"
                               value={lotOrSerial}
@@ -1858,7 +1859,7 @@ export default function StocksTab({
 
                           {/* Date de péremption */}
                           <div className="flex flex-col gap-1 bg-transparent">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date de péremption</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">{t("Date de péremption")}</label>
                             <input
                               type="date"
                               value={expirationDate}
@@ -2161,7 +2162,7 @@ export default function StocksTab({
               {/* Activer la traçabilité des pièces. */}
               <div className="md:col-span-4 bg-white flex flex-col gap-2 mt-2">
                 <span className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
-                  Activer la traçabilité des pièces.
+                  {t("Activer la traçabilité des pièces.")}
                 </span>
                 <div className="flex gap-4 mt-1 bg-transparent">
                   <button

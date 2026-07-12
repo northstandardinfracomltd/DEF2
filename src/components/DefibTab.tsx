@@ -2331,14 +2331,14 @@ export default function DefibTab({
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Identifiant.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Série.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Client.</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Nom du site.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>{t("Nom du site.")}</th>
                   <th className="px-4 py-3.5 text-center whitespace-nowrap" style={thStyle}>Contrat.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Localisation.</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Expir. garantie.</th>
-                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Pro. visite.</th>
-                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption A.</th>
-                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption P.</th>
-                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>Péremption B.</th>
+                  <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>{t("Pro. visite.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Péremption A.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Péremption P.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Péremption B.")}</th>
                   <th className="px-4 py-3.5 whitespace-nowrap" style={thStyle}>Tournée.</th>
                   <th className="px-4 py-3.5 text-right w-12 whitespace-nowrap" style={thStyle}>Actions.</th>
                 </tr>
@@ -2633,7 +2633,7 @@ export default function DefibTab({
                             }}
                             style={rowActionButton18Style}
                           >
-                            Rapport(s)
+                            {t("Rapport(s)")}
                           </button>
                           <button
                             onClick={() => openEditForm(df)}
@@ -3146,14 +3146,14 @@ export default function DefibTab({
                       {/* Nom du site field */}
                       <div className="space-y-1">
                         <label htmlFor="form-nom-site" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                          Nom du site.
+                          {t("Nom du site.")}
                         </label>
                         <input
                           type="text"
                           id="form-nom-site"
                           value={nomSite}
                           onChange={(e) => setNomSite(e.target.value)}
-                          placeholder="Nom du site."
+                          placeholder={t("Nom du site.")}
                           className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
                         />
                       </div>
@@ -3317,7 +3317,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        3 — Boîtier
+                        {t("3 — Boîtier")}
                       </span>
                     </div>
 
@@ -3558,7 +3558,7 @@ export default function DefibTab({
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider font-sans">
-                          Horaires d'ouverture
+                          {t("Horaires d'ouverture")}
                         </span>
                         <button
                           type="button"
@@ -3566,7 +3566,7 @@ export default function DefibTab({
                           style={{ ...rowActionButton18Style, textTransform: 'none' }}
                           className="font-sans"
                         >
-                          Nouvelle plage
+                          {t("Nouvelle plage")}
                         </button>
                       </div>
 
@@ -3595,7 +3595,7 @@ export default function DefibTab({
                                 {sch.fermetureMidi && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
                               </span>
                               <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
-                                Fermeture le midi (4 plages horaires)
+                                {t("Fermeture le midi (4 plages horaires)")}
                               </span>
                             </button>
                           </div>
@@ -3667,7 +3667,7 @@ export default function DefibTab({
 
                           {/* Day checkboxes (Lundi to Dimanche) */}
                           <div className="space-y-1">
-                            <span className="block text-[9px] font-bold text-slate-400 uppercase font-sans">Jours de la semaine</span>
+                            <span className="block text-[9px] font-bold text-slate-400 uppercase font-sans">{t("Jours de la semaine")}</span>
                             <div className="flex flex-wrap gap-1">
                               {[
                                 { key: 'Lundi', label: 'Lun' },
@@ -3853,7 +3853,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        6 — Électrode Adulte ou Mixte
+                        {t("6 — Électrode Adulte ou Mixte")}
                       </span>
                     </div>
 
@@ -3943,7 +3943,7 @@ export default function DefibTab({
 
                     {/* Électrode de secours radio button */}
                     <div className="space-y-1">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Électrode de secours.</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t("Électrode de secours.")}</span>
                       <div className="flex gap-4 py-1">
                         <button
                           type="button"
@@ -4078,20 +4078,20 @@ export default function DefibTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
                         <div className="space-y-1 bg-white">
                           <label htmlFor="form-lot-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            Lot PadPak A.
+                            {t("Lot PadPak A.")}
                           </label>
                           <input
                             type="text"
                             id="form-lot-padpak-a"
                             value={lotPadpakA}
                             onChange={(e) => setLotPadpakA(e.target.value)}
-                            placeholder="Entrez le numéro de lot."
+                            placeholder={t("Entrez le numéro de lot.")}
                             className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
                           />
                         </div>
                         <div className="space-y-1 bg-white">
                           <label htmlFor="form-per-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            Péremption PadPak A.
+                            {t("Péremption PadPak A.")}
                           </label>
                           <input
                             type="date"
@@ -4125,7 +4125,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        7 — Électrode Pédiatrique
+                        {t("7 — Électrode Pédiatrique")}
                       </span>
                     </div>
 
@@ -4215,7 +4215,7 @@ export default function DefibTab({
 
                     {/* Électrode de secours radio button */}
                     <div className="space-y-1">
-                      <span className="block text-[10px] font-bold text-slate-400 uppercase">Électrode de secours.</span>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase">{t("Électrode de secours.")}</span>
                       <div className="flex gap-4 py-1">
                         <button
                           type="button"
@@ -4350,20 +4350,20 @@ export default function DefibTab({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
                         <div className="space-y-1 bg-white">
                           <label htmlFor="form-lot-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            Lot PadPak P.
+                            {t("Lot PadPak P.")}
                           </label>
                           <input
                             type="text"
                             id="form-lot-padpak-p"
                             value={lotPadpakP}
                             onChange={(e) => setLotPadpakP(e.target.value)}
-                            placeholder="Entrez le numéro de lot."
+                            placeholder={t("Entrez le numéro de lot.")}
                             className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
                           />
                         </div>
                         <div className="space-y-1 bg-white">
                           <label htmlFor="form-per-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            Péremption PadPak P.
+                            {t("Péremption PadPak P.")}
                           </label>
                           <input
                             type="date"
@@ -4397,7 +4397,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        8 — Batterie
+                        {t("8 — Batterie")}
                       </span>
                     </div>
 
@@ -4576,7 +4576,7 @@ export default function DefibTab({
                       </div>
 
                       <div className="space-y-1">
-                        <label htmlFor="form-bat-pct" className="block text-[10px] font-bold text-slate-400 uppercase">Pourcentage constaté.</label>
+                        <label htmlFor="form-bat-pct" className="block text-[10px] font-bold text-slate-400 uppercase">{t("Pourcentage constaté.")}</label>
                         <input
                           type="text"
                           id="form-bat-pct"
@@ -4621,7 +4621,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        9 — Catégories
+                        {t("9 — Catégories")}
                       </span>
                     </div>
 

@@ -104,6 +104,7 @@ interface StocksTabProps {
   setStockSearchQuery?: (q: string) => void;
   commercialDocs?: CommercialDoc[];
   achatsFournisseurs?: AchatFournisseur[];
+  setActiveTab?: (tab: any) => void;
 }
 
 export default function StocksTab({
@@ -119,6 +120,7 @@ export default function StocksTab({
   setStockSearchQuery: externalSetStockSearchQuery,
   commercialDocs = [],
   achatsFournisseurs = [],
+  setActiveTab,
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState('');
@@ -1120,7 +1122,19 @@ export default function StocksTab({
 
               {/* Lookup Dénomination variable - 3/4 Width on Row */}
               <div className="flex flex-col gap-1 bg-white md:col-span-3">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce ou service *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">Pièce ou service *</label>
+                  {setActiveTab && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('variables')}
+                      className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                      style={{ textDecoration: 'none' }}
+                    >
+                      Nouvelle variable
+                    </button>
+                  )}
+                </div>
                 <select
                   value={newDenomStr}
                   onChange={(e) => setNewDenomStr(e.target.value)}
@@ -1299,9 +1313,21 @@ export default function StocksTab({
 
                 {/* Field Usage recommandé. */}
                 <div className="flex flex-col gap-1 bg-white mb-4">
-                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
-                    {t("Usage recommandé.")}
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider stocks-label-style">
+                      {t("Usage recommandé.")}
+                    </label>
+                    {setActiveTab && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab('variables')}
+                        className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                        style={{ textDecoration: 'none' }}
+                      >
+                        Nouvelle variable
+                      </button>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 mb-1">
                     {newUsageRecommandeIds.map(id => {
                       const vObj = variables.find(v => v.id === id);

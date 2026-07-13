@@ -4117,7 +4117,7 @@ export default function GmaoCorrectionForm({
               textAlignLast: 'center'
             }}
           >
-            <option value="">Sélectionnez un code erreur.</option>
+            <option value="">{t("Sélectionnez un code erreur")}</option>
             {ERROR_CODES_DB.map((item, idx) => (
               <option key={idx} value={item.label}>{item.label}</option>
             ))}

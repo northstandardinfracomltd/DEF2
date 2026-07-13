@@ -827,7 +827,7 @@ const dictionaries: Record<string, Record<string, string>> = {
     "Signez pour appliquer l’horodatage": "Sign to apply timestamp",
     "Signez pour appliquer l’horodatage.": "Sign to apply timestamp.",
     "Commentaire de diagnostic et de clôture.": "Diagnostic and closing comment.",
-    "Sélectionnez un code erreur.": "Select an error code.",
+    "Sélectionnez un code erreur": "Select an error code",
 
     // Error Codes Labels & Descriptions
     "Philips - Code 1": "Philips - Code 1",

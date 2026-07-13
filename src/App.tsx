@@ -8224,7 +8224,17 @@ export default function App() {
                           
                           {/* Lookup Piece */}
                           <div className="flex flex-col gap-1 bg-transparent md:col-span-5">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Pièce ou service.")}</label>
+                            <div className="flex items-center justify-between">
+                              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Pièce ou service.")}</label>
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('variables')}
+                                className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                                style={{ textDecoration: 'none' }}
+                              >
+                                Nouvelle variable
+                              </button>
+                            </div>
                             <select
                               value={selectedDocPieceId}
                               onChange={(e) => {
@@ -8540,6 +8550,7 @@ export default function App() {
               setStockSearchQuery={setStockSearchQuery}
               commercialDocs={commercialDocs}
               achatsFournisseurs={achatsFournisseurs}
+              setActiveTab={setActiveTab}
             />
           )}
 

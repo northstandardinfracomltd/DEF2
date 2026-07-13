@@ -1063,12 +1063,6 @@ export default function SettingsModal({
           id="settings-tab-container-harmonized"
           style={isPage ? { maxWidth: '98%', margin: '0 auto', width: '100%' } : {}}
         >
-          <HelpBubble 
-            cacheKey="help_dismissed_settings_advise"
-            text="Le saviez-vous ? Invitez vos clients à utiliser le formulaire intitulé « Signaler un problème avec un défibrillateur, envoyer un message en tant que client ou passant », disponible sur la page https://defibeo.deroesch.com/. C'est un outil très pratique ! En le complétant, la demande est directement intégrée à votre CRM et vous recevez instantanément un e-mail automatique de notification."
-            style={{ margin: '0px 0px 16px 0px', maxWidth: '100%' }}
-          />
-
           {showEpsonBanner && (
             <div 
               className="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fadeIn transition-all"

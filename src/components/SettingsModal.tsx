@@ -839,6 +839,15 @@ export default function SettingsModal({
     onUpdateCompanyInfo(companyToSave);
     onUpdateMembers(localMembers);
 
+    // Save directly to Firestore for environments to guarantee persistence and solve the Mercedes AMG sync bug
+    if (myTenantId && myTenantId !== 'demo') {
+      try {
+        await saveCollectionToFirestore('companyInfo', companyToSave);
+      } catch (err) {
+        console.error('Error saving company info directly to Firestore:', err);
+      }
+    }
+
     // Envoi des emails aux nouveaux membres (Email de bienvenue personnalisé)
     try {
       const originalEmails = new Set(members.map(m => m.email?.trim().toLowerCase()));

@@ -4259,8 +4259,10 @@ export default function App() {
   // Company and Members Settings Sync
   const handleUpdateCompanyInfo = (info: CompanyInfo) => {
     setCompanyInfo(info);
-    localStorage.setItem('defib_company_info', JSON.stringify(info));
-    localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(info));
+    const infoStr = JSON.stringify(info);
+    localStorage.setItem('defib_company_info', infoStr);
+    localStorage.setItem(`defib_${tenantId}_company_info`, infoStr);
+    loadedDataRef.current.companyInfo = infoStr;
   };
 
   const handleUpdateMembers = (updatedMembers: Member[]) => {

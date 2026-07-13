@@ -145,6 +145,7 @@ interface ClientTabProps {
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
   companyInfo: CompanyInfo;
+  setActiveTab?: (tab: any) => void;
 }
 
 export default function ClientTab({
@@ -155,6 +156,7 @@ export default function ClientTab({
   onUpdateClient,
   onDeleteClient,
   companyInfo,
+  setActiveTab,
 }: ClientTabProps) {
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -1327,7 +1329,7 @@ export default function ClientTab({
 
                     return (
                       /* Contact 2 */
-                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2 border-t border-slate-100">
+                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
                         <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 2.</div>
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                           <div className="space-y-1">
@@ -1406,7 +1408,7 @@ export default function ClientTab({
 
                     return (
                       /* Contact 3 */
-                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2 border-t border-slate-100">
+                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
                         <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 3.</div>
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                           <div className="space-y-1">
@@ -1489,7 +1491,7 @@ export default function ClientTab({
 
                     return (
                       /* Contact 4 */
-                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2 border-t border-slate-100">
+                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
                         <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 4.</div>
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                           <div className="space-y-1">
@@ -1576,7 +1578,7 @@ export default function ClientTab({
 
                     return (
                       /* Contact 5 */
-                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2 border-t border-slate-100">
+                      <div className="py-5 last:border-b-0 last:pb-0 space-y-2">
                         <div className="font-bold text-black font-sans" style={{ fontSize: '18px' }}>Contact 5.</div>
                         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                           <div className="space-y-1">
@@ -1671,9 +1673,21 @@ export default function ClientTab({
                 <div className="space-y-3 pt-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label htmlFor="input-client-contract-name" className="block text-[11px] font-bold text-slate-500 uppercase">
-                        Catégorie du contrat.
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label htmlFor="input-client-contract-name" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Catégorie du contrat.
+                        </label>
+                        {setActiveTab && (
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('variables')}
+                            className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            Nouvelle variable
+                          </button>
+                        )}
+                      </div>
                       <select
                         id="input-client-contract-name"
                         value={nomContrat}

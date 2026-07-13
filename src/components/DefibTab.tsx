@@ -2979,9 +2979,21 @@ export default function DefibTab({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Modèle Lookup select - spans full column */}
                       <div className="space-y-1">
-                        <label htmlFor="form-modeleid" className="block text-[11px] font-bold text-slate-500 uppercase">
-                          Modèle.
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="form-modeleid" className="block text-[11px] font-bold text-slate-500 uppercase">
+                            Modèle.
+                          </label>
+                          {setActiveTab && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('variables')}
+                              className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              Nouvelle variable
+                            </button>
+                          )}
+                        </div>
                         <select
                           id="form-modeleid"
                           value={modeleId}
@@ -3324,9 +3336,21 @@ export default function DefibTab({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Modèle de coffret */}
                       <div className="space-y-1">
-                        <label htmlFor="form-mod-coffret" className="block text-[11px] font-bold text-slate-500 uppercase">
-                          Modèle.
-                        </label>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="form-mod-coffret" className="block text-[11px] font-bold text-slate-500 uppercase">
+                            Modèle.
+                          </label>
+                          {setActiveTab && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('variables')}
+                              className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              Nouvelle variable
+                            </button>
+                          )}
+                        </div>
                         <select
                           id="form-mod-coffret"
                           value={modeleCoffretId}
@@ -3859,7 +3883,19 @@ export default function DefibTab({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label htmlFor="form-elec-a-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="form-elec-a-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                          {setActiveTab && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('variables')}
+                              className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              Nouvelle variable
+                            </button>
+                          )}
+                        </div>
                         <select
                           id="form-elec-a-lookup"
                           value={modeleElectrodeAId}
@@ -4131,7 +4167,19 @@ export default function DefibTab({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label htmlFor="form-elec-p-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="form-elec-p-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                          {setActiveTab && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('variables')}
+                              className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              Nouvelle variable
+                            </button>
+                          )}
+                        </div>
                         <select
                           id="form-elec-p-lookup"
                           value={modeleElectrodePId}
@@ -4403,7 +4451,19 @@ export default function DefibTab({
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <label htmlFor="form-bat-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                        <div className="flex items-center justify-between">
+                          <label htmlFor="form-bat-lookup" className="block text-[10px] font-bold text-slate-400 uppercase">Modèle.</label>
+                          {setActiveTab && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('variables')}
+                              className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
+                              style={{ textDecoration: 'none' }}
+                            >
+                              Nouvelle variable
+                            </button>
+                          )}
+                        </div>
                         <select
                           id="form-bat-lookup"
                           value={modeleBatterieId}

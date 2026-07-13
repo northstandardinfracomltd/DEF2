@@ -4801,6 +4801,7 @@ export default function App() {
               onUpdateClient={handleUpdateClient}
               onDeleteClient={handleDeleteClient}
               companyInfo={companyInfo}
+              setActiveTab={setActiveTab}
             />
           )}
 

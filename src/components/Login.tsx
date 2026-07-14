@@ -985,39 +985,6 @@ export default function Login({ onLoginSuccess }: LoginProps) {
 
       <div className="mt-2 sm:mx-auto sm:w-full sm:max-w-md px-4 sm:px-0 z-10">
         
-        {/* Alert Card - Signaler un problème */}
-        <div className="mb-6 p-5 bg-transparent rounded-[14px] border border-white/10 text-white space-y-3" id="report-issue-alert">
-          <div className="space-y-1">
-            <h3 className="text-[18px] font-bold text-white leading-relaxed" style={{ fontFamily: "DefibeoMain, Civilprom, sans-serif", cursor: 'default' }}>
-              {t.reportAlertTitle}
-            </h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              setIsReportOpen(true);
-              setIsReportSubmitted(false);
-            }}
-            style={{
-              backgroundColor: '#3556ec',
-              color: '#fff',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              fontFamily: "DefibeoMain, Civilprom, sans-serif",
-              borderRadius: '12px',
-              padding: '10px 18px',
-              border: 'none',
-              boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #077ac7, inset 0 6px 12px #ffffff1f',
-              cursor: 'pointer',
-              width: 'auto',
-              display: 'block'
-            }}
-            className="hover:opacity-90 active:scale-[0.99] transition-all"
-          >
-            {t.continue}
-          </button>
-        </div>
-
         {/* Connection/Creation Toggle */}
         <div className="mb-6">
           <div className="flex w-full p-1 bg-black/25 backdrop-blur-md rounded-[14px] border border-white/10" id="auth-toggle-capsule">

@@ -2463,10 +2463,12 @@ export default function App() {
         const tenants = await getRegisteredTenants();
         const cleanSlug = slugify(decodedSlug);
         
-        // Find if any tenant matches the slugified commercial name or ID
+        // Find if any tenant matches the slugified commercial name, ID, short env ID or custom software name
         const matched = tenants.find(t => 
           slugify(t.companyName || '') === cleanSlug || 
-          slugify(t.id || '') === cleanSlug
+          slugify(t.id || '') === cleanSlug ||
+          slugify(t.shortEnvId || '') === cleanSlug ||
+          slugify(t.nomLogiciel || '') === cleanSlug
         );
 
         if (matched) {
@@ -2493,6 +2495,7 @@ export default function App() {
 
   // Load from Firebase on startup, fallback to LocalStorage/Seed Defaults
   useEffect(() => {
+    if (isWebsiteChecking) return;
     async function loadFirebaseAndSeed() {
       try {
         setIsFirebaseLoaded(false);
@@ -2917,7 +2920,7 @@ export default function App() {
       setDropboxActive(false);
       setDropboxAccessToken('');
     });
-  }, [tenantId]);
+  }, [tenantId, isWebsiteChecking]);
 
   useEffect(() => {
     loadApiConnectors();
@@ -4591,6 +4594,17 @@ export default function App() {
           setIsPublicPortalOpen(false);
         }}
       />
+    );
+  }
+
+  if (isWebsiteChecking) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-500 text-sm">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
+          <span className="font-medium text-slate-600">Chargement de votre espace...</span>
+        </div>
+      </div>
     );
   }
 

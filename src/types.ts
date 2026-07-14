@@ -241,47 +241,6 @@ export interface Member {
   googleCalId?: string;
 }
 
-export interface WebsiteSectionItem {
-  id: string;
-  title: string;
-  description: string;
-  imageUrl?: string;
-}
-
-export interface WebsiteSettings {
-  sec1Active?: boolean;
-  sec1Title?: string;
-  sec1Subtitle?: string;
-  sec1Desc?: string;
-  sec1Image?: string;
-
-  sec2Active?: boolean;
-  sec2Title?: string;
-  sec2Subtitle?: string;
-  sec2Items?: WebsiteSectionItem[];
-
-  sec3Active?: boolean;
-  sec3Title?: string;
-  sec3Subtitle?: string;
-  sec3Desc?: string;
-  sec3Image?: string;
-
-  sec4Active?: boolean;
-  sec4Title?: string;
-  sec4Subtitle?: string;
-  sec4Items?: WebsiteSectionItem[];
-
-  sec5Active?: boolean;
-  sec5Title?: string;
-  sec5Subtitle?: string;
-  sec5Desc?: string;
-  sec5Fb?: string;
-  sec5Insta?: string;
-  sec5In?: string;
-
-  sec6Active?: boolean;
-}
-
 export interface CompanyInfo {
   name: string;
   logo: string;
@@ -297,8 +256,6 @@ export interface CompanyInfo {
   enableDevisFactures?: 'Oui' | 'Non';
   gmailPartageLocalisation?: string;
   hiddenTabs?: string[];
-  enablePublicWebsite?: 'Oui' | 'Non';
-  websiteSettings?: WebsiteSettings;
 }
 
 export interface PointageLog {

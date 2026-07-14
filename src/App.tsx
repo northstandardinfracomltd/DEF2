@@ -23,7 +23,6 @@ import {
   computeProchaineMaintenance,
   getLocationCustomName,
   getCapsuleBgColor,
-  slugify,
 } from './utils';
 import {
   triggerEmail4Signalement,
@@ -44,7 +43,6 @@ import StatsModal from './components/StatsModal';
 import PublicPortal from './components/PublicPortal';
 import ClientPortal from './components/ClientPortal';
 import Login from './components/Login';
-import PublicWebsite from './components/PublicWebsite';
 import MegaAdminDashboard from './components/MegaAdminDashboard';
 import StocksTab from './components/StocksTab';
 import StocksDistribuesTab from './components/StocksDistribuesTab';
@@ -2439,63 +2437,8 @@ export default function App() {
     savePointages(updated);
   };
 
-  // Public Commercial Website Routing check
-  const [isPublicWebsitePage, setIsPublicWebsitePage] = useState(false);
-  const [isWebsiteChecking, setIsWebsiteChecking] = useState(true);
-
-  useEffect(() => {
-    async function checkWebsiteRoute() {
-      const rawPath = window.location.pathname.replace(/^\//, '').trim();
-      const decodedSlug = decodeURIComponent(rawPath);
-      
-      if (!decodedSlug || 
-          decodedSlug === 'satisfaction' || 
-          decodedSlug === 'client-portal' || 
-          decodedSlug === 'login' || 
-          decodedSlug.startsWith('admin') ||
-          decodedSlug.includes('.')
-      ) {
-        setIsWebsiteChecking(false);
-        return;
-      }
-
-      try {
-        const tenants = await getRegisteredTenants();
-        const cleanSlug = slugify(decodedSlug);
-        
-        // Find if any tenant matches the slugified commercial name, ID, short env ID or custom software name
-        const matched = tenants.find(t => 
-          slugify(t.companyName || '') === cleanSlug || 
-          slugify(t.id || '') === cleanSlug ||
-          slugify(t.shortEnvId || '') === cleanSlug ||
-          slugify(t.nomLogiciel || '') === cleanSlug
-        );
-
-        if (matched) {
-          console.log(`Setting public website context for tenant: ${matched.id}`);
-          setTenantIdState(matched.id);
-          setFirebaseTenantId(matched.id);
-          localStorage.setItem('defib_tenant_id', matched.id);
-          setIsPublicWebsitePage(true);
-        } else if (slugify('Défibeo Solutions') === cleanSlug || cleanSlug === 'demo') {
-          console.log(`Setting public website context for tenant: demo`);
-          setTenantIdState('demo');
-          setFirebaseTenantId('demo');
-          localStorage.setItem('defib_tenant_id', 'demo');
-          setIsPublicWebsitePage(true);
-        }
-      } catch (err) {
-        console.error("Error during public website slug matching:", err);
-      } finally {
-        setIsWebsiteChecking(false);
-      }
-    }
-    checkWebsiteRoute();
-  }, []);
-
   // Load from Firebase on startup, fallback to LocalStorage/Seed Defaults
   useEffect(() => {
-    if (isWebsiteChecking) return;
     async function loadFirebaseAndSeed() {
       try {
         setIsFirebaseLoaded(false);
@@ -2920,7 +2863,7 @@ export default function App() {
       setDropboxActive(false);
       setDropboxAccessToken('');
     });
-  }, [tenantId, isWebsiteChecking]);
+  }, [tenantId]);
 
   useEffect(() => {
     loadApiConnectors();
@@ -4593,30 +4536,6 @@ export default function App() {
           setIsClientPortalOpen(true);
           setIsPublicPortalOpen(false);
         }}
-      />
-    );
-  }
-
-  if (isWebsiteChecking) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-500 text-sm">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
-          <span className="font-medium text-slate-600">Chargement de votre espace...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (isPublicWebsitePage) {
-    return (
-      <PublicWebsite
-        companyInfo={companyInfo}
-        onGoToLogin={() => {
-          setIsPublicWebsitePage(false);
-          window.location.pathname = "/";
-        }}
-        onAddTicket={handleAddTicket}
       />
     );
   }

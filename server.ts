@@ -253,8 +253,8 @@ async function startServer() {
     try {
       const { tenantId, name, email, message, redirectUrl } = req.body;
       
-      if (!name || !email || !message) {
-        const errMsg = "Tous les champs (nom, email, message) sont obligatoires.";
+      if (!email || !message) {
+        const errMsg = "Tous les champs (email, message) sont obligatoires.";
         if (req.headers['content-type']?.includes('application/json')) {
           return res.status(400).json({ error: errMsg });
         } else {
@@ -284,7 +284,7 @@ async function startServer() {
         id: randomId,
         identifiant: "",
         objet: "Formulaire intégré",
-        message: `[Message depuis le site web]\nNom/Prénom: ${name}\n\n${message}`,
+        message: `[Message depuis le site web]\n${message}`,
         email: email,
         phone: "-",
         date: new Date().toISOString().replace('T', ' ').substring(0, 19),

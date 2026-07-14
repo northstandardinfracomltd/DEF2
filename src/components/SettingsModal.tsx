@@ -1734,29 +1734,39 @@ export default function SettingsModal({
               <textarea
                 readOnly
                 value={`<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
-<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
-  <h2 style="font-size: 22px; font-weight: 700; color: #1a202c; margin-top: 0; margin-bottom: 8px; text-align: center;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
-  <p style="font-size: 14px; color: #718096; margin-bottom: 24px; text-align: center; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <style>
+    @font-face {
+      font-family: 'Civilprom';
+      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
+    }
+    #defibeo-contact-box, #defibeo-contact-box * {
+      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
+      color: #000000 !important;
+      opacity: 0.6;
+      font-size: 16px !important;
+    }
+  </style>
+
+  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
+  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
   
   <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
     <input type="hidden" name="tenantId" value="${localStorage.getItem('defib_tenant_id') || 'demo'}" />
     
     <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Nom / Prénom</label>
-      <input type="text" name="name" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Votre nom complet" />
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
     </div>
     
     <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Adresse Email</label>
-      <input type="email" name="email" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
     </div>
     
-    <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Message</label>
-      <textarea name="message" required rows="4" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Saisissez votre message ici..."></textarea>
-    </div>
-    
-    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 12px 20px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer le message</button>
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
     
     <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
   </form>
@@ -1776,7 +1786,6 @@ export default function SettingsModal({
         
         var formData = {
           tenantId: form.querySelector('[name="tenantId"]').value,
-          name: form.querySelector('[name="name"]').value,
           email: form.querySelector('[name="email"]').value,
           message: form.querySelector('[name="message"]').value
         };
@@ -1793,7 +1802,7 @@ export default function SettingsModal({
         .then(function(data) {
           btn.disabled = false;
           btn.style.opacity = '1';
-          btn.innerText = 'Envoyer le message';
+          btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
           
           if (data.success) {
@@ -1812,7 +1821,7 @@ export default function SettingsModal({
         .catch(function(err) {
           btn.disabled = false;
           btn.style.opacity = '1';
-          btn.innerText = 'Envoyer le message';
+          btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
           msgDiv.style.backgroundColor = '#fef2f2';
           msgDiv.style.color = '#dc2626';
@@ -1830,29 +1839,39 @@ export default function SettingsModal({
                 onClick={() => {
                   const activeId = localStorage.getItem('defib_tenant_id') || 'demo';
                   const embedCode = `<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
-<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
-  <h2 style="font-size: 22px; font-weight: 700; color: #1a202c; margin-top: 0; margin-bottom: 8px; text-align: center;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
-  <p style="font-size: 14px; color: #718096; margin-bottom: 24px; text-align: center; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <style>
+    @font-face {
+      font-family: 'Civilprom';
+      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
+    }
+    #defibeo-contact-box, #defibeo-contact-box * {
+      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
+      color: #000000 !important;
+      opacity: 0.6;
+      font-size: 16px !important;
+    }
+  </style>
+
+  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
+  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
   
   <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
     <input type="hidden" name="tenantId" value="${activeId}" />
     
     <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Nom / Prénom</label>
-      <input type="text" name="name" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Votre nom complet" />
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
     </div>
     
     <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Adresse Email</label>
-      <input type="email" name="email" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
     </div>
     
-    <div>
-      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Message</label>
-      <textarea name="message" required rows="4" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Saisissez votre message ici..."></textarea>
-    </div>
-    
-    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 12px 20px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer le message</button>
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
     
     <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
   </form>
@@ -1872,7 +1891,6 @@ export default function SettingsModal({
         
         var formData = {
           tenantId: form.querySelector('[name="tenantId"]').value,
-          name: form.querySelector('[name="name"]').value,
           email: form.querySelector('[name="email"]').value,
           message: form.querySelector('[name="message"]').value
         };
@@ -1889,7 +1907,7 @@ export default function SettingsModal({
         .then(function(data) {
           btn.disabled = false;
           btn.style.opacity = '1';
-          btn.innerText = 'Envoyer le message';
+          btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
           
           if (data.success) {
@@ -1908,7 +1926,7 @@ export default function SettingsModal({
         .catch(function(err) {
           btn.disabled = false;
           btn.style.opacity = '1';
-          btn.innerText = 'Envoyer le message';
+          btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
           msgDiv.style.backgroundColor = '#fef2f2';
           msgDiv.style.color = '#dc2626';
@@ -1927,7 +1945,7 @@ export default function SettingsModal({
                   backgroundColor: '#000000',
                   color: '#ffffff',
                   fontSize: '18px',
-                  fontWeight: '600',
+                  fontWeight: 'normal',
                   borderRadius: '12px',
                   padding: '12px 24px',
                   border: 'none',

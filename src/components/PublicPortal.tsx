@@ -5956,74 +5956,80 @@ export default function PublicPortal({
                     <span>Stocks</span>
                   </button>
 
-                  <button
-                    onClick={() => setActiveTab("temps")}
-                    style={
-                      activeTab === "temps"
-                        ? {
-                            background: "rgb(53, 86, 236)",
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            borderRadius: "12px",
-                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
-                          }
-                        : {
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                          }
-                    }
-                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <span>Temps</span>
-                  </button>
+                  {!companyInfo?.hiddenTabs?.includes("Temps (Webapp)") && (
+                    <button
+                      onClick={() => setActiveTab("temps")}
+                      style={
+                        activeTab === "temps"
+                          ? {
+                              background: "rgb(53, 86, 236)",
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                              borderRadius: "12px",
+                              boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                            }
+                          : {
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }
+                      }
+                      className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      <span>Temps</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => setActiveTab("frais")}
-                    style={
-                      activeTab === "frais"
-                        ? {
-                            background: "rgb(53, 86, 236)",
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            borderRadius: "12px",
-                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
-                          }
-                        : {
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                          }
-                    }
-                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <span>Frais</span>
-                  </button>
+                  {!companyInfo?.hiddenTabs?.includes("Frais (Webapp)") && (
+                    <button
+                      onClick={() => setActiveTab("frais")}
+                      style={
+                        activeTab === "frais"
+                          ? {
+                              background: "rgb(53, 86, 236)",
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                              borderRadius: "12px",
+                              boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                            }
+                          : {
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }
+                      }
+                      className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      <span>Frais</span>
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => setActiveTab("veille")}
-                    style={
-                      activeTab === "veille"
-                        ? {
-                            background: "rgb(53, 86, 236)",
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            borderRadius: "12px",
-                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
-                          }
-                        : {
-                            color: "#ffffff",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                          }
-                    }
-                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
-                  >
-                    <span>Relevé Concurrentiel</span>
-                  </button>
+                  {!companyInfo?.hiddenTabs?.includes("Relevé Concurrentiel (Webapp)") && (
+                    <button
+                      onClick={() => setActiveTab("veille")}
+                      style={
+                        activeTab === "veille"
+                          ? {
+                              background: "rgb(53, 86, 236)",
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                              borderRadius: "12px",
+                              boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                            }
+                          : {
+                              color: "#ffffff",
+                              fontSize: "18px",
+                              fontWeight: "bold",
+                            }
+                      }
+                      className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                    >
+                      <span>Relevé Concurrentiel</span>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => setActiveTab("localisation")}

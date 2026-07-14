@@ -133,6 +133,13 @@ export default function SettingsModal({
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     return (localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) as 'Oui' | 'Non') || 'Oui';
   });
+  const [enableDevisFactures, setEnableDevisFactures] = React.useState<'Oui' | 'Non'>(() => {
+    if (companyInfo && companyInfo.enableDevisFactures) {
+      return companyInfo.enableDevisFactures;
+    }
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    return (localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui';
+  });
   const [showEpsonBanner, setShowEpsonBanner] = React.useState<boolean>(() => {
     return !sessionStorage.getItem("help_dismissed_settings_epson");
   });
@@ -226,6 +233,20 @@ export default function SettingsModal({
       } else {
         const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
         setEnableAutoEmails((localStorage.getItem(`defib_${tenantId}_enable_auto_emails`) as 'Oui' | 'Non') || 'Oui');
+      }
+
+      if (companyInfo && companyInfo.enableSatisfactionAvis) {
+        setEnableSatisfactionAvis(companyInfo.enableSatisfactionAvis);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        setEnableSatisfactionAvis((localStorage.getItem(`defib_${tenantId}_enable_satisfaction_avis`) as 'Oui' | 'Non') || 'Oui');
+      }
+
+      if (companyInfo && companyInfo.enableDevisFactures) {
+        setEnableDevisFactures(companyInfo.enableDevisFactures);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        setEnableDevisFactures((localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui');
       }
     }
   }, [isOpen, companyInfo]);
@@ -436,6 +457,19 @@ export default function SettingsModal({
       ...prev,
       [key]: value
     }));
+  };
+
+  const handleToggleTabVisibility = (tabLabel: string) => {
+    setLocalCompany(prev => {
+      const currentHidden = prev.hiddenTabs || [];
+      const newHidden = currentHidden.includes(tabLabel)
+        ? currentHidden.filter(t => t !== tabLabel)
+        : [...currentHidden, tabLabel];
+      return {
+        ...prev,
+        hiddenTabs: newHidden
+      };
+    });
   };
 
   const canEditMember = (index: number) => {
@@ -834,7 +868,8 @@ export default function SettingsModal({
       ...localCompany,
       locationNames: localLocationNames,
       enableAutoEmails: enableAutoEmails,
-      enableSatisfactionAvis: enableSatisfactionAvis
+      enableSatisfactionAvis: enableSatisfactionAvis,
+      enableDevisFactures: enableDevisFactures
     };
     onUpdateCompanyInfo(companyToSave);
     onUpdateMembers(localMembers);
@@ -872,6 +907,7 @@ export default function SettingsModal({
     localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
     localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
     localStorage.setItem(`defib_${myTenantId}_enable_satisfaction_avis`, enableSatisfactionAvis);
+    localStorage.setItem(`defib_${myTenantId}_enable_devis_factures`, enableDevisFactures);
     if (onUpdateLocationNames) {
       onUpdateLocationNames(localLocationNames);
     }
@@ -1578,6 +1614,109 @@ export default function SettingsModal({
                 </span>
                 <span className="text-[15px] font-semibold text-black">Non</span>
               </button>
+            </div>
+          </div>
+
+          {/* DEVIS & FACTURES OPTION */}
+          <div className="space-y-2 mt-4">
+            <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+              {t("Utiliser Devis & Factures sur Defibeo.")}
+            </label>
+            <div className="flex items-center space-x-6 py-1 font-sans">
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableDevisFactures("Oui");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableDevisFactures === "Oui" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableDevisFactures === "Oui" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">{t("Oui")}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEnableDevisFactures("Non");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: enableDevisFactures === "Non" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {enableDevisFactures === "Non" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">{t("Non")}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* CUSTOM TAB VISIBILITY ONGLETS */}
+          <div className="space-y-3 mt-6">
+            <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+              {t("Personnaliser la visibilité des onglets.")}
+            </label>
+            <div className="flex flex-wrap gap-2 pt-1">
+              {[
+                "FSM (Tournées)",
+                "GMAO (Rapports)",
+                "Centrale des stocks",
+                "Stocks distribués",
+                "Achats fournisseurs",
+                "Devis & Factures",
+                "CRM",
+                "GED",
+                "Temps",
+                "Temps (Webapp)",
+                "Localisations",
+                "Tickets Caisse",
+                "Frais (Webapp)",
+                "Variables",
+                "Importer Exporter",
+                "Satisfaction",
+                "Notifications",
+                "Relevé Concurrentiel",
+                "Relevé Concurrentiel (Webapp)"
+              ].map((pillLabel) => {
+                const isHidden = localCompany?.hiddenTabs?.includes(pillLabel);
+                return (
+                  <button
+                    key={pillLabel}
+                    type="button"
+                    onClick={() => handleToggleTabVisibility(pillLabel)}
+                    className="px-3.5 py-2 rounded-full text-[16px] font-semibold cursor-pointer select-none transition-all duration-200 border-0 text-white hover:brightness-110 active:scale-[0.97]"
+                    style={{
+                      backgroundColor: isHidden ? "#FA383D" : "#000000",
+                    }}
+                  >
+                    {t(pillLabel)}
+                  </button>
+                );
+              })}
             </div>
           </div>
           </div>
@@ -3261,7 +3400,7 @@ export default function SettingsModal({
                     {t("Découvrez Textelp pour l’IA agentique")}.
                   </h4>
                   <p style={{ fontSize: '18px', color: '#000000', lineHeight: '1.5' }} className="font-sans font-normal text-black mt-2">
-                    {t("Installez Textelp sur le site internet de votre entreprise pour permettre à vos clients et visitors d’obtenir des renseignements précis sur vos offres, produits et processus. Contactez Défibeo pour en savoir plus.")}
+                    {t("Installez Textelp sur le site internet de votre entreprise pour permettre à vos clients et visiteurs d’obtenir des renseignements précis sur vos offres, produits et processus. Contactez Défibeo pour en savoir plus.")}
                   </p>
                 </div>
                 <div className="flex justify-start mt-4">

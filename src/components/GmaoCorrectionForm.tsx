@@ -1891,19 +1891,21 @@ export default function GmaoCorrectionForm({
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="snap-numeroAtlasante" className="block text-[11px] font-bold text-black uppercase">
-                Numéro Atlasanté.
-              </label>
-              <input
-                type="text"
-                id="snap-numeroAtlasante"
-                value={snapshot.numeroAtlasante || ''}
-                onChange={(e) => handleSnapshotChange('numeroAtlasante', e.target.value)}
-                placeholder="Entrez le numéro Atlasanté."
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
-              />
-            </div>
+            {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
+              <div className="space-y-1">
+                <label htmlFor="snap-numeroAtlasante" className="block text-[11px] font-bold text-black uppercase">
+                  Numéro Atlasanté.
+                </label>
+                <input
+                  type="text"
+                  id="snap-numeroAtlasante"
+                  value={snapshot.numeroAtlasante || ''}
+                  onChange={(e) => handleSnapshotChange('numeroAtlasante', e.target.value)}
+                  placeholder="Entrez le numéro Atlasanté."
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                />
+              </div>
+            )}
           </div>
 
           {/* Section 2 - Client & Contrat */}

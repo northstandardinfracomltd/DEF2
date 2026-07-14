@@ -4452,6 +4452,8 @@ export default function App() {
         stocks={stocks}
         pointagesAutoVigilance={pointagesAutoVigilance}
         onAddPointageAutoVigilance={(newPt) => setPointagesAutoVigilance(prev => [newPt, ...prev])}
+        onAddTicket={handleAddTicket}
+        onAddNotification={addNotification}
       />
     );
   }
@@ -4485,6 +4487,8 @@ export default function App() {
         stocks={stocks}
         pointagesAutoVigilance={pointagesAutoVigilance}
         onAddPointageAutoVigilance={(newPt) => setPointagesAutoVigilance(prev => [newPt, ...prev])}
+        onAddTicket={handleAddTicket}
+        onAddNotification={addNotification}
       />
     );
   }
@@ -4663,7 +4667,29 @@ export default function App() {
             { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
             { id: 'notifications', label: 'Notifications', icon: Bell },
             { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
-          ].map((tab) => {
+          ].filter(tab => {
+            if (!companyInfo?.hiddenTabs) return true;
+            const tabToLabelMap: Record<string, string> = {
+              fsm: "FSM (Tournées)",
+              gmao: "GMAO (Rapports)",
+              stocks: "Centrale des stocks",
+              "stocks-distribues": "Stocks distribués",
+              "achats-fournisseurs": "Achats fournisseurs",
+              devis: "Devis & Factures",
+              crm: "CRM",
+              ged: "GED",
+              temps: "Temps",
+              localisations: "Localisations",
+              tickets: "Tickets Caisse",
+              variables: "Variables",
+              "import-export": "Importer Exporter",
+              satisfaction: "Satisfaction",
+              notifications: "Notifications",
+              veilles: "Relevé Concurrentiel"
+            };
+            const label = tabToLabelMap[tab.id];
+            return !label || !companyInfo.hiddenTabs.includes(label);
+          }).map((tab) => {
             return (
               <button
                 key={tab.id}

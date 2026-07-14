@@ -3011,19 +3011,21 @@ export default function DefibTab({
                       </div>
 
                       {/* Numéro Atlasanté - single line input */}
-                      <div className="space-y-1">
-                        <label htmlFor="form-numeroatlasante" className="block text-[11px] font-bold text-slate-500 uppercase">
-                          Numéro Atlasanté.
-                        </label>
-                        <input
-                          type="text"
-                          id="form-numeroatlasante"
-                          value={numeroAtlasante}
-                          onChange={(e) => setNumeroAtlasante(e.target.value)}
-                          placeholder="Entrez le numéro Atlasanté"
-                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
-                        />
-                      </div>
+                      {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-numeroatlasante" className="block text-[11px] font-bold text-slate-500 uppercase">
+                            Numéro Atlasanté.
+                          </label>
+                          <input
+                            type="text"
+                            id="form-numeroatlasante"
+                            value={numeroAtlasante}
+                            onChange={(e) => setNumeroAtlasante(e.target.value)}
+                            placeholder="Entrez le numéro Atlasanté"
+                            className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Commentaire simple */}

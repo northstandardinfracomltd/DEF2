@@ -18,6 +18,8 @@ interface ClientPortalProps {
   stocks?: any[];
   pointagesAutoVigilance?: PointageAutoVigilance[];
   onAddPointageAutoVigilance?: (newPt: PointageAutoVigilance) => void;
+  onAddTicket?: (ticketData: any) => string;
+  onAddNotification?: (category: 'Stocks' | 'Défibrillateurs' | 'Interventions' | 'Factures & Devis' | 'Système', title: string) => void;
 }
 
 interface BarcodeProps {
@@ -117,6 +119,8 @@ export default function ClientPortal({
   stocks = [],
   pointagesAutoVigilance = [],
   onAddPointageAutoVigilance,
+  onAddTicket,
+  onAddNotification,
 }: ClientPortalProps) {
   const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info' | 'autovigilance'>('defibs');
 
@@ -178,6 +182,19 @@ export default function ClientPortal({
     }
   }, [authenticatedClient]);
 
+  // Contact form state variables
+  const [contactSelectedEquipId, setContactSelectedEquipId] = useState('autre');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactMessage, setContactMessage] = useState('');
+  const [contactSuccessMsg, setContactSuccessMsg] = useState('');
+  const [contactErrorMsg, setContactErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (authenticatedClient?.email) {
+      setContactEmail(authenticatedClient.email);
+    }
+  }, [authenticatedClient]);
+
   // Signature related states & refs
   const [clientSignature, setClientSignature] = useState(authenticatedClient?.clientSignatureImage || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -190,6 +207,8 @@ export default function ClientPortal({
   const [portalSigneParContrat, setPortalSigneParContrat] = useState('');
   const [portalSignatureClientContratImage, setPortalSignatureClientContratImage] = useState('');
   const [contractSaveSuccess, setContractSaveSuccess] = useState(false);
+  const [portalAccessKey, setPortalAccessKey] = useState('');
+  const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);
 
   const portalContractCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingPortalContractSig = useRef(false);
@@ -200,8 +219,15 @@ export default function ClientPortal({
       setPortalDateSignatureContrat(authenticatedClient.dateSignatureContrat || new Date().toISOString().split('T')[0]);
       setPortalSigneParContrat(authenticatedClient.signeParContrat || '');
       setPortalSignatureClientContratImage(authenticatedClient.signatureClientContratImage || '');
+      setPortalAccessKey(authenticatedClient.accessKey || '');
     }
   }, [authenticatedClient]);
+
+  useEffect(() => {
+    if (activePortalTab === 'bills' && companyInfo?.enableDevisFactures === 'Non') {
+      setActivePortalTab('defibs');
+    }
+  }, [activePortalTab, companyInfo]);
 
   useEffect(() => {
     if (activePortalTab === 'info' && portalSignatureClientContratImage && portalContractCanvasRef.current) {
@@ -626,6 +652,21 @@ export default function ClientPortal({
     }
   };
 
+  const handleSavePassword = () => {
+    if (!authenticatedClient) return;
+    if (onUpdateClient) {
+      const updated: Client = {
+        ...authenticatedClient,
+        accessKey: portalAccessKey.trim()
+      };
+      onUpdateClient(updated);
+      setPasswordSaveSuccess(true);
+      setTimeout(() => {
+        setPasswordSaveSuccess(false);
+      }, 3000);
+    }
+  };
+
   const renderEditField = (label: string, value: string, onChange: (val: string) => void) => {
     return (
       <div className="space-y-1">
@@ -646,6 +687,34 @@ export default function ClientPortal({
             height: '48px'
           }}
         />
+      </div>
+    );
+  };
+
+  const renderEditSelectField = (label: string, value: string, onChange: (val: string) => void, options: string[]) => {
+    return (
+      <div className="space-y-1">
+        <span className="block text-[18px] font-bold text-black font-sans select-none">
+          {label}
+        </span>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full text-[18px] text-black bg-white focus:outline-none transition-all font-sans cursor-pointer appearance-none"
+          style={{
+            border: '1px solid #cfcfcf',
+            borderRadius: '11px',
+            padding: '10px 14px',
+            height: '48px',
+          }}
+        >
+          <option value="">{t("Sélectionnez")}</option>
+          {options.map((opt) => (
+            <option key={opt} value={opt}>
+              {t(opt)}
+            </option>
+          ))}
+        </select>
       </div>
     );
   };
@@ -686,6 +755,22 @@ export default function ClientPortal({
     }))
   ];
 
+  const checkedEquipIdsOnSameDay = (pointagesAutoVigilance || [])
+    .filter(p => p.clientId === authenticatedClient?.id && p.date === pointageDate)
+    .map(p => p.equipementId);
+
+  const filteredAssignedEquipment = assignedEquipment.filter(eq => !checkedEquipIdsOnSameDay.includes(eq.id));
+
+  useEffect(() => {
+    if (selectedEquipId) {
+      const alreadyChecked = (pointagesAutoVigilance || [])
+        .some(p => p.clientId === authenticatedClient?.id && p.date === pointageDate && p.equipementId === selectedEquipId);
+      if (alreadyChecked) {
+        setSelectedEquipId('');
+      }
+    }
+  }, [pointageDate, pointagesAutoVigilance, selectedEquipId, authenticatedClient]);
+
   const handleSavePointage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!authenticatedClient) return;
@@ -713,6 +798,56 @@ export default function ClientPortal({
       setTimeout(() => {
         setPointageSuccess(false);
       }, 3000);
+    }
+  };
+
+  const handleContactSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setContactSuccessMsg('');
+    setContactErrorMsg('');
+
+    if (!contactEmail.trim()) {
+      setContactErrorMsg(t("Veuillez saisir votre adresse e-mail."));
+      return;
+    }
+    if (!contactMessage.trim()) {
+      setContactErrorMsg(t("Veuillez rédiger un message."));
+      return;
+    }
+
+    let targetId = 'Autre';
+    let targetLabel = 'Autre';
+    if (contactSelectedEquipId !== 'autre') {
+      const found = assignedEquipment.find(eq => eq.id === contactSelectedEquipId);
+      if (found) {
+        targetId = found.identifiant || found.id;
+        targetLabel = found.nom;
+      }
+    }
+
+    if (onAddTicket) {
+      const isDefib = assignedEquipment.find(eq => eq.id === contactSelectedEquipId)?.type === 'defib';
+      const ticketObjet = isDefib ? 'Défibrillateur endommagé' : 'Autre';
+
+      const ticketId = onAddTicket({
+        identifiant: targetId,
+        objet: ticketObjet,
+        message: `${contactMessage}\n\n[Client: ${authenticatedClient?.denomination || 'Client'}]\n[Matériel: ${targetLabel}]`,
+        email: contactEmail.trim(),
+        phone: authenticatedClient?.phone || '',
+      });
+
+      if (onAddNotification) {
+        onAddNotification(
+          'Défibrillateurs',
+          `${t("Nouveau ticket")} ${ticketId} - ${authenticatedClient?.denomination || 'Client'} (${targetId})`
+        );
+      }
+
+      setContactSuccessMsg(`${t("Votre demande a bien été envoyée à l'exploitant. Ticket")} ${ticketId}`);
+      setContactMessage('');
+    } else {
+      setContactErrorMsg(t("Le service de support n'est pas disponible pour le moment."));
     }
   };
 
@@ -1804,17 +1939,19 @@ export default function ClientPortal({
           >
             {t('Pointages auto-vigilance')}
           </button>
-          <button
-            onClick={() => setActivePortalTab('bills')}
-            className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
-              activePortalTab === 'bills'
-                ? 'bg-white shadow-xs'
-                : 'bg-transparent hover:bg-white/45'
-            }`}
-            style={{ borderRadius: '12px' }}
-          >
-            {t('Devis et factures')}
-          </button>
+          {companyInfo?.enableDevisFactures !== 'Non' && (
+            <button
+              onClick={() => setActivePortalTab('bills')}
+              className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
+                activePortalTab === 'bills'
+                  ? 'bg-white shadow-xs'
+                  : 'bg-transparent hover:bg-white/45'
+              }`}
+              style={{ borderRadius: '12px' }}
+            >
+              {t('Devis et factures')}
+            </button>
+          )}
           <button
             onClick={() => setActivePortalTab('reports')}
             className={`w-full sm:flex-1 py-3 sm:py-2 text-center text-[18px] font-bold text-black transition-all border-0 cursor-pointer ${
@@ -2051,61 +2188,38 @@ export default function ClientPortal({
                 {clientDocs.map((doc) => (
                   <div
                     key={doc.id}
-                    className="bg-white p-5 space-y-4"
+                    className="bg-white p-6 space-y-6"
                     style={{
                       border: '1px solid #cfcfcf',
                       borderRadius: '13px',
                     }}
                   >
-                    <div className="flex items-center justify-between">
-                      <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
-                        {doc.ref}
-                      </h2>
-                      <button
-                        onClick={() => handleDownloadDoc(doc)}
-                        style={{
-                          backgroundColor: '#000000',
-                          color: '#ffffff',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                          padding: '10px 20px',
-                          fontWeight: '100',
-                          transition: 'all 0s ease-in-out',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          cursor: 'pointer',
-                          border: 'none',
-                        }}
-                      >
-                        Télécharger
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
                       {renderField('Objet ou commentaire', doc.commentaire || doc.ref, true)}
                       {renderField('Type', doc.type, true)}
                       {renderField('Référence', doc.ref, true)}
                       {renderField('Situation', doc.status, true)}
                       {renderField('Total HT', `${doc.totalHt.toFixed(2)} €`, true)}
+                    </div>
+
+                    {/* Télécharger Button & Optional Bon de Commande Button */}
+                    <div className="flex flex-col gap-3 mt-6">
                       {doc.hasBonCommande && (
-                        <div className="col-span-1 sm:col-span-1 md:col-span-1 flex items-end">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadBonCommande(doc)}
-                            className="w-full text-white font-bold transition-all cursor-pointer font-sans border-0 flex items-center justify-center"
-                            style={{
-                              backgroundColor: '#000000',
-                              borderRadius: '13px',
-                              fontSize: '18px',
-                              height: '48px',
-                              padding: '10px 14px',
-                            }}
-                          >
-                            Télécharger bon de commande
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadBonCommande(doc)}
+                          className="w-full py-3 bg-[#111827] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#1f2937] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border-none"
+                        >
+                          {t("Télécharger bon de commande")}
+                        </button>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadDoc(doc)}
+                        className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md border-none"
+                      >
+                        {t("Télécharger")}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -2140,47 +2254,143 @@ export default function ClientPortal({
                 <div className="space-y-6">
                   {clientReports.map((rep) => {
                     const snap = rep.defibSnapshot || {};
-                    const isOther = snap.categorie && snap.categorie !== 'Défibrillateur';
                     return (
                       <div
                         key={rep.id}
-                        className="bg-white p-5 space-y-4"
+                        className="bg-white p-6 space-y-6"
                         style={{
                           border: '1px solid #cfcfcf',
                           borderRadius: '13px',
                         }}
                       >
-                        <div className="flex items-center justify-between flex-wrap gap-2">
-                          <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
-                            {formatTitle(rep.title)}
-                          </h2>
-                          <button
-                            onClick={() => handleDownloadReport(rep)}
-                            style={{
-                              backgroundColor: '#000000',
-                              color: '#ffffff',
-                              borderRadius: '13px',
-                              fontSize: '18px',
-                              padding: '10px 20px',
-                              fontWeight: '100',
-                              transition: 'all 0s ease-in-out',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              border: 'none',
-                            }}
-                          >
-                            Télécharger
-                          </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                          {/* Horodatage entrant. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Horodatage entrant.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.date || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Horodatage de clôture. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Horodatage de clôture.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.endTimeStamp || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Catégorie matériel. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Catégorie matériel.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={snap.categorie || 'Défibrillateur'}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Série. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Série.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={snap.numeroSerie || snap.specifiques?.numeroSerie || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Identifiant. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Identifiant.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.defibIdentifiant || snap.identifiant || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Technicien. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Technicien.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.techName || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Titre du document. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Titre du document.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.title || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Commentaire de diagnostic et de clôture. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Commentaire de diagnostic et de clôture.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={snap.commentaire || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
+                          {/* Facture émise. (Émettre une facture brouillon.) */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Facture émise.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={rep.emettreFactureBrouillon || 'Non'}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                          {renderField('Référence Rapport', rep.id, true)}
-                          {renderField('Identifiant.', rep.defibIdentifiant || snap.identifiant || 'Non spécifié', true)}
-                          {renderField('Date d\'intervention', rep.date, true)}
-                          {renderField('Technicien intervenant', rep.techName, true)}
-                          {renderField('Site / Mission', rep.siteMission || '-', true)}
+                        {/* Télécharger Button */}
+                        <div className="mt-6">
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadReport(rep)}
+                            className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                          >
+                            {t("Télécharger")}
+                          </button>
                         </div>
                       </div>
                     );
@@ -2232,7 +2442,7 @@ export default function ClientPortal({
                   <li className="flex items-start gap-2">
                     <span className="text-slate-400 select-none">—</span>
                     <span>
-                      <strong className="font-semibold">{t("Boîtier/Armoire :")}</strong> {t("Vérifiez le bon état")}
+                      <strong className="font-semibold">{t("Boîtier/Armoire :")}</strong> {t("Vérifiez le bon état.")}
                     </span>
                   </li>
                 </ul>
@@ -2269,7 +2479,7 @@ export default function ClientPortal({
                           }}
                         >
                           <option value="">{t('-- Choisir un matériel --')}</option>
-                          {assignedEquipment.map((eq) => (
+                          {filteredAssignedEquipment.map((eq) => (
                             <option key={eq.id} value={eq.id}>
                               {eq.nom}
                             </option>
@@ -2285,9 +2495,10 @@ export default function ClientPortal({
                         <input
                           type="date"
                           required
+                          disabled
                           value={pointageDate}
                           onChange={(e) => setPointageDate(e.target.value)}
-                          className="w-full text-[18px] text-black bg-white hover:outline hover:outline-2 hover:outline-[#772a7e] hover:outline-offset-2 focus:ring-0 focus:outline focus:outline-2 focus:outline-[#772a7e] focus:outline-offset-2 transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none min-w-0"
+                          className="w-full text-[18px] text-[#475569] bg-[#f1f5f9] cursor-not-allowed transition-all [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none min-w-0"
                           style={{
                             border: '1px solid #cfcfcf',
                             borderRadius: '11px',
@@ -2334,9 +2545,8 @@ export default function ClientPortal({
                       <div className="w-full">
                         <button
                           type="submit"
-                          className="w-full text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
+                          className="w-full text-white bg-[#3556ec] hover:bg-[#2b48cd] transition-all cursor-pointer outline-none border-none shrink-0 font-bold shadow-md"
                           style={{
-                            backgroundColor: '#000000',
                             borderRadius: '11px',
                             fontSize: '18px',
                             height: '48px',
@@ -2405,16 +2615,101 @@ export default function ClientPortal({
                   borderRadius: '13px',
                 }}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                  {renderField('Entreprise', authenticatedClient.denomination, true)}
-                  {renderField('Identifiant fiscal', authenticatedClient.siret, true)}
-                  {renderField('Email', authenticatedClient.email, true)}
-                  {renderField('Téléphone', authenticatedClient.phone, true)}
-                  {renderField('Contrat', authenticatedClient.contrat || 'Non', true)}
-                  {renderField('Référence', authenticatedClient.referenceContrat, true)}
-                  {renderField('Début', formatDateToFR(authenticatedClient.debutContrat) || authenticatedClient.debutContrat, true)}
-                  {renderField('Fin', formatDateToFR(authenticatedClient.finContrat) || authenticatedClient.finContrat, true)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {/* Entreprise */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Entreprise.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={authenticatedClient.denomination || ''}
+                      disabled
+                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Identifiant fiscal */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Identifiant fiscal.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={authenticatedClient.siret || ''}
+                      disabled
+                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Email.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={authenticatedClient.email || ''}
+                      disabled
+                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Téléphone */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Téléphone.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={authenticatedClient.phone || ''}
+                      disabled
+                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                    />
+                  </div>
+
+                  {/* Mot de passe */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Mot de passe.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={portalAccessKey}
+                      onChange={(e) => setPortalAccessKey(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white hover:border-[#772a7e] focus:border-[#772a7e] focus:outline-none font-sans"
+                    />
+                  </div>
+
+                  {/* Identifiant unique */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Identifiant unique.")}
+                    </label>
+                    <input
+                      type="text"
+                      value={authenticatedClient.id || ''}
+                      disabled
+                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                    />
+                  </div>
                 </div>
+
+                <div className="mt-6">
+                  <button
+                    type="button"
+                    onClick={handleSavePassword}
+                    className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  >
+                    {t("Enregistrer")}
+                  </button>
+                </div>
+
+                {passwordSaveSuccess && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 font-sans text-[16px] text-center">
+                    {t("Mot de passe mis à jour avec succès.")}
+                  </div>
+                )}
               </div>
 
               {/* Card Commentaire (si existant) */}
@@ -2434,7 +2729,7 @@ export default function ClientPortal({
               {/* Card Contrat */}
               {portalRedactionContrat && portalRedactionContrat.trim() !== '' && (
                 <div
-                  className="bg-white p-5 list-none space-y-4"
+                  className="bg-white p-5 list-none space-y-6"
                   style={{
                     border: '1px solid #cfcfcf',
                     borderRadius: '13px',
@@ -2446,28 +2741,103 @@ export default function ClientPortal({
                     </h3>
                   </div>
 
-                  <div className="space-y-1">
-                    <div 
-                      className="w-full text-black font-sans whitespace-pre-wrap select-text"
-                      style={{ fontSize: '16px' }}
-                    >
-                      {portalRedactionContrat}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    {/* Catégorie du contrat */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Catégorie du contrat.")}
+                      </label>
+                      <input
+                        type="text"
+                        value={authenticatedClient.nomContrat || ''}
+                        disabled
+                        className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      />
                     </div>
-                  </div>
 
-                  {/* 3 columns on desktop for Signature details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 items-start">
+                    {/* Référence du contrat */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Référence du contrat.")}
+                      </label>
+                      <input
+                        type="text"
+                        value={authenticatedClient.referenceContrat || ''}
+                        disabled
+                        className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Numéro de marché */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Numéro de marché.")}
+                      </label>
+                      <input
+                        type="text"
+                        value={authenticatedClient.numeroMarche || ''}
+                        disabled
+                        className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Début */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Début.")}
+                      </label>
+                      <input
+                        type="date"
+                        value={authenticatedClient.debutContrat || ''}
+                        disabled
+                        className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Expiration */}
+                    <div className="space-y-1">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Expiration.")}
+                      </label>
+                      <input
+                        type="date"
+                        value={authenticatedClient.finContrat || ''}
+                        disabled
+                        className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      />
+                    </div>
+
+                    {/* Empty cell for layout alignment on 3 columns */}
+                    <div className="hidden md:block"></div>
+
+                    {/* Rédaction du contrat */}
+                    <div className="space-y-1 col-span-full">
+                      <label className="block text-[18px] font-bold text-black font-sans select-none">
+                        {t("Rédaction du contrat.")}
+                      </label>
+                      <div 
+                        className="w-full text-[#772a7e] font-bold font-sans whitespace-pre-wrap select-text border-none rounded-xl p-4 bg-[#fdeaff] cursor-not-allowed"
+                        style={{ fontSize: '18px' }}
+                      >
+                        {portalRedactionContrat}
+                      </div>
+                    </div>
+
                     {/* Date de signature */}
                     <div className="space-y-1">
                       <label className="block text-[18px] font-bold text-black font-sans select-none">
-                        Date.
+                        {t("Date.")}
                       </label>
                       <input
                         type="date"
                         value={portalDateSignatureContrat}
                         onChange={(e) => setPortalDateSignatureContrat(e.target.value)}
                         disabled={!!authenticatedClient?.signatureClientContratImage}
-                        className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none"
+                        className={`w-full rounded-xl p-3 text-[18px] font-sans focus:outline-none [&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-calendar-picker-indicator]:appearance-none ${
+                          !!authenticatedClient?.signatureClientContratImage
+                            ? "border-none font-bold text-[#772a7e] bg-[#fdeaff] disabled:bg-[#fdeaff] disabled:text-[#772a7e] cursor-not-allowed"
+                            : "border border-slate-200 text-black bg-white hover:border-[#772a7e] focus:border-[#772a7e]"
+                        }`}
                       />
                     </div>
 
@@ -2482,14 +2852,18 @@ export default function ClientPortal({
                         onChange={(e) => setPortalSigneParContrat(e.target.value)}
                         disabled={!!authenticatedClient?.signatureClientContratImage}
                         placeholder="Nom du signataire"
-                        className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none disabled:bg-slate-50 disabled:text-black font-sans"
+                        className={`w-full rounded-xl p-3 text-[18px] font-sans focus:outline-none ${
+                          !!authenticatedClient?.signatureClientContratImage
+                            ? "border-none font-bold text-[#772a7e] bg-[#fdeaff] disabled:bg-[#fdeaff] disabled:text-[#772a7e] cursor-not-allowed"
+                            : "border border-slate-200 text-black bg-white hover:border-[#772a7e] focus:border-[#772a7e]"
+                        }`}
                       />
                     </div>
 
                     {/* Signature du client */}
                     <div className="space-y-1 flex flex-col">
                       <label className="block text-[18px] font-bold text-black font-sans select-none">
-                        Signature.
+                        {t("Signature.")}
                       </label>
                       <div className="flex flex-col items-center justify-center p-2 bg-transparent">
                         {authenticatedClient?.signatureClientContratImage ? (
@@ -2537,13 +2911,12 @@ export default function ClientPortal({
                   </div>
 
                   {/* Actions row: Download button always visible, Save button visible if not signed yet */}
-                  <div className="flex flex-col sm:flex-row items-center justify-between pt-4 mt-2 gap-4">
-                    <div></div>
-                    <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
+                  <div className="pt-4 mt-2">
+                    <div className={authenticatedClient?.signatureClientContratImage ? "w-full" : "grid grid-cols-2 gap-3 w-full"}>
                       <button
                         type="button"
                         onClick={handleDownloadContractPDF}
-                        className="px-6 py-3 text-white transition-all cursor-pointer flex items-center gap-2 border-none outline-none font-bold"
+                        className="w-full py-3 text-white transition-all cursor-pointer flex items-center justify-center gap-2 border-none outline-none font-bold"
                         style={{
                           backgroundColor: '#000000',
                           borderRadius: '13px',
@@ -2558,12 +2931,12 @@ export default function ClientPortal({
                         <button
                           type="button"
                           onClick={handleSavePortalContract}
-                          className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none shrink-0 font-bold"
+                          className="w-full py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
                           style={{
-                            backgroundColor: '#000000',
+                            backgroundColor: '#3556ec',
                             borderRadius: '13px',
                             fontSize: '18px',
-                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                            boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
                           }}
                         >
                           {t("Signer")}
@@ -2586,215 +2959,94 @@ export default function ClientPortal({
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
-                      Contacts.
+                      {t("Contacts.")}
                     </h3>
                   </div>
-                  {!isEditingContacts ? (
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingContacts(true)}
-                      className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none whitespace-nowrap self-stretch sm:self-auto font-bold animate-fadeIn"
-                      style={{
-                        backgroundColor: '#000000',
-                        borderRadius: '13px',
-                        fontSize: '18px',
-                        boxShadow: 'none',
-                      }}
-                    >
-                      {t("Modifier les contacts")}
-                    </button>
-                  ) : (
-                    <div className="flex gap-2 self-stretch sm:self-auto justify-end">
-                      <button
-                        onClick={handleSaveContacts}
-                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
-                        style={{
-                          backgroundColor: '#000000',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                        }}
-                      >
-                        {t("Enregistrer")}
-                      </button>
-                      <button
-                        onClick={() => {
-                          // Reset to previous state values
-                          if (authenticatedClient) {
-                            setC1Nom(authenticatedClient.nomPrenomSite || '');
-                            setC1Tel(authenticatedClient.telephoneSite || '');
-                            setC1Email(authenticatedClient.emailSite || '');
-                            setC1Type(authenticatedClient.typeContact1 || '');
-
-                            setC2Nom(authenticatedClient.nomContact2 || '');
-                            setC2Tel(authenticatedClient.telephoneSite2 || '');
-                            setC2Email(authenticatedClient.emailSite2 || '');
-                            setC2Type(authenticatedClient.typeContact2 || '');
-
-                            setC3Nom(authenticatedClient.nomContact3 || '');
-                            setC3Tel(authenticatedClient.telephoneSite3 || '');
-                            setC3Email(authenticatedClient.emailSite3 || '');
-                            setC3Type(authenticatedClient.typeContact3 || '');
-
-                            setC4Nom(authenticatedClient.nomContact4 || '');
-                            setC4Tel(authenticatedClient.telephoneSite4 || '');
-                            setC4Email(authenticatedClient.emailSite4 || '');
-                            setC4Type(authenticatedClient.typeContact4 || '');
-
-                            setC5Nom(authenticatedClient.nomContact5 || '');
-                            setC5Tel(authenticatedClient.telephoneSite5 || '');
-                            setC5Email(authenticatedClient.emailSite5 || '');
-                            setC5Type(authenticatedClient.typeContact5 || '');
-                          }
-                          setIsEditingContacts(false);
-                        }}
-                        className="px-6 py-3 text-white transition-all cursor-pointer outline-none border-none font-bold"
-                        style={{
-                          backgroundColor: '#000000',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                        }}
-                      >
-                        {t("Annuler")}
-                      </button>
-                    </div>
-                  )}
                 </div>
 
-                {!isEditingContacts ? (
-                  <div className="space-y-6">
-                    {/* Contact 1 */}
-                    <div className="pb-4">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 1
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderField('Type du contact', c1Type || '-')}
-                        {renderField('Nom & Prénom', c1Nom || '-')}
-                        {renderField('Téléphone', c1Tel || '-')}
-                        {renderField('Email', c1Email || '-')}
-                      </div>
+                <div className="space-y-6 pt-2">
+                  {/* Edit Contact 1 */}
+                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                    <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
+                      Contact 1
                     </div>
-
-                    {/* Contact 2 */}
-                    <div className="pb-4">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 2
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderField('Type du contact', c2Type || '-')}
-                        {renderField('Nom & Prénom', c2Nom || '-')}
-                        {renderField('Téléphone', c2Tel || '-')}
-                        {renderField('Email', c2Email || '-')}
-                      </div>
-                    </div>
-
-                    {/* Contact 3 */}
-                    <div className="pb-4">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 3
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderField('Type du contact', c3Type || '-')}
-                        {renderField('Nom & Prénom', c3Nom || '-')}
-                        {renderField('Téléphone', c3Tel || '-')}
-                        {renderField('Email', c3Email || '-')}
-                      </div>
-                    </div>
-
-                    {/* Contact 4 */}
-                    <div className="pb-4">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 4
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderField('Type du contact', c4Type || '-')}
-                        {renderField('Nom & Prénom', c4Nom || '-')}
-                        {renderField('Téléphone', c4Tel || '-')}
-                        {renderField('Email', c4Email || '-')}
-                      </div>
-                    </div>
-
-                    {/* Contact 5 */}
-                    <div className="pb-4">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 5
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderField('Type du contact', c5Type || '-')}
-                        {renderField('Nom & Prénom', c5Nom || '-')}
-                        {renderField('Téléphone', c5Tel || '-')}
-                        {renderField('Email', c5Email || '-')}
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      {renderEditSelectField(t('Type'), c1Type, setC1Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditField(t('Nom & Prénom'), c1Nom, setC1Nom)}
+                      {renderEditField(t('Téléphone'), c1Tel, setC1Tel)}
+                      {renderEditField(t('Email'), c1Email, setC1Email)}
                     </div>
                   </div>
-                ) : (
-                  <div className="space-y-6 pt-2">
-                    {/* Edit Contact 1 */}
-                    <div className="pb-6">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 1
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderEditField('Type du contact (ex. Direction)', c1Type, setC1Type)}
-                        {renderEditField('Nom & Prénom', c1Nom, setC1Nom)}
-                        {renderEditField('Téléphone', c1Tel, setC1Tel)}
-                        {renderEditField('Email', c1Email, setC1Email)}
-                      </div>
-                    </div>
 
-                    {/* Edit Contact 2 */}
-                    <div className="pb-6">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 2
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderEditField('Type du contact (ex. Direction)', c2Type, setC2Type)}
-                        {renderEditField('Nom & Prénom', c2Nom, setC2Nom)}
-                        {renderEditField('Téléphone', c2Tel, setC2Tel)}
-                        {renderEditField('Email', c2Email, setC2Email)}
-                      </div>
+                  {/* Edit Contact 2 */}
+                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                    <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
+                      Contact 2
                     </div>
-
-                    {/* Edit Contact 3 */}
-                    <div className="pb-6">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 3
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderEditField('Type du contact (ex. Direction)', c3Type, setC3Type)}
-                        {renderEditField('Nom & Prénom', c3Nom, setC3Nom)}
-                        {renderEditField('Téléphone', c3Tel, setC3Tel)}
-                        {renderEditField('Email', c3Email, setC3Email)}
-                      </div>
-                    </div>
-
-                    {/* Edit Contact 4 */}
-                    <div className="pb-6">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 4
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderEditField('Type du contact (ex. Direction)', c4Type, setC4Type)}
-                        {renderEditField('Nom & Prénom', c4Nom, setC4Nom)}
-                        {renderEditField('Téléphone', c4Tel, setC4Tel)}
-                        {renderEditField('Email', c4Email, setC4Email)}
-                      </div>
-                    </div>
-
-                    {/* Edit Contact 5 */}
-                    <div className="pb-2">
-                      <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
-                        Contact 5
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        {renderEditField('Type du contact (ex. Direction)', c5Type, setC5Type)}
-                        {renderEditField('Nom & Prénom', c5Nom, setC5Nom)}
-                        {renderEditField('Téléphone', c5Tel, setC5Tel)}
-                        {renderEditField('Email', c5Email, setC5Email)}
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      {renderEditSelectField(t('Type'), c2Type, setC2Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditField(t('Nom & Prénom'), c2Nom, setC2Nom)}
+                      {renderEditField(t('Téléphone'), c2Tel, setC2Tel)}
+                      {renderEditField(t('Email'), c2Email, setC2Email)}
                     </div>
                   </div>
-                )}
+
+                  {/* Edit Contact 3 */}
+                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                    <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
+                      Contact 3
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      {renderEditSelectField(t('Type'), c3Type, setC3Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditField(t('Nom & Prénom'), c3Nom, setC3Nom)}
+                      {renderEditField(t('Téléphone'), c3Tel, setC3Tel)}
+                      {renderEditField(t('Email'), c3Email, setC3Email)}
+                    </div>
+                  </div>
+
+                  {/* Edit Contact 4 */}
+                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                    <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
+                      Contact 4
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      {renderEditSelectField(t('Type'), c4Type, setC4Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditField(t('Nom & Prénom'), c4Nom, setC4Nom)}
+                      {renderEditField(t('Téléphone'), c4Tel, setC4Tel)}
+                      {renderEditField(t('Email'), c4Email, setC4Email)}
+                    </div>
+                  </div>
+
+                  {/* Edit Contact 5 */}
+                  <div className="pb-2">
+                    <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
+                      Contact 5
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                      {renderEditSelectField(t('Type'), c5Type, setC5Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditField(t('Nom & Prénom'), c5Nom, setC5Nom)}
+                      {renderEditField(t('Téléphone'), c5Tel, setC5Tel)}
+                      {renderEditField(t('Email'), c5Email, setC5Email)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Save Button for Contacts */}
+                <div className="pt-4">
+                  <button
+                    type="button"
+                    onClick={handleSaveContacts}
+                    className="w-full py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                    style={{
+                      backgroundColor: '#3556ec',
+                      borderRadius: '13px',
+                      fontSize: '18px',
+                      boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
+                    }}
+                  >
+                    {t("Enregistrer")}
+                  </button>
+                </div>
               </div>
 
               {/* Card Signature pour le client */}
@@ -2811,8 +3063,8 @@ export default function ClientPortal({
                   </h3>
                 </div>
 
-                <div className="flex flex-col md:flex-row gap-5 items-start">
-                  <div className="border border-slate-300 rounded-xl overflow-hidden" style={{ width: '300px', height: '150px' }}>
+                <div className="flex flex-col items-center justify-center py-2">
+                  <div className="border border-slate-300 rounded-xl overflow-hidden bg-white" style={{ width: '300px', height: '150px' }}>
                     <canvas
                       ref={clientCanvasRef}
                       width={300}
@@ -2827,53 +3079,141 @@ export default function ClientPortal({
                       onTouchEnd={stopDrawingSig}
                     />
                   </div>
-
-                  <div className="flex flex-col gap-3 self-stretch justify-center">
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={clearSignatureSig}
-                        className="px-6 py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
-                        style={{
-                          backgroundColor: '#000000',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                        }}
-                      >
-                        {t("Effacer")}
-                      </button>
-                      
-                      <button
-                        type="button"
-                        onClick={handleSaveSignature}
-                        className="px-6 py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
-                        style={{
-                          backgroundColor: '#000000',
-                          borderRadius: '13px',
-                          fontSize: '18px',
-                        }}
-                      >
-                        {t("Enregistrer")}
-                      </button>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Single PIN display in disabled view */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
-                  <div className="space-y-1 bg-white">
+                {/* Single PIN display inline */}
+                <div className="text-[18px] text-black font-sans select-none pt-1">
+                  {t("Votre PIN de signature à communiquer au technicien : ")}
+                  <span className="font-extrabold text-[#3556ec] ml-1 select-all">
+                    {authenticatedClient?.signaturePin || t('Non défini')}
+                  </span>
+                </div>
+
+                {/* Both buttons side-by-side, full-width (50% / 50%) */}
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={clearSignatureSig}
+                    className="w-full py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                    style={{
+                      backgroundColor: '#000000',
+                      borderRadius: '13px',
+                      fontSize: '18px',
+                      boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #000000, inset 0 6px 12px #ffffff1f',
+                    }}
+                  >
+                    {t("Effacer")}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={handleSaveSignature}
+                    className="w-full py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                    style={{
+                      backgroundColor: '#3556ec',
+                      borderRadius: '13px',
+                      fontSize: '18px',
+                      boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
+                    }}
+                  >
+                    {t("Enregistrer")}
+                  </button>
+                </div>
+              </div>
+
+              {/* Formulaire de Contact */}
+              <div
+                className="bg-white p-5 list-none space-y-4"
+                style={{
+                  border: '1px solid #cfcfcf',
+                  borderRadius: '13px',
+                }}
+              >
+                <div>
+                  <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
+                    {t("Formulaire de demande ou signalement.")}
+                  </h3>
+                </div>
+
+                <form onSubmit={handleContactSubmit} className="space-y-4">
+                  {/* Equipment select */}
+                  <div className="space-y-1">
                     <label className="block text-[18px] font-bold text-black font-sans select-none">
-                      {t("PIN unique de signature à communiquer au technicien.")}
+                      {t("Matériel concerné.")}
+                    </label>
+                    <select
+                      value={contactSelectedEquipId}
+                      onChange={(e) => setContactSelectedEquipId(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none font-sans appearance-none"
+                    >
+                      <option value="autre">{t("Autre demande / Problème général")}</option>
+                      {assignedEquipment.map((eq) => (
+                        <option key={eq.id} value={eq.id}>
+                          {eq.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Email field */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Votre adresse e-mail.")}
                     </label>
                     <input
-                      type="text"
-                      disabled
-                      value={authenticatedClient?.signaturePin || 'Non défini'}
-                      style={{ cursor: 'not-allowed', backgroundColor: '#ffffff', borderColor: '#cfcfcf', color: 'black', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '18px' }}
-                      className="px-4 py-2 border rounded-xl font-bold text-center w-40 font-sans"
+                      type="email"
+                      required
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none font-sans"
+                      placeholder="exemple@email.com"
                     />
                   </div>
-                </div>
+
+                  {/* Message field */}
+                  <div className="space-y-1">
+                    <label className="block text-[18px] font-bold text-black font-sans select-none">
+                      {t("Votre message.")}
+                    </label>
+                    <textarea
+                      required
+                      rows={4}
+                      value={contactMessage}
+                      onChange={(e) => setContactMessage(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white focus:outline-none font-sans resize-y"
+                      placeholder={t("Entrez un texte pour présenter la demande ou le signalement.")}
+                    />
+                  </div>
+
+                  {/* Success & Error messages */}
+                  {contactSuccessMsg && (
+                    <div className="text-green-600 font-sans font-bold select-none" style={{ fontSize: '18px' }}>
+                      {contactSuccessMsg}
+                    </div>
+                  )}
+
+                  {contactErrorMsg && (
+                    <div className="text-red-600 font-sans font-bold select-none" style={{ fontSize: '18px' }}>
+                      {contactErrorMsg}
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      className="w-full py-3 text-white transition-all cursor-pointer border-none outline-none font-bold"
+                      style={{
+                        backgroundColor: '#3556ec',
+                        borderRadius: '13px',
+                        fontSize: '18px',
+                        boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
+                      }}
+                    >
+                      {t("Envoyer")}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

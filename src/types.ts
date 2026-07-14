@@ -52,6 +52,7 @@ export interface Client {
   signatureClientContratImage?: string;
   payeurId?: string;
   clientIdField?: string;
+  valeurContrat?: string;
 }
 
 export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur';
@@ -252,7 +253,9 @@ export interface CompanyInfo {
   locationNames?: Record<string, string>;
   enableAutoEmails?: 'Oui' | 'Non';
   enableSatisfactionAvis?: 'Oui' | 'Non';
+  enableDevisFactures?: 'Oui' | 'Non';
   gmailPartageLocalisation?: string;
+  hiddenTabs?: string[];
 }
 
 export interface PointageLog {

@@ -483,7 +483,14 @@ export default function VariableTab({
                     </span>
                   </div>
 
-                  <div className="p-3.5 bg-sky-50 border border-sky-100 rounded-xl text-sky-900 text-sm font-sans leading-relaxed">
+                  <div 
+                    className="font-sans leading-relaxed"
+                    style={{
+                      fontSize: '16px',
+                      color: '#000000',
+                      cursor: 'default',
+                    }}
+                  >
                     {t("Défibeo ne peut légalement pas être un tiers pour notifier les remontées sur les incidents techniques de matériel médical. C’est pourquoi cet emplacement est réservé à l’enregistrement des remontées des fabricants, communément appelées FSCA (Field Safety Corrective Action). Votre alerte remonte visuellement sur votre onglet « Défibrillateurs » et votre client voit également, depuis son portail, un incident relatif au matériel.")}
                   </div>
 

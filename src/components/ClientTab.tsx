@@ -205,6 +205,7 @@ export default function ClientTab({
   const [contrat, setContrat] = useState<Client['contrat']>('Oui');
   const [nomContrat, setNomContrat] = useState('');
   const [referenceContrat, setReferenceContrat] = useState('');
+  const [valeurContrat, setValeurContrat] = useState('');
   const [debutContrat, setDebutContrat] = useState('');
   const [finContrat, setFinContrat] = useState('');
   const [numeroMarche, setNumeroMarche] = useState('');
@@ -661,6 +662,7 @@ export default function ClientTab({
     setContrat('Non');
     setNomContrat('');
     setReferenceContrat('');
+    setValeurContrat('');
     setDebutContrat('');
     setFinContrat('');
     setNumeroMarche('');
@@ -714,6 +716,7 @@ export default function ClientTab({
     setContrat(client.contrat || 'Non');
     setNomContrat(client.nomContrat === 'Sans contrat de maintenance' ? '' : (client.nomContrat || ''));
     setReferenceContrat(client.referenceContrat === '-' ? '' : (client.referenceContrat || ''));
+    setValeurContrat(client.valeurContrat || '');
     setDebutContrat(client.debutContrat || '');
     setFinContrat(client.finContrat || '');
     setNumeroMarche(client.numeroMarche || '');
@@ -795,6 +798,7 @@ export default function ClientTab({
 
     const hasContract = (nomContrat && nomContrat.trim() !== '' && nomContrat.trim() !== 'Sans contrat de maintenance') ||
                         (referenceContrat && referenceContrat.trim() !== '' && referenceContrat.trim() !== '-') ||
+                        (valeurContrat && valeurContrat.trim() !== '') ||
                         (debutContrat && debutContrat.trim() !== '') ||
                         (finContrat && finContrat.trim() !== '');
     const payload = {
@@ -813,6 +817,7 @@ export default function ClientTab({
       contrat: (hasContract ? 'Oui' : 'Non') as 'Oui' | 'Non',
       nomContrat: hasContract ? (nomContrat.trim() || 'Contrat actif') : 'Sans contrat de maintenance',
       referenceContrat: referenceContrat.trim() ? referenceContrat.trim() : '-',
+      valeurContrat: valeurContrat.trim(),
       debutContrat: debutContrat,
       finContrat: finContrat,
       numeroMarche: numeroMarche.trim(),
@@ -1671,7 +1676,7 @@ export default function ClientTab({
                 </div>
 
                 <div className="space-y-3 pt-1">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center justify-between">
                         <label htmlFor="input-client-contract-name" className="block text-[11px] font-bold text-slate-500 uppercase">
@@ -1722,6 +1727,20 @@ export default function ClientTab({
                         value={referenceContrat}
                         onChange={(e) => setReferenceContrat(e.target.value)}
                         placeholder="Entrez une référence."
+                        className="font-mono"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="input-client-contract-value" className="block text-[11px] font-bold text-slate-500 uppercase">
+                        Valeur du contrat (€).
+                      </label>
+                      <input
+                        type="text"
+                        id="input-client-contract-value"
+                        value={valeurContrat}
+                        onChange={(e) => setValeurContrat(e.target.value)}
+                        placeholder="Exemple : €123.00 /an"
                         className="font-mono"
                       />
                     </div>

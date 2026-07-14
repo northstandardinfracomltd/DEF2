@@ -1724,7 +1724,7 @@ export default function SettingsModal({
 
           {/* SECTION: INTEGRATION DU FORMULAIRE DE CONTACT */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-embed-form">
-            {renderSectionHeader(t("Intégrez le formulaire de contact à votre site web"))}
+            {renderSectionHeader(t("Intégrez le formulaire de contact à votre site web"), false)}
             
             <p className="text-[16px] text-black font-sans leading-relaxed">
               {t("Générez un formulaire de contact professionnel à intégrer sur votre site internet. Tous les messages envoyés depuis ce formulaire remonteront dans votre onglet CRM et vous recevrez un email de notification.")}

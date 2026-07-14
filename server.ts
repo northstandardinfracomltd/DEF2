@@ -12,6 +12,20 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // CORS support and preflight handling for CRM website form embedding
+  app.use("/api/crm/embed-lead", (req, res, next) => {
+    const origin = req.headers.origin || "*";
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, Accept, X-Requested-With, Origin");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+
   // Use json middleware for API routes
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -240,22 +254,7 @@ async function startServer() {
     }
   });
 
-  // CORS support and endpoint for CRM website form embedding
-  app.use("/api/crm/embed-lead", (req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "*");
-    res.setHeader("Access-Control-Max-Age", "86400");
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(200);
-    }
-    next();
-  });
-
   app.post("/api/crm/embed-lead", async (req, res) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "*");
     try {
       const { tenantId, name, email, message, redirectUrl } = req.body;
       

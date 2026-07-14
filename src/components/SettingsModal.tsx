@@ -1768,7 +1768,7 @@ export default function SettingsModal({
     
     <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
     
-    <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
   </form>
 
   <script>
@@ -1784,19 +1784,21 @@ export default function SettingsModal({
         btn.style.opacity = '0.7';
         btn.innerText = 'Envoi en cours...';
         
-        var formData = {
-          tenantId: form.querySelector('[name="tenantId"]').value,
-          email: form.querySelector('[name="email"]').value,
-          message: form.querySelector('[name="message"]').value
-        };
+        var tenantId = form.querySelector('[name="tenantId"]').value;
+        var email = form.querySelector('[name="email"]').value;
+        var message = form.querySelector('[name="message"]').value;
+        
+        var params = new URLSearchParams();
+        params.append('tenantId', tenantId);
+        params.append('email', email);
+        params.append('message', message);
         
         fetch('${window.location.origin}/api/crm/embed-lead', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify(formData)
+          body: params
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -1804,17 +1806,16 @@ export default function SettingsModal({
           btn.style.opacity = '1';
           btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
           
           if (data.success) {
-            msgDiv.style.backgroundColor = '#f0fdf4';
             msgDiv.style.color = '#16a34a';
-            msgDiv.style.border = '1px solid #bbf7d0';
             msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
             form.reset();
           } else {
-            msgDiv.style.backgroundColor = '#fef2f2';
             msgDiv.style.color = '#dc2626';
-            msgDiv.style.border = '1px solid #fecaca';
             msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
           }
         })
@@ -1823,9 +1824,10 @@ export default function SettingsModal({
           btn.style.opacity = '1';
           btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
-          msgDiv.style.backgroundColor = '#fef2f2';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
           msgDiv.style.color = '#dc2626';
-          msgDiv.style.border = '1px solid #fecaca';
           msgDiv.innerText = 'Erreur de connexion.';
         });
       });
@@ -1873,7 +1875,7 @@ export default function SettingsModal({
     
     <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
     
-    <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
   </form>
 
   <script>
@@ -1889,19 +1891,21 @@ export default function SettingsModal({
         btn.style.opacity = '0.7';
         btn.innerText = 'Envoi en cours...';
         
-        var formData = {
-          tenantId: form.querySelector('[name="tenantId"]').value,
-          email: form.querySelector('[name="email"]').value,
-          message: form.querySelector('[name="message"]').value
-        };
+        var tenantId = form.querySelector('[name="tenantId"]').value;
+        var email = form.querySelector('[name="email"]').value;
+        var message = form.querySelector('[name="message"]').value;
+        
+        var params = new URLSearchParams();
+        params.append('tenantId', tenantId);
+        params.append('email', email);
+        params.append('message', message);
         
         fetch('${window.location.origin}/api/crm/embed-lead', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'Accept': 'application/json'
           },
-          body: JSON.stringify(formData)
+          body: params
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
@@ -1909,17 +1913,16 @@ export default function SettingsModal({
           btn.style.opacity = '1';
           btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
           
           if (data.success) {
-            msgDiv.style.backgroundColor = '#f0fdf4';
             msgDiv.style.color = '#16a34a';
-            msgDiv.style.border = '1px solid #bbf7d0';
             msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
             form.reset();
           } else {
-            msgDiv.style.backgroundColor = '#fef2f2';
             msgDiv.style.color = '#dc2626';
-            msgDiv.style.border = '1px solid #fecaca';
             msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
           }
         })
@@ -1928,9 +1931,10 @@ export default function SettingsModal({
           btn.style.opacity = '1';
           btn.innerText = 'Envoyer';
           msgDiv.style.display = 'block';
-          msgDiv.style.backgroundColor = '#fef2f2';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
           msgDiv.style.color = '#dc2626';
-          msgDiv.style.border = '1px solid #fecaca';
           msgDiv.innerText = 'Erreur de connexion.';
         });
       });

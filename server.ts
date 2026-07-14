@@ -241,31 +241,27 @@ async function startServer() {
   });
 
   // CORS support and endpoint for CRM website form embedding
-  app.options("/api/crm/embed-lead", (req, res) => {
+  app.use("/api/crm/embed-lead", (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    res.sendStatus(200);
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "*");
+    res.setHeader("Access-Control-Max-Age", "86400");
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(200);
+    }
+    next();
   });
 
   app.post("/api/crm/embed-lead", async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "*");
     try {
       const { tenantId, name, email, message, redirectUrl } = req.body;
       
       if (!email || !message) {
         const errMsg = "Tous les champs (email, message) sont obligatoires.";
-        if (req.headers['content-type']?.includes('application/json')) {
-          return res.status(400).json({ error: errMsg });
-        } else {
-          return res.status(400).send(`
-            <div style="font-family: sans-serif; padding: 40px; text-align: center;">
-              <h2 style="color: #e53e3e;">Erreur</h2>
-              <p>${errMsg}</p>
-              <a href="javascript:history.back()" style="color: #3182ce; text-decoration: underline;">Retour</a>
-            </div>
-          `);
-        }
+        return res.status(400).json({ success: false, error: errMsg });
       }
       
       const targetTenantId = tenantId || "demo";
@@ -301,16 +297,11 @@ async function startServer() {
         return res.redirect(redirectUrl);
       }
       
-      // Return JSON on success by default or if requested
-      if (req.headers['content-type']?.includes('application/json') || req.headers.accept?.includes('application/json')) {
-        return res.json({ success: true, message: "Message envoyé avec succès." });
-      } else {
-        return res.json({ success: true, message: "Message envoyé avec succès." });
-      }
+      return res.json({ success: true, message: "Message envoyé avec succès." });
     } catch (error: any) {
       console.error("Error saving embed lead:", error);
       const errMsg = error.message || "Une erreur est survenue lors de l'envoi du message.";
-      return res.status(500).json({ error: errMsg });
+      return res.status(500).json({ success: false, error: errMsg });
     }
   });
 

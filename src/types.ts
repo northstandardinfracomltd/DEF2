@@ -189,7 +189,7 @@ export interface Defibrillateur {
 export interface SupportTicket {
   id: string; // e.g. #123456
   identifiant: string;
-  objet: 'Défibrillateur utilisé' | 'Défibrillateur endommagé' | 'Défibrillateur hors service' | 'Autre';
+  objet: 'Défibrillateur utilisé' | 'Défibrillateur endommagé' | 'Défibrillateur hors service' | 'Autre' | 'Formulaire intégré';
   message: string;
   email: string;
   phone: string;

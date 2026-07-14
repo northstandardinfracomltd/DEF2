@@ -105,6 +105,7 @@ export default function SettingsModal({
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [copiedEmbed, setCopiedEmbed] = React.useState(false);
   const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
   const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
   const [localLocationNames, setLocalLocationNames] = React.useState<Record<string, string>>(() => {
@@ -1719,6 +1720,226 @@ export default function SettingsModal({
               })}
             </div>
           </div>
+          </div>
+
+          {/* SECTION: INTEGRATION DU FORMULAIRE DE CONTACT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-embed-form">
+            {renderSectionHeader(t("Intégrez le formulaire de contact à votre site web"))}
+            
+            <p className="text-[16px] text-black font-sans leading-relaxed">
+              {t("Générez un formulaire de contact professionnel à intégrer sur votre site internet. Tous les messages envoyés depuis ce formulaire remonteront dans votre onglet CRM et vous recevrez un email de notification.")}
+            </p>
+
+            <div className="space-y-3 mt-3">
+              <textarea
+                readOnly
+                value={`<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <h2 style="font-size: 22px; font-weight: 700; color: #1a202c; margin-top: 0; margin-bottom: 8px; text-align: center;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
+  <p style="font-size: 14px; color: #718096; margin-bottom: 24px; text-align: center; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+  
+  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
+    <input type="hidden" name="tenantId" value="${localStorage.getItem('defib_tenant_id') || 'demo'}" />
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Nom / Prénom</label>
+      <input type="text" name="name" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Votre nom complet" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Saisissez votre message ici..."></textarea>
+    </div>
+    
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 12px 20px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer le message</button>
+    
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
+  </form>
+
+  <script>
+    (function() {
+      var form = document.getElementById('defibeo-contact-form');
+      if (!form) return;
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('defibeo-submit-btn');
+        var msgDiv = document.getElementById('defibeo-response-msg');
+        
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerText = 'Envoi en cours...';
+        
+        var formData = {
+          tenantId: form.querySelector('[name="tenantId"]').value,
+          name: form.querySelector('[name="name"]').value,
+          email: form.querySelector('[name="email"]').value,
+          message: form.querySelector('[name="message"]').value
+        };
+        
+        fetch('${window.location.origin}/api/crm/embed-lead', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer le message';
+          msgDiv.style.display = 'block';
+          
+          if (data.success) {
+            msgDiv.style.backgroundColor = '#f0fdf4';
+            msgDiv.style.color = '#16a34a';
+            msgDiv.style.border = '1px solid #bbf7d0';
+            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
+            form.reset();
+          } else {
+            msgDiv.style.backgroundColor = '#fef2f2';
+            msgDiv.style.color = '#dc2626';
+            msgDiv.style.border = '1px solid #fecaca';
+            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
+          }
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer le message';
+          msgDiv.style.display = 'block';
+          msgDiv.style.backgroundColor = '#fef2f2';
+          msgDiv.style.color = '#dc2626';
+          msgDiv.style.border = '1px solid #fecaca';
+          msgDiv.innerText = 'Erreur de connexion.';
+        });
+      });
+    })();
+  </script>
+</div>`}
+                className="w-full h-48 bg-[#1e293b] text-[#f8fafc] font-mono text-[11px] p-3 rounded-lg focus:outline-none border-0 resize-none select-all font-sans"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const activeId = localStorage.getItem('defib_tenant_id') || 'demo';
+                  const embedCode = `<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <h2 style="font-size: 22px; font-weight: 700; color: #1a202c; margin-top: 0; margin-bottom: 8px; text-align: center;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
+  <p style="font-size: 14px; color: #718096; margin-bottom: 24px; text-align: center; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+  
+  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
+    <input type="hidden" name="tenantId" value="${activeId}" />
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Nom / Prénom</label>
+      <input type="text" name="name" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="Votre nom complet" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 14px; font-weight: 600; color: #4a5568; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 10px 14px; border: 1px solid #cbd5e0; border-radius: 8px; font-size: 14px; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Saisissez votre message ici..."></textarea>
+    </div>
+    
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 12px 20px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer le message</button>
+    
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; font-weight: 600; text-align: center; margin-top: 10px; padding: 10px; border-radius: 8px;"></div>
+  </form>
+
+  <script>
+    (function() {
+      var form = document.getElementById('defibeo-contact-form');
+      if (!form) return;
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('defibeo-submit-btn');
+        var msgDiv = document.getElementById('defibeo-response-msg');
+        
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerText = 'Envoi en cours...';
+        
+        var formData = {
+          tenantId: form.querySelector('[name="tenantId"]').value,
+          name: form.querySelector('[name="name"]').value,
+          email: form.querySelector('[name="email"]').value,
+          message: form.querySelector('[name="message"]').value
+        };
+        
+        fetch('${window.location.origin}/api/crm/embed-lead', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(formData)
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer le message';
+          msgDiv.style.display = 'block';
+          
+          if (data.success) {
+            msgDiv.style.backgroundColor = '#f0fdf4';
+            msgDiv.style.color = '#16a34a';
+            msgDiv.style.border = '1px solid #bbf7d0';
+            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
+            form.reset();
+          } else {
+            msgDiv.style.backgroundColor = '#fef2f2';
+            msgDiv.style.color = '#dc2626';
+            msgDiv.style.border = '1px solid #fecaca';
+            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
+          }
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer le message';
+          msgDiv.style.display = 'block';
+          msgDiv.style.backgroundColor = '#fef2f2';
+          msgDiv.style.color = '#dc2626';
+          msgDiv.style.border = '1px solid #fecaca';
+          msgDiv.innerText = 'Erreur de connexion.';
+        });
+      });
+    })();
+  </script>
+</div>`;
+                  navigator.clipboard.writeText(embedCode);
+                  setCopiedEmbed(true);
+                  setTimeout(() => setCopiedEmbed(false), 2000);
+                }}
+                style={{
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  fontSize: '18px',
+                  fontWeight: '600',
+                  borderRadius: '12px',
+                  padding: '12px 24px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  display: 'block'
+                }}
+                className="hover:opacity-90 active:scale-[0.99] transition-all font-sans"
+              >
+                {copiedEmbed ? t("Copié !") : t("Copier le code")}
+              </button>
+            </div>
           </div>
           
           {/* SECTION 2: INTITULÉS DES EMPLACEMENTS */}

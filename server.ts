@@ -1,6 +1,12 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
+import { initializeApp } from "firebase/app";
+import { getFirestore, doc, getDoc, setDoc } from "firebase/firestore";
+import firebaseConfig from "./firebase-applet-config.json";
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 
 async function startServer() {
   const app = express();
@@ -8,6 +14,7 @@ async function startServer() {
 
   // Use json middleware for API routes
   app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
 
   // Proxy route for Pennylane API to prevent CORS
   app.all("/api/pennylane/*", async (req, res) => {
@@ -230,6 +237,80 @@ async function startServer() {
     } catch (err: any) {
       console.error("[GÉODAE] Proxy Upload Error:", err);
       res.status(500).json({ error: err.message || "Internal Server Error in GÉODAE upload" });
+    }
+  });
+
+  // CORS support and endpoint for CRM website form embedding
+  app.options("/api/crm/embed-lead", (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.sendStatus(200);
+  });
+
+  app.post("/api/crm/embed-lead", async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    try {
+      const { tenantId, name, email, message, redirectUrl } = req.body;
+      
+      if (!name || !email || !message) {
+        const errMsg = "Tous les champs (nom, email, message) sont obligatoires.";
+        if (req.headers['content-type']?.includes('application/json')) {
+          return res.status(400).json({ error: errMsg });
+        } else {
+          return res.status(400).send(`
+            <div style="font-family: sans-serif; padding: 40px; text-align: center;">
+              <h2 style="color: #e53e3e;">Erreur</h2>
+              <p>${errMsg}</p>
+              <a href="javascript:history.back()" style="color: #3182ce; text-decoration: underline;">Retour</a>
+            </div>
+          `);
+        }
+      }
+      
+      const targetTenantId = tenantId || "demo";
+      const collectionKey = targetTenantId === "demo" ? "tickets" : `${targetTenantId}_tickets`;
+      
+      // Fetch existing tickets from Firestore
+      const docRef = doc(db, 'appData', collectionKey);
+      const snap = await getDoc(docRef);
+      let tickets: any[] = [];
+      if (snap.exists()) {
+        tickets = snap.data().value || [];
+      }
+      
+      const randomId = `#${Math.floor(100000 + Math.random() * 900000)}`;
+      const newTicket = {
+        id: randomId,
+        identifiant: "",
+        objet: "Formulaire intégré",
+        message: `[Message depuis le site web]\nNom/Prénom: ${name}\n\n${message}`,
+        email: email,
+        phone: "-",
+        date: new Date().toISOString().replace('T', ' ').substring(0, 19),
+        status: "Nouveau",
+        envId: targetTenantId,
+        tenantId: targetTenantId
+      };
+      
+      tickets.unshift(newTicket);
+      await setDoc(docRef, { value: tickets });
+      
+      // If redirectUrl is supplied, redirect there
+      if (redirectUrl) {
+        return res.redirect(redirectUrl);
+      }
+      
+      // Return JSON on success by default or if requested
+      if (req.headers['content-type']?.includes('application/json') || req.headers.accept?.includes('application/json')) {
+        return res.json({ success: true, message: "Message envoyé avec succès." });
+      } else {
+        return res.json({ success: true, message: "Message envoyé avec succès." });
+      }
+    } catch (error: any) {
+      console.error("Error saving embed lead:", error);
+      const errMsg = error.message || "Une erreur est survenue lors de l'envoi du message.";
+      return res.status(500).json({ error: errMsg });
     }
   });
 

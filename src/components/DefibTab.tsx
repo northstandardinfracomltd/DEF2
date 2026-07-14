@@ -1750,21 +1750,21 @@ export default function DefibTab({
   };
 
    // Submit handler
-   const handleFormSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
-     if (isSubmitChecking) return;
+   const handleFormSubmit = async (e?: React.FormEvent): Promise<boolean> => {
+     if (e) e.preventDefault();
+     if (isSubmitChecking) return false;
      setFormError('');
  
      // Validation
      if (!identifiant.trim()) {
        setFormError('L\'identifiant unique est requis.');
-       return;
+       return false;
      }
      if (!numeroSerie.trim()) {
        setFormError('Le numéro de série est requis.');
-       return;
+       return false;
      }
-
+ 
  
      setIsSubmitChecking(true);
      try {
@@ -1775,7 +1775,7 @@ export default function DefibTab({
        if (isDuplicate) {
          setFormError(`L'identifiant "${identifiant}" existe déjà pour un autre appareil. Reroulez un code unique svp.`);
          setIsSubmitChecking(false);
-         return;
+         return false;
        }
  
        // 2. Block Duplicates globally across ALL environments/tenants
@@ -1783,13 +1783,13 @@ export default function DefibTab({
        if (globalCheck.exists) {
          setFormError(`L'identifiant "${identifiant.toUpperCase()}" existe déjà dans un autre environnement (${globalCheck.tenantName || 'externe'}). L'identifiant doit être unique à travers tous les environnements.`);
          setIsSubmitChecking(false);
-         return;
+         return false;
        }
      } catch (err) {
        console.error('Error validating defibrillator identifier:', err);
-     }
- 
-     const payload = {
+      }
+
+      const payload = {
       identifiant: identifiant.trim().toUpperCase(),
       numeroAtlasante: numeroAtlasante.trim(),
       numeroSerie: numeroSerie.trim(),
@@ -1904,6 +1904,14 @@ export default function DefibTab({
 
     setIsFormOpen(false);
     setIsSubmitChecking(false);
+    return true;
+  };
+
+  const handleSaveAndRedirectToVariables = async () => {
+    const success = await handleFormSubmit();
+    if (success) {
+      setActiveTab('variables');
+    }
   };
 
   // Bulk Edit submission
@@ -2986,7 +2994,7 @@ export default function DefibTab({
                           {setActiveTab && (
                             <button
                               type="button"
-                              onClick={() => setActiveTab('variables')}
+                              onClick={handleSaveAndRedirectToVariables}
                               className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                               style={{ textDecoration: 'none' }}
                             >
@@ -3345,7 +3353,7 @@ export default function DefibTab({
                           {setActiveTab && (
                             <button
                               type="button"
-                              onClick={() => setActiveTab('variables')}
+                              onClick={handleSaveAndRedirectToVariables}
                               className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                               style={{ textDecoration: 'none' }}
                             >
@@ -3890,7 +3898,7 @@ export default function DefibTab({
                           {setActiveTab && (
                             <button
                               type="button"
-                              onClick={() => setActiveTab('variables')}
+                              onClick={handleSaveAndRedirectToVariables}
                               className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                               style={{ textDecoration: 'none' }}
                             >
@@ -4174,7 +4182,7 @@ export default function DefibTab({
                           {setActiveTab && (
                             <button
                               type="button"
-                              onClick={() => setActiveTab('variables')}
+                              onClick={handleSaveAndRedirectToVariables}
                               className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                               style={{ textDecoration: 'none' }}
                             >
@@ -4458,7 +4466,7 @@ export default function DefibTab({
                           {setActiveTab && (
                             <button
                               type="button"
-                              onClick={() => setActiveTab('variables')}
+                              onClick={handleSaveAndRedirectToVariables}
                               className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                               style={{ textDecoration: 'none' }}
                             >

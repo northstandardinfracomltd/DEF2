@@ -687,93 +687,114 @@ export default function SettingsModal({
   };
 
   const [isVerifyingEmail, setIsVerifyingEmail] = React.useState(false);
+  const [isAddingMember, setIsAddingMember] = React.useState(false);
   const [newMemberError, setNewMemberError] = React.useState<string | null>(null);
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAddingMember || isSaving) return;
+    setIsAddingMember(true);
     setNewMemberError(null);
 
-    if (localMembers.length >= 15) {
-      setNewMemberError("La limite maximale de 15 membres est atteinte.");
-      return;
-    }
-
-    if (!newMemberName.trim()) {
-      setNewMemberError("Veuillez saisir un Nom & Prénom.");
-      return;
-    }
-    if (!newMemberEmail.trim()) {
-      setNewMemberError("Veuillez saisir une adresse email.");
-      return;
-    }
-    if (newMemberPin.length !== 4) {
-      setNewMemberError("Le code PIN doit comporter exactement 4 chiffres.");
-      return;
-    }
-
-    const candidateEmail = newMemberEmail.trim().toLowerCase();
-
-    // 1. Check local state duplicates
-    const existsLocally = localMembers.some(m => m.email?.trim().toLowerCase() === candidateEmail);
-    if (existsLocally) {
-      setNewMemberError("Erreur: un utilisateur avec cet email est déjà existant.");
-      return;
-    }
-
-    setIsVerifyingEmail(true);
     try {
-      const emailCheck = await checkIfEmailExistsAnywhere(candidateEmail);
-      if (emailCheck.exists) {
+      if (localMembers.length >= 15) {
+        setNewMemberError("La limite maximale de 15 membres est atteinte.");
+        setIsAddingMember(false);
+        return;
+      }
+
+      if (!newMemberName.trim()) {
+        setNewMemberError("Veuillez saisir un Nom & Prénom.");
+        setIsAddingMember(false);
+        return;
+      }
+      if (!newMemberEmail.trim()) {
+        setNewMemberError("Veuillez saisir une adresse email.");
+        setIsAddingMember(false);
+        return;
+      }
+      if (newMemberPin.length !== 4) {
+        setNewMemberError("Le code PIN doit comporter exactement 4 chiffres.");
+        setIsAddingMember(false);
+        return;
+      }
+
+      const candidateEmail = newMemberEmail.trim().toLowerCase();
+
+      // 1. Check local state duplicates
+      const existsLocally = localMembers.some(m => m.email?.trim().toLowerCase() === candidateEmail);
+      if (existsLocally) {
         setNewMemberError("Erreur: un utilisateur avec cet email est déjà existant.");
-        setIsVerifyingEmail(false);
+        setIsAddingMember(false);
         return;
       }
+
+      setIsVerifyingEmail(true);
+      try {
+        const emailCheck = await checkIfEmailExistsAnywhere(candidateEmail);
+        if (emailCheck.exists) {
+          setNewMemberError("Erreur: un utilisateur avec cet email est déjà existant.");
+          setIsVerifyingEmail(false);
+          setIsAddingMember(false);
+          return;
+        }
+      } catch (err) {
+        console.error('Error verifying email uniqueness:', err);
+      } finally {
+        setIsVerifyingEmail(false);
+      }
+
+      if (newMemberRole === 'Technicien' && newMemberLocation) {
+        const alreadyTaken = localMembers.some(
+          mem => mem.role === 'Technicien' && mem.locationLink === newMemberLocation
+        );
+        if (alreadyTaken) {
+          setNewMemberError(`Erreur: l'emplacement ${newMemberLocation} est déjà attribué.`);
+          setIsAddingMember(false);
+          return;
+        }
+      }
+
+      const m: Member = {
+        name: newMemberName.trim(),
+        email: newMemberEmail.trim(),
+        role: newMemberRole,
+        pin: newMemberPin,
+        status: 'Inactif',
+        lastActive: 'Jamais',
+        locationLink: newMemberRole === 'Technicien' ? (newMemberLocation || undefined) : undefined,
+        adminSubRole: newMemberRole === 'Administrateur' ? (newMemberAdminSubRole || 'Administrateur') : undefined
+      };
+
+      const updatedMembers = [...localMembers, m];
+      setLocalMembers(updatedMembers);
+
+      // Reset rapid addition fields
+      setNewMemberName('');
+      setNewMemberEmail('');
+      setNewMemberRole('Administrateur');
+      setNewMemberPin('');
+      setNewMemberLocation('');
+      setNewMemberAdminSubRole('Administrateur');
+      setNewMemberError(null);
+
+      // Auto-trigger the Enregistrer button by executing handleSaveAll directly
+      await handleSaveAll(updatedMembers);
+
     } catch (err) {
-      console.error('Error verifying email uniqueness:', err);
+      console.error('Error in handleAddMemberSubmit:', err);
     } finally {
-      setIsVerifyingEmail(false);
+      setIsAddingMember(false);
     }
-
-    if (newMemberRole === 'Technicien' && newMemberLocation) {
-      const alreadyTaken = localMembers.some(
-        mem => mem.role === 'Technicien' && mem.locationLink === newMemberLocation
-      );
-      if (alreadyTaken) {
-        setNewMemberError(`Erreur: l'emplacement ${newMemberLocation} est déjà attribué.`);
-        setIsVerifyingEmail(false);
-        return;
-      }
-    }
-
-    const m: Member = {
-      name: newMemberName.trim(),
-      email: newMemberEmail.trim(),
-      role: newMemberRole,
-      pin: newMemberPin,
-      status: 'Inactif',
-      lastActive: 'Jamais',
-      locationLink: newMemberRole === 'Technicien' ? (newMemberLocation || undefined) : undefined,
-      adminSubRole: newMemberRole === 'Administrateur' ? (newMemberAdminSubRole || 'Administrateur') : undefined
-    };
-
-    setLocalMembers(prev => [...prev, m]);
-
-    // Reset rapid addition fields
-    setNewMemberName('');
-    setNewMemberEmail('');
-    setNewMemberRole('Administrateur');
-    setNewMemberPin('');
-    setNewMemberLocation('');
-    setNewMemberAdminSubRole('Administrateur');
-    setNewMemberError(null);
   };
 
   // Perform overall save to parent state upon Enregistrer click
-  const handleSaveAll = async () => {
+  const handleSaveAll = async (membersOverride?: Member[]) => {
     if (isSaving) return;
     setIsSaving(true);
     setIsVerifyingEmail(true);
 
+    const membersToSave = membersOverride || localMembers;
     const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
 
     try {
@@ -810,7 +831,7 @@ export default function SettingsModal({
 
       // Check for duplicate location assignments among technicians
       const locationsAssigned = new Set<string>();
-      for (const m of localMembers) {
+      for (const m of membersToSave) {
         if (m.role === 'Technicien' && m.locationLink) {
           if (locationsAssigned.has(m.locationLink)) {
             alert(`Erreur: l'emplacement "${m.locationLink}" est attribué à plusieurs techniciens.`);
@@ -824,7 +845,7 @@ export default function SettingsModal({
 
       // 1. Check local duplicates within the local list itself
       const emailsSeen = new Set<string>();
-      for (const m of localMembers) {
+      for (const m of membersToSave) {
         const emailLower = m.email?.trim().toLowerCase();
         if (!emailLower) continue;
         if (emailsSeen.has(emailLower)) {
@@ -838,7 +859,7 @@ export default function SettingsModal({
 
       // 2. Fetch and check entire database for collisions (excluding unmodified emails)
 
-      for (const m of localMembers) {
+      for (const m of membersToSave) {
         const candidateEmail = m.email?.trim().toLowerCase();
         if (!candidateEmail) continue;
 
@@ -873,7 +894,7 @@ export default function SettingsModal({
       enableDevisFactures: enableDevisFactures
     };
     onUpdateCompanyInfo(companyToSave);
-    onUpdateMembers(localMembers);
+    onUpdateMembers(membersToSave);
 
     // Save directly to Firestore for environments to guarantee persistence and solve the Mercedes AMG sync bug
     if (myTenantId && myTenantId !== 'demo') {
@@ -887,7 +908,7 @@ export default function SettingsModal({
     // Envoi des emails aux nouveaux membres (Email de bienvenue personnalisé)
     try {
       const originalEmails = new Set(members.map(m => m.email?.trim().toLowerCase()));
-      const newMembers = localMembers.filter(m => m.email && !originalEmails.has(m.email.trim().toLowerCase()));
+      const newMembers = membersToSave.filter(m => m.email && !originalEmails.has(m.email.trim().toLowerCase()));
 
       for (const m of newMembers) {
         triggerEmailNewMemberAdded(
@@ -2093,10 +2114,16 @@ export default function SettingsModal({
               <div className="pt-1">
                 <button
                   type="submit"
-                  style={{ ...rowActionButtonStyle, width: '100%' }}
-                  className="w-full cursor-pointer font-sans text-white font-normal text-[18px]"
+                  disabled={isAddingMember || isSaving}
+                  style={{
+                    ...rowActionButtonStyle,
+                    width: '100%',
+                    opacity: (isAddingMember || isSaving) ? 0.6 : 1,
+                    cursor: (isAddingMember || isSaving) ? 'not-allowed' : 'pointer'
+                  }}
+                  className="w-full font-sans text-white font-normal text-[18px]"
                 >
-                  {t("Nouveau membre")}
+                  {isAddingMember ? t("Ajout en cours...") : isSaving ? t("Enregistrement...") : t("Nouveau membre")}
                 </button>
                 {newMemberError && (
                   <div className="mt-2 text-red-600 text-[16px] font-sans font-medium text-left animate-fadeIn">

@@ -366,7 +366,7 @@ interface DefibTabProps {
   onBulkEdit: (ids: string[], updates: Partial<Omit<Defibrillateur, 'id'>>) => void;
   fsmTours?: any[];
   onUpdateFsmTours?: (updated: any[]) => void;
-  setActiveTab?: (tab: any) => void;
+  setActiveTab?: (tab: any, bypassBlock?: boolean) => void;
   onShowGmaoReports?: (defibIdentifiant: string) => void;
   companyInfo?: CompanyInfo;
   members?: any[];
@@ -1910,7 +1910,7 @@ export default function DefibTab({
   const handleSaveAndRedirectToVariables = async () => {
     const success = await handleFormSubmit();
     if (success) {
-      setActiveTab('variables');
+      setActiveTab('variables', true);
     }
   };
 

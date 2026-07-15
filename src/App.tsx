@@ -496,7 +496,71 @@ export default function App() {
     return () => window.removeEventListener('defib_lang_changed', handleLangChange);
   }, []);
 
-  const [activeTab, setActiveTab ] = useState<AppTab>('defibrillateurs');
+  const [activeTab, rawSetActiveTab] = useState<AppTab>('defibrillateurs');
+  const setActiveTab = (newTab: AppTab | ((prev: AppTab) => AppTab), bypassBlock = false) => {
+    const resolvedTab = typeof newTab === 'function' ? (newTab as Function)(activeTab) : newTab;
+
+    if (!bypassBlock && resolvedTab !== activeTab) {
+      const ADMIN_FORM_IDS = [
+        'achats-fournisseurs-form',
+        'client-form',
+        'equipement-stock-form',
+        'other-eq-core-form',
+        'distributed-stock-form',
+        'import-export-creation-form',
+        'defibrillateur-core-form',
+        'gmao-correction-form',
+        'ged-document-form',
+        'tickets-caisse-form',
+        'materiel-core-form',
+        'variable-form',
+      ];
+
+      let openForm: HTMLElement | null = null;
+      for (const id of ADMIN_FORM_IDS) {
+        const el = document.getElementById(id);
+        if (el) {
+          openForm = el;
+          break;
+        }
+      }
+
+      if (openForm) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        const activeTabContent = document.getElementById('active-tab-content-wrapper') || document.getElementById('main-content') || openForm;
+        if (activeTabContent) {
+          activeTabContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        const formId = openForm.id;
+        let submitBtn = document.querySelector(`button[form="${formId}"]`) || openForm.querySelector('button[type="submit"]');
+
+        if (!submitBtn) {
+          const allButtons = document.querySelectorAll('button');
+          for (const btn of Array.from(allButtons)) {
+            const text = btn.innerText || '';
+            if (text.includes('Enregistrer') || text.includes('Sauvegarder') || text.includes('Valider')) {
+              submitBtn = btn;
+              break;
+            }
+          }
+        }
+
+        if (submitBtn) {
+          submitBtn.classList.remove('shake-element');
+          void (submitBtn as HTMLElement).offsetWidth; // Trigger reflow
+          submitBtn.classList.add('shake-element');
+          setTimeout(() => {
+            submitBtn?.classList.remove('shake-element');
+          }, 500);
+        }
+        return;
+      }
+    }
+
+    rawSetActiveTab(resolvedTab);
+  };
   const [distributedStocksSearchQuery, setDistributedStocksSearchQuery] = useState('');
   const [stockSearchQuery, setStockSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

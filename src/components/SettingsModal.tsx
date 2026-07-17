@@ -982,12 +982,12 @@ export default function SettingsModal({
   };
 
   // Perform overall save to parent state upon Enregistrer click
-  const handleSaveAll = async (membersOverride?: Member[]) => {
+  const handleSaveAll = async (membersOverride?: Member[] | any) => {
     if (isSaving) return;
     setIsSaving(true);
     setIsVerifyingEmail(true);
 
-    const membersToSave = membersOverride || localMembers;
+    const membersToSave = (Array.isArray(membersOverride) ? membersOverride : null) || localMembers;
     const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
 
     try {
@@ -1075,6 +1075,10 @@ export default function SettingsModal({
 
     } catch (err) {
       console.error('Error validation before save:', err);
+      alert("Une erreur est survenue lors de la validation des données.");
+      setIsSaving(false);
+      setIsVerifyingEmail(false);
+      return;
     } finally {
       setIsVerifyingEmail(false);
     }

@@ -474,7 +474,14 @@ export default function App() {
     return () => window.removeEventListener('defib_lang_changed', handleLangChange);
   }, []);
 
-  const [activeTab, rawSetActiveTab] = useState<AppTab>('defibrillateurs');
+  const [activeTab, rawSetActiveTab] = useState<AppTab>(() => {
+    try {
+      if (localStorage.getItem('open_settings_after_reload') === 'true') {
+        return 'parametres';
+      }
+    } catch (_) {}
+    return 'defibrillateurs';
+  });
   const setActiveTab = (newTab: AppTab | ((prev: AppTab) => AppTab), bypassBlock = false) => {
     const resolvedTab = typeof newTab === 'function' ? (newTab as Function)(activeTab) : newTab;
 
@@ -542,6 +549,14 @@ export default function App() {
   const [distributedStocksSearchQuery, setDistributedStocksSearchQuery] = useState('');
   const [stockSearchQuery, setStockSearchQuery] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('open_settings_after_reload') === 'true') {
+        localStorage.removeItem('open_settings_after_reload');
+      }
+    } catch (_) {}
+  }, []);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isPublicPortalOpen, setIsPublicPortalOpen] = useState(false);
   const [isClientPortalOpen, setIsClientPortalOpen ] = useState(false);

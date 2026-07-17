@@ -271,6 +271,29 @@ export default function SettingsModal({
     setShowDisableOtherEquipmentsConfirmation(false);
   }, [propEnableOtherEquipments, isOpen]);
 
+  React.useEffect(() => {
+    if (isOpen) {
+      const shouldScroll = localStorage.getItem('scroll_to_members') === 'true';
+      if (shouldScroll) {
+        localStorage.removeItem('scroll_to_members');
+        setTimeout(() => {
+          const container = document.getElementById('settings-tab-container-harmonized');
+          const target = document.getElementById('settings-section-members');
+          if (isPage && target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } else if (container && target) {
+            container.scrollTo({
+              top: target.offsetTop - 20,
+              behavior: 'smooth'
+            });
+          } else if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 600);
+      }
+    }
+  }, [isOpen, isPage]);
+
   // Synchronise if parent prop changes upon load or reset, keeping refs to trace incoming changes
   const lastPropsMembersRef = React.useRef<Member[]>(members);
   const lastPropsCompanyRef = React.useRef<CompanyInfo>(companyInfo);
@@ -1072,13 +1095,19 @@ export default function SettingsModal({
     onUpdateMembers(membersToSave);
 
     // Save directly to Firestore for environments to guarantee persistence and solve the Mercedes AMG sync bug
+    const promises: Promise<any>[] = [];
+
     if (myTenantId && myTenantId !== 'demo') {
-      try {
-        await saveCollectionToFirestore('companyInfo', companyToSave);
-        await saveCollectionToFirestore('members', membersToSave);
-      } catch (err) {
-        console.error('Error saving company info and members directly to Firestore:', err);
-      }
+      promises.push(
+        saveCollectionToFirestore('companyInfo', companyToSave).catch(err =>
+          console.error('Error saving company info directly to Firestore:', err)
+        )
+      );
+      promises.push(
+        saveCollectionToFirestore('members', membersToSave).catch(err =>
+          console.error('Error saving members directly to Firestore:', err)
+        )
+      );
     }
 
     // Envoi des emails aux nouveaux membres (Email de bienvenue personnalisé)
@@ -1087,19 +1116,23 @@ export default function SettingsModal({
       const newMembers = membersToSave.filter(m => m.email && !originalEmails.has(m.email.trim().toLowerCase()));
 
       for (const m of newMembers) {
-        triggerEmailNewMemberAdded(
-          m.email.trim(),
-          m.pin,
-          localCompany.name || 'Défibeo Suite',
-          localCompany.email || ''
-        ).catch(e => console.error("Error sending new member invite:", e));
+        promises.push(
+          triggerEmailNewMemberAdded(
+            m.email.trim(),
+            m.pin,
+            localCompany.name || 'Défibeo Suite',
+            localCompany.email || ''
+          ).catch(e => console.error("Error sending new member invite:", e))
+        );
       }
     } catch (err) {
       console.error("Error dispatching member invites:", err);
     }
     
     // Sauvegarder l'url de l'app script
-    saveAppsScriptUrl(appsScriptUrl).catch(console.error);
+    promises.push(
+      saveAppsScriptUrl(appsScriptUrl).catch(e => console.error("Error saving apps script URL:", e))
+    );
 
     // Sauvegarder les intitulés personnalisés des emplacements
     localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
@@ -1113,13 +1146,24 @@ export default function SettingsModal({
 
     // Save language to the master tenant list in Firestore
     if (myTenantId && myTenantId !== 'demo') {
-      updateTenantLanguage(myTenantId, selectedLang).catch(console.error);
+      promises.push(
+        updateTenantLanguage(myTenantId, selectedLang).catch(e => console.error("Error updating tenant lang:", e))
+      );
     }
     
-    // Keep disabled for 3 seconds as requested, then release
-    setTimeout(() => {
-      setIsSaving(false);
-    }, 3000);
+    // Set reload flags to automatically reopen settings and scroll to members
+    localStorage.setItem('open_settings_after_reload', 'true');
+    localStorage.setItem('scroll_to_members', 'true');
+
+    // Wait at most 800ms for all writes to hit offline/network layer, then reload the page
+    const timeoutPromise = new Promise<void>(resolve => setTimeout(resolve, 800));
+    await Promise.race([
+      Promise.allSettled(promises),
+      timeoutPromise
+    ]);
+
+    // Perform reload immediately to prevent frozen screen states
+    window.location.reload();
   };
 
   // Harmonized styling constants

@@ -20,25 +20,49 @@ export async function getAppsScriptUrl(): Promise<string> {
   }
 
   if (cachedUrl && cachedUrl !== DEPRECATED_APPS_SCRIPT_URL) return cachedUrl;
-  
-  try {
-    const docRef = doc(db, 'appData', 'global_email_config');
-    const snap = await getDoc(docRef);
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data && data.url && data.url.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
-        cachedUrl = data.url;
-        return data.url;
-      }
-    }
-  } catch (error) {
-    console.warn('Error fetching global_email_config from firestore (using fallback):', error);
-  }
 
+  // 2. Try localStorage cache first for instant retrieval (0ms)
   const localSaved = localStorage.getItem('defib_global_apps_script_url');
   if (localSaved && localSaved.trim() && localSaved.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
     cachedUrl = localSaved.trim();
+    
+    // Trigger a background silent update of Firestore cache without blocking
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      const docRef = doc(db, 'appData', 'global_email_config');
+      getDoc(docRef).then(snap => {
+        if (snap.exists()) {
+          const data = snap.data();
+          if (data && data.url && data.url.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
+            const freshUrl = data.url.trim();
+            localStorage.setItem('defib_global_apps_script_url', freshUrl);
+            cachedUrl = freshUrl;
+          }
+        }
+      }).catch(() => {});
+    }
+    
     return cachedUrl;
+  }
+  
+  // 3. Fallback to quick server check with a 2-second timeout
+  if (typeof navigator !== 'undefined' && navigator.onLine) {
+    try {
+      const docRef = doc(db, 'appData', 'global_email_config');
+      const docPromise = getDoc(docRef);
+      const timeoutPromise = new Promise<null>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 2000));
+      
+      const snap = await Promise.race([docPromise, timeoutPromise]) as any;
+      if (snap && snap.exists()) {
+        const data = snap.data();
+        if (data && data.url && data.url.trim() !== DEPRECATED_APPS_SCRIPT_URL) {
+          cachedUrl = data.url.trim();
+          localStorage.setItem('defib_global_apps_script_url', cachedUrl);
+          return cachedUrl;
+        }
+      }
+    } catch (error) {
+      console.log('[Email Service] Silent notice: Fetching global_email_config from Firestore timed out or offline, using fallback.');
+    }
   }
 
   // Fallback to developer default URL

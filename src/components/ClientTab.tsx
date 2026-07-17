@@ -145,7 +145,7 @@ interface ClientTabProps {
   onUpdateClient: (client: Client) => void;
   onDeleteClient: (id: string) => void;
   companyInfo: CompanyInfo;
-  setActiveTab?: (tab: any) => void;
+  setActiveTab?: (tab: any, bypassBlock?: boolean) => void;
 }
 
 export default function ClientTab({
@@ -861,6 +861,17 @@ export default function ClientTab({
     }
 
     setIsModalOpen(false);
+  };
+
+  const handleSaveAndRedirectToVariables = async () => {
+    if (denomination.trim()) {
+      await handleSubmit({ preventDefault: () => {} } as any);
+    } else {
+      setIsModalOpen(false);
+    }
+    if (setActiveTab) {
+      setActiveTab('variables', true);
+    }
   };
 
   if (isModalOpen) {
@@ -1685,7 +1696,7 @@ export default function ClientTab({
                         {setActiveTab && (
                           <button
                             type="button"
-                            onClick={() => setActiveTab('variables')}
+                            onClick={handleSaveAndRedirectToVariables}
                             className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                             style={{ textDecoration: 'none' }}
                           >

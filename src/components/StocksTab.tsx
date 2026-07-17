@@ -104,7 +104,7 @@ interface StocksTabProps {
   setStockSearchQuery?: (q: string) => void;
   commercialDocs?: CommercialDoc[];
   achatsFournisseurs?: AchatFournisseur[];
-  setActiveTab?: (tab: any) => void;
+  setActiveTab?: (tab: any, bypassBlock?: boolean) => void;
   members?: Member[];
 }
 
@@ -576,6 +576,17 @@ export default function StocksTab({
     setSituation('Disponible');
     setShowTraceabilityForm(false);
     setShowStockForm(false);
+  };
+
+  const handleSaveAndRedirectToVariables = () => {
+    if (newDenomStr) {
+      handleAddStockSubmit({ preventDefault: () => {} } as any);
+    } else {
+      setShowStockForm(false);
+    }
+    if (setActiveTab) {
+      setActiveTab('variables', true);
+    }
   };
 
   const handleOpenNewForm = () => {
@@ -1129,7 +1140,7 @@ export default function StocksTab({
                   {setActiveTab && (
                     <button
                       type="button"
-                      onClick={() => setActiveTab('variables')}
+                      onClick={handleSaveAndRedirectToVariables}
                       className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                       style={{ textDecoration: 'none' }}
                     >
@@ -1322,7 +1333,7 @@ export default function StocksTab({
                     {setActiveTab && (
                       <button
                         type="button"
-                        onClick={() => setActiveTab('variables')}
+                        onClick={handleSaveAndRedirectToVariables}
                         className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                         style={{ textDecoration: 'none' }}
                       >

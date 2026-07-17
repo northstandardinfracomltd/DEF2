@@ -1806,11 +1806,14 @@ export default function DefibTab({
        }
  
        // 2. Block Duplicates globally across ALL environments/tenants
-       const globalCheck = await checkIfDefibIdentifiantExistsAnywhere(identifiant, editingDefib?.id);
-       if (globalCheck.exists) {
-         setFormError(`L'identifiant "${identifiant.toUpperCase()}" existe déjà dans un autre environnement (${globalCheck.tenantName || 'externe'}). L'identifiant doit être unique à travers tous les environnements.`);
-         setIsSubmitChecking(false);
-         return false;
+       const identifiantChanged = !editingDefib || (editingDefib.identifiant || '').trim().toUpperCase() !== identifiant.trim().toUpperCase();
+       if (identifiantChanged) {
+         const globalCheck = await checkIfDefibIdentifiantExistsAnywhere(identifiant, editingDefib?.id);
+         if (globalCheck.exists) {
+           setFormError(`L'identifiant "${identifiant.toUpperCase()}" existe déjà dans un autre environnement (${globalCheck.tenantName || 'externe'}). L'identifiant doit être unique à travers tous les environnements.`);
+           setIsSubmitChecking(false);
+           return false;
+         }
        }
      } catch (err) {
        console.error('Error validating defibrillator identifier:', err);
@@ -1938,8 +1941,12 @@ export default function DefibTab({
   };
 
   const handleSaveAndRedirectToVariables = async () => {
-    const success = await handleFormSubmit();
-    if (success) {
+    if (identifiant.trim() && numeroSerie.trim()) {
+      await handleFormSubmit();
+    } else {
+      setIsFormOpen(false);
+    }
+    if (setActiveTab) {
       setActiveTab('variables', true);
     }
   };

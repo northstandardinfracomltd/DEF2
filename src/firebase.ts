@@ -849,24 +849,36 @@ export async function checkIfDefibIdentifiantExistsAnywhere(
     const tenants = await getRegisteredTenants();
     const tenantIds = ['demo', ...tenants.map(t => t.id)];
 
-    for (const tid of tenantIds) {
-      const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
-      const defibList = await fetchRawCollectionFromFirestore<any[]>(key) || [];
-      if (Array.isArray(defibList)) {
-        for (const df of defibList) {
-          if (excludeDefibId && df.id === excludeDefibId) {
-            continue;
-          }
-          if (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) {
-            let tenantLabel = 'Démonstration';
-            if (tid !== 'demo') {
-              const matchingTenant = tenants.find(t => t.id === tid);
-              tenantLabel = matchingTenant ? matchingTenant.companyName : tid;
+    const results = await Promise.all(
+      tenantIds.map(async (tid) => {
+        try {
+          const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
+          const defibList = await fetchRawCollectionFromFirestore<any[]>(key, 3000) || [];
+          if (Array.isArray(defibList)) {
+            for (const df of defibList) {
+              if (excludeDefibId && df.id === excludeDefibId) {
+                continue;
+              }
+              if (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) {
+                let tenantLabel = 'Démonstration';
+                if (tid !== 'demo') {
+                  const matchingTenant = tenants.find(t => t.id === tid);
+                  tenantLabel = matchingTenant ? matchingTenant.companyName : tid;
+                }
+                return { exists: true, tenantName: tenantLabel };
+              }
             }
-            return { exists: true, tenantName: tenantLabel };
           }
+        } catch (err) {
+          console.warn(`Error scanning defib in tenant list for ${tid}:`, err);
         }
-      }
+        return null;
+      })
+    );
+
+    const found = results.find(r => r !== null);
+    if (found) {
+      return found;
     }
   } catch (error) {
     console.warn('Error checking global defibrillator uniqueness:', error);
@@ -885,33 +897,45 @@ export async function findTenantAndDefibGlobally(identifiant: string): Promise<{
     const tenants = await getRegisteredTenants();
     const tenantIds = ['demo', ...tenants.map(t => t.id)];
 
-    for (const tid of tenantIds) {
-      const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
-      const defibList = await fetchRawCollectionFromFirestore<any[]>(key) || [];
-      if (Array.isArray(defibList)) {
-        const hasMatch = defibList.some(df => 
-          (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) ||
-          (df.id && df.id.trim().toUpperCase() === checkIdent)
-        );
-        if (hasMatch) {
-          if (tid === 'demo') {
-            return {
-              tenantId: 'demo',
-              companyName: 'Défibeo Solutions',
-              companyEmail: 'contact@defibeo-solutions.com',
-              exists: true
-            };
-          } else {
-            const tenantObj = tenants.find(t => t.id === tid);
-            return {
-              tenantId: tid,
-              companyName: tenantObj ? tenantObj.companyName : tid,
-              companyEmail: tenantObj ? tenantObj.companyEmail : 'support@defibeo.com',
-              exists: true
-            };
+    const results = await Promise.all(
+      tenantIds.map(async (tid) => {
+        try {
+          const key = tid === 'demo' ? 'defibrillateurs' : `${tid}_defibrillateurs`;
+          const defibList = await fetchRawCollectionFromFirestore<any[]>(key, 3000) || [];
+          if (Array.isArray(defibList)) {
+            const hasMatch = defibList.some(df => 
+              (df.identifiant && df.identifiant.trim().toUpperCase() === checkIdent) ||
+              (df.id && df.id.trim().toUpperCase() === checkIdent)
+            );
+            if (hasMatch) {
+              if (tid === 'demo') {
+                return {
+                  tenantId: 'demo',
+                  companyName: 'Défibeo Solutions',
+                  companyEmail: 'contact@defibeo-solutions.com',
+                  exists: true
+                };
+              } else {
+                const tenantObj = tenants.find(t => t.id === tid);
+                return {
+                  tenantId: tid,
+                  companyName: tenantObj ? tenantObj.companyName : tid,
+                  companyEmail: tenantObj ? tenantObj.companyEmail : 'support@defibeo.com',
+                  exists: true
+                };
+              }
+            }
           }
+        } catch (err) {
+          console.warn(`Error finding tenant and defib globally for ${tid}:`, err);
         }
-      }
+        return null;
+      })
+    );
+
+    const found = results.find(r => r !== null);
+    if (found) {
+      return found;
     }
   } catch (error) {
     console.warn('Error finding tenant and defib globally:', error);

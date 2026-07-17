@@ -8586,7 +8586,15 @@ export default function App() {
                               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider devis-label-style">{t("Pièce ou service.")}</label>
                               <button
                                 type="button"
-                                onClick={() => setActiveTab('variables')}
+                                onClick={() => {
+                                  if (docClientId && docItems.length > 0) {
+                                    handleSaveDoc({ preventDefault: () => {} } as any);
+                                  } else {
+                                    setIsDocFormOpen(false);
+                                    setEditingDocId(null);
+                                  }
+                                  setActiveTab('variables', true);
+                                }}
                                 className="text-[16px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer normal-case no-underline hover:no-underline"
                                 style={{ textDecoration: 'none' }}
                               >

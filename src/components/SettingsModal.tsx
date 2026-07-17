@@ -1962,6 +1962,72 @@ export default function SettingsModal({
               })}
             </div>
           </div>
+
+          {/* APPALENCE DES RAPPORTS PDF */}
+          <div className="pt-6 mt-6 space-y-4">
+            {renderSectionHeader(t("Apparence des rapports PDF"), false)}
+
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Image source d’entête pour illustration.")}
+                </label>
+                <input
+                  type="text"
+                  value={localCompany.pdfHeaderImg ?? ''}
+                  onChange={(e) => handleCompanyChange('pdfHeaderImg', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                  placeholder={t("Url source se terminant par .png")}
+                />
+                <span className="block text-[16px] text-black font-sans leading-tight mt-1 cursor-default">
+                  {t("Placés en haut à droite de votre logo, il peut s’agir d’icônes de labels, de certifications ou autres.")}
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Texte d’entête de page.")}
+                </label>
+                <input
+                  type="text"
+                  maxLength={300}
+                  value={localCompany.pdfPageHeaderText ?? ''}
+                  onChange={(e) => handleCompanyChange('pdfPageHeaderText', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                  placeholder={t("Entrez un texte max 300 caractères.")}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Texte de bas de page.")}
+                </label>
+                <input
+                  type="text"
+                  maxLength={1000}
+                  value={localCompany.pdfPageFooterText ?? ''}
+                  onChange={(e) => handleCompanyChange('pdfPageFooterText', e.target.value)}
+                  className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                  placeholder={t("Entrez un texte max 1000 caractères.")}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[16px] font-bold text-black font-sans">
+                  {t("Texte d’information dernière page.")}
+                </label>
+                <textarea
+                  id="pdf-last-page-info-text"
+                  maxLength={2500}
+                  value={localCompany.pdfLastPageInfoText ?? ''}
+                  onChange={(e) => handleCompanyChange('pdfLastPageInfoText', e.target.value)}
+                  placeholder={t("Entrez un texte max 2500 caractères")}
+                  rows={4}
+                  className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 font-sans"
+                />
+              </div>
+            </div>
+          </div>
           </div>
 
           {/* SECTION: INTEGRATION DU FORMULAIRE DE CONTACT */}
@@ -3155,7 +3221,7 @@ export default function SettingsModal({
                 onChange={(e) => setCommunicationPortailClient(e.target.value)}
                 placeholder={t("Entrez le message d’information pour les clients...")}
                 rows={4}
-                className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 font-sans"
+                className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 font-sans"
               />
             </div>
           </div>

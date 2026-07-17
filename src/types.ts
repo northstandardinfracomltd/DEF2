@@ -293,6 +293,10 @@ export interface CompanyInfo {
   gmailPartageLocalisation?: string;
   hiddenTabs?: string[];
   communicationPortailClient?: string;
+  pdfHeaderImg?: string;
+  pdfPageHeaderText?: string;
+  pdfPageFooterText?: string;
+  pdfLastPageInfoText?: string;
 }
 
 export interface PointageLog {

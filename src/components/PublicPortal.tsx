@@ -150,9 +150,9 @@ function generateBarcodeSVGString(text: string): string {
     binaryString += '0';
   }
 
-  const barWidth = 1.5;
-  const barcodeHeight = 30;
-  const textHeight = 15;
+  const barWidth = 2.0;
+  const barcodeHeight = 45;
+  const textHeight = 20;
   const totalHeight = barcodeHeight + textHeight;
   const totalWidth = binaryString.length * barWidth;
   
@@ -163,7 +163,7 @@ function generateBarcodeSVGString(text: string): string {
     }
   }
   
-  const textElement = `<text x="${totalWidth / 2}" y="${barcodeHeight + 12}" font-family="'DefibeoMain', 'Civilprom', sans-serif" font-size="10" text-anchor="middle" fill="black">${text}</text>`;
+  const textElement = `<text x="${totalWidth / 2}" y="${barcodeHeight + 16}" font-family="'DefibeoMain', 'Civilprom', sans-serif" font-size="14" text-anchor="middle" fill="black">${text}</text>`;
   
   return `<svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">${rects}${textElement}</svg>`;
 }
@@ -1707,6 +1707,57 @@ export default function PublicPortal({
       const compPhone = companyInfo.phone || "";
       const compWebsite = companyInfo.website || "";
 
+      const pdfLogo = companyInfo.logo || '';
+      const pdfHeaderImg = companyInfo.pdfHeaderImg || '';
+      const pdfPageHeaderText = companyInfo.pdfPageHeaderText || '';
+      const pdfPageFooterText = companyInfo.pdfPageFooterText || '';
+      const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || '';
+      const hasLastPage = pdfLastPageInfoText && pdfLastPageInfoText.trim().length > 0;
+
+      const totalPages = hasLastPage ? 3 : 2;
+      const docTitle = report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie || ''}`;
+
+      const renderHeader = (title: string) => {
+        const showHeaderImg = pdfHeaderImg ? `<img src="${pdfHeaderImg}" style="max-height: 80px; max-width: 100%; object-fit: contain;" alt="Header Illustration" referrerPolicy="no-referrer" />` : '';
+        const showHeaderLogo = pdfLogo ? `<img src="${pdfLogo}" style="max-height: 80px; object-fit: contain;" alt="Logo" referrerPolicy="no-referrer" />` : '';
+        const showHeaderInfoText = pdfPageHeaderText ? `<div style="font-size: 14px; color: #000000; text-align: left; font-family: 'Civilprom', sans-serif !important;">${pdfPageHeaderText}</div>` : '';
+        const showEmail = compEmail ? `<div>${compEmail}</div>` : '';
+        const showPhone = compPhone ? `<div>${compPhone}</div>` : '';
+
+        return `
+          <div class="pdf-global-header" style="display: flex; flex-direction: row; width: calc(100% - 30mm); margin: 10mm 15mm 15px 15mm; padding-bottom: 10px; font-family: 'Civilprom', 'Inter', sans-serif !important; align-items: center; box-sizing: border-box;">
+            <div style="width: 25%; display: flex; align-items: center; justify-content: flex-start; box-sizing: border-box; padding-right: 5px;">
+              ${showHeaderLogo}
+            </div>
+            <div style="width: 35%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; box-sizing: border-box; padding: 0 5px; gap: 4px;">
+              ${showHeaderImg}
+              ${showHeaderInfoText}
+            </div>
+            <div style="width: 20%; display: flex; align-items: center; justify-content: flex-start; box-sizing: border-box; padding: 0 5px;">
+              <div style="font-size: 14px; font-weight: bold !important; color: #000000; text-align: left; line-height: 1.1;">
+                ${title}
+              </div>
+            </div>
+            <div style="width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; box-sizing: border-box; padding-left: 5px; font-size: 14px; color: #000000; gap: 2px;">
+              <div style="font-weight: bold !important; margin-bottom: 2px;">${compName}</div>
+              ${showEmail}
+              ${showPhone}
+            </div>
+          </div>
+        `;
+      };
+
+      const renderFooter = (pageIndex: number, pagesTotal: number) => `
+        <div class="pdf-footer" style="position: absolute; bottom: 15mm; left: 15mm; right: 15mm; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-end; font-size: 13px; color: #000000; padding-top: 8px; font-family: 'Civilprom', 'Inter', sans-serif !important; box-sizing: border-box; width: calc(100% - 30mm); border-top: none;">
+          <div style="flex: 1; text-align: left; padding-right: 20px; color: #000000; font-size: 13px;">
+            <p style="margin: 0; color: #000000; font-size: 13px; text-align: left; font-weight: normal !important; line-height: 1.4;">${pdfPageFooterText || ''}</p>
+          </div>
+          <div style="font-weight: bold !important; white-space: nowrap; color: #000000; font-size: 13px;">
+            Page ${pageIndex} / ${pagesTotal}
+          </div>
+        </div>
+      `;
+
       const htmlContent = `
         <!DOCTYPE html>
         <html lang="fr">
@@ -1756,7 +1807,7 @@ export default function PublicPortal({
               position: relative;
               width: 210mm;
               height: 297mm;
-              padding: 20mm 15mm;
+              padding: 0px;
               box-sizing: border-box;
               background-color: #ffffff;
               display: flex;
@@ -1779,12 +1830,14 @@ export default function PublicPortal({
               display: flex;
               flex-direction: column;
               gap: 12px;
-              width: 100%;
+              width: calc(100% - 30mm);
+              margin: 0 15mm;
             }
             .pdf-card {
-              border: 1px solid rgb(201, 190, 205);
-              border-radius: 14px;
-              background-color: #ffffff;
+              border: 2px solid #7d2882;
+              border-radius: 13px;
+              background-color: #fef2ff;
+              padding: 0px;
               display: flex;
               flex-direction: column;
               overflow: hidden;
@@ -1792,9 +1845,13 @@ export default function PublicPortal({
               page-break-inside: avoid;
             }
             .pdf-card-header {
-              padding: 10px 14px 2px 14px;
-              font-size: 18px;
-              color: #000000;
+              padding: 10px 14px;
+              font-size: 16px;
+              background-color: #7C2882;
+              color: #ffffff;
+              border-bottom: none;
+              text-align: center;
+              font-weight: bold !important;
             }
             .pdf-card-body {
               padding: 8px 14px 12px 14px;
@@ -1810,7 +1867,7 @@ export default function PublicPortal({
               font-size: 16px;
             }
             .pdf-label {
-              color: rgb(138, 138, 138);
+              color: rgb(159 113 162);
             }
             .pdf-bold {
               color: #000000;
@@ -1827,37 +1884,25 @@ export default function PublicPortal({
         <body class="bg-white">
           <div id="print-container">
             <div class="pdf-page">
-              <div style="display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: -5px;">
-                <div class="pdf-header" style="margin-bottom: 0px !important;">
-                  ${report.title ? report.title : `Rapport d’intervention - ${snapshot.categorie}`}
-                </div>
-                <div style="font-family: 'Civilprom', sans-serif !important; font-size: 14px; text-align: center; color: #555555; margin-bottom: 0px !important; line-height: 1.2;">
-                  Conservez et archivez consciencieusement ce certificat technique GMAO pour vos obligations d'entretien.
-                </div>
-              </div>
+              ${renderHeader(docTitle)}
 
               <div class="pdf-grid">
-                <!-- SECTION 1 -->
-                <div class="pdf-card">
-                  <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
-                  <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
-                    ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ""}
-                    <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
-                    <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ""}</span></div>
-                    <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ""}</span></div>
-                    <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
+                <!-- BARCODE HEADER -->
+                <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 5px; margin-top: -5px;">
+                  <div style="text-align: center;">
+                    ${generateBarcodeSVGString(snapshot.identifiant || report.defibIdentifiant || "EQUIP")}
                   </div>
                 </div>
 
-                <!-- SECTION 2 -->
+                <!-- SECTION 1 -->
                 <div class="pdf-card">
-                  <div class="pdf-card-header">2 — Infos client & contrat.</div>
+                  <div class="pdf-card-header">1 — Informations générales.</div>
                   <div class="pdf-card-body">
                     <div class="pdf-line"><span class="pdf-label">Client :</span> <span class="pdf-bold">${clientName || ""}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Contact sur place :</span> <span class="pdf-bold">${snapshot.nomPrenomSite || ""}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Téléphone du contact :</span> <span class="pdf-bold">${snapshot.telephoneSite || ""}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Email du contact :</span> <span class="pdf-bold">${snapshot.emailSite || ""}</span></div>
-                    <div class="pdf-line"><span class="pdf-label">Sous contrat :</span> <span class="pdf-bold">${snapshot.contrat || "Non"}</span></div>
+                    <div class="pdf-line" style="margin-top: 10px;"><span class="pdf-label">Sous contrat :</span> <span class="pdf-bold">${snapshot.contrat || "Non"}</span></div>
                     ${
                       snapshot.contrat === "Oui"
                         ? `
@@ -1869,9 +1914,9 @@ export default function PublicPortal({
                   </div>
                 </div>
 
-                <!-- SECTION 3 -->
+                <!-- SECTION 2 -->
                 <div class="pdf-card">
-                  <div class="pdf-card-header">3 — Spécifications du matériel (${snapshot.categorie}).</div>
+                  <div class="pdf-card-header">2 — Spécifications du matériel (${snapshot.categorie}).</div>
                   <div class="pdf-card-body">
                     <div class="pdf-line"><span class="pdf-label">Catégorie :</span> <span class="pdf-bold">${snapshot.categorie || ""}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Identifiant unique :</span> <span class="pdf-bold">${snapshot.identifiant || ""}</span></div>
@@ -1882,18 +1927,20 @@ export default function PublicPortal({
                   </div>
                 </div>
               </div>
-              <div class="pdf-footer">Page 1 / 2</div>
+              ${renderFooter(1, totalPages)}
             </div>
 
             <!-- PAGE 2 -->
             <div class="pdf-page">
+              ${renderHeader(docTitle)}
+
               <div class="pdf-grid">
                 <!-- CUSTOM SECTION / CHECKPOINTS -->
                 ${
                   customProperties.length > 0
                     ? `
                   <div class="pdf-card">
-                    <div class="pdf-card-header">4 — Paramètres spécifiques & Vérifications.</div>
+                    <div class="pdf-card-header">3 — Paramètres spécifiques & Vérifications.</div>
                     <div class="pdf-card-body">
                       ${customProperties
                         .map(
@@ -1910,7 +1957,7 @@ export default function PublicPortal({
 
                 <!-- ACTIONS, NOTES & CAPTURE EVIDENCE -->
                 <div class="pdf-card">
-                  <div class="pdf-card-header">5 — Clôture de l'intervention.</div>
+                  <div class="pdf-card-header">4 — Clôture de l'intervention.</div>
                   <div class="pdf-card-body">
                     <div class="pdf-line"><span class="pdf-label">Technicien intervenant :</span> <span class="pdf-bold">${report.techName || "Administrateur"}</span></div>
                     <div class="pdf-line"><span class="pdf-label">Date d’intervention :</span> <span class="pdf-bold">${report.date || "-"}</span></div>
@@ -1920,82 +1967,104 @@ export default function PublicPortal({
                     </div>
 
                     <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
-                      <!-- Photo -->
-                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                        <div class="pdf-line" style="font-size: 16px;">Photographie terrain.</div>
-                        ${
-                          report.photoUrl
-                            ? `
-                          <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
-                            <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Photo" referrerPolicy="no-referrer" />
+                      <!-- Photos (Up to 3 photos stacked vertically) -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                        <div class="pdf-line" style="font-size: 16px; font-weight: bold !important;">Photographies de l'intervention.</div>
+                        
+                        ${report.photoUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Photographie globale du défibrillateur.</span>
                           </div>
-                        `
-                            : '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>'
-                        }
+                        ` : ''}
+
+                        ${report.photoArriereUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoArriereUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo Arrière" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Photographie arrière / étiquette.</span>
+                          </div>
+                        ` : ''}
+
+                        ${report.photoResultatTestUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoResultatTestUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo Résultat Test" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Résultat du test.</span>
+                          </div>
+                        ` : ''}
+
+                        ${(!report.photoUrl && !report.photoArriereUrl && !report.photoResultatTestUrl) ? '<div style="font-size: 15px; color: #a1a1a1; font-style: italic;">Aucune photographie</div>' : ''}
                       </div>
 
                       <!-- Signature Technicien -->
                       <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                         <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
-                        ${
-                          report.techSignature
-                            ? `
-                          <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
+                        ${report.techSignature ? `
+                          <div style="background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
                             <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
                           </div>
-                        `
-                            : `
+                        ` : `
                           <div style="font-size: 15px; color: #a1a1a1; font-style: italic;">
                             Non signée
                           </div>
-                        `
-                        }
+                        `}
                       </div>
 
                       <!-- Signature Client -->
                       <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
                         <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
-                        ${
-                          report.clientPinCode && report.clientPinCode.trim()
-                            ? `
+                        ${(report.clientPinCode && report.clientPinCode.trim()) ? `
                           <div style="font-size: 11px; margin-bottom: 2px;">
                             <span class="pdf-label" style="font-size:11px; color:#555;">Code validation:</span> 
                             <span class="pdf-bold" style="font-size:11px; font-family: monospace !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
                           </div>
-                        `
-                            : ""
-                        }
-                        ${
-                          clientFound && clientFound.clientSignatureImage
-                            ? `
-                          <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
+                        ` : ''}
+                        ${clientFound && clientFound.clientSignatureImage ? `
+                          <div style="background: transparent; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
                             <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
                             <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
                           </div>
-                        `
-                            : `
-                          ${
-                            report.clientPinCode && report.clientPinCode.trim()
-                              ? `
+                        ` : `
+                          ${(report.clientPinCode && report.clientPinCode.trim()) ? `
                             <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
                               Signé électroniquement par PIN (${report.clientPinCode})
                             </div>
-                          `
-                              : `
+                          ` : `
                             <div style="font-size: 13px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
                               Non signée
                             </div>
-                          `
-                          }
-                        `
-                        }
+                          `}
+                        `}
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div class="pdf-footer">Page 2 / 2</div>
+              ${renderFooter(2, totalPages)}
             </div>
+
+            ${hasLastPage ? `
+              <!-- PAGE 3 -->
+              <div class="pdf-page">
+                ${renderHeader(docTitle)}
+                <div class="pdf-grid" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
+                  <div class="pdf-card" style="flex: 1; min-height: 120mm; display: flex; flex-direction: column;">
+                    <div class="pdf-card-header" style="font-weight: bold !important; margin-bottom: 10px;">
+                      Informations complémentaires
+                    </div>
+                    <div class="pdf-card-body" style="font-size: 15px; color: #000000; white-space: pre-line; line-height: 1.5; flex: 1;">
+                      ${pdfLastPageInfoText}
+                    </div>
+                  </div>
+                </div>
+                ${renderFooter(3, totalPages)}
+              </div>
+            ` : ''}
           </div>
         </body>
         </html>
@@ -2012,6 +2081,55 @@ export default function PublicPortal({
     const compEmail = companyInfo.email || "";
     const compPhone = companyInfo.phone || "";
     const compWebsite = companyInfo.website || "";
+
+    const docTitle = report.title || "Rapport d’intervention GMAO";
+    const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || "";
+    const hasLastPage = pdfLastPageInfoText && pdfLastPageInfoText.trim().length > 0;
+    const totalPages = hasLastPage ? 6 : 5;
+
+    const renderHeader = (title: string) => {
+      const showHeaderImg = companyInfo.pdfHeaderImg ? `<img src="${companyInfo.pdfHeaderImg}" style="max-height: 80px; max-width: 100%; object-fit: contain;" alt="Header Illustration" referrerPolicy="no-referrer" />` : '';
+      const showHeaderLogo = companyInfo.logo ? `<img src="${companyInfo.logo}" style="max-height: 80px; object-fit: contain;" alt="Logo" referrerPolicy="no-referrer" />` : '';
+      const showHeaderInfoText = companyInfo.pdfPageHeaderText ? `<div style="font-size: 14px; color: #000000; text-align: left; font-family: 'Civilprom', sans-serif !important;">${companyInfo.pdfPageHeaderText}</div>` : '';
+      const showEmail = companyInfo.email ? `<div>${companyInfo.email}</div>` : '';
+      const showPhone = companyInfo.phone ? `<div>${companyInfo.phone}</div>` : '';
+
+      return `
+        <div class="pdf-global-header" style="display: flex; flex-direction: row; width: calc(100% - 30mm); margin: 10mm 15mm 15px 15mm; padding-bottom: 10px; font-family: 'Civilprom', 'Inter', sans-serif !important; align-items: center; box-sizing: border-box;">
+          <div style="width: 25%; display: flex; align-items: center; justify-content: flex-start; box-sizing: border-box; padding-right: 5px;">
+            ${showHeaderLogo}
+          </div>
+          <div style="width: 35%; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; box-sizing: border-box; padding: 0 5px; gap: 4px;">
+            ${showHeaderImg}
+            ${showHeaderInfoText}
+          </div>
+          <div style="width: 20%; display: flex; align-items: center; justify-content: flex-start; box-sizing: border-box; padding: 0 5px;">
+            <div style="font-size: 14px; font-weight: bold !important; color: #000000; text-align: left; line-height: 1.1;">
+              ${title}
+            </div>
+          </div>
+          <div style="width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; text-align: right; box-sizing: border-box; padding-left: 5px; font-size: 14px; color: #000000; gap: 2px;">
+            <div style="font-weight: bold !important; margin-bottom: 2px;">${compName}</div>
+            ${showEmail}
+            ${showPhone}
+          </div>
+        </div>
+      `;
+    };
+
+    const renderFooter = (pageIndex: number, pagesTotal: number) => {
+      const footerText = companyInfo.pdfPageFooterText || "Rapport d’intervention original - Document certifié conforme";
+      return `
+        <div class="pdf-footer" style="position: absolute; bottom: 15mm; left: 15mm; right: 15mm; display: flex; flex-direction: row; justify-content: space-between; align-items: flex-end; font-size: 13px; color: #000000; padding-top: 8px; font-family: 'Civilprom', 'Inter', sans-serif !important; box-sizing: border-box; width: calc(100% - 30mm); border-top: none;">
+          <div style="flex: 1; text-align: left; padding-right: 20px; color: #000000; font-size: 13px;">
+            <p style="margin: 0; color: #000000; font-size: 13px; text-align: left; font-weight: normal !important; line-height: 1.4;">${footerText}</p>
+          </div>
+          <div style="font-weight: bold !important; white-space: nowrap; color: #000000; font-size: 13px;">
+            Page ${pageIndex} / ${pagesTotal}
+          </div>
+        </div>
+      `;
+    };
 
     // Resolving Client Name
     let clientFound = clients.find((c) => c.id === snapshot.clientId);
@@ -2187,7 +2305,7 @@ export default function PublicPortal({
             position: relative;
             width: 210mm;
             height: 297mm;
-            padding: 20mm 15mm;
+            padding: 0px;
             box-sizing: border-box;
             background-color: #ffffff;
             display: flex;
@@ -2219,13 +2337,15 @@ export default function PublicPortal({
             display: flex;
             flex-direction: column;
             gap: 12px;
-            width: 100%;
+            width: calc(100% - 30mm);
+            margin: 0 15mm;
           }
 
           .pdf-card {
-            border: 1px solid rgb(201, 190, 205);
-            border-radius: 14px;
-            background-color: #ffffff;
+            border: 2px solid #7d2882;
+            border-radius: 13px;
+            background-color: #fef2ff;
+            padding: 0px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -2234,13 +2354,13 @@ export default function PublicPortal({
           }
 
           .pdf-card-header {
-            background-color: transparent;
-            color: #000000;
+            background-color: #7C2882;
+            color: #ffffff;
             border-bottom: none;
-            font-size: 18px;
-            font-weight: 100 !important;
-            text-align: left;
-            padding: 10px 14px 2px 14px;
+            font-size: 16px;
+            font-weight: bold !important;
+            text-align: center;
+            padding: 10px 14px;
             font-family: "Civilprom", sans-serif !important;
           }
 
@@ -2264,7 +2384,7 @@ export default function PublicPortal({
           }
 
           .pdf-label {
-            color: rgb(138, 138, 138);
+            color: rgb(159 113 162);
             font-family: "Civilprom", sans-serif !important;
           }
 
@@ -2291,31 +2411,19 @@ export default function PublicPortal({
 
           <!-- PAGE 1 -->
           <div class="pdf-page">
-            <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: -5px;">
-              <div class="pdf-header" style="margin-bottom: 0px !important; text-align: left !important; width: 100%;">
-                ${report.title ? report.title : "Rapport d’intervention GMAO"}
-              </div>
-              <div style="font-family: 'Civilprom', sans-serif !important; font-size: 14px; text-align: left; color: #555555; margin-bottom: 0px !important; line-height: 1.2;">
-                Nous vous recommandons de conserver et d'archiver le présent document.
-              </div>
-            </div>
+            ${renderHeader(docTitle)}
 
             <div class="pdf-grid">
-              <!-- SECTION 1 -->
-              <div class="pdf-card">
-                <div class="pdf-card-header">1 — Coordonnées du mainteneur.</div>
-                <div class="pdf-card-body" style="align-items: flex-start; justify-content: flex-start; text-align: left; gap: 4px;">
-                  ${compLogo ? `<img src="${compLogo}" style="max-height: 40px; max-width: 300px; object-fit: contain; margin-bottom: 4px;" alt="Logo" referrerPolicy="no-referrer" />` : ""}
-                  <div class="pdf-line pdf-bold" style="font-size: 16px; margin-bottom: 2px;">${compName} — ${companyInfo.nomLogiciel || 'Défibeo'}</div>
-                  <div class="pdf-line"><span class="pdf-label">Email :</span> <span class="pdf-bold">${compEmail || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Tél :</span> <span class="pdf-bold">${compPhone || ""}</span></div>
-                  <div class="pdf-line" style="margin-top: 2px;"><a href="https://${compWebsite}" target="_blank" style="color: #2563eb; text-decoration: underline;">${compWebsite}</a></div>
+              <!-- BARCODE HEADER -->
+              <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 5px; margin-top: -5px;">
+                <div style="text-align: center;">
+                  ${generateBarcodeSVGString(snapshot.identifiant || report.defibIdentifiant || "EQUIP")}
                 </div>
               </div>
 
-              <!-- SECTION 2 -->
+              <!-- SECTION 1 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">2 — Infos défibrillateur.</div>
+                <div class="pdf-card-header">1 — Informations générales.</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Client :</span> <span class="pdf-bold">${clientName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Contact :</span> <span class="pdf-bold">${snapshot.nomPrenomSite || ""}</span></div>
@@ -2324,34 +2432,36 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Identifiant :</span> <span class="pdf-bold">${snapshot.identifiant || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Série :</span> <span class="pdf-bold">${snapshot.numeroSerie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Modèle :</span> <span class="pdf-bold">${snapshot.modeleId ? defibModelName : ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Contrat :</span> <span class="pdf-bold">${snapshot.contrat || ""}</span></div>
+                  <div class="pdf-line" style="margin-top: 10px;"><span class="pdf-label">Contrat :</span> <span class="pdf-bold">${snapshot.contrat || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Référence du contrat :</span> <span class="pdf-bold">${snapshot.referenceContrat || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Catégorie du contrat :</span> <span class="pdf-bold">${snapshot.nomContrat || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Facture :</span> <span class="pdf-bold">${report.emettreFactureBrouillon || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Service facturé :</span> <span class="pdf-bold">${report.serviceEmettreId ? getServiceLabel(report.serviceEmettreId) : ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Voie :</span> <span class="pdf-bold">${snapshot.numVoie || ""}</span></div>
+                  <div class="pdf-line" style="margin-top: 10px;"><span class="pdf-label">Voie :</span> <span class="pdf-bold">${snapshot.numVoie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Ville :</span> <span class="pdf-bold">${snapshot.ville || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Code Postal :</span> <span class="pdf-bold">${snapshot.cp || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Région :</span> <span class="pdf-bold">${snapshot.region || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Pays :</span> <span class="pdf-bold">${snapshot.pays || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Latitude GPS :</span> <span class="pdf-bold">${snapshot.latitude || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Longitude GPS :</span> <span class="pdf-bold">${snapshot.longitude || ""}</span></div>
-                  <div class="pdf-line"><span class="pdf-label">Fabrication :</span> <span class="pdf-bold">${snapshot.fabrication || ""}</span></div>
+                  <div class="pdf-line" style="margin-top: 10px;"><span class="pdf-label">Fabrication :</span> <span class="pdf-bold">${snapshot.fabrication || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Mise en service :</span> <span class="pdf-bold">${snapshot.miseEnService || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Fin de garantie :</span> <span class="pdf-bold">${snapshot.finGarantie || ""}</span></div>
                 </div>
               </div>
             </div>
 
-            <div class="pdf-footer">Page 1 / 4</div>
+            ${renderFooter(1, totalPages)}
           </div>
 
           <!-- PAGE 2 -->
           <div class="pdf-page">
+            ${renderHeader(docTitle)}
+
             <div class="pdf-grid">
-              <!-- SECTION 3 -->
+              <!-- SECTION 2 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">3 — Coffret.</div>
+                <div class="pdf-card-header">2 — Coffret.</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle de boîtier :</span> <span class="pdf-bold">${coffretModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot de boîtier :</span> <span class="pdf-bold">${snapshot.numeroLotCoffret || ""}</span></div>
@@ -2364,9 +2474,9 @@ export default function PublicPortal({
                 </div>
               </div>
 
-              <!-- SECTION 4 -->
+              <!-- SECTION 3 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">4 — Vérifications techniques.</div>
+                <div class="pdf-card-header">3 — Vérifications techniques.</div>
                 <div class="pdf-card-body" style="gap: 3px;">
                   <div class="pdf-line"><span class="pdf-label">Conforme à mon arrivée :</span> <span class="pdf-bold">${report.techConformeArrivee || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Commentaire sur l’état à mon arrivée :</span> <span class="pdf-bold">${report.techCommentaireArrivee || ""}</span></div>
@@ -2380,15 +2490,17 @@ export default function PublicPortal({
               </div>
             </div>
 
-            <div class="pdf-footer">Page 2 / 4</div>
+            ${renderFooter(2, totalPages)}
           </div>
 
           <!-- PAGE 3 -->
           <div class="pdf-page">
+            ${renderHeader(docTitle)}
+
             <div class="pdf-grid">
-              <!-- SECTION 5 -->
+              <!-- SECTION 4 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">5 — Électrode Adulte ou Mixte (A).</div>
+                <div class="pdf-card-header">4 — Électrode Adulte ou Mixte (A).</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode A :</span> <span class="pdf-bold">${electrodeAModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot A :</span> <span class="pdf-bold">${snapshot.lotElectrodeA || ""}</span></div>
@@ -2410,9 +2522,9 @@ export default function PublicPortal({
                 </div>
               </div>
 
-              <!-- SECTION 6 -->
+              <!-- SECTION 5 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">6 — Électrode Pédiatrique (P).</div>
+                <div class="pdf-card-header">5 — Électrode Pédiatrique (P).</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle d'électrode P :</span> <span class="pdf-bold">${electrodePModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot P :</span> <span class="pdf-bold">${snapshot.lotElectrodeP || ""}</span></div>
@@ -2434,15 +2546,17 @@ export default function PublicPortal({
               </div>
             </div>
 
-            <div class="pdf-footer">Page 3 / 4</div>
+            ${renderFooter(3, totalPages)}
           </div>
 
           <!-- PAGE 4 -->
           <div class="pdf-page">
+            ${renderHeader(docTitle)}
+
             <div class="pdf-grid">
-              <!-- SECTION 7 -->
+              <!-- SECTION 6 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">7 — Batterie (B).</div>
+                <div class="pdf-card-header">6 — Batterie (B).</div>
                 <div class="pdf-card-body">
                   <div class="pdf-line"><span class="pdf-label">Modèle de batterie :</span> <span class="pdf-bold">${batterieModelName || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Pourcentage de charge :</span> <span class="pdf-bold">${snapshot.pourcentageBatterie ? snapshot.pourcentageBatterie + "%" : ""}</span></div>
@@ -2457,9 +2571,9 @@ export default function PublicPortal({
                 </div>
               </div>
 
-              <!-- SECTION 8 -->
+              <!-- SECTION 7 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">8 — Vérifications du kit de secours.</div>
+                <div class="pdf-card-header">7 — Vérifications du kit de secours.</div>
                 <div class="pdf-card-body" style="gap: 3px;">
                   <div class="pdf-line"><span class="pdf-label">Trousse de secours présente :</span> <span class="pdf-bold">${report.kitTrousseSecoursPresent || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Kit de secours remplacé ou ajouté :</span> <span class="pdf-bold">${report.kitSecoursRemplaceOuAjoute || ""}</span></div>
@@ -2473,10 +2587,19 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Rasoir :</span> <span class="pdf-bold">${report.kitRasoirPresent || ""}</span></div>
                 </div>
               </div>
+            </div>
 
-              <!-- SECTION 9 -->
+            ${renderFooter(4, totalPages)}
+          </div>
+
+          <!-- PAGE 5 -->
+          <div class="pdf-page">
+            ${renderHeader(docTitle)}
+
+            <div class="pdf-grid">
+              <!-- SECTION 8 -->
               <div class="pdf-card">
-                <div class="pdf-card-header">9 — Diagnostic et clôture.</div>
+                <div class="pdf-card-header">8 — Diagnostic et clôture.</div>
                 <div class="pdf-card-body" style="display: flex; flex-direction: column; gap: 6px;">
                   <div class="pdf-line">
                     <span class="pdf-label">Défibrillateur conforme et prêt à l’usage :</span> <span class="pdf-bold">${snapshot.conforme === "Oui" || report.conforme === "Oui" ? "Oui" : "Non"}</span>
@@ -2493,88 +2616,108 @@ export default function PublicPortal({
                   <div class="pdf-line">
                     <span class="pdf-label">Horodatage fin d’intervention :</span> <span class="pdf-bold">${report.endTimeStamp || "-"}</span>
                   </div>
-                  <div class="pdf-line" style="margin-bottom: 4px;">
-                    <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || "-"}</span>
-                  </div>
-                  
-                  <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
-                    <!-- Photography -->
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                      <div class="pdf-line" style="font-size: 16px;">Photographie du défibrillateur.</div>
-                      ${
-                        report.photoUrl
-                          ? `
-                        <div style="border: none; border-radius: 4px; overflow: hidden; background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 120px; max-width: 200px;">
-                          <img src="${report.photoUrl}" style="max-height: 120px; max-width: 200px; object-fit: contain;" alt="Preuve" referrerPolicy="no-referrer" />
-                        </div>
-                      `
-                          : ""
-                      }
-                    </div>
-
-                    <!-- Signature Technicien -->
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                      <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
-                      ${
-                        report.techSignature
-                          ? `
-                        <div style="background: #ffffff; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
-                          <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
-                        </div>
-                      `
-                          : `
-                        <div style="font-size: 16px; color: #000000; font-style: italic;">
-                          Non signée
-                        </div>
-                      `
-                      }
-                    </div>
-
-                    <!-- Signature Client -->
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
-                      <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
-                      ${
-                        report.clientPinCode && report.clientPinCode.trim()
-                          ? `
-                        <div style="font-size: 11px; margin-bottom: 2px; font-family: 'Civilprom', sans-serif !important;">
-                          <span class="pdf-label" style="font-size:11px; color:rgb(138, 138, 138); font-family: 'Civilprom', sans-serif !important;">Code validation :</span> 
-                          <span class="pdf-bold" style="font-size:11px; font-family: 'Civilprom', sans-serif !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
-                        </div>
-                      `
-                          : ""
-                      }
-                      ${
-                        clientFound && clientFound.clientSignatureImage
-                          ? `
-                        <div style="background: #ffffff; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
-                          <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
-                          <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
-                        </div>
-                      `
-                          : `
-                        ${
-                          report.clientPinCode && report.clientPinCode.trim()
-                            ? `
-                          <div style="font-size: 11px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
-                            Signé électroniquement par PIN (${report.clientPinCode})
+                        <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
+                      <!-- Photos (Up to 3 photos stacked vertically) -->
+                      ${isVisiblePiecesJointes ? `
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+                        <div class="pdf-line" style="font-size: 16px; font-weight: bold !important;">Photographies de l'intervention.</div>
+                        
+                        ${report.photoUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Photographie globale du défibrillateur.</span>
                           </div>
-                        `
-                            : `
-                          <div style="font-size: 13px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
+                        ` : ''}
+
+                        ${report.photoArriereUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoArriereUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo Arrière" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Photographie arrière / étiquette.</span>
+                          </div>
+                        ` : ''}
+
+                        ${report.photoResultatTestUrl ? `
+                          <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
+                            <div style="border: none; border-radius: 11px; overflow: hidden; background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 100px; max-width: 200px;">
+                              <img src="${report.photoResultatTestUrl}" style="max-height: 100px; border-radius: 11px; max-width: 200px; object-fit: contain;" alt="Photo Resultat Test" referrerPolicy="no-referrer" />
+                            </div>
+                            <span class="pdf-label" style="font-size: 8px; color: #000000; font-family: 'Civilprom', sans-serif !important;">Résultat du test.</span>
+                          </div>
+                        ` : ''}
+
+                      </div>
+                      ` : ''}
+
+                      <!-- Signature Technicien -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature technicien.</div>
+                        ${report.techSignature ? `
+                          <div style="background: transparent; display: flex; justify-content: flex-start; align-items: center; max-height: 60px; max-width: 150px;">
+                            <img src="${report.techSignature}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature" />
+                          </div>
+                        ` : `
+                          <div style="font-size: 16px; color: #000000; font-style: italic;">
                             Non signée
                           </div>
-                        `
-                        }
-                      `
-                      }
+                        `}
+                      </div>
+
+                      <!-- Signature Client -->
+                      <div style="flex: 1; display: flex; flex-direction: column; gap: 4px;">
+                        <div class="pdf-line" style="font-size: 16px;">Signature client.</div>
+                        ${(report.clientPinCode && report.clientPinCode.trim()) ? `
+                          <div style="font-size: 11px; margin-bottom: 2px; font-family: 'Civilprom', sans-serif !important;">
+                            <span class="pdf-label" style="font-size:11px; color:rgb(138, 138, 138); font-family: 'Civilprom', sans-serif !important;">Code validation :</span> 
+                            <span class="pdf-bold" style="font-size:11px; font-family: 'Civilprom', sans-serif !important; font-weight: bold !important; color:#000;">${report.clientPinCode}</span>
+                          </div>
+                        ` : ''}
+                        ${clientFound && clientFound.clientSignatureImage ? `
+                          <div style="background: transparent; display: flex; flex-direction: column; justify-content: flex-start; align-items: flex-start; max-height: 80px; max-width: 150px; gap: 2px; margin-top: 4px;">
+                            <img src="${clientFound.clientSignatureImage}" style="max-height: 55px; max-width: 150px; object-fit: contain;" alt="Signature Client" />
+                            <div style="font-size: 10px; color: #1e293b; font-style: italic; font-weight: bold !important;">Signé électroniquement (dessin)</div>
+                          </div>
+                        ` : `
+                          ${(report.clientPinCode && report.clientPinCode.trim()) ? `
+                            <div style="font-size: 11px; color: #1e293b; font-style: italic; font-weight: bold !important; margin-top: 4px;">
+                              Signé électroniquement par PIN (${report.clientPinCode})
+                            </div>
+                          ` : `
+                            <div style="font-size: 13px; color: #a1a1a1; font-style: italic; margin-top: 4px;">
+                              Non signée
+                            </div>
+                          `}
+                        `}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div class="pdf-footer">Page 4 / 4</div>
+            ${renderFooter(5, totalPages)}
           </div>
+
+          ${hasLastPage ? `
+            <!-- PAGE 6 -->
+            <div class="pdf-page">
+              ${renderHeader(docTitle)}
+              <div class="pdf-grid" style="flex: 1; display: flex; flex-direction: column; justify-content: flex-start;">
+                <div class="pdf-card" style="flex: 1; min-height: 120mm; display: flex; flex-direction: column;">
+                  <div class="pdf-card-header" style="font-weight: bold !important; margin-bottom: 10px;">
+                    Informations complémentaires
+                  </div>
+                  <div class="pdf-card-body" style="font-size: 15px; color: #000000; white-space: pre-line; line-height: 1.5; flex: 1;">
+                    ${pdfLastPageInfoText}
+                  </div>
+                </div>
+              </div>
+              ${renderFooter(6, totalPages)}
+            </div>
+          ` : ""}
 
         </div>
 

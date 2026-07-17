@@ -932,6 +932,24 @@ export default function DefibTab({
   const [numeroAtlasante, setNumeroAtlasante] = useState('');
   const [versionLogiciel, setVersionLogiciel] = useState('');
 
+  const selectedModelVar = useMemo(() => {
+    if (!modeleId) return null;
+    return (variables || []).find(v => v.id === modeleId && v.category === 'Modèle Défibrillateur') || null;
+  }, [modeleId, variables]);
+
+  const isVisibleNumeroAtlasante = selectedModelVar ? (selectedModelVar.visibiliteNumeroAtlasante !== 'Non') : true;
+  const isVisibleVersionLogiciel = selectedModelVar ? (selectedModelVar.visibiliteVersionLogiciel !== 'Non') : true;
+  const isVisiblePadPakAdulte = selectedModelVar ? (selectedModelVar.visibilitePadPakAdulte !== 'Non') : true;
+  const isVisibleLotPadPakA = selectedModelVar ? (selectedModelVar.visibiliteLotPadPakA !== 'Non') : true;
+  const isVisiblePeremptionPadPakA = selectedModelVar ? (selectedModelVar.visibilitePeremptionPadPakA !== 'Non') : true;
+  const isVisibleLotP = selectedModelVar ? (selectedModelVar.visibiliteLotP !== 'Non') : true;
+  const isVisiblePadPakPediatrique = selectedModelVar ? (selectedModelVar.visibilitePadPakPediatrique !== 'Non') : true;
+  const isVisibleLotPadPakP = selectedModelVar ? (selectedModelVar.visibiliteLotPadPakP !== 'Non') : true;
+  const isVisiblePeremptionPadPakP = selectedModelVar ? (selectedModelVar.visibilitePeremptionPadPakP !== 'Non') : true;
+  const isVisibleFabricationBatterie = selectedModelVar ? (selectedModelVar.visibiliteFabricationBatterie !== 'Non') : true;
+  const isVisibleInsertionBatterie = selectedModelVar ? (selectedModelVar.visibiliteInsertionBatterie !== 'Non') : true;
+  const isVisiblePeremptionBatterie = selectedModelVar ? (selectedModelVar.visibilitePeremptionBatterie !== 'Non') : true;
+
   // Section 2 - Client Site Link (autopopulates from active client selection)
   const [clientId, setClientId] = useState('');
   const [nomSite, setNomSite] = useState('');
@@ -3036,7 +3054,7 @@ export default function DefibTab({
                       </div>
 
                       {/* Numéro Atlasanté - single line input */}
-                      {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
+                      {isVisibleNumeroAtlasante && typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
                         <div className="space-y-1">
                           <label htmlFor="form-numeroatlasante" className="block text-[11px] font-bold text-slate-500 uppercase">
                             Numéro Atlasanté.
@@ -3053,19 +3071,21 @@ export default function DefibTab({
                       )}
 
                       {/* Version du logiciel */}
-                      <div className="space-y-1">
-                        <label htmlFor="form-versionlogiciel" className="block text-[11px] font-bold text-slate-500 uppercase">
-                          Version du logiciel.
-                        </label>
-                        <input
-                          type="text"
-                          id="form-versionlogiciel"
-                          value={versionLogiciel}
-                          onChange={(e) => setVersionLogiciel(e.target.value)}
-                          placeholder="Ex: v1.4.2"
-                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
-                        />
-                      </div>
+                      {isVisibleVersionLogiciel && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-versionlogiciel" className="block text-[11px] font-bold text-slate-500 uppercase">
+                            Version du logiciel.
+                          </label>
+                          <input
+                            type="text"
+                            id="form-versionlogiciel"
+                            value={versionLogiciel}
+                            onChange={(e) => setVersionLogiciel(e.target.value)}
+                            placeholder="Ex: v1.4.2"
+                            className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Commentaire simple */}
@@ -3953,60 +3973,66 @@ export default function DefibTab({
                         </select>
                       </div>
 
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-a-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            id="form-elec-a-lot"
-                            value={lotElectrodeA}
-                            onChange={(e) => setLotElectrodeA(e.target.value)}
-                            placeholder="Nombres et chiffres."
-                            className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsLotAScannerOpen(true)}
-                            style={rowActionButton18Style}
-                            className="shrink-0 font-sans"
-                          >
-                            Scan
-                          </button>
+                      {isVisibleLotPadPakA && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-a-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              id="form-elec-a-lot"
+                              value={lotElectrodeA}
+                              onChange={(e) => setLotElectrodeA(e.target.value)}
+                              placeholder="Nombres et chiffres."
+                              className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsLotAScannerOpen(true)}
+                              style={rowActionButton18Style}
+                              className="shrink-0 font-sans"
+                            >
+                              Scan
+                            </button>
+                          </div>
+                          {isLotAScannerOpen && (
+                            <BarcodeScannerModal
+                              isOpen={isLotAScannerOpen}
+                              onClose={() => setIsLotAScannerOpen(false)}
+                              onScanSuccess={(scannedText) => {
+                                setLotElectrodeA(scannedText);
+                                setIsLotAScannerOpen(false);
+                              }}
+                            />
+                          )}
                         </div>
-                        {isLotAScannerOpen && (
-                          <BarcodeScannerModal
-                            isOpen={isLotAScannerOpen}
-                            onClose={() => setIsLotAScannerOpen(false)}
-                            onScanSuccess={(scannedText) => {
-                              setLotElectrodeA(scannedText);
-                              setIsLotAScannerOpen(false);
-                            }}
-                          />
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-a-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
-                        <input
-                          type="date"
-                          id="form-elec-a-ins"
-                          value={insertionElectrodeA}
-                          onChange={(e) => setInsertionElectrodeA(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-a-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
-                        <input
-                          type="date"
-                          id="form-elec-a-per"
-                          value={peremptionElectrodeA}
-                          onChange={(e) => setPeremptionElectrodeA(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
+                      {isVisiblePadPakAdulte && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-a-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                          <input
+                            type="date"
+                            id="form-elec-a-ins"
+                            value={insertionElectrodeA}
+                            onChange={(e) => setInsertionElectrodeA(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+                      {isVisiblePeremptionPadPakA && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-a-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                          <input
+                            type="date"
+                            id="form-elec-a-per"
+                            value={peremptionElectrodeA}
+                            onChange={(e) => setPeremptionElectrodeA(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label htmlFor="form-elec-a-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
                         <input
@@ -4067,28 +4093,32 @@ export default function DefibTab({
                           </select>
                         </div>
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-elec-a-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
-                          <input
-                            type="text"
-                            id="form-elec-a-sec-lot"
-                            value={lotElectrodeASecours || ''}
-                            onChange={(e) => setLotElectrodeASecours(e.target.value)}
-                            placeholder="Numéro de lot"
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
-                          />
-                        </div>
+                        {isVisibleLotPadPakA && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-elec-a-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                            <input
+                              type="text"
+                              id="form-elec-a-sec-lot"
+                              value={lotElectrodeASecours || ''}
+                              onChange={(e) => setLotElectrodeASecours(e.target.value)}
+                              placeholder="Numéro de lot"
+                              className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                            />
+                          </div>
+                        )}
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
-                          <input
-                            type="date"
-                            id="form-elec-a-sec"
-                            value={peremptionSecoursElectrodeA}
-                            onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
-                          />
-                        </div>
+                        {isVisiblePeremptionPadPakA && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-elec-a-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                            <input
+                              type="date"
+                              id="form-elec-a-sec"
+                              value={peremptionSecoursElectrodeA}
+                              onChange={(e) => setPeremptionSecoursElectrodeA(e.target.value)}
+                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -4123,62 +4153,68 @@ export default function DefibTab({
                     </div>
 
                     {/* PadPak radio button */}
-                    <div className="space-y-1 bg-white">
-                      <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
-                      <div className="flex gap-4 py-1">
-                        <button
-                          type="button"
-                          onClick={() => setHasPadpakA('Oui')}
-                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
-                          style={{ fontSize: '16px', color: '#000' }}
-                        >
-                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                            {hasPadpakA === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                          </span>
-                          Oui
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setHasPadpakA('Non')}
-                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
-                          style={{ fontSize: '16px', color: '#000' }}
-                        >
-                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                            {hasPadpakA === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                          </span>
-                          Non
-                        </button>
+                    {isVisiblePadPakAdulte && (
+                      <div className="space-y-1 bg-white">
+                        <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
+                        <div className="flex gap-4 py-1">
+                          <button
+                            type="button"
+                            onClick={() => setHasPadpakA('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {hasPadpakA === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHasPadpakA('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakA === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {hasPadpakA === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Lot PadPak A & Péremption PadPak A */}
-                    {hasPadpakA === 'Oui' && (
+                    {hasPadpakA === 'Oui' && isVisiblePadPakAdulte && (isVisibleLotPadPakA || isVisiblePeremptionPadPakA) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-lot-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            {t("Lot PadPak A.")}
-                          </label>
-                          <input
-                            type="text"
-                            id="form-lot-padpak-a"
-                            value={lotPadpakA}
-                            onChange={(e) => setLotPadpakA(e.target.value)}
-                            placeholder={t("Entrez le numéro de lot.")}
-                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
-                          />
-                        </div>
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-per-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            {t("Péremption PadPak A.")}
-                          </label>
-                          <input
-                            type="date"
-                            id="form-per-padpak-a"
-                            value={peremptionPadpakA}
-                            onChange={(e) => setPeremptionPadpakA(e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
-                          />
-                        </div>
+                        {isVisibleLotPadPakA && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-lot-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                              {t("Lot PadPak A.")}
+                            </label>
+                            <input
+                              type="text"
+                              id="form-lot-padpak-a"
+                              value={lotPadpakA}
+                              onChange={(e) => setLotPadpakA(e.target.value)}
+                              placeholder={t("Entrez le numéro de lot.")}
+                              className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                            />
+                          </div>
+                        )}
+                        {isVisiblePeremptionPadPakA && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-per-padpak-a" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                              {t("Péremption PadPak A.")}
+                            </label>
+                            <input
+                              type="date"
+                              id="form-per-padpak-a"
+                              value={peremptionPadpakA}
+                              onChange={(e) => setPeremptionPadpakA(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -4237,60 +4273,66 @@ export default function DefibTab({
                         </select>
                       </div>
 
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-p-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            id="form-elec-p-lot"
-                            value={lotElectrodeP}
-                            onChange={(e) => setLotElectrodeP(e.target.value)}
-                            placeholder="Nombres et chiffres."
-                            className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setIsLotPScannerOpen(true)}
-                            style={rowActionButton18Style}
-                            className="shrink-0 font-sans"
-                          >
-                            Scan
-                          </button>
+                      {isVisibleLotP && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-p-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot.</label>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              id="form-elec-p-lot"
+                              value={lotElectrodeP}
+                              onChange={(e) => setLotElectrodeP(e.target.value)}
+                              placeholder="Nombres et chiffres."
+                              className="flex-1 min-w-0 px-2 py-1.5 border border-slate-200 rounded text-xs bg-white font-mono"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setIsLotPScannerOpen(true)}
+                              style={rowActionButton18Style}
+                              className="shrink-0 font-sans"
+                            >
+                              Scan
+                            </button>
+                          </div>
+                          {isLotPScannerOpen && (
+                            <BarcodeScannerModal
+                              isOpen={isLotPScannerOpen}
+                              onClose={() => setIsLotPScannerOpen(false)}
+                              onScanSuccess={(scannedText) => {
+                                setLotElectrodeP(scannedText);
+                                setIsLotPScannerOpen(false);
+                              }}
+                            />
+                          )}
                         </div>
-                        {isLotPScannerOpen && (
-                          <BarcodeScannerModal
-                            isOpen={isLotPScannerOpen}
-                            onClose={() => setIsLotPScannerOpen(false)}
-                            onScanSuccess={(scannedText) => {
-                              setLotElectrodeP(scannedText);
-                              setIsLotPScannerOpen(false);
-                            }}
-                          />
-                        )}
-                      </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-p-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
-                        <input
-                          type="date"
-                          id="form-elec-p-ins"
-                          value={insertionElectrodeP}
-                          onChange={(e) => setInsertionElectrodeP(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label htmlFor="form-elec-p-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
-                        <input
-                          type="date"
-                          id="form-elec-p-per"
-                          value={peremptionElectrodeP}
-                          onChange={(e) => setPeremptionElectrodeP(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
+                      {isVisiblePadPakPediatrique && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-p-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                          <input
+                            type="date"
+                            id="form-elec-p-ins"
+                            value={insertionElectrodeP}
+                            onChange={(e) => setInsertionElectrodeP(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+                      {isVisiblePeremptionPadPakP && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-elec-p-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                          <input
+                            type="date"
+                            id="form-elec-p-per"
+                            value={peremptionElectrodeP}
+                            onChange={(e) => setPeremptionElectrodeP(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label htmlFor="form-elec-p-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
                         <input
@@ -4351,28 +4393,32 @@ export default function DefibTab({
                           </select>
                         </div>
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-elec-p-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
-                          <input
-                            type="text"
-                            id="form-elec-p-sec-lot"
-                            value={lotElectrodePSecours || ''}
-                            onChange={(e) => setLotElectrodePSecours(e.target.value)}
-                            placeholder="Numéro de lot"
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
-                          />
-                        </div>
+                        {isVisibleLotP && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-elec-p-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de l’électrode de secours.</label>
+                            <input
+                              type="text"
+                              id="form-elec-p-sec-lot"
+                              value={lotElectrodePSecours || ''}
+                              onChange={(e) => setLotElectrodePSecours(e.target.value)}
+                              placeholder="Numéro de lot"
+                              className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                            />
+                          </div>
+                        )}
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
-                          <input
-                            type="date"
-                            id="form-elec-p-sec"
-                            value={peremptionSecoursElectrodeP}
-                            onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
-                          />
-                        </div>
+                        {isVisiblePeremptionPadPakP && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-elec-p-sec" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de l’électrode de secours.</label>
+                            <input
+                              type="date"
+                              id="form-elec-p-sec"
+                              value={peremptionSecoursElectrodeP}
+                              onChange={(e) => setPeremptionSecoursElectrodeP(e.target.value)}
+                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -4407,62 +4453,68 @@ export default function DefibTab({
                     </div>
 
                     {/* PadPak radio button */}
-                    <div className="space-y-1 bg-white">
-                      <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
-                      <div className="flex gap-4 py-1">
-                        <button
-                          type="button"
-                          onClick={() => setHasPadpakP('Oui')}
-                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
-                          style={{ fontSize: '16px', color: '#000' }}
-                        >
-                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                            {hasPadpakP === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                          </span>
-                          Oui
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setHasPadpakP('Non')}
-                          className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
-                          style={{ fontSize: '16px', color: '#000' }}
-                        >
-                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
-                            {hasPadpakP === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
-                          </span>
-                          Non
-                        </button>
+                    {isVisiblePadPakPediatrique && (
+                      <div className="space-y-1 bg-white">
+                        <span className="block text-[11px] font-bold text-slate-500 uppercase font-sans">PadPak.</span>
+                        <div className="flex gap-4 py-1">
+                          <button
+                            type="button"
+                            onClick={() => setHasPadpakP('Oui')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Oui' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {hasPadpakP === 'Oui' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Oui
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setHasPadpakP('Non')}
+                            className="inline-flex items-center cursor-pointer gap-2 select-none font-semibold"
+                            style={{ fontSize: '16px', color: '#000' }}
+                          >
+                            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${hasPadpakP === 'Non' ? 'border-[#fe4eba]' : 'border-slate-300 bg-white'}`}>
+                              {hasPadpakP === 'Non' && <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba]" />}
+                            </span>
+                            Non
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     {/* Lot PadPak P & Péremption PadPak P */}
-                    {hasPadpakP === 'Oui' && (
+                    {hasPadpakP === 'Oui' && isVisiblePadPakPediatrique && (isVisibleLotPadPakP || isVisiblePeremptionPadPakP) && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1 bg-white">
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-lot-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            {t("Lot PadPak P.")}
-                          </label>
-                          <input
-                            type="text"
-                            id="form-lot-padpak-p"
-                            value={lotPadpakP}
-                            onChange={(e) => setLotPadpakP(e.target.value)}
-                            placeholder={t("Entrez le numéro de lot.")}
-                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
-                          />
-                        </div>
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-per-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
-                            {t("Péremption PadPak P.")}
-                          </label>
-                          <input
-                            type="date"
-                            id="form-per-padpak-p"
-                            value={peremptionPadpakP}
-                            onChange={(e) => setPeremptionPadpakP(e.target.value)}
-                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
-                          />
-                        </div>
+                        {isVisibleLotPadPakP && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-lot-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                              {t("Lot PadPak P.")}
+                            </label>
+                            <input
+                              type="text"
+                              id="form-lot-padpak-p"
+                              value={lotPadpakP}
+                              onChange={(e) => setLotPadpakP(e.target.value)}
+                              placeholder={t("Entrez le numéro de lot.")}
+                              className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                            />
+                          </div>
+                        )}
+                        {isVisiblePeremptionPadPakP && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-per-padpak-p" className="block text-[11px] font-bold text-slate-500 uppercase font-sans">
+                              {t("Péremption PadPak P.")}
+                            </label>
+                            <input
+                              type="date"
+                              id="form-per-padpak-p"
+                              value={peremptionPadpakP}
+                              onChange={(e) => setPeremptionPadpakP(e.target.value)}
+                              className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -4554,37 +4606,43 @@ export default function DefibTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
-                      <div className="space-y-1">
-                        <label htmlFor="form-bat-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
-                        <input
-                          type="date"
-                          id="form-bat-per"
-                          value={peremptionBatterie}
-                          onChange={(e) => setPeremptionBatterie(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label htmlFor="form-bat-fab" className="block text-[9px] font-bold text-slate-400 uppercase">Fabrication.</label>
-                        <input
-                          type="date"
-                          id="form-bat-fab"
-                          value={fabricationBatterie}
-                          onChange={(e) => setFabricationBatterie(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label htmlFor="form-bat-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
-                        <input
-                          type="date"
-                          id="form-bat-ins"
-                          value={insertionBatterie}
-                          onChange={(e) => setInsertionBatterie(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
+                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                      {isVisiblePeremptionBatterie && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-bat-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
+                          <input
+                            type="date"
+                            id="form-bat-per"
+                            value={peremptionBatterie}
+                            onChange={(e) => setPeremptionBatterie(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+                      {isVisibleFabricationBatterie && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-bat-fab" className="block text-[9px] font-bold text-slate-400 uppercase">Fabrication.</label>
+                          <input
+                            type="date"
+                            id="form-bat-fab"
+                            value={fabricationBatterie}
+                            onChange={(e) => setFabricationBatterie(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
+                      {isVisibleInsertionBatterie && (
+                        <div className="space-y-1">
+                          <label htmlFor="form-bat-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                          <input
+                            type="date"
+                            id="form-bat-ins"
+                            value={insertionBatterie}
+                            onChange={(e) => setInsertionBatterie(e.target.value)}
+                            className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                          />
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <label htmlFor="form-bat-liv" className="block text-[9px] font-bold text-slate-400 uppercase">Livraison.</label>
                         <input
@@ -4645,28 +4703,32 @@ export default function DefibTab({
                           </select>
                         </div>
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-bat-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de la batterie de secours.</label>
-                          <input
-                            type="text"
-                            id="form-bat-sec-lot"
-                            value={lotBatterieSecours || ''}
-                            onChange={(e) => setLotBatterieSecours(e.target.value)}
-                            placeholder="Numéro de lot"
-                            className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
-                          />
-                        </div>
+                        {isVisiblePeremptionBatterie && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-bat-sec-lot" className="block text-[10px] font-bold text-slate-400 uppercase">Lot de la batterie de secours.</label>
+                            <input
+                              type="text"
+                              id="form-bat-sec-lot"
+                              value={lotBatterieSecours || ''}
+                              onChange={(e) => setLotBatterieSecours(e.target.value)}
+                              placeholder="Numéro de lot"
+                              className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs bg-white text-slate-700 font-mono"
+                            />
+                          </div>
+                        )}
 
-                        <div className="space-y-1 bg-white">
-                          <label htmlFor="form-bat-sec-per" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de la batterie de secours.</label>
-                          <input
-                            type="date"
-                            id="form-bat-sec-per"
-                            value={peremptionBatterieSecours}
-                            onChange={(e) => setPeremptionBatterieSecours(e.target.value)}
-                            className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
-                          />
-                        </div>
+                        {isVisiblePeremptionBatterie && (
+                          <div className="space-y-1 bg-white">
+                            <label htmlFor="form-bat-sec-per" className="block text-[10px] font-bold text-slate-400 uppercase">Péremption de la batterie de secours.</label>
+                            <input
+                              type="date"
+                              id="form-bat-sec-per"
+                              value={peremptionBatterieSecours}
+                              onChange={(e) => setPeremptionBatterieSecours(e.target.value)}
+                              className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-mono"
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 

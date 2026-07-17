@@ -270,6 +270,9 @@ export function generateUniqueShortEnvId(existingCodes: string[]): string {
  * Fetches the master list of registered tenants. 
  */
 export async function getRegisteredTenants(): Promise<Tenant[]> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
+  }
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
     const snap = await getDocOptimistic(docRef, 'registered_tenants', 15000);
@@ -308,10 +311,13 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
 /**
  * Fetches a raw collection key from Firestore bypassing the default prefix.
  */
-export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promise<T | null> {
+export async function fetchRawCollectionFromFirestore<T>(rawKey: string, timeoutMs: number = 15000): Promise<T | null> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return getFromLocalCache<T>(rawKey);
+  }
   try {
     const docRef = doc(db, 'appData', rawKey);
-    const snap = await getDocOptimistic(docRef, rawKey, 15000);
+    const snap = await getDocOptimistic(docRef, rawKey, timeoutMs);
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -359,48 +365,62 @@ export async function checkIfEmailExistsAnywhere(
     }
   }
 
-  // 2. Scan every tenant's lists
+  // 2. Scan every tenant's lists in parallel using a shorter timeout (3 seconds) to prevent infinite UI loading states
   const tenantIds = ['demo', ...tenants.map(t => t.id)];
 
-  for (const tid of tenantIds) {
-    // Check members
-    const mKey = tid === 'demo' ? 'members' : `${tid}_members`;
-    const membersList = await fetchRawCollectionFromFirestore<Member[]>(mKey) || [];
-    if (Array.isArray(membersList)) {
-      for (const m of membersList) {
-        if (
-          excludeCurrentTenant?.tenantId === tid &&
-          excludeCurrentTenant?.excludeOption === 'member' &&
-          excludeCurrentTenant?.uniqueId?.trim().toLowerCase() === m.email.trim().toLowerCase() &&
-          m.email.trim().toLowerCase() === checkEmail
-        ) {
-          continue;
-        }
-        if (m.email && m.email.trim().toLowerCase() === checkEmail) {
-          return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+  // If we are completely offline, don't attempt to load each tenant sequentially.
+  // Although fetchRawCollectionFromFirestore handles offline states, checking in parallel with short timeout is extremely fast.
+  const checkPromises = tenantIds.map(async (tid) => {
+    try {
+      // Check members
+      const mKey = tid === 'demo' ? 'members' : `${tid}_members`;
+      const membersList = await fetchRawCollectionFromFirestore<Member[]>(mKey, 3000) || [];
+      if (Array.isArray(membersList)) {
+        for (const m of membersList) {
+          if (
+            excludeCurrentTenant?.tenantId === tid &&
+            excludeCurrentTenant?.excludeOption === 'member' &&
+            excludeCurrentTenant?.uniqueId?.trim().toLowerCase() === m.email.trim().toLowerCase() &&
+            m.email.trim().toLowerCase() === checkEmail
+          ) {
+            continue;
+          }
+          if (m.email && m.email.trim().toLowerCase() === checkEmail) {
+            return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+          }
         }
       }
-    }
 
-    // Check clients
-    const cKey = tid === 'demo' ? 'clients' : `${tid}_clients`;
-    const clientsList = await fetchRawCollectionFromFirestore<Client[]>(cKey) || [];
-    if (Array.isArray(clientsList)) {
-      for (const c of clientsList) {
-        if (
-          excludeCurrentTenant?.tenantId === tid &&
-          excludeCurrentTenant?.excludeOption === 'client' &&
-          excludeCurrentTenant?.uniqueId === c.id
-        ) {
-          continue;
-        }
-        if (
-          (c.email && c.email.trim().toLowerCase() === checkEmail) ||
-          (c.emailSite && c.emailSite.trim().toLowerCase() === checkEmail)
-        ) {
-          return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+      // Check clients
+      const cKey = tid === 'demo' ? 'clients' : `${tid}_clients`;
+      const clientsList = await fetchRawCollectionFromFirestore<Client[]>(cKey, 3000) || [];
+      if (Array.isArray(clientsList)) {
+        for (const c of clientsList) {
+          if (
+            excludeCurrentTenant?.tenantId === tid &&
+            excludeCurrentTenant?.excludeOption === 'client' &&
+            excludeCurrentTenant?.uniqueId === c.id
+          ) {
+            continue;
+          }
+          if (
+            (c.email && c.email.trim().toLowerCase() === checkEmail) ||
+            (c.emailSite && c.emailSite.trim().toLowerCase() === checkEmail)
+          ) {
+            return { exists: true, message: 'Erreur: un utilisateur avec cet email est déjà existant.' };
+          }
         }
       }
+    } catch (err) {
+      console.warn(`Error scanning email in tenant list for ${tid}:`, err);
+    }
+    return null;
+  });
+
+  const results = await Promise.all(checkPromises);
+  for (const res of results) {
+    if (res && res.exists) {
+      return res;
     }
   }
 

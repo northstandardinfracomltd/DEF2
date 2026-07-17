@@ -3340,52 +3340,56 @@ export default function GmaoCorrectionForm({
               </select>
             </div>
 
-            <div className="space-y-1">
-              <label htmlFor="snap-lotElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                Lot A.
-              </label>
-              <div className="flex gap-1.5">
-                <input
-                  type="text"
-                  id="snap-lotElectrodeA"
-                  value={snapshot.lotElectrodeA || ''}
-                  onChange={(e) => handleSnapshotChange('lotElectrodeA', e.target.value)}
-                  placeholder="Entrez une référence."
-                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
-                />
-                <button
-                  type="button"
-                  onClick={() => setIsLotAScannerOpen(true)}
-                  style={rowActionButton18Style}
-                  className="shrink-0 transition-colors cursor-pointer font-sans"
-                >
-                  Scan
-                </button>
+            {isVisibleLotPadPakA && (
+              <div className="space-y-1">
+                <label htmlFor="snap-lotElectrodeA" className="block text-[11px] font-bold text-black uppercase">
+                  Lot A.
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    id="snap-lotElectrodeA"
+                    value={snapshot.lotElectrodeA || ''}
+                    onChange={(e) => handleSnapshotChange('lotElectrodeA', e.target.value)}
+                    placeholder="Entrez une référence."
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsLotAScannerOpen(true)}
+                    style={rowActionButton18Style}
+                    className="shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    Scan
+                  </button>
+                </div>
+                {isLotAScannerOpen && (
+                  <BarcodeScannerModal
+                    isOpen={isLotAScannerOpen}
+                    onClose={() => setIsLotAScannerOpen(false)}
+                    onScanSuccess={(scannedText) => {
+                      handleSnapshotChange('lotElectrodeA', scannedText);
+                      setIsLotAScannerOpen(false);
+                    }}
+                  />
+                )}
               </div>
-              {isLotAScannerOpen && (
-                <BarcodeScannerModal
-                  isOpen={isLotAScannerOpen}
-                  onClose={() => setIsLotAScannerOpen(false)}
-                  onScanSuccess={(scannedText) => {
-                    handleSnapshotChange('lotElectrodeA', scannedText);
-                    setIsLotAScannerOpen(false);
-                  }}
-                />
-              )}
-            </div>
+            )}
 
-            <div className="space-y-1">
-              <label htmlFor="snap-peremptionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                Péremption.
-              </label>
-              <input
-                type="date"
-                id="snap-peremptionElectrodeA"
-                value={snapshot.peremptionElectrodeA || ''}
-                onChange={(e) => handleSnapshotChange('peremptionElectrodeA', e.target.value)}
-                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-              />
-            </div>
+            {isVisiblePeremptionPadPakA && (
+              <div className="space-y-1">
+                <label htmlFor="snap-peremptionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
+                  Péremption.
+                </label>
+                <input
+                  type="date"
+                  id="snap-peremptionElectrodeA"
+                  value={snapshot.peremptionElectrodeA || ''}
+                  onChange={(e) => handleSnapshotChange('peremptionElectrodeA', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+            )}
 
             <div className="pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
               <div className="space-y-1">
@@ -3405,32 +3409,36 @@ export default function GmaoCorrectionForm({
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="snap-lotElectrodeASecours" className="block text-[11px] font-bold text-black uppercase">
-                  Lot de l’électrode de secours.
-                </label>
-                <input
-                  type="text"
-                  id="snap-lotElectrodeASecours"
-                  value={snapshot.lotElectrodeASecours || ''}
-                  onChange={(e) => handleSnapshotChange('lotElectrodeASecours', e.target.value)}
-                  placeholder="Numéro de lot"
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
-                />
-              </div>
+              {isVisibleLotPadPakA && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-lotElectrodeASecours" className="block text-[11px] font-bold text-black uppercase">
+                    Lot de l’électrode de secours.
+                  </label>
+                  <input
+                    type="text"
+                    id="snap-lotElectrodeASecours"
+                    value={snapshot.lotElectrodeASecours || ''}
+                    onChange={(e) => handleSnapshotChange('lotElectrodeASecours', e.target.value)}
+                    placeholder="Numéro de lot"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1">
-                <label htmlFor="snap-peremptionSecoursElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption de l’électrode de secours.
-                </label>
-                <input
-                  type="date"
-                  id="snap-peremptionSecoursElectrodeA"
-                  value={snapshot.peremptionSecoursElectrodeA || ''}
-                  onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeA', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisiblePeremptionPadPakA && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-peremptionSecoursElectrodeA" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption de l’électrode de secours.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionSecoursElectrodeA"
+                    value={snapshot.peremptionSecoursElectrodeA || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeA', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Section 6 Extra Fields requested by User */}
@@ -3710,52 +3718,56 @@ export default function GmaoCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label htmlFor="snap-lotElectrodeP" className="block text-[11px] font-bold text-black uppercase">
-                  Lot P.
-                </label>
-                <div className="flex gap-1.5">
-                  <input
-                    type="text"
-                    id="snap-lotElectrodeP"
-                    value={snapshot.lotElectrodeP || ''}
-                    onChange={(e) => handleSnapshotChange('lotElectrodeP', e.target.value)}
-                    placeholder="Entrez une référence."
-                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setIsLotPScannerOpen(true)}
-                    style={rowActionButton18Style}
-                    className="shrink-0 transition-colors cursor-pointer font-sans"
-                  >
-                    Scan
-                  </button>
+              {isVisibleLotP && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-lotElectrodeP" className="block text-[11px] font-bold text-black uppercase">
+                    Lot P.
+                  </label>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      id="snap-lotElectrodeP"
+                      value={snapshot.lotElectrodeP || ''}
+                      onChange={(e) => handleSnapshotChange('lotElectrodeP', e.target.value)}
+                      placeholder="Entrez une référence."
+                      className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsLotPScannerOpen(true)}
+                      style={rowActionButton18Style}
+                      className="shrink-0 transition-colors cursor-pointer font-sans"
+                    >
+                      Scan
+                    </button>
+                  </div>
+                  {isLotPScannerOpen && (
+                    <BarcodeScannerModal
+                      isOpen={isLotPScannerOpen}
+                      onClose={() => setIsLotPScannerOpen(false)}
+                      onScanSuccess={(scannedText) => {
+                        handleSnapshotChange('lotElectrodeP', scannedText);
+                        setIsLotPScannerOpen(false);
+                      }}
+                    />
+                  )}
                 </div>
-                {isLotPScannerOpen && (
-                  <BarcodeScannerModal
-                    isOpen={isLotPScannerOpen}
-                    onClose={() => setIsLotPScannerOpen(false)}
-                    onScanSuccess={(scannedText) => {
-                      handleSnapshotChange('lotElectrodeP', scannedText);
-                      setIsLotPScannerOpen(false);
-                    }}
-                  />
-                )}
-              </div>
+              )}
 
-              <div className="space-y-1">
-                <label htmlFor="snap-peremptionElectrodeP" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption.
-                </label>
-                <input
-                  type="date"
-                  id="snap-peremptionElectrodeP"
-                  value={snapshot.peremptionElectrodeP || ''}
-                  onChange={(e) => handleSnapshotChange('peremptionElectrodeP', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisiblePeremptionPadPakP && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-peremptionElectrodeP" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionElectrodeP"
+                    value={snapshot.peremptionElectrodeP || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionElectrodeP', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
@@ -3776,32 +3788,36 @@ export default function GmaoCorrectionForm({
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label htmlFor="snap-lotElectrodePSecours" className="block text-[11px] font-bold text-black uppercase">
-                  Lot de l’électrode de secours.
-                </label>
-                <input
-                  type="text"
-                  id="snap-lotElectrodePSecours"
-                  value={snapshot.lotElectrodePSecours || ''}
-                  onChange={(e) => handleSnapshotChange('lotElectrodePSecours', e.target.value)}
-                  placeholder="Numéro de lot"
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
-                />
-              </div>
+              {isVisibleLotP && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-lotElectrodePSecours" className="block text-[11px] font-bold text-black uppercase">
+                    Lot de l’électrode de secours.
+                  </label>
+                  <input
+                    type="text"
+                    id="snap-lotElectrodePSecours"
+                    value={snapshot.lotElectrodePSecours || ''}
+                    onChange={(e) => handleSnapshotChange('lotElectrodePSecours', e.target.value)}
+                    placeholder="Numéro de lot"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1">
-                <label htmlFor="snap-peremptionSecoursElectrodeP" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption de l’électrode de secours.
-                </label>
-                <input
-                  type="date"
-                  id="snap-peremptionSecoursElectrodeP"
-                  value={snapshot.peremptionSecoursElectrodeP || ''}
-                  onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeP', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisiblePeremptionPadPakP && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-peremptionSecoursElectrodeP" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption de l’électrode de secours.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionSecoursElectrodeP"
+                    value={snapshot.peremptionSecoursElectrodeP || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionSecoursElectrodeP', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Section 7 Extra Fields requested by User */}
@@ -4081,24 +4097,26 @@ export default function GmaoCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label htmlFor="snap-pourcentageBatterie" className="block text-[11px] font-bold text-black uppercase">
-                  Pourcentage de charge.
-                </label>
-                <input
-                  type="number"
-                  id="snap-pourcentageBatterie"
-                  max={100}
-                  min={0}
-                  required
-                  value={snapshot.pourcentageBatterie || ''}
-                  onChange={(e) => handleSnapshotChange('pourcentageBatterie', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 rounded-lg text-xs font-mono font-bold"
-                  placeholder="Entrez un nombre."
-                />
-              </div>
+              {isVisiblePourcentageBatterie && (
+                <div className="space-y-1">
+                  <label htmlFor="snap-pourcentageBatterie" className="block text-[11px] font-bold text-black uppercase">
+                    Pourcentage de charge.
+                  </label>
+                  <input
+                    type="number"
+                    id="snap-pourcentageBatterie"
+                    max={100}
+                    min={0}
+                    required
+                    value={snapshot.pourcentageBatterie || ''}
+                    onChange={(e) => handleSnapshotChange('pourcentageBatterie', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 rounded-lg text-xs font-mono font-bold"
+                    placeholder="Entrez un nombre."
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1">
+              <div className={`space-y-1 ${!isVisiblePourcentageBatterie ? 'md:col-span-2' : ''}`}>
                 <label htmlFor="snap-lotBatterie" className="block text-[11px] font-bold text-black uppercase">
                   Lot B.
                 </label>
@@ -4134,44 +4152,50 @@ export default function GmaoCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white">
-              <div className="space-y-1 bg-white">
-                <label htmlFor="snap-peremptionBatterie" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption.
-                </label>
-                <input
-                  type="date"
-                  id="snap-peremptionBatterie"
-                  value={snapshot.peremptionBatterie || ''}
-                  onChange={(e) => handleSnapshotChange('peremptionBatterie', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisiblePeremptionBatterie && (
+                <div className="space-y-1 bg-white">
+                  <label htmlFor="snap-peremptionBatterie" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-peremptionBatterie"
+                    value={snapshot.peremptionBatterie || ''}
+                    onChange={(e) => handleSnapshotChange('peremptionBatterie', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1 bg-white">
-                <label htmlFor="snap-fabricationBatterie" className="block text-[11px] font-bold text-black uppercase">
-                  Fabrication.
-                </label>
-                <input
-                  type="date"
-                  id="snap-fabricationBatterie"
-                  value={snapshot.fabricationBatterie || ''}
-                  onChange={(e) => handleSnapshotChange('fabricationBatterie', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisibleFabricationBatterie && (
+                <div className="space-y-1 bg-white">
+                  <label htmlFor="snap-fabricationBatterie" className="block text-[11px] font-bold text-black uppercase">
+                    Fabrication.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-fabricationBatterie"
+                    value={snapshot.fabricationBatterie || ''}
+                    onChange={(e) => handleSnapshotChange('fabricationBatterie', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1 bg-white">
-                <label htmlFor="snap-insertionBatterie" className="block text-[11px] font-bold text-black uppercase">
-                  Insertion.
-                </label>
-                <input
-                  type="date"
-                  id="snap-insertionBatterie"
-                  value={snapshot.insertionBatterie || ''}
-                  onChange={(e) => handleSnapshotChange('insertionBatterie', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+              {isVisibleInsertionBatterie && (
+                <div className="space-y-1 bg-white">
+                  <label htmlFor="snap-insertionBatterie" className="block text-[11px] font-bold text-black uppercase">
+                    Insertion.
+                  </label>
+                  <input
+                    type="date"
+                    id="snap-insertionBatterie"
+                    value={snapshot.insertionBatterie || ''}
+                    onChange={(e) => handleSnapshotChange('insertionBatterie', e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Section 8 Extra Fields requested by User */}

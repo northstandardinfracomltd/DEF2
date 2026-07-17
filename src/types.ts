@@ -260,7 +260,7 @@ export interface Member {
   signature?: string;
   locationLink?: string;
   gpsSharingLink?: string;
-  adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité';
+  adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité' | 'Contrôleur' | 'Administrateur & Contrôleur';
   competences?: string[];
   semaineTypique?: MemberSchedule[];
   absences?: MemberAbsence[];

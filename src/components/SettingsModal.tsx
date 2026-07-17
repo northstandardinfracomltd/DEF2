@@ -304,7 +304,7 @@ export default function SettingsModal({
   const [newMemberRole, setNewMemberRole] = React.useState('Administrateur');
   const [newMemberPin, setNewMemberPin] = React.useState('');
   const [newMemberLocation, setNewMemberLocation] = React.useState('');
-  const [newMemberAdminSubRole, setNewMemberAdminSubRole] = React.useState<'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité'>('Administrateur');
+  const [newMemberAdminSubRole, setNewMemberAdminSubRole] = React.useState<'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité' | 'Contrôleur' | 'Administrateur & Contrôleur'>('Administrateur');
 
   // LOCAL STATES FOR CONNECTORS
   const [sageActive, setSageActive] = React.useState(false);
@@ -858,7 +858,7 @@ export default function SettingsModal({
     });
   };
 
-  const handleAdminSubRoleChange = (index: number, val: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité') => {
+  const handleAdminSubRoleChange = (index: number, val: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité' | 'Contrôleur' | 'Administrateur & Contrôleur') => {
     if (!canEditMember(index)) return;
     setLocalMembers(prev => {
       const updated = [...prev];
@@ -2283,6 +2283,8 @@ export default function SettingsModal({
                       <option value="Planification">Planification</option>
                       <option value="Logistique">Logistique</option>
                       <option value="Comptabilité">Comptabilité</option>
+                      <option value="Contrôleur">{t("Contrôleur")}</option>
+                      <option value="Administrateur & Contrôleur">{t("Administrateur & Contrôleur")}</option>
                     </select>
                   </div>
                 )}
@@ -2498,7 +2500,7 @@ export default function SettingsModal({
                                   <span className="text-[16px] font-bold text-black block font-sans" style={{ fontSize: '16px', textTransform: 'none', color: '#000000' }}>{t("Rôle")}.</span>
                                   <select
                                     value={isTech ? 'Technicien' : 'Administrateur'}
-                                    disabled={!canEditThisMember}
+                                    disabled={!canEditThisMember || isTech}
                                     onChange={(e) => handleRoleChange(idx, e.target.value)}
                                     className="w-full font-sans text-xs bg-white text-black cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                                     style={{ height: '36px', padding: '6px 10px' }}
@@ -3100,6 +3102,8 @@ export default function SettingsModal({
                                   <option value="Planification">{t("Planification")}</option>
                                   <option value="Logistique">{t("Logistique")}</option>
                                   <option value="Comptabilité">{t("Comptabilité")}</option>
+                                  <option value="Contrôleur">{t("Contrôleur")}</option>
+                                  <option value="Administrateur & Contrôleur">{t("Administrateur & Contrôleur")}</option>
                                 </select>
                               </div>
                             )}

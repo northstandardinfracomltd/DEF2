@@ -6746,6 +6746,22 @@ export default function App() {
               cursor: 'default',
             };
 
+            const isGmaoController = (() => {
+              if (!loggedUser || !loggedUser.email) return false;
+              const m = members.find(lm => lm.email?.toLowerCase().trim() === loggedUser.email.toLowerCase().trim());
+              if (!m) return false;
+              
+              const isSuperAdmin = m.role === 'Super-Administrateur' || 
+                                   m.role === 'Propriétaire / Admin' || 
+                                   m.role?.toLowerCase().includes('super') || 
+                                   m.role?.toLowerCase().includes('propriétaire');
+              
+              const isControllerSubRole = m.adminSubRole === 'Contrôleur' || 
+                                          m.adminSubRole === 'Administrateur & Contrôleur';
+                                          
+              return !!(isSuperAdmin || isControllerSubRole);
+            })();
+
             const filteredReports = generatedReports.filter((rep) => {
               if (gmaoFilter === 'validated' && !rep.validated) return false;
               if (gmaoFilter === 'moderation' && rep.validated) return false;
@@ -6920,6 +6936,51 @@ export default function App() {
                   text="Il s’agit des rapports générés par les techniciens. Pour actualiser votre base de données, vous devrez cliquer sur Valider, c’est un principe de modération. Vous avez trouvé une erreur : cliquez sur Corriger pour modifier le document. Attention, une fois validé conformément à la réglementation, le document PDF ne peut plus être altéré." 
                 />
 
+                <div 
+                  className="p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fadeIn transition-all text-left"
+                  style={{
+                    borderColor: 'rgb(218, 218, 218)',
+                    background: '#ffffff00',
+                    boxShadow: 'none',
+                    maxWidth: '98%',
+                    margin: '15px auto 5px auto',
+                  }}
+                >
+                  <p 
+                    className="font-sans leading-relaxed flex-1"
+                    style={{ 
+                      fontSize: '16px', 
+                      fontWeight: 400, 
+                      color: '#000000', 
+                      cursor: 'default' 
+                    }}
+                  >
+                    Uniquement un membre contrôleur ou administrateur-contrôleur est en capacité de modifier et valider les documents émis qui actualisent la base de données.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('parametres');
+                      setTimeout(() => {
+                        const el = document.getElementById('settings-section-members');
+                        if (el) {
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                      }, 300);
+                    }}
+                    className="font-sans font-semibold active:scale-95 transition-all border-0 cursor-pointer shrink-0 inline-flex items-center justify-center text-center whitespace-nowrap"
+                    style={{
+                      backgroundColor: '#000000',
+                      color: '#ffffff',
+                      fontSize: '18px',
+                      borderRadius: '13px',
+                      padding: '8px 20px',
+                    }}
+                  >
+                    Gérer les membres
+                  </button>
+                </div>
+
                 {dropboxError && (
                   <div className="space-y-2 mt-4 mb-4">
                     <div className="text-red-600 font-sans font-light text-sm text-left">
@@ -7070,23 +7131,23 @@ export default function App() {
                                   <div className="inline-flex gap-2">
                                     <button
                                       type="button"
-                                      disabled={rep.validated}
+                                      disabled={rep.validated || !isGmaoController}
                                       onClick={() => setEditingReportId(rep.id)}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        opacity: rep.validated ? 0.35 : 1,
-                                        cursor: rep.validated ? 'not-allowed' : 'pointer',
-                                        backgroundColor: rep.validated ? '#cbd5e1' : '#000000',
-                                        color: rep.validated ? '#64748b' : '#ffffff',
-                                        boxShadow: rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
+                                        opacity: (rep.validated || !isGmaoController) ? 0.35 : 1,
+                                        cursor: (rep.validated || !isGmaoController) ? 'not-allowed' : 'pointer',
+                                        backgroundColor: (rep.validated || !isGmaoController) ? '#cbd5e1' : '#000000',
+                                        color: (rep.validated || !isGmaoController) ? '#64748b' : '#ffffff',
+                                        boxShadow: (rep.validated || !isGmaoController) ? 'none' : rowActionButtonStyle.boxShadow,
                                       }}
-                                      className={`${rep.validated ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                      className={`${(rep.validated || !isGmaoController) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
                                       Corriger
                                     </button>
                                     <button
                                       type="button"
-                                      disabled={rep.validated}
+                                      disabled={rep.validated || !isGmaoController}
                                       onClick={() => {
                                         const updatedReports = generatedReports.map(r => r.id === rep.id ? { ...r, validated: true } : r);
                                         saveReports(updatedReports);
@@ -7210,14 +7271,14 @@ export default function App() {
                                       }}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        backgroundColor: rep.validated ? '#cbd5e1' : '#000000',
-                                        color: rep.validated ? '#64748b' : '#ffffff',
-                                        opacity: rep.validated ? 0.35 : 1,
-                                        boxShadow: rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
-                                        cursor: rep.validated ? 'not-allowed' : 'pointer',
+                                        backgroundColor: (rep.validated || !isGmaoController) ? '#cbd5e1' : '#000000',
+                                        color: (rep.validated || !isGmaoController) ? '#64748b' : '#ffffff',
+                                        opacity: (rep.validated || !isGmaoController) ? 0.35 : 1,
+                                        boxShadow: (rep.validated || !isGmaoController) ? 'none' : rowActionButtonStyle.boxShadow,
+                                        cursor: (rep.validated || !isGmaoController) ? 'not-allowed' : 'pointer',
                                         border: 'none',
                                       }}
-                                      className={`${rep.validated ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                      className={`${(rep.validated || !isGmaoController) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
                                       {rep.validated ? 'Validé' : 'Valider'}
                                     </button>

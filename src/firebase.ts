@@ -365,8 +365,10 @@ export async function checkIfEmailExistsAnywhere(
     }
   }
 
-  // 2. Scan every tenant's lists in parallel using a shorter timeout (3 seconds) to prevent infinite UI loading states
-  const tenantIds = ['demo', ...tenants.map(t => t.id)];
+  // 2. Only check the current tenant's members and clients to avoid cross-role collision in the same tenant.
+  // This prevents cross-tenant performance bottlenecks, timeouts, and privacy/permission issues.
+  const activeTenant = excludeCurrentTenant?.tenantId || getTenantId() || 'demo';
+  const tenantIds = [activeTenant];
 
   // If we are completely offline, don't attempt to load each tenant sequentially.
   // Although fetchRawCollectionFromFirestore handles offline states, checking in parallel with short timeout is extremely fast.

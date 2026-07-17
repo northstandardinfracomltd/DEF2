@@ -4480,6 +4480,9 @@ export default function App() {
     setMembers(updatedMembers);
     localStorage.setItem('defib_members', JSON.stringify(updatedMembers));
     localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(updatedMembers));
+    if (isFirebaseLoaded && tenantId && tenantId !== 'demo') {
+      saveCollectionToFirestore('members', updatedMembers).catch(console.error);
+    }
 
     let toursMutated = false;
     const nextTours = fsmTours.map(tour => {

@@ -1050,29 +1050,6 @@ export default function SettingsModal({
         emailsSeen.add(emailLower);
       }
 
-      // 2. Fetch and check entire database for collisions (excluding unmodified emails)
-
-      for (const m of membersToSave) {
-        const candidateEmail = m.email?.trim().toLowerCase();
-        if (!candidateEmail) continue;
-
-        // Is this member new, or did they change their email?
-        const originalMember = members.find(orig => orig.email?.trim().toLowerCase() === candidateEmail);
-        if (originalMember) {
-          // This email is unchanged for this member: skip cross-db lookup
-          continue;
-        }
-
-        // Email has been added or edited to something else
-        const emailCheck = await checkIfEmailExistsAnywhere(candidateEmail);
-        if (emailCheck.exists) {
-          alert("Erreur: un utilisateur avec cet email est déjà existant.");
-          setIsSaving(false);
-          setIsVerifyingEmail(false);
-          return;
-        }
-      }
-
     } catch (err) {
       console.error('Error validation before save:', err);
       alert("Une erreur est survenue lors de la validation des données.");
@@ -1098,8 +1075,9 @@ export default function SettingsModal({
     if (myTenantId && myTenantId !== 'demo') {
       try {
         await saveCollectionToFirestore('companyInfo', companyToSave);
+        await saveCollectionToFirestore('members', membersToSave);
       } catch (err) {
-        console.error('Error saving company info directly to Firestore:', err);
+        console.error('Error saving company info and members directly to Firestore:', err);
       }
     }
 

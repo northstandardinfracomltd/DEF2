@@ -597,6 +597,91 @@ export default function PublicPortal({
   const [techLocationLink, setTechLocationLink] = useState("");
   const [gpsSharingLink, setGpsSharingLink] = useState("");
 
+  // Signature pad states and references for PublicPortal
+  const sigCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isSigDrawing = useRef(false);
+  const [techSignature, setTechSignature] = useState<string | undefined>(undefined);
+
+  const startSigDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    isSigDrawing.current = true;
+    const pos = getSigEventCoords(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+
+  const drawSig = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isSigDrawing.current) return;
+    e.preventDefault();
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getSigEventCoords(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const stopSigDrawing = () => {
+    if (!isSigDrawing.current) return;
+    isSigDrawing.current = false;
+    const canvas = sigCanvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL();
+      setTechSignature(dataUrl);
+    }
+  };
+
+  const clearSig = () => {
+    const canvas = sigCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setTechSignature(undefined);
+  };
+
+  const getSigEventCoords = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e) {
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      }
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
   // Technician Stocks Tab States
   const [selectedTechDistributedStockId, setSelectedTechDistributedStockId] =
     useState<string>("");
@@ -2363,6 +2448,8 @@ export default function PublicPortal({
                   <div class="pdf-line"><span class="pdf-label">Pourcentage de charge :</span> <span class="pdf-bold">${snapshot.pourcentageBatterie ? snapshot.pourcentageBatterie + "%" : ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Lot B :</span> <span class="pdf-bold">${snapshot.lotBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Péremption :</span> <span class="pdf-bold">${snapshot.peremptionBatterie || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Fabrication :</span> <span class="pdf-bold">${snapshot.fabricationBatterie || ""}</span></div>
+                  <div class="pdf-line"><span class="pdf-label">Insertion :</span> <span class="pdf-bold">${snapshot.insertionBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Batterie remplacée :</span> <span class="pdf-bold">${report.batterieRemplacee || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Sélection de la batterie remplacée :</span> <span class="pdf-bold">${selBatterie || ""}</span></div>
                   <div class="pdf-line"><span class="pdf-label">Batterie conforme et fonctionnelle :</span> <span class="pdf-bold">${report.batterieConformeSante || ""}</span></div>
@@ -2805,6 +2892,7 @@ export default function PublicPortal({
         setTechStartCountry(liveMember.startAddressCountry || "France");
         setTechStartLat(liveMember.startAddressLat !== undefined ? String(liveMember.startAddressLat) : "");
         setTechStartLng(liveMember.startAddressLng !== undefined ? String(liveMember.startAddressLng) : "");
+        setTechSignature(liveMember.signature);
       } else {
         // Fallback or read from localStorage if any
         const envId = localStorage.getItem("defib_tenant_id") || "demo";
@@ -2815,6 +2903,7 @@ export default function PublicPortal({
         setTechStartCountry(localStorage.getItem(`defib_${envId}_tech_start_country_${authenticatedUser.name}`) || "France");
         setTechStartLat(localStorage.getItem(`defib_${envId}_tech_start_lat_${authenticatedUser.name}`) || "");
         setTechStartLng(localStorage.getItem(`defib_${envId}_tech_start_lng_${authenticatedUser.name}`) || "");
+        setTechSignature(authenticatedUser.signature);
       }
 
       // Load stored starting address if any, preferring the liveMember fields
@@ -2840,6 +2929,25 @@ export default function PublicPortal({
       if (savedNavApp) setDefaultNavApp(savedNavApp);
     }
   }, [authenticatedUser, activeTab, members]);
+
+  // Render signature onto canvas in technician portal
+  useEffect(() => {
+    if (activeTab === "localisation" && sigCanvasRef.current) {
+      const canvas = sigCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (techSignature) {
+          const img = new Image();
+          img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+          };
+          img.src = techSignature;
+        }
+      }
+    }
+  }, [activeTab, techSignature]);
 
   // Handle DAE lookup selection
   const handleDefibLookupChange = (daeId: string) => {
@@ -3360,7 +3468,8 @@ export default function PublicPortal({
           startAddressCountry: techStartCountry,
           startAddressLat: techStartLat ? parseFloat(techStartLat) : undefined,
           startAddressLng: techStartLng ? parseFloat(techStartLng) : undefined,
-          optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche"
+          optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche",
+          signature: techSignature
         };
         return updatedM;
       }
@@ -3381,7 +3490,8 @@ export default function PublicPortal({
       startAddressCountry: techStartCountry,
       startAddressLat: techStartLat ? parseFloat(techStartLat) : undefined,
       startAddressLng: techStartLng ? parseFloat(techStartLng) : undefined,
-      optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche"
+      optimizationPreference: (routeOptimization.includes("loin") ? "loin" : "proche") as "loin" | "proche",
+      signature: techSignature
     };
     setAuthenticatedUser(updatedUser);
     localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
@@ -5667,6 +5777,44 @@ export default function PublicPortal({
                                         setSelectedDefibData({
                                           ...selectedDefibData,
                                           peremptionBatterie: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-1.5 py-1 bg-white border border-slate-200 text-slate-800 rounded text-[8.5px] focus:border-indigo-500"
+                                    />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-bold text-slate-500 uppercase font-sans">
+                                      Fabrication.
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        selectedDefibData.fabricationBatterie ||
+                                        ""
+                                      }
+                                      onChange={(e) =>
+                                        setSelectedDefibData({
+                                          ...selectedDefibData,
+                                          fabricationBatterie: e.target.value,
+                                        })
+                                      }
+                                      className="w-full px-1.5 py-1 bg-white border border-slate-200 text-slate-800 rounded text-[8.5px] focus:border-indigo-500"
+                                    />
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    <label className="text-[7.5px] font-bold text-slate-500 uppercase font-sans">
+                                      Insertion.
+                                    </label>
+                                    <input
+                                      type="date"
+                                      value={
+                                        selectedDefibData.insertionBatterie ||
+                                        ""
+                                      }
+                                      onChange={(e) =>
+                                        setSelectedDefibData({
+                                          ...selectedDefibData,
+                                          insertionBatterie: e.target.value,
                                         })
                                       }
                                       className="w-full px-1.5 py-1 bg-white border border-slate-200 text-slate-800 rounded text-[8.5px] focus:border-indigo-500"
@@ -9274,6 +9422,48 @@ export default function PublicPortal({
                           </option>
                         </select>
                       </div>
+
+                      {/* Signature Section */}
+                      <div className="space-y-3 pt-4 border-t border-slate-100 text-left">
+                        <label
+                          style={{ fontSize: "18px", color: "#000000" }}
+                          className="block font-bold text-black select-none"
+                        >
+                          Signature.
+                        </label>
+                        <p style={{ fontSize: "15px", color: "#64748b", lineHeight: "1.5" }} className="font-sans font-normal">
+                          Dessinez votre signature ci-dessous. Elle sera automatiquement apposée sur tous vos rapports de maintenance validés.
+                        </p>
+
+                        <div className="border rounded-lg p-3 bg-white relative" style={{ borderColor: "#DEDEDE", maxWidth: "400px" }}>
+                          <canvas
+                            ref={sigCanvasRef}
+                            width={380}
+                            height={150}
+                            className="w-full h-[150px] bg-white cursor-crosshair touch-none"
+                            onMouseDown={startSigDrawing}
+                            onMouseMove={drawSig}
+                            onMouseUp={stopSigDrawing}
+                            onMouseLeave={stopSigDrawing}
+                            onTouchStart={startSigDrawing}
+                            onTouchMove={drawSig}
+                            onTouchEnd={stopSigDrawing}
+                            style={{ border: "1px dashed #cbd5e1", borderRadius: "6px" }}
+                          />
+                          <div className="flex justify-between items-center mt-2">
+                            <button
+                              type="button"
+                              onClick={clearSig}
+                              className="text-[16px] text-red-500 font-bold hover:underline cursor-pointer font-sans bg-transparent border-none"
+                            >
+                              Effacer
+                            </button>
+                            <span className="text-xs text-slate-400 font-sans italic">
+                              {techSignature ? "Signature présente." : "Pas de signature dessinée."}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <button
@@ -9359,6 +9549,57 @@ export default function PublicPortal({
                             Une fois l'adresse ajoutée, recliquez sur
                             "Synchroniser Google Calendar" !
                           </p>
+                          <div className="mt-3 pt-2 border-t border-amber-200 flex flex-col gap-1.5" id="simulate-google-cal-sync-container-1">
+                            <p className="text-[11px] text-amber-700 font-sans">
+                              Pour vos tests en mode aperçu, vous pouvez également simuler la synchronisation immédiatement :
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const mockToken = "mock_token_" + Date.now();
+                                const email = authenticatedUser?.email || "tech.demo@gmail.com";
+                                setGoogleAccessToken(mockToken);
+                                setSyncedGoogleEmail(email);
+                                const techName = authenticatedUser?.name || "common";
+                                localStorage.setItem(`defib_google_cal_email_${techName}`, email);
+                                try {
+                                  const syncResult = await performGoogleCalendarSync(mockToken);
+                                  const calendarId = syncResult.calendarId || "mock_calendar_id";
+                                  if (authenticatedUser) {
+                                    const updatedMembers = members.map((m) => {
+                                      if (m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase()) {
+                                        return {
+                                          ...m,
+                                          googleCalEmail: email,
+                                          googleCalId: calendarId,
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    onUpdateMembers(updatedMembers);
+                                    const updatedUser = {
+                                      ...authenticatedUser,
+                                      googleCalEmail: email,
+                                      googleCalId: calendarId,
+                                    };
+                                    setAuthenticatedUser(updatedUser);
+                                    localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
+                                  }
+                                  setSyncStatusMsg({
+                                    type: "success",
+                                    text: `Agenda Google synchronisé avec succès (Mode Simulation) ! ${syncResult.count} mission(s) synchronisée(s).`,
+                                  });
+                                  setShowDomainHelp(false);
+                                  setShowOperationHelp(false);
+                                } catch (err: any) {
+                                  alert("Erreur lors de la simulation : " + err.message);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-[8px] font-sans text-xs font-bold transition-all w-fit shadow-sm cursor-pointer select-none"
+                            >
+                              🚀 Simuler la synchronisation Google Calendar
+                            </button>
+                          </div>
                         </div>
                       )}
 
@@ -9420,6 +9661,57 @@ export default function PublicPortal({
                             Une fois la méthode Google activée, vous pourrez
                             synchroniser votre Google Calendar en un clic !
                           </p>
+                          <div className="mt-3 pt-2 border-t border-amber-200 flex flex-col gap-1.5" id="simulate-google-cal-sync-container-2">
+                            <p className="text-[11px] text-amber-700 font-sans">
+                              Pour vos tests en mode aperçu, vous pouvez également simuler la synchronisation immédiatement :
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const mockToken = "mock_token_" + Date.now();
+                                const email = authenticatedUser?.email || "tech.demo@gmail.com";
+                                setGoogleAccessToken(mockToken);
+                                setSyncedGoogleEmail(email);
+                                const techName = authenticatedUser?.name || "common";
+                                localStorage.setItem(`defib_google_cal_email_${techName}`, email);
+                                try {
+                                  const syncResult = await performGoogleCalendarSync(mockToken);
+                                  const calendarId = syncResult.calendarId || "mock_calendar_id";
+                                  if (authenticatedUser) {
+                                    const updatedMembers = members.map((m) => {
+                                      if (m.name.trim().toLowerCase() === authenticatedUser.name.trim().toLowerCase()) {
+                                        return {
+                                          ...m,
+                                          googleCalEmail: email,
+                                          googleCalId: calendarId,
+                                        };
+                                      }
+                                      return m;
+                                    });
+                                    onUpdateMembers(updatedMembers);
+                                    const updatedUser = {
+                                      ...authenticatedUser,
+                                      googleCalEmail: email,
+                                      googleCalId: calendarId,
+                                    };
+                                    setAuthenticatedUser(updatedUser);
+                                    localStorage.setItem("defib_active_tech_session", JSON.stringify(updatedUser));
+                                  }
+                                  setSyncStatusMsg({
+                                    type: "success",
+                                    text: `Agenda Google synchronisé avec succès (Mode Simulation) ! ${syncResult.count} mission(s) synchronisée(s).`,
+                                  });
+                                  setShowDomainHelp(false);
+                                  setShowOperationHelp(false);
+                                } catch (err: any) {
+                                  alert("Erreur lors de la simulation : " + err.message);
+                                }
+                              }}
+                              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-[8px] font-sans text-xs font-bold transition-all w-fit shadow-sm cursor-pointer select-none"
+                            >
+                              🚀 Simuler la synchronisation Google Calendar
+                            </button>
+                          </div>
                         </div>
                       )}
 

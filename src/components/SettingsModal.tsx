@@ -141,6 +141,13 @@ export default function SettingsModal({
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     return (localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui';
   });
+  const [communicationPortailClient, setCommunicationPortailClient] = React.useState<string>(() => {
+    if (companyInfo && companyInfo.communicationPortailClient !== undefined) {
+      return companyInfo.communicationPortailClient;
+    }
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    return localStorage.getItem(`defib_${tenantId}_communication_portail_client`) || '';
+  });
   const [showEpsonBanner, setShowEpsonBanner] = React.useState<boolean>(() => {
     return !sessionStorage.getItem("help_dismissed_settings_epson");
   });
@@ -249,6 +256,13 @@ export default function SettingsModal({
         const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
         setEnableDevisFactures((localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui');
       }
+
+      if (companyInfo && companyInfo.communicationPortailClient !== undefined) {
+        setCommunicationPortailClient(companyInfo.communicationPortailClient);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        setCommunicationPortailClient(localStorage.getItem(`defib_${tenantId}_communication_portail_client`) || '');
+      }
     }
   }, [isOpen, companyInfo]);
 
@@ -330,7 +344,179 @@ export default function SettingsModal({
   const [atlasanteUrlAuth, setAtlasanteUrlAuth] = React.useState('https://catalogue.atlasante.fr/api/login');
   const [atlasanteDeclarantId, setAtlasanteDeclarantId] = React.useState('');
 
+  const [googleDriveActive, setGoogleDriveActive] = React.useState(false);
+  const [googleDriveEmail, setGoogleDriveEmail] = React.useState('');
+  const [googleDriveAccessToken, setGoogleDriveAccessToken] = React.useState('');
+
   const [connectorsSaveStatus, setConnectorsSaveStatus] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+
+  const [selectedSigMemberEmail, setSelectedSigMemberEmail] = React.useState('');
+  const sigCanvasRef = React.useRef<HTMLCanvasElement | null>(null);
+  const isSigDrawing = React.useRef(false);
+
+  React.useEffect(() => {
+    if (selectedSigMemberEmail && sigCanvasRef.current) {
+      const canvas = sigCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const member = localMembers.find(m => m.email === selectedSigMemberEmail);
+        if (member && member.signature) {
+          const img = new Image();
+          img.onload = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0);
+          };
+          img.src = member.signature;
+        }
+      }
+    } else if (!selectedSigMemberEmail && sigCanvasRef.current) {
+      const canvas = sigCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+  }, [selectedSigMemberEmail, localMembers]);
+
+  const startSigDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    isSigDrawing.current = true;
+    const pos = getSigEventCoords(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  };
+
+  const drawSig = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isSigDrawing.current) return;
+    e.preventDefault();
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const pos = getSigEventCoords(e, canvas);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const stopSigDrawing = () => {
+    if (!isSigDrawing.current) return;
+    isSigDrawing.current = false;
+    const canvas = sigCanvasRef.current;
+    if (canvas) {
+      const dataUrl = canvas.toDataURL();
+      setLocalMembers(prev => prev.map(m => {
+        if (m.email === selectedSigMemberEmail) {
+          return { ...m, signature: dataUrl };
+        }
+        return m;
+      }));
+    }
+  };
+
+  const clearSig = () => {
+    const canvas = sigCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    setLocalMembers(prev => prev.map(m => {
+      if (m.email === selectedSigMemberEmail) {
+        return { ...m, signature: undefined };
+      }
+      return m;
+    }));
+  };
+
+  const getSigEventCoords = (e: React.MouseEvent | React.TouchEvent, canvas: HTMLCanvasElement) => {
+    const rect = canvas.getBoundingClientRect();
+    let clientX = 0;
+    let clientY = 0;
+
+    if ('touches' in e) {
+      if (e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if ('changedTouches' in e && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      }
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  const handleGoogleDriveToggle = async (checked: boolean) => {
+    if (checked) {
+      try {
+        const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
+        const { auth } = await import('../firebase');
+        const provider = new GoogleAuthProvider();
+        provider.addScope("https://www.googleapis.com/auth/drive.file");
+        provider.addScope("https://www.googleapis.com/auth/drive.readonly");
+        provider.addScope("https://www.googleapis.com/auth/calendar");
+
+        const result = await signInWithPopup(auth, provider);
+        const credential = GoogleAuthProvider.credentialFromResult(result);
+        const token = credential?.accessToken || '';
+        const email = result.user.email || '';
+
+        setGoogleDriveActive(true);
+        setGoogleDriveEmail(email);
+        setGoogleDriveAccessToken(token);
+      } catch (err: any) {
+        console.error("Google Drive connection failed:", err);
+        const errStr = err?.message || err?.toString() || '';
+        const isAuthDomainErr = errStr.includes('unauthorized-domain') || err?.code?.includes('unauthorized-domain');
+        
+        if (isAuthDomainErr) {
+          const confirmSimulate = window.confirm(
+            "🔑 Domaine non autorisé dans votre console Firebase (unauthorized-domain).\n\n" +
+            "Pour corriger définitivement :\n" +
+            "1. Ouvrez console.firebase.google.com\n" +
+            "2. Allez dans Auth -> Paramètres -> Domaines autorisés.\n" +
+            "3. Ajoutez ce domaine : " + window.location.hostname + "\n\n" +
+            "Souhaitez-vous activer une connexion Google Drive de test/simulation pour cet environnement d'aperçu ?"
+          );
+          if (confirmSimulate) {
+            setGoogleDriveActive(true);
+            setGoogleDriveEmail("demo.drive@gmail.com");
+            setGoogleDriveAccessToken("mock_google_drive_token_" + Date.now());
+            return;
+          }
+        }
+        setGoogleDriveActive(false);
+        alert("Erreur de connexion Google Drive : " + (err.message || err));
+      }
+    } else {
+      setGoogleDriveActive(false);
+      setGoogleDriveEmail('');
+      setGoogleDriveAccessToken('');
+    }
+  };
 
   React.useEffect(() => {
     if (isOpen || isPage) {
@@ -376,6 +562,10 @@ export default function SettingsModal({
           } else {
             setAtlasanteUrlAuth('https://catalogue.atlasante.fr/api/login');
           }
+
+          if (data.googleDriveActive !== undefined) setGoogleDriveActive(data.googleDriveActive);
+          if (data.googleDriveEmail !== undefined) setGoogleDriveEmail(data.googleDriveEmail);
+          if (data.googleDriveAccessToken !== undefined) setGoogleDriveAccessToken(data.googleDriveAccessToken);
         }
       }).catch(err => {
         console.error('Error loading API connectors from Firestore:', err);
@@ -434,7 +624,10 @@ export default function SettingsModal({
         civilpromAssetsFileUrl,
         atlasanteActive,
         atlasanteDeclarantId,
-        atlasanteUrlAuth
+        atlasanteUrlAuth,
+        googleDriveActive,
+        googleDriveEmail,
+        googleDriveAccessToken
       };
       await saveCollectionToFirestore('api_connectors', payload);
       setConnectorsSaveStatus('saved');
@@ -891,7 +1084,8 @@ export default function SettingsModal({
       locationNames: localLocationNames,
       enableAutoEmails: enableAutoEmails,
       enableSatisfactionAvis: enableSatisfactionAvis,
-      enableDevisFactures: enableDevisFactures
+      enableDevisFactures: enableDevisFactures,
+      communicationPortailClient: communicationPortailClient
     };
     onUpdateCompanyInfo(companyToSave);
     onUpdateMembers(membersToSave);
@@ -930,6 +1124,7 @@ export default function SettingsModal({
     localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
     localStorage.setItem(`defib_${myTenantId}_enable_satisfaction_avis`, enableSatisfactionAvis);
     localStorage.setItem(`defib_${myTenantId}_enable_devis_factures`, enableDevisFactures);
+    localStorage.setItem(`defib_${myTenantId}_communication_portail_client`, communicationPortailClient);
     if (onUpdateLocationNames) {
       onUpdateLocationNames(localLocationNames);
     }
@@ -2016,7 +2211,7 @@ export default function SettingsModal({
           </div>
           
           {/* SECTION 6: MEMBRES DE L'ENVIRONNEMENT */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 pb-6 mt-4 text-left" id="settings-section-members" style={{ order: 99 }}>
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 pb-6 mt-4 text-left" id="settings-section-members" style={{ order: 98 }}>
             {renderSectionHeader(t("Membres de l’environnement"))}
 
             {/* Formulaire d'ajout rapide de collaborateur */}
@@ -2916,6 +3111,25 @@ export default function SettingsModal({
             </div>
           </div>
 
+          {/* SECTION: COMMUNICATION PORTAIL CLIENT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 pb-6 mt-4 text-left" id="settings-section-communication-portail" style={{ order: 99 }}>
+            {renderSectionHeader(t("Communication portail client"))}
+
+            <div className="space-y-2">
+              <label htmlFor="settings-communication-portail" className="block text-[14px] font-bold text-black font-sans">
+                {t("Message à afficher.")}
+              </label>
+              <textarea
+                id="settings-communication-portail"
+                value={communicationPortailClient}
+                onChange={(e) => setCommunicationPortailClient(e.target.value)}
+                placeholder={t("Entrez le message d’information pour les clients...")}
+                rows={4}
+                className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 font-sans"
+              />
+            </div>
+          </div>
+
           {/* SECTION 3: CONNECTIONS */}
           <div className="border border-slate-200 rounded-2xl p-5 space-y-4 bg-white animate-fadeIn" id="settings-section-connectors">
             <div className="flex items-center justify-between w-full mb-3 select-none bg-transparent">
@@ -3653,6 +3867,71 @@ export default function SettingsModal({
                   )}
 
                   {/* Language restriction warning removed as requested */}
+                </div>
+              </div>
+
+              {/* GOOGLE DRIVE */}
+              <div id="connector-block-googledrive" style={{ border: '1px solid rgb(229, 229, 229)', borderRadius: '13px', backgroundColor: 'rgb(245, 245, 245)' }} className="p-4 space-y-3 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <h5 className="font-bold text-black" style={{ fontSize: '18px', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>Google Drive</h5>
+                        <div className="select-none font-sans flex items-center mt-1">
+                          <span
+                            style={{
+                              backgroundColor: googleDriveActive ? '#fe4eba' : 'rgb(57, 169, 143)',
+                              boxShadow: 'rgba(255, 255, 255, 0) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(255, 255, 255, 0) 0px 4px 4px, rgb(0, 0, 0) 0px 7px 0px -12px, rgba(255, 255, 255, 0.21) 0px 6px 12px inset',
+                              color: '#ffffff',
+                              fontSize: '16px',
+                              borderRadius: '100px',
+                              padding: '2px 10px',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            }}
+                            className="font-bold select-none"
+                          >
+                            {googleDriveActive ? t("Activé") : t("Disponible")}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Toggle switch */}
+                    <div className="flex items-center gap-2">
+                      <label className="relative inline-flex items-center cursor-pointer select-none" style={{ cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          id="toggle-googledrive-active"
+                          checked={googleDriveActive}
+                          onChange={(e) => {
+                            handleGoogleDriveToggle(e.target.checked);
+                          }}
+                          className="sr-only peer"
+                        />
+                        <div className="w-9 h-5 bg-[#dbdbdb] rounded-full cursor-pointer peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#dbdbdb] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#fe4eba]" style={{ cursor: 'pointer' }}></div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {googleDriveActive && (
+                    <div className="mt-4 space-y-3 animate-slideUp">
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Compte Google Connecté")}</label>
+                        <div className="text-black font-sans text-sm bg-white p-2 border border-slate-300 rounded flex items-center justify-between">
+                          <span className="font-medium text-xs break-all">{googleDriveEmail || t("Inconnu")}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleGoogleDriveToggle(true)}
+                            className="text-xs text-blue-600 hover:underline select-none ml-2"
+                          >
+                            {t("Changer")}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-slate-500 font-sans">
+                        {t("Synchronisation active avec Google Drive et Google Calendar.")}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -248,18 +248,6 @@ export default function App() {
   const handleLoginSuccess = (email: string, name: string, activeTenantId?: string, loggedInRole?: string) => {
     const tenantToSet = activeTenantId || 'demo';
     
-    // Clear old localStorage cache keys for this tenant to force a fresh, authoritative sync from Firestore
-    try {
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && (key.includes(tenantToSet) || key.includes('registered_tenants'))) {
-          localStorage.removeItem(key);
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to clear cache on login success:', e);
-    }
-
     setTenantIdState(tenantToSet);
     setFirebaseTenantId(tenantToSet);
     localStorage.setItem('defib_tenant_id', tenantToSet);
@@ -293,17 +281,7 @@ export default function App() {
     }
 
     const emailLower = email.trim().toLowerCase();
-    const matchedClient = clients.find(c => c.email && c.email.trim().toLowerCase() === emailLower);
-
-    // Active environment loading screen for admin login (not technician and not client)
-    if (emailLower !== 'tech.ouest@defibeo.com' && roleToSet !== 'technicien' && !matchedClient && emailLower !== 'client@demo.com') {
-      setShowEnvLoading(true);
-      setTimeout(() => {
-        // Force an auto-reload to guarantee complete clean memory state and avoid loading dummy data
-        window.location.reload();
-      }, 1500);
-      return;
-    }
+    const matchedClient = clients.find(c => c.email && c.email.toLowerCase() === emailLower);
 
     if (emailLower === 'tech.ouest@defibeo.com' || roleToSet === 'technicien') {
       const techSession = {
@@ -2504,38 +2482,207 @@ export default function App() {
   // Load from Firebase on startup, fallback to LocalStorage/Seed Defaults
   useEffect(() => {
     async function loadFirebaseAndSeed() {
+      // 1. Instantly load local cache so the app is immediately usable (0ms delay!)
       try {
-        setIsFirebaseLoaded(false);
-        loadedTenantIdRef.current = '';
-        console.log('Synchronisant la base Firestore...');
-        const [
-          fClients, fVariables, fDefibrillateurs, fCompanyInfo, fMembers,
-          fTickets, fDocs, fGed, fStocks, fReviews, fPointages, fExpenses,
-          fReports, fTours, fMemos, fOtherEquipments, fPointagesAutoVigilance,
-          fDistributedStocks, fAchatsFournisseurs, fNotifications, fVeilles
-        ] = await Promise.all([
-          fetchCollectionFromFirestore<Client[]>('clients', tenantId),
-          fetchCollectionFromFirestore<Variable[]>('variables', tenantId),
-          fetchCollectionFromFirestore<Defibrillateur[]>('defibrillateurs', tenantId),
-          fetchCollectionFromFirestore<CompanyInfo>('companyInfo', tenantId),
-          fetchCollectionFromFirestore<Member[]>('members', tenantId),
-          fetchCollectionFromFirestore<SupportTicket[]>('tickets', tenantId),
-          fetchCollectionFromFirestore<CommercialDoc[]>('commercialDocs', tenantId),
-          fetchCollectionFromFirestore<GedDocument[]>('gedDocs', tenantId),
-          fetchCollectionFromFirestore<StockRecord[]>('stocks', tenantId),
-          fetchCollectionFromFirestore<any[]>('customerReviews', tenantId),
-          fetchCollectionFromFirestore<PointageLog[]>('pointages', tenantId),
-          fetchCollectionFromFirestore<any[]>('expenses', tenantId),
-          fetchCollectionFromFirestore<any[]>('generatedReports', tenantId),
-          fetchCollectionFromFirestore<any[]>('fsmTours', tenantId),
-          fetchCollectionFromFirestore<Memo[]>('memos', tenantId),
-          fetchCollectionFromFirestore<OtherEquipment[]>('otherEquipments', tenantId),
-          fetchCollectionFromFirestore<PointageAutoVigilance[]>('pointagesAutoVigilance', tenantId),
-          fetchCollectionFromFirestore<DistributedStockLocation[]>('distributed_stocks', tenantId),
-          fetchCollectionFromFirestore<AchatFournisseur[]>('achats_fournisseurs', tenantId),
-          fetchCollectionFromFirestore<AppNotification[]>('notifications', tenantId),
-          fetchCollectionFromFirestore<VeilleRecord[]>('veilles', tenantId)
-        ]);
+        const savedClients = localStorage.getItem(`defib_${tenantId}_clients`);
+        let offlineClients: Client[] = savedClients ? JSON.parse(savedClients) : INITIAL_CLIENTS;
+        let offlineChanged = false;
+        const sanitizedOffline = offlineClients.map(c => {
+          if (!c.signaturePin || !c.signaturePin.trim()) {
+            offlineChanged = true;
+            return { ...c, signaturePin: generateRandomPin() };
+          }
+          return c;
+        });
+        setClients(sanitizedOffline);
+        if (offlineChanged) {
+          localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify(sanitizedOffline));
+        }
+
+        const savedVariables = localStorage.getItem(`defib_${tenantId}_variables`);
+        setVariables(savedVariables ? JSON.parse(savedVariables) : INITIAL_VARIABLES);
+
+        const savedDefibs = localStorage.getItem(`defib_${tenantId}_defibrillateurs`);
+        setDefibrillateurs(savedDefibs ? JSON.parse(savedDefibs) : INITIAL_DEFIBRILLATEURS);
+
+        const defaultInfo = {
+          name: tenantId === 'demo' ? "Défibeo Solutions" : "Mon Cabinet",
+          logo: tenantId === 'demo' ? "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?w=80&auto=format&fit=crop" : "",
+          website: tenantId === 'demo' ? "29382302.defibeo.com" : "",
+          email: tenantId === 'demo' ? "contact@defibeo-solutions.com" : "",
+          phone: tenantId === 'demo' ? "+33 1 47 20 00 01" : ""
+        };
+        const savedCompanyInfo = localStorage.getItem(`defib_${tenantId}_company_info`);
+        setCompanyInfo(savedCompanyInfo ? JSON.parse(savedCompanyInfo) : defaultInfo);
+
+        const savedMembers = localStorage.getItem(`defib_${tenantId}_members`);
+        setMembers(savedMembers ? JSON.parse(savedMembers) : INITIAL_MEMBERS);
+
+        const savedTickets = localStorage.getItem(`defib_${tenantId}_support_tickets`);
+        setTickets(savedTickets ? JSON.parse(savedTickets) : INITIAL_TICKETS);
+
+        const savedMemos = localStorage.getItem(`defib_${tenantId}_memos`);
+        setMemos(savedMemos ? JSON.parse(savedMemos) : []);
+
+        const savedCommercialDocs = localStorage.getItem(`defib_${tenantId}_commercial_docs`);
+        setCommercialDocs(savedCommercialDocs ? JSON.parse(savedCommercialDocs) : INITIAL_COMMERCIAL_DOCS);
+
+        const savedGedDocs = localStorage.getItem(`defib_${tenantId}_ged_docs`);
+        setGedDocs(savedGedDocs ? JSON.parse(savedGedDocs) : INITIAL_GED_DOCS);
+
+        const savedStocks = localStorage.getItem(`defib_${tenantId}_stocks`);
+        setStocks(savedStocks ? JSON.parse(savedStocks) : INITIAL_STOCKS);
+
+        const savedDistrib = localStorage.getItem(`defib_${tenantId}_distributed_stocks`);
+        setDistributedStocks(savedDistrib ? JSON.parse(savedDistrib) : INITIAL_DISTRIBUTED_STOCKS);
+
+        const savedReviews = localStorage.getItem(`defib_${tenantId}_customer_reviews`);
+        setCustomerReviews(savedReviews ? JSON.parse(savedReviews) : INITIAL_REVIEWS);
+
+        const savedReports = localStorage.getItem(`defib_${tenantId}_generated_reports`);
+        setGeneratedReports(savedReports ? JSON.parse(savedReports) : INITIAL_REPORTS);
+
+        const savedFsmTours = localStorage.getItem(`defib_${tenantId}_fsm_tours`);
+        setFsmTours(savedFsmTours ? JSON.parse(savedFsmTours) : INITIAL_TOURS);
+
+        const savedExpenses = localStorage.getItem(`defib_${tenantId}_expenses`);
+        setExpenses(savedExpenses ? JSON.parse(savedExpenses) : INITIAL_EXPENSES);
+
+        const savedOtherEquipments = localStorage.getItem(`defib_${tenantId}_other_equipments`);
+        setOtherEquipments(savedOtherEquipments ? JSON.parse(savedOtherEquipments) : INITIAL_OTHER_EQUIPMENTS);
+
+        const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
+        setPointages(savedPointagesHistory ? JSON.parse(savedPointagesHistory) : []);
+
+        const savedPointagesAutoVigilance = localStorage.getItem(`defib_${tenantId}_pointages_auto_vigilance`);
+        setPointagesAutoVigilance(savedPointagesAutoVigilance ? JSON.parse(savedPointagesAutoVigilance) : []);
+
+        const savedAchatsFournisseurs = localStorage.getItem(`defib_${tenantId}_achats_fournisseurs`);
+        setAchatsFournisseurs(savedAchatsFournisseurs ? JSON.parse(savedAchatsFournisseurs) : []);
+
+        const savedVeilles = localStorage.getItem(`defib_${tenantId}_veilles`);
+        setVeilles(savedVeilles ? JSON.parse(savedVeilles) : INITIAL_VEILLES);
+
+        const savedNotifications = localStorage.getItem(`defib_${tenantId}_notifications`);
+        if (savedNotifications) {
+          try {
+            const loadedNotifs = JSON.parse(savedNotifications) as AppNotification[];
+            const cleanedNotifs = loadedNotifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+            setNotifications(cleanedNotifs);
+          } catch (e) {}
+        } else {
+          setNotifications([]);
+        }
+
+        // Set loaded to true IMMEDIATELY so there is 0ms delay / blocking for the user!
+        setIsFirebaseLoaded(true);
+        loadedTenantIdRef.current = tenantId;
+      } catch (localErr) {
+        console.warn("Failed to load instant offline fallback data:", localErr);
+      }
+
+      try {
+        console.log('Démarrage de la synchronisation Firestore en arrière-plan...');
+
+        // Define a helper to retrieve currently cached data instantly
+        const getInstant = <T,>(keySuffix: string, defaultVal: T): T => {
+          const saved = localStorage.getItem(`defib_${tenantId}_${keySuffix}`);
+          if (saved) {
+            try { return JSON.parse(saved) as T; } catch (e) {}
+          }
+          return defaultVal;
+        };
+
+        const fClients = getInstant<Client[]>('clients', INITIAL_CLIENTS);
+        const fVariables = getInstant<Variable[]>('variables', INITIAL_VARIABLES);
+        const fDefibrillateurs = getInstant<Defibrillateur[]>('defibrillateurs', INITIAL_DEFIBRILLATEURS);
+        const fCompanyInfo = getInstant<CompanyInfo>('company_info', null);
+        const fMembers = getInstant<Member[]>('members', INITIAL_MEMBERS);
+        const fTickets = getInstant<SupportTicket[]>('support_tickets', INITIAL_TICKETS);
+        const fDocs = getInstant<CommercialDoc[]>('commercial_docs', INITIAL_COMMERCIAL_DOCS);
+        const fGed = getInstant<GedDocument[]>('ged_docs', INITIAL_GED_DOCS);
+        const fStocks = getInstant<StockRecord[]>('stocks', INITIAL_STOCKS);
+        const fReviews = getInstant<any[]>('customer_reviews', INITIAL_REVIEWS);
+        const fPointages = getInstant<PointageLog[]>('pointages_history', []);
+        const fExpenses = getInstant<any[]>('expenses', INITIAL_EXPENSES);
+        const fReports = getInstant<any[]>('generated_reports', INITIAL_REPORTS);
+        const fTours = getInstant<any[]>('fsm_tours', INITIAL_TOURS);
+        const fMemos = getInstant<Memo[]>('memos', []);
+        const fOtherEquipments = getInstant<OtherEquipment[]>('other_equipments', INITIAL_OTHER_EQUIPMENTS);
+        const fPointagesAutoVigilance = getInstant<PointageAutoVigilance[]>('pointages_auto_vigilance', []);
+        const fDistributedStocks = getInstant<DistributedStockLocation[]>('distributed_stocks', INITIAL_DISTRIBUTED_STOCKS);
+        const fAchatsFournisseurs = getInstant<AchatFournisseur[]>('achats_fournisseurs', []);
+        const fNotifications = getInstant<AppNotification[]>('notifications', []);
+        const fVeilles = getInstant<VeilleRecord[]>('veilles', INITIAL_VEILLES);
+
+        // Helper for independent background syncing of each collection
+        const syncBackground = async <T,>(
+          collectionName: string,
+          localStorageKeySuffix: string,
+          stateSetter: (val: T) => void,
+          customTransformer?: (data: T) => T | Promise<T>
+        ) => {
+          try {
+            const data = await fetchCollectionFromFirestore<T>(collectionName, tenantId);
+            if (data !== null) {
+              let finalData = data;
+              if (customTransformer) {
+                finalData = await customTransformer(data);
+              }
+              stateSetter(finalData);
+              const strVal = JSON.stringify(finalData);
+              localStorage.setItem(`defib_${tenantId}_${localStorageKeySuffix}`, strVal);
+              loadedDataRef.current[localStorageKeySuffix] = strVal;
+            }
+          } catch (err) {
+            console.warn(`Background sync failed for ${collectionName}:`, err);
+          }
+        };
+
+        // Fire all sync tasks completely concurrently and in parallel
+        syncBackground<Client[]>('clients', 'clients', setClients, (data) => {
+          let changed = false;
+          const sanitized = data.map(c => {
+            if (!c.signaturePin || !c.signaturePin.trim()) {
+              changed = true;
+              return { ...c, signaturePin: generateRandomPin() };
+            }
+            return c;
+          });
+          if (changed) {
+            saveCollectionToFirestore('clients', sanitized);
+          }
+          return sanitized;
+        });
+
+        syncBackground<Variable[]>('variables', 'variables', setVariables);
+        syncBackground<Defibrillateur[]>('defibrillateurs', 'defibrillateurs', setDefibrillateurs);
+        syncBackground<CompanyInfo>('companyInfo', 'company_info', setCompanyInfo);
+        syncBackground<Member[]>('members', 'members', setMembers);
+        syncBackground<SupportTicket[]>('tickets', 'support_tickets', setTickets);
+        syncBackground<CommercialDoc[]>('commercialDocs', 'commercial_docs', setCommercialDocs);
+        syncBackground<GedDocument[]>('gedDocs', 'ged_docs', setGedDocs);
+        syncBackground<StockRecord[]>('stocks', 'stocks', setStocks);
+        syncBackground<DistributedStockLocation[]>('distributed_stocks', 'distributed_stocks', setDistributedStocks);
+        syncBackground<any[]>('customerReviews', 'customer_reviews', setCustomerReviews);
+        syncBackground<PointageLog[]>('pointages', 'pointages_history', setPointages);
+        syncBackground<any[]>('expenses', 'expenses', setExpenses);
+        syncBackground<VeilleRecord[]>('veilles', 'veilles', setVeilles);
+        syncBackground<any[]>('generatedReports', 'generated_reports', setGeneratedReports);
+        syncBackground<any[]>('fsmTours', 'fsm_tours', setFsmTours);
+        syncBackground<Memo[]>('memos', 'memos', setMemos);
+        syncBackground<OtherEquipment[]>('otherEquipments', 'other_equipments', setOtherEquipments);
+        syncBackground<PointageAutoVigilance[]>('pointagesAutoVigilance', 'pointages_auto_vigilance', setPointagesAutoVigilance);
+        syncBackground<AchatFournisseur[]>('achats_fournisseurs', 'achats_fournisseurs', setAchatsFournisseurs);
+
+        syncBackground<AppNotification[]>('notifications', 'notifications', (notifs) => {
+          const cleaned = notifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+          setNotifications(cleaned);
+          if (cleaned.length !== notifs.length) {
+            saveCollectionToFirestore('notifications', cleaned);
+          }
+          return cleaned;
+        });
 
         // Helper block to query local storage fallback safely when firestore responds with null/error
         const getFallback = <T,>(keySuffix: string, defaultVal: T): T => {
@@ -6944,6 +7091,48 @@ export default function App() {
                                         const updatedReports = generatedReports.map(r => r.id === rep.id ? { ...r, validated: true } : r);
                                         saveReports(updatedReports);
 
+                                        // Update "Centrale des stocks" (Volume=0, Situation=Utilisé, Commentaire=Ref intervention)
+                                        const usedTraceIds = [
+                                          rep.selectionElectrodeARemplacee,
+                                          rep.selectionElectrodeASecoursRemplacee,
+                                          rep.selectionElectrodePRemplacee,
+                                          rep.selectionElectrodePSecoursRemplacee,
+                                          rep.selectionBatterieRemplacee,
+                                          rep.selectionKitSecoursRemplace
+                                        ].filter(id => id && id !== 'Autre');
+
+                                        if (usedTraceIds.length > 0) {
+                                          const updatedStocksList = stocks.map(st => {
+                                            let stChanged = false;
+                                            let decrementQty = 0;
+                                            const updatedTraces = (st.traceabilities || []).map(tr => {
+                                              if (usedTraceIds.includes(tr.id)) {
+                                                stChanged = true;
+                                                if (tr.situation === 'Disponible') {
+                                                  decrementQty++;
+                                                }
+                                                return {
+                                                  ...tr,
+                                                  volume: 0,
+                                                  situation: 'Utilisé' as const,
+                                                  comment: rep.interventionReference || 'Ref: ' + (rep.id || 'sans-id')
+                                                };
+                                              }
+                                              return tr;
+                                            });
+
+                                            if (stChanged) {
+                                              return {
+                                                ...st,
+                                                quantite: Math.max(0, (st.quantite || 0) - decrementQty),
+                                                traceabilities: updatedTraces
+                                              };
+                                            }
+                                            return st;
+                                          });
+                                          saveStocks(updatedStocksList);
+                                        }
+
                                         // Update the main equipment database and send validation email to the client
                                         const snap = rep.defibSnapshot;
                                         if (snap) {
@@ -8641,6 +8830,7 @@ export default function App() {
               commercialDocs={commercialDocs}
               achatsFournisseurs={achatsFournisseurs}
               setActiveTab={setActiveTab}
+              members={members}
             />
           )}
 

@@ -2,11 +2,13 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { t } from '../utils/translate';
 import { CompanyInfo, Member, SupportTicket, Defibrillateur, Variable, Client, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
+import { AiModelDetectionModal } from './AiModelDetectionModal';
 import { REGIONS_FRANCAISES } from '../utils';
 import { getRegionsForCountry } from '../utils/regions';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { fetchCollectionFromFirestore } from '../firebase';
 
 interface GmaoCorrectionFormProps {
   report?: any;
@@ -79,6 +81,7 @@ const DEFAULT_DEFIB: Defibrillateur = {
   modeleBatterieId: '',
   lotBatterie: '',
   insertionBatterie: '',
+  fabricationBatterie: '',
   peremptionBatterie: '',
   livraisonBatterie: '',
   situationBatterie: 'Vert',
@@ -104,7 +107,9 @@ const DEFAULT_DEFIB: Defibrillateur = {
   hasPadpakP: 'Oui',
   lotPadpakP: '',
   peremptionPadpakP: '',
-  numeroAtlasante: ''
+  peremptionTrousse: '',
+  numeroAtlasante: '',
+  versionLogiciel: ''
 };
 
 const ERROR_CODES_DB = [
@@ -197,17 +202,20 @@ const registerButtonStyle: React.CSSProperties = {
 function FormRadio({
   label,
   checked,
-  onChange
+  onChange,
+  disabled
 }: {
   label: string;
   checked: boolean;
   onChange: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
-      onClick={onChange}
-      className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
+      className={`inline-flex items-center gap-2 select-none justify-start text-left ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
       style={{ fontSize: '15px', color: '#000000', fontWeight: '500' }}
     >
       <span 
@@ -315,6 +323,64 @@ export default function GmaoCorrectionForm({
       );
     });
   }, [members]);
+
+  const generateNewEquipmentId = () => {
+    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const tenantIdDigit = localStorage.getItem('defib_short_env_id') || 'D18';
+    
+    const l1 = letters[Math.floor(Math.random() * letters.length)];
+    const l2 = letters[Math.floor(Math.random() * letters.length)];
+    const l3 = letters[Math.floor(Math.random() * letters.length)];
+    const l4 = letters[Math.floor(Math.random() * letters.length)];
+    const l5 = letters[Math.floor(Math.random() * letters.length)];
+    const l6 = letters[Math.floor(Math.random() * letters.length)];
+    
+    return `${l1}${l2}${l3}-${tenantIdDigit}-${l4}${l5}${l6}`;
+  };
+
+  const getTraceAndStock = React.useCallback((selectionId: string) => {
+    if (!selectionId || selectionId === 'Autre') return null;
+    for (const st of stocks || []) {
+      if (st.traceabilities) {
+        const trace = st.traceabilities.find(t => t.id === selectionId);
+        if (trace) return { trace, stock: st };
+      }
+    }
+    return null;
+  }, [stocks]);
+
+  const uploadFileToGoogleDrive = async (accessToken: string, file: File): Promise<string> => {
+    const metadata = {
+      name: file.name,
+      mimeType: file.type || 'application/octet-stream',
+    };
+
+    const formData = new FormData();
+    formData.append(
+      'metadata',
+      new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+    );
+    formData.append('file', file);
+
+    const response = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Google Drive upload failed: ${response.statusText} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result.webViewLink || `https://drive.google.com/file/d/${result.id}/view`;
+  };
 
   const getAvailableTraceabilities = React.useCallback((category?: string) => {
     const list: {
@@ -470,9 +536,44 @@ export default function GmaoCorrectionForm({
   const [activeSection, setActiveSection] = useState<number>(0);
   const pillsContainerRef = useRef<HTMLDivElement>(null);
 
+  const selectedModelVar = useMemo(() => {
+    if (!snapshot.modeleId) return null;
+    return (variables || []).find(v => v.id === snapshot.modeleId && v.category === 'Modèle Défibrillateur') || null;
+  }, [snapshot.modeleId, variables]);
+
+  const isVisibleNumeroAtlasante = selectedModelVar ? (selectedModelVar.visibiliteNumeroAtlasante !== 'Non') : true;
+  const isVisibleVersionLogiciel = selectedModelVar ? (selectedModelVar.visibiliteVersionLogiciel !== 'Non') : true;
+  const isVisibleFactureBrouillon = selectedModelVar ? (selectedModelVar.visibiliteFactureBrouillon !== 'Non') : true;
+  const isVisiblePadPakAdulte = selectedModelVar ? (selectedModelVar.visibilitePadPakAdulte !== 'Non') : true;
+  const isVisibleLotPadPakA = selectedModelVar ? (selectedModelVar.visibiliteLotPadPakA !== 'Non') : true;
+  const isVisiblePeremptionPadPakA = selectedModelVar ? (selectedModelVar.visibilitePeremptionPadPakA !== 'Non') : true;
+  const isVisibleLotP = selectedModelVar ? (selectedModelVar.visibiliteLotP !== 'Non') : true;
+  const isVisiblePadPakPediatrique = selectedModelVar ? (selectedModelVar.visibilitePadPakPediatrique !== 'Non') : true;
+  const isVisibleLotPadPakP = selectedModelVar ? (selectedModelVar.visibiliteLotPadPakP !== 'Non') : true;
+  const isVisiblePeremptionPadPakP = selectedModelVar ? (selectedModelVar.visibilitePeremptionPadPakP !== 'Non') : true;
+  const isVisibleFabricationBatterie = selectedModelVar ? (selectedModelVar.visibiliteFabricationBatterie !== 'Non') : true;
+  const isVisibleInsertionBatterie = selectedModelVar ? (selectedModelVar.visibiliteInsertionBatterie !== 'Non') : true;
+  const isVisiblePeremptionBatterie = selectedModelVar ? (selectedModelVar.visibilitePeremptionBatterie !== 'Non') : true;
+  const isVisiblePourcentageBatterie = selectedModelVar ? (selectedModelVar.visibilitePourcentageBatterie !== 'Non') : true;
+  const isVisibleGantsPresents = selectedModelVar ? (selectedModelVar.visibiliteGantsPresents !== 'Non') : true;
+  const isVisiblePeremptionServiettes = selectedModelVar ? (selectedModelVar.visibilitePeremptionServiettes !== 'Non') : true;
+  const isVisibleServiettesPresentes = selectedModelVar ? (selectedModelVar.visibiliteServiettesPresentes !== 'Non') : true;
+  const isVisiblePeremptionMasque = selectedModelVar ? (selectedModelVar.visibilitePeremptionMasque !== 'Non') : true;
+  const isVisibleMasquePresent = selectedModelVar ? (selectedModelVar.visibiliteMasquePresent !== 'Non') : true;
+  const isVisibleCiseauxPresents = selectedModelVar ? (selectedModelVar.visibiliteCiseauxPresents !== 'Non') : true;
+  const isVisiblePeremptionTrousse = selectedModelVar ? (selectedModelVar.visibilitePeremptionTrousse !== 'Non') : true;
+  const isVisibleRasoir = selectedModelVar ? (selectedModelVar.visibiliteRasoir !== 'Non') : true;
+  const isVisibleBranchementElectrodes = selectedModelVar ? (selectedModelVar.visibiliteBranchementElectrodes !== 'Non') : true;
+  const isVisibleGuidesVocaux = selectedModelVar ? (selectedModelVar.visibiliteGuidesVocaux !== 'Non') : true;
+  const isVisibleMessageNumeriqueConforme = selectedModelVar ? (selectedModelVar.visibiliteMessageNumeriqueConforme !== 'Non') : true;
+  const isVisibleEquipeMessageNumerique = selectedModelVar ? (selectedModelVar.visibiliteEquipeMessageNumerique !== 'Non') : true;
+  const isVisibleVoyantConforme = selectedModelVar ? (selectedModelVar.visibiliteVoyantConforme !== 'Non') : true;
+  const isVisibleNettoyage = selectedModelVar ? (selectedModelVar.visibiliteNettoyage !== 'Non') : true;
+  const isVisiblePiecesJointes = selectedModelVar ? (selectedModelVar.visibilitePiecesJointes !== 'Non') : true;
+
   const SECTIONS_METADATA = useMemo(() => [
     { id: 0, label: "0 — Configuration" },
-    { id: 1, label: "1 — Identification" },
+    { id: 1, label: "1 — Identification et photos" },
     { id: 2, label: "2 — Client" },
     { id: 3, label: "3 — Coffret" },
     { id: 4, label: "4 — Accès" },
@@ -484,6 +585,37 @@ export default function GmaoCorrectionForm({
     { id: 10, label: "10 — Kit de secours" },
     { id: 11, label: "11 — Clôture" },
   ], []);
+
+  const availableLoaners = useMemo(() => {
+    const list: { traceId: string; label: string }[] = [];
+    (stocks || []).forEach(st => {
+      const varObj = variables.find(v => v.id === st.denominationPieceId);
+      if (!varObj) return;
+      
+      const excludedCategories: string[] = [
+        'Modèle Électrode',
+        'Modèle Batterie',
+        'Modèle Service',
+        'Modèle Contrat',
+        'Fournisseur'
+      ];
+      if (excludedCategories.includes(varObj.category)) {
+        return;
+      }
+
+      if (st.traceabilities) {
+        st.traceabilities
+          .filter(t => t.situation === 'Disponible')
+          .forEach(t => {
+            list.push({
+              traceId: t.id,
+              label: `${varObj.nom || 'Équipement'} - Lot: ${t.lotOrSerial} ${t.expirationDate ? `(Exp: ${t.expirationDate})` : ''}`,
+            });
+          });
+      }
+    });
+    return list;
+  }, [stocks, variables]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -565,6 +697,33 @@ export default function GmaoCorrectionForm({
     }
   };
 
+  // New States for Points 0, 1, 3, 4, 5, 8, 10
+  const [interventionReference, setInterventionReference] = useState(report?.interventionReference || '');
+  const [isCreatingNewMaterial, setIsCreatingNewMaterial] = useState(false);
+  const [isNewEquipmentDropdownOpen, setIsNewEquipmentDropdownOpen] = useState(false);
+  const [newMaterialType, setNewMaterialType] = useState('');
+  const [isAiDetectionModalOpen, setIsAiDetectionModalOpen] = useState(false);
+  const [aiDetectedModel, setAiDetectedModel] = useState<{ id: string; nom: string; marque: string } | null>(null);
+  const [materielInterchangeClient, setMaterielInterchangeClient] = useState(report?.materielInterchangeClient || 'Non');
+  const [commentaireChangement, setCommentaireChangement] = useState(report?.commentaireChangement || '');
+  const [fournitureMaterielPret, setFournitureMaterielPret] = useState(report?.fournitureMaterielPret || 'Non');
+  const [selectionMaterielPrete, setSelectionMaterielPrete] = useState(report?.selectionMaterielPrete || '');
+  const [attachments, setAttachments] = useState<{ name: string; url: string; size: number }[]>(report?.attachments || []);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const [kitPeremption, setKitPeremption] = useState(report?.kitPeremption || report?.defibSnapshot?.peremptionTrousse || origDefib?.peremptionTrousse || '');
+
+  // Photo Refs
+  const fileInputArriereRef = useRef<HTMLInputElement>(null);
+  const fileInputResultatTestRef = useRef<HTMLInputElement>(null);
+  const [photoArriereUrl, setPhotoArriereUrl] = useState(report?.photoArriereUrl || '');
+  const [photoResultatTestUrl, setPhotoResultatTestUrl] = useState(report?.photoResultatTestUrl || '');
+
+  // Google Drive Credentials state
+  const [googleDriveActive, setGoogleDriveActive] = useState(false);
+  const [googleDriveEmail, setGoogleDriveEmail] = useState('');
+  const [googleDriveAccessToken, setGoogleDriveAccessToken] = useState('');
+
   // S3 Alarme & Armoire
   const [equipeAlarme, setEquipeAlarme] = useState<'Oui' | 'Non' | ''>(report?.equipeAlarme || 'Oui');
   const [alarme, setAlarme] = useState<'Oui' | 'Non' | ''>(report?.alarme || 'Non');
@@ -621,7 +780,7 @@ export default function GmaoCorrectionForm({
   // S11 add-on
   const [fichierDonneesRecupere, setFichierDonneesRecupere] = useState<'Oui' | 'Non'>(report?.fichierDonneesRecupere || 'Non');
   
-  const [emettreFactureBrouillon, setEmettreFactureBrouillon] = useState<'Oui' | 'Non'>(report?.emettreFactureBrouillon || 'Non');
+  const [emettreFactureBrouillon, setEmettreFactureBrouillon] = useState<'Oui' | 'Non'>(report?.emettreFactureBrouillon || 'Oui');
   const [serviceEmettreId, setServiceEmettreId] = useState<string>(report?.serviceEmettreId || '');
   const [isSaving, setIsSaving] = useState(false);
   
@@ -654,6 +813,63 @@ export default function GmaoCorrectionForm({
   const [endTimeStamp, setEndTimeStamp] = useState(report?.endTimeStamp || '');
   const isDrawing = useRef(false);
 
+  // Auto-generate reference intervention
+  useEffect(() => {
+    if (snapshot.identifiant) {
+      let datePart = '';
+      if (interventionDate) {
+        const cleanDate = interventionDate.split(' ')[0].replace(/[^0-9]/g, '');
+        if (cleanDate.length === 8) {
+          datePart = cleanDate;
+        } else {
+          const d = new Date();
+          const day = String(d.getDate()).padStart(2, '0');
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const year = d.getFullYear();
+          datePart = `${day}${month}${year}`;
+        }
+      } else {
+        const d = new Date();
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        datePart = `${day}${month}${year}`;
+      }
+      const expectedDefault = `${snapshot.identifiant}_${datePart}`;
+      if (!interventionReference) {
+        setInterventionReference(expectedDefault);
+      }
+    }
+  }, [snapshot.identifiant, interventionDate]);
+
+  useEffect(() => {
+    // Load Google Drive credentials
+    const driveActive = localStorage.getItem('defib_google_drive_active') === 'true';
+    const driveEmail = localStorage.getItem('defib_google_drive_email') || '';
+    const driveToken = localStorage.getItem('defib_google_drive_token') || '';
+    setGoogleDriveActive(driveActive);
+    setGoogleDriveEmail(driveEmail);
+    setGoogleDriveAccessToken(driveToken);
+  }, []);
+
+  useEffect(() => {
+    if (electrodeARemplacee === 'Oui') {
+      setElectrodeAConformeSante('Oui');
+    }
+  }, [electrodeARemplacee]);
+
+  useEffect(() => {
+    if (electrodePRemplacee === 'Oui') {
+      setElectrodePConformeSante('Oui');
+    }
+  }, [electrodePRemplacee]);
+
+  useEffect(() => {
+    if (batterieRemplacee === 'Oui') {
+      setBatterieConformeSante('Oui');
+    }
+  }, [batterieRemplacee]);
+
   useEffect(() => {
     // If we have an existing signature and the canvas is mounted, draw it on the canvas
     if (techSignature && canvasRef.current) {
@@ -669,6 +885,19 @@ export default function GmaoCorrectionForm({
       }
     }
   }, [techSignature]);
+
+  useEffect(() => {
+    // Pre-populate technician signature if the report has no signature and techName is set/available
+    if (!report?.techSignature && techName && !techSignature) {
+      const matchedMember = (members || []).find((m) => m.name === techName);
+      if (matchedMember && matchedMember.signature) {
+        setTechSignature(matchedMember.signature);
+        if (!endTimeStamp) {
+          setEndTimeStamp(new Date().toLocaleString('fr-FR'));
+        }
+      }
+    }
+  }, [techName, members, report, techSignature, endTimeStamp]);
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -755,8 +984,63 @@ export default function GmaoCorrectionForm({
     };
   };
 
+  const handleCreateNewEquipment = (category: string) => {
+    const isDAE = category === 'Défibrillateur';
+    const generatedId = generateNewEquipmentId();
+    setIsCreatingNewMaterial(true);
+    setNewMaterialType(category);
+    setAiDetectedModel(null);
+    
+    if (isDAE) {
+      const newDAE = {
+        ...DEFAULT_DEFIB,
+        id: generatedId,
+        identifiant: generatedId,
+        numeroSerie: '',
+        marque: 'Standard',
+        conforme: 'Oui' as const
+      };
+      setSnapshot(newDAE);
+      setSelectedDefibId(generatedId);
+      if (onSelectOtherEquipment) {
+        onSelectOtherEquipment(null);
+      }
+    } else {
+      const newOther = {
+        id: generatedId,
+        identifiant: generatedId,
+        categorie: category,
+        numeroSerie: '',
+        localisation: '',
+        marque: 'Standard',
+        modele: 'Standard',
+        status: 'Actif' as const,
+        clientId: snapshot.clientId || '',
+        conforme: 'Oui' as const
+      };
+      
+      setSnapshot({
+        ...DEFAULT_DEFIB,
+        id: newOther.id,
+        identifiant: newOther.identifiant,
+        modeleId: '',
+        marque: newOther.marque,
+        status: newOther.status,
+        conforme: 'Oui' as const
+      });
+      setSelectedDefibId(`OTHER:${newOther.id}`);
+      
+      if (onSelectOtherEquipment) {
+        onSelectOtherEquipment(newOther);
+      }
+    }
+  };
+
   // Sync snapshot when searched lookup Changes
   const handleDefibLookupChange = (val: string) => {
+    setIsCreatingNewMaterial(false);
+    setNewMaterialType('');
+    setAiDetectedModel(null);
     if (val.startsWith('OTHER:')) {
       const otherId = val.substring(6);
       const matchedOther = otherEquipments.find(o => o.id === otherId);
@@ -773,8 +1057,10 @@ export default function GmaoCorrectionForm({
         ...DEFAULT_DEFIB,
         ...defib
       });
+      setKitPeremption(defib.peremptionTrousse || '');
     } else {
       setSnapshot(DEFAULT_DEFIB);
+      setKitPeremption('');
     }
   };
 
@@ -825,6 +1111,129 @@ export default function GmaoCorrectionForm({
         };
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileChangeArriere = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Str = reader.result as string;
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 500;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+          canvas.width = Math.round(width);
+          canvas.height = Math.round(height);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            setPhotoArriereUrl(compressedBase64);
+          } else {
+            setPhotoArriereUrl(base64Str);
+          }
+        };
+        img.onerror = () => {
+          setPhotoArriereUrl(base64Str);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileChangeResultatTest = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Str = reader.result as string;
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 500;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+          canvas.width = Math.round(width);
+          canvas.height = Math.round(height);
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.6);
+            setPhotoResultatTestUrl(compressedBase64);
+          } else {
+            setPhotoResultatTestUrl(base64Str);
+          }
+        };
+        img.onerror = () => {
+          setPhotoResultatTestUrl(base64Str);
+        };
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    if (!googleDriveActive) {
+      setUploadError("Le connecteur Google Drive est désactivé. Veuillez l'activer dans les réglages.");
+      return;
+    }
+
+    if (attachments.length + files.length > 3) {
+      setUploadError("Vous pouvez ajouter un maximum de 3 pièces jointes.");
+      return;
+    }
+
+    setIsUploadingFiles(true);
+    setUploadError('');
+
+    try {
+      const uploadedList = [...attachments];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const driveUrl = await uploadFileToGoogleDrive(googleDriveAccessToken, file);
+        uploadedList.push({
+          name: file.name,
+          url: driveUrl,
+          size: file.size
+        });
+      }
+      setAttachments(uploadedList);
+    } catch (err: any) {
+      console.error("Google Drive Upload Error:", err);
+      setUploadError(`Erreur d'upload : ${err.message || err}`);
+    } finally {
+      setIsUploadingFiles(false);
     }
   };
 
@@ -922,16 +1331,32 @@ export default function GmaoCorrectionForm({
     checkDateRules(snapshot.fabrication, "fabrication");
     checkDateRules(snapshot.miseEnService, "mise en service");
     checkDateRules(snapshot.finGarantie, "fin de garantie");
-    checkDateRules(snapshot.insertionElectrodeA, "l'insertion de l'électrode adulte");
-    checkDateRules(snapshot.peremptionElectrodeA, "la péremption de l'électrode adulte");
-    checkDateRules(snapshot.peremptionSecoursElectrodeA, "la péremption de l’électrode de secours");
-    checkDateRules(snapshot.insertionElectrodeP, "l'insertion de l'électrode pédiatrique");
-    checkDateRules(snapshot.peremptionElectrodeP, "la péremption de l'électrode pédiatrique");
-    checkDateRules(snapshot.peremptionSecoursElectrodeP, "la péremption de l’électrode de secours pédiatrique");
-    checkDateRules(snapshot.insertionBatterie, "l'insertion de la batterie");
-    checkDateRules(snapshot.peremptionBatterie, "la péremption de la batterie");
-    checkDateRules(kitPeremptionMasque, "la péremption du masque");
-    checkDateRules(kitPeremptionServiettes, "la péremption des serviettes");
+    if (isVisiblePadPakAdulte) {
+      checkDateRules(snapshot.insertionElectrodeA, "l'insertion de l'électrode adulte");
+    }
+    if (isVisiblePadPakAdulte && isVisiblePeremptionPadPakA) {
+      checkDateRules(snapshot.peremptionElectrodeA, "la péremption de l'électrode adulte");
+      checkDateRules(snapshot.peremptionSecoursElectrodeA, "la péremption de l’électrode de secours");
+    }
+    if (isVisiblePadPakPediatrique) {
+      checkDateRules(snapshot.insertionElectrodeP, "l'insertion de l'électrode pédiatrique");
+    }
+    if (isVisiblePadPakPediatrique && isVisiblePeremptionPadPakP) {
+      checkDateRules(snapshot.peremptionElectrodeP, "la péremption de l'électrode pédiatrique");
+      checkDateRules(snapshot.peremptionSecoursElectrodeP, "la péremption de l’électrode de secours pédiatrique");
+    }
+    if (isVisibleInsertionBatterie) {
+      checkDateRules(snapshot.insertionBatterie, "l'insertion de la batterie");
+    }
+    if (isVisiblePeremptionBatterie) {
+      checkDateRules(snapshot.peremptionBatterie, "la péremption de la batterie");
+    }
+    if (isVisiblePeremptionMasque) {
+      checkDateRules(kitPeremptionMasque, "la péremption du masque");
+    }
+    if (isVisiblePeremptionServiettes) {
+      checkDateRules(kitPeremptionServiettes, "la péremption des serviettes");
+    }
     checkDateRules(interventionDate, "l'horodatage entrant");
 
     // 3. Special characters validation
@@ -946,11 +1371,17 @@ export default function GmaoCorrectionForm({
 
     checkSpecialChars(snapshot.identifiant, "identifiant");
     checkSpecialChars(snapshot.numeroSerie, "numéro de série");
-    checkSpecialChars(snapshot.lotElectrodeA, "lot de l'électrode adulte");
-    checkSpecialChars(snapshot.lotElectrodeASecours, "lot de l'électrode de secours");
-    checkSpecialChars(snapshot.lotElectrodeP, "lot de l'électrode pédiatrique");
-    checkSpecialChars(snapshot.lotElectrodePSecours, "lot de l'électrode de secours pédiatrique");
-    checkSpecialChars(snapshot.lotBatterie, "lot de la batterie");
+    if (isVisibleLotPadPakA) {
+      checkSpecialChars(snapshot.lotElectrodeA, "lot de l'électrode adulte");
+      checkSpecialChars(snapshot.lotElectrodeASecours, "lot de l'électrode de secours");
+    }
+    if (isVisibleLotPadPakP) {
+      checkSpecialChars(snapshot.lotElectrodeP, "lot de l'électrode pédiatrique");
+      checkSpecialChars(snapshot.lotElectrodePSecours, "lot de l'électrode de secours pédiatrique");
+    }
+    if (isVisibleInsertionBatterie || isVisiblePeremptionBatterie) {
+      checkSpecialChars(snapshot.lotBatterie, "lot de la batterie");
+    }
     checkSpecialChars(snapshot.numeroLotCoffret, "lot de boîtier");
     checkSpecialChars(reportTitle, "titre du rapport");
 
@@ -964,65 +1395,76 @@ export default function GmaoCorrectionForm({
       errors.push("À la section 9, vous devez choisir Oui ou Non pour (défibrillateur) conforme à mon arrivée.");
     }
 
-    // 6. Section 11 signature validation (blocking)
-    if (!techSignature || !techSignature.trim()) {
-      errors.push("À la section 11, vous n’avez pas dessiné votre signature.");
-    }
+    // 6. Section 11 signature validation (blocking) - REMOVED as per user request to make it non-blocking and hidden
+    // We do not require signature check anymore.
 
     // 7. Lot numbers but no expiration date checks
-    if (snapshot.lotElectrodeA && !snapshot.peremptionElectrodeA) {
-      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode adulte), mais vous n’avez pas renseigné de date de péremption.");
+    if (isVisibleLotPadPakA && isVisiblePeremptionPadPakA) {
+      if (snapshot.lotElectrodeA && !snapshot.peremptionElectrodeA) {
+        errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode adulte), mais vous n’avez pas renseigné de date de péremption.");
+      }
+      if (snapshot.lotElectrodeASecours && !snapshot.peremptionSecoursElectrodeA) {
+        errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours), mais vous n’avez pas renseigné de date de péremption.");
+      }
     }
-    if (snapshot.lotElectrodeASecours && !snapshot.peremptionSecoursElectrodeA) {
-      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours), mais vous n’avez pas renseigné de date de péremption.");
+    if (isVisibleLotPadPakP && isVisiblePeremptionPadPakP) {
+      if (snapshot.lotElectrodeP && !snapshot.peremptionElectrodeP) {
+        errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
+      }
+      if (snapshot.lotElectrodePSecours && !snapshot.peremptionSecoursElectrodeP) {
+        errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
+      }
     }
-    if (snapshot.lotElectrodeP && !snapshot.peremptionElectrodeP) {
-      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
-    }
-    if (snapshot.lotElectrodePSecours && !snapshot.peremptionSecoursElectrodeP) {
-      errors.push("Vous avez renseigné un numéro de lot (lot de l'électrode de secours pédiatrique), mais vous n’avez pas renseigné de date de péremption.");
-    }
-    if (snapshot.lotBatterie && !snapshot.peremptionBatterie) {
-      errors.push("Vous avez renseigné un numéro de lot (lot de la batterie), mais vous n’avez pas renseigné de date de péremption.");
+    if (isVisiblePeremptionBatterie) {
+      if (snapshot.lotBatterie && !snapshot.peremptionBatterie) {
+        errors.push("Vous avez renseigné un numéro de lot (lot de la batterie), mais vous n’avez pas renseigné de date de péremption.");
+      }
     }
 
     // 8. Replaced option but no selected product checks
-    if (electrodeARemplacee === 'Oui' && !selectionElectrodeARemplacee) {
-      errors.push("Une électrode est marquée comme remplacée (électrode A remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+    if (isVisiblePadPakAdulte) {
+      if (electrodeARemplacee === 'Oui' && !selectionElectrodeARemplacee) {
+        errors.push("Une électrode est marquée comme remplacée (électrode A remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+      }
+      if (electrodeASecoursRemplacee === 'Oui' && !selectionElectrodeASecoursRemplacee) {
+        errors.push("Une électrode de secours est marquée comme remplacée (électrode A Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
+      }
+      if (electrodeARemplacee === 'Oui' && selectionElectrodeARemplacee === 'Autre' && !customElectrodeARemplacee.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour l'électrode remplacée (Section 6), mais vous n’avez pas saisi de référence.");
+      }
+      if (electrodeASecoursRemplacee === 'Oui' && selectionElectrodeASecoursRemplacee === 'Autre' && !customElectrodeASecoursRemplacee.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours A remplacée (Section 6), mais vous n’avez pas saisi de référence.");
+      }
     }
-    if (electrodeASecoursRemplacee === 'Oui' && !selectionElectrodeASecoursRemplacee) {
-      errors.push("Une électrode de secours est marquée comme remplacée (électrode A Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
+    if (isVisiblePadPakPediatrique) {
+      if (electrodePRemplacee === 'Oui' && !selectionElectrodePRemplacee) {
+        errors.push("Une électrode est marquée comme remplacée (électrode P remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+      }
+      if (electrodePSecoursRemplacee === 'Oui' && !selectionElectrodePSecoursRemplacee) {
+        errors.push("Une électrode de secours est marquée comme remplacée (électrode P Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
+      }
+      if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee === 'Autre' && !customElectrodePRemplacee.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour l'électrode pédiatrique remplacée (Section 7), mais vous n’avez pas saisi de référence.");
+      }
+      if (electrodePSecoursRemplacee === 'Oui' && selectionElectrodePSecoursRemplacee === 'Autre' && !customElectrodePSecoursRemplacee.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours P remplacée (Section 7), mais vous n’avez pas saisi de référence.");
+      }
     }
-    if (electrodePRemplacee === 'Oui' && !selectionElectrodePRemplacee) {
-      errors.push("Une électrode est marquée comme remplacée (électrode P remplacée), mais vous n’avez pas sélectionné d’électrode en remplacement.");
+    if (isVisiblePeremptionBatterie || isVisibleInsertionBatterie || isVisibleFabricationBatterie) {
+      if (batterieRemplacee === 'Oui' && !selectionBatterieRemplacee) {
+        errors.push("La batterie est marquée comme remplacée (batterie remplacée), mais vous n’avez pas sélectionné de batterie en remplacement.");
+      }
+      if (batterieRemplacee === 'Oui' && selectionBatterieRemplacee === 'Autre' && !customBatterieRemplacee.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour la batterie remplacée (Section 8), mais vous n’avez pas saisi de référence.");
+      }
     }
-    if (electrodePSecoursRemplacee === 'Oui' && !selectionElectrodePSecoursRemplacee) {
-      errors.push("Une électrode de secours est marquée comme remplacée (électrode P Secours remplacée), mais vous n’avez pas sélectionné d’électrode de secours en remplacement.");
-    }
-    if (batterieRemplacee === 'Oui' && !selectionBatterieRemplacee) {
-      errors.push("La batterie est marquée comme remplacée (batterie remplacée), mais vous n’avez pas sélectionné de batterie en remplacement.");
-    }
-    if (kitSecoursRemplaceOuAjoute === 'Oui' && !selectionKitSecoursRemplace) {
-      errors.push("Le kit de secours est marqué comme remplacé (kit de secours remplacé ou ajouté), mais vous n’avez pas sélectionné de kit de secours en remplacement.");
-    }
-
-    if (electrodeARemplacee === 'Oui' && selectionElectrodeARemplacee === 'Autre' && !customElectrodeARemplacee.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour l'électrode remplacée (Section 6), mais vous n’avez pas saisi de référence.");
-    }
-    if (electrodeASecoursRemplacee === 'Oui' && selectionElectrodeASecoursRemplacee === 'Autre' && !customElectrodeASecoursRemplacee.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours A remplacée (Section 6), mais vous n’avez pas saisi de référence.");
-    }
-    if (electrodePRemplacee === 'Oui' && selectionElectrodePRemplacee === 'Autre' && !customElectrodePRemplacee.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour l'électrode pédiatrique remplacée (Section 7), mais vous n’avez pas saisi de référence.");
-    }
-    if (electrodePSecoursRemplacee === 'Oui' && selectionElectrodePSecoursRemplacee === 'Autre' && !customElectrodePSecoursRemplacee.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour l'électrode Secours P remplacée (Section 7), mais vous n’avez pas saisi de référence.");
-    }
-    if (batterieRemplacee === 'Oui' && selectionBatterieRemplacee === 'Autre' && !customBatterieRemplacee.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour la batterie remplacée (Section 8), mais vous n’avez pas saisi de référence.");
-    }
-    if (kitSecoursRemplaceOuAjoute === 'Oui' && selectionKitSecoursRemplace === 'Autre' && !customKitSecoursRemplace.trim()) {
-      errors.push("Vous avez sélectionné 'Autre' pour le kit de secours (Section 10), mais vous n’avez pas saisi de référence.");
+    if (isVisibleGantsPresents || isVisiblePeremptionServiettes || isVisibleServiettesPresentes || isVisiblePeremptionMasque || isVisibleMasquePresent || isVisibleCiseauxPresents || isVisiblePeremptionTrousse || isVisibleRasoir) {
+      if (kitSecoursRemplaceOuAjoute === 'Oui' && !selectionKitSecoursRemplace) {
+        errors.push("Le kit de secours est marqué comme remplacé (kit de secours remplacé ou ajouté), mais vous n’avez pas sélectionné de kit de secours en remplacement.");
+      }
+      if (kitSecoursRemplaceOuAjoute === 'Oui' && selectionKitSecoursRemplace === 'Autre' && !customKitSecoursRemplace.trim()) {
+        errors.push("Vous avez sélectionné 'Autre' pour le kit de secours (Section 10), mais vous n’avez pas saisi de référence.");
+      }
     }
 
     if (errors.length > 0) {
@@ -1059,23 +1501,13 @@ export default function GmaoCorrectionForm({
       derniereMaintenance: maintDate,
       situationBatterie: (batterieConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge',
       situationElectrodeA: (electrodeAConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge',
-      situationElectrodeP: (electrodePConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge'
+      situationElectrodeP: (electrodePConformeSante === 'Oui' ? 'Vert' : 'Rouge') as 'Vert' | 'Rouge',
+      peremptionTrousse: kitPeremption
     };
 
     // Auto-update replacement parts details in the defibrillator snap on submit
     let updatedStocks = stocks ? [...stocks] : [];
     let stocksMutated = false;
-
-    const getTraceAndStock = (selectionId: string) => {
-      if (!selectionId || selectionId === 'Autre') return null;
-      for (const st of stocks || []) {
-        if (st.traceabilities) {
-          const trace = st.traceabilities.find(t => t.id === selectionId);
-          if (trace) return { trace, stock: st };
-        }
-      }
-      return null;
-    };
 
     const processPieceSelection = (
       selectionId: string, 
@@ -1235,6 +1667,17 @@ export default function GmaoCorrectionForm({
       endTimeStamp: endTimeStamp,
       clientPinCode: clientPinCode,
       
+      // Points 0, 3, 4, 5, 8, 10
+      interventionReference,
+      materielInterchangeClient,
+      commentaireChangement,
+      fournitureMaterielPret,
+      selectionMaterielPrete,
+      attachments,
+      kitPeremption,
+      photoArriereUrl,
+      photoResultatTestUrl,
+
       // Section 3 additions
       equipeAlarme,
       alarme,
@@ -1597,49 +2040,68 @@ export default function GmaoCorrectionForm({
               </span>
             </div>
 
+            {/* Point 0: Référence intervention */}
+            <div className="space-y-1 bg-white">
+              <label htmlFor="input-intervention-reference" className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                Référence intervention.
+              </label>
+              <input
+                type="text"
+                id="input-intervention-reference"
+                value={interventionReference}
+                onChange={(e) => setInterventionReference(e.target.value)}
+                placeholder="Ex: DNB-D18-719-10102026"
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono font-bold text-slate-800 focus:ring-1 focus:ring-indigo-500"
+              />
+            </div>
+
             {/* If New mode, represent lookup select input first */}
             {isNew && (
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
-                  Sélectionner un équipement.
-                </label>
-                <div className="flex gap-1.5">
-                  <select
-                    value={selectedDefibId}
-                    onChange={(e) => handleDefibLookupChange(e.target.value)}
-                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer animate-fadeIn"
-                  >
-                    <option value="">Sélection d'un matériel.</option>
-                    {defibrillateurs.length > 0 && (
-                      <optgroup label="DÉFIBRILLATEURS (DAE)">
-                        {defibrillateurs.map(df => (
-                          <option key={df.id} value={df.id}>
-                            Défibrillateur - {df.identifiant} - {df.numeroSerie || "Sans série"}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                    {otherEquipments.length > 0 && (
-                      <optgroup label="AUTRES MATÉRIELS">
-                        {otherEquipments.map(o => (
-                          <option key={o.id} value={`OTHER:${o.id}`}>
-                            {o.categorie || "Autre"} - {o.identifiant} - {o.id.substring(0, 8).toUpperCase()}
-                          </option>
-                        ))}
-                      </optgroup>
-                    )}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setErrorText('');
-                      setIsLookupScannerOpen(true);
-                    }}
-                    style={rowActionButton18Style}
-                    className="shrink-0 transition-colors cursor-pointer font-sans bg-black text-white hover:bg-neutral-900"
-                  >
-                    Scan
-                  </button>
+              <div className="space-y-1 bg-white">
+                <div className={`space-y-1 transition-opacity duration-200 ${isCreatingNewMaterial ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                    Sélectionner un équipement.
+                  </label>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={selectedDefibId}
+                      onChange={(e) => handleDefibLookupChange(e.target.value)}
+                      disabled={isCreatingNewMaterial}
+                      className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer animate-fadeIn disabled:cursor-not-allowed"
+                    >
+                      <option value="">Sélection d'un matériel.</option>
+                      {defibrillateurs.length > 0 && (
+                        <optgroup label="DÉFIBRILLATEURS (DAE)">
+                          {defibrillateurs.map(df => (
+                            <option key={df.id} value={df.id}>
+                              Défibrillateur - {df.identifiant} - {df.numeroSerie || "Sans série"}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {otherEquipments.length > 0 && (
+                        <optgroup label="AUTRES MATÉRIELS">
+                          {otherEquipments.map(o => (
+                            <option key={o.id} value={`OTHER:${o.id}`}>
+                              {o.categorie || "Autre"} - {o.identifiant} - {o.id.substring(0, 8).toUpperCase()}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={isCreatingNewMaterial}
+                      onClick={() => {
+                        setErrorText('');
+                        setIsLookupScannerOpen(true);
+                      }}
+                      style={rowActionButton18Style}
+                      className="shrink-0 transition-colors cursor-pointer font-sans bg-black text-white hover:bg-neutral-900 disabled:cursor-not-allowed"
+                    >
+                      Scan
+                    </button>
+                  </div>
                 </div>
                 {isLookupScannerOpen && (
                   <BarcodeScannerModal
@@ -1669,6 +2131,57 @@ export default function GmaoCorrectionForm({
                       setIsLookupScannerOpen(false);
                     }}
                   />
+                )}
+
+                {/* Point 1: Nouveau matériel blue full-width button */}
+                {!isCreatingNewMaterial && (
+                  <div className="pt-2 bg-white">
+                    <button
+                      type="button"
+                      onClick={() => setIsNewEquipmentDropdownOpen(!isNewEquipmentDropdownOpen)}
+                      style={{
+                        backgroundColor: '#2563eb', // Nice bright blue
+                        color: '#ffffff',
+                        width: '100%',
+                        padding: '8px 16px',
+                        borderRadius: '13px',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                      }}
+                      className="hover:bg-blue-700 transition duration-150 ease-in-out font-sans flex items-center justify-center gap-1.5 shadow-sm"
+                    >
+                      <span>Nouveau matériel</span>
+                    </button>
+
+                    {isNewEquipmentDropdownOpen && (
+                      <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2 animate-fadeIn">
+                        <label htmlFor="select-new-equip-type" className="block text-[11px] font-bold text-slate-600 uppercase">
+                          Choisir le type de matériel à créer :
+                        </label>
+                        <select
+                          id="select-new-equip-type"
+                          defaultValue=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              handleCreateNewEquipment(e.target.value);
+                              setIsNewEquipmentDropdownOpen(false);
+                            }
+                          }}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800 cursor-pointer focus:ring-1 focus:ring-indigo-500"
+                        >
+                          <option value="">Sélectionner un type...</option>
+                          <option value="Défibrillateur">Défibrillateur</option>
+                          <option value="Extincteur">Extincteur</option>
+                          <option value="RIA (Robinet d’Incendie Armé)">RIA (Robinet d’Incendie Armé)</option>
+                          <option value="Alarme Incendie">Alarme Incendie</option>
+                          <option value="Bloc de Secours (BAES)">Bloc de Secours (BAES)</option>
+                          <option value="Trousse de Secours">Trousse de Secours</option>
+                          <option value="Autre Équipement">Autre Équipement</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -1704,7 +2217,19 @@ export default function GmaoCorrectionForm({
                 <select
                   id="input-tech-name"
                   value={techName}
-                  onChange={(e) => setTechName(e.target.value)}
+                  onChange={(e) => {
+                    const newTechName = e.target.value;
+                    setTechName(newTechName);
+                    const matchedMember = (members || []).find((m) => m.name === newTechName);
+                    if (matchedMember && matchedMember.signature) {
+                      setTechSignature(matchedMember.signature);
+                      if (!endTimeStamp) {
+                        setEndTimeStamp(new Date().toLocaleString('fr-FR'));
+                      }
+                    } else {
+                      setTechSignature('');
+                    }
+                  }}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
                   <option value="">Sélection du technicien.</option>
@@ -1754,47 +2279,6 @@ export default function GmaoCorrectionForm({
                   />
                 </div>
               </div>
-
-              {/* Photo Cliché */}
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
-                  Photographie du défibrillateur.
-                </label>
-                <div className="flex items-center gap-3 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    style={rowActionButton18Style}
-                    className="transition-colors cursor-pointer font-sans"
-                  >
-                    Photographier
-                  </button>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-
-                  {photoUrl && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setPhotoUrl('')}
-                        style={{
-                          ...rowActionButton18Style,
-                          backgroundColor: '#ef4444',
-                        }}
-                        className="transition-colors cursor-pointer font-sans hover:bg-red-600"
-                      >
-                        Supprimer
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1818,7 +2302,7 @@ export default function GmaoCorrectionForm({
                   textTransform: 'none',
                 }}
               >
-                1 — Identification
+                1 — Identification et photos
               </span>
             </div>
 
@@ -1889,9 +2373,60 @@ export default function GmaoCorrectionForm({
                   <option key={v.id} value={v.id}>{v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''}</option>
                 ))}
               </select>
+
+              {isCreatingNewMaterial && newMaterialType === 'Défibrillateur' && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsAiDetectionModalOpen(true)}
+                    style={{
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      width: '100%',
+                      padding: '8px 16px',
+                      borderRadius: '13px',
+                      fontSize: '18px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                    }}
+                    className="hover:bg-blue-700 transition duration-150 ease-in-out font-sans flex items-center justify-center gap-1.5 shadow-sm border-none"
+                  >
+                    <span>Trouver avec l'IA</span>
+                  </button>
+                </div>
+              )}
+
+              {isCreatingNewMaterial && newMaterialType === 'Défibrillateur' && aiDetectedModel && (
+                <div className="mt-2 text-[11px] font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded-lg p-2 leading-relaxed animate-fadeIn">
+                  Il semble qu'il s'agisse d'un <strong className="font-bold">{aiDetectedModel.nom}</strong> du fabricant <strong className="font-bold">{aiDetectedModel.marque}</strong>.
+                </div>
+              )}
+
+              {isAiDetectionModalOpen && (
+                <AiModelDetectionModal
+                  isOpen={isAiDetectionModalOpen}
+                  onClose={() => setIsAiDetectionModalOpen(false)}
+                  availableModels={variables.filter(v => v.category === 'Modèle Défibrillateur')}
+                  onDetected={(model) => {
+                    handleSnapshotChange('modeleId', model.id);
+                    setAiDetectedModel(model);
+                  }}
+                />
+              )}
+              {selectedModelVar && selectedModelVar.infosTechnicien && (
+                <div 
+                  className="mt-3 text-sm text-white bg-black p-3 rounded-lg leading-relaxed animate-fadeIn w-full font-sans"
+                  style={{ backgroundColor: '#000000', color: '#ffffff' }}
+                >
+                  <strong className="block text-[10px] uppercase tracking-wider text-slate-400 mb-1 font-sans">
+                    Info(s) au technicien :
+                  </strong>
+                  {selectedModelVar.infosTechnicien}
+                </div>
+              )}
             </div>
 
-            {typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
+            {isVisibleNumeroAtlasante && typeof window !== 'undefined' && ((localStorage.getItem('defib_lang') || 'Français, France') === 'Français, France' || localStorage.getItem('defib_lang') === 'Français') && (
               <div className="space-y-1">
                 <label htmlFor="snap-numeroAtlasante" className="block text-[11px] font-bold text-black uppercase">
                   Numéro Atlasanté.
@@ -1906,6 +2441,231 @@ export default function GmaoCorrectionForm({
                 />
               </div>
             )}
+
+            {isVisibleVersionLogiciel && (
+              <div className="space-y-1">
+                <label htmlFor="snap-versionLogiciel" className="block text-[11px] font-bold text-black uppercase">
+                  Version du logiciel.
+                </label>
+                <input
+                  type="text"
+                  id="snap-versionLogiciel"
+                  value={snapshot.versionLogiciel || ''}
+                  onChange={(e) => handleSnapshotChange('versionLogiciel', e.target.value)}
+                  placeholder="Ex: v1.4.2"
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
+                />
+              </div>
+            )}
+
+            {/* Point 3: Matériel inter-changé par le client */}
+            <div className="pt-2 space-y-2 bg-white">
+              <label className="block text-[11px] font-bold text-black uppercase">
+                Matériel inter-changé par le client ?
+              </label>
+              <div className="flex gap-6 items-center pt-1 bg-white">
+                <FormRadio 
+                  label="Oui" 
+                  checked={materielInterchangeClient === 'Oui'} 
+                  onChange={() => setMaterielInterchangeClient('Oui')} 
+                />
+                <FormRadio 
+                  label="Non" 
+                  checked={materielInterchangeClient === 'Non'} 
+                  onChange={() => setMaterielInterchangeClient('Non')} 
+                />
+              </div>
+
+              {materielInterchangeClient === 'Oui' && (
+                <div className="space-y-1 bg-white animate-fadeIn">
+                  <label htmlFor="input-commentaire-changement" className="block text-[11px] font-bold text-black uppercase">
+                    Commentaire changement.
+                  </label>
+                  <textarea
+                    id="input-commentaire-changement"
+                    value={commentaireChangement}
+                    onChange={(e) => setCommentaireChangement(e.target.value)}
+                    placeholder="Saisissez un commentaire concernant le changement..."
+                    rows={2}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Point 4: Fourniture d’un matériel de prêt */}
+            <div className="pt-2 space-y-2 bg-white">
+              <label className="block text-[11px] font-bold text-black uppercase">
+                Fourniture d’un matériel de prêt ?
+              </label>
+              <div className="flex gap-6 items-center pt-1 bg-white">
+                <FormRadio 
+                  label="Oui" 
+                  checked={fournitureMaterielPret === 'Oui'} 
+                  onChange={() => setFournitureMaterielPret('Oui')} 
+                />
+                <FormRadio 
+                  label="Non" 
+                  checked={fournitureMaterielPret === 'Non'} 
+                  onChange={() => setFournitureMaterielPret('Non')} 
+                />
+              </div>
+
+              {fournitureMaterielPret === 'Oui' && (
+                <div className="space-y-1 bg-white animate-fadeIn">
+                  <label htmlFor="select-materiel-prete" className="block text-[11px] font-bold text-black uppercase">
+                    Sélection du matériel prêté.
+                  </label>
+                  <select
+                    id="select-materiel-prete"
+                    value={selectionMaterielPrete}
+                    onChange={(e) => setSelectionMaterielPrete(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                  >
+                    <option value="">Sélectionner un matériel prêté...</option>
+                    {availableLoaners.map(l => (
+                      <option key={l.traceId} value={l.traceId}>{l.label}</option>
+                    ))}
+                    <option value="Autre">Autre matériel</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Photos de l'identification */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 bg-white">
+              {/* Photo Cliché - Globale */}
+              <div className="space-y-1.5 bg-white">
+                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                  Photographie globale du défibrillateur.
+                </label>
+                {photoUrl && (
+                  <div className="text-[18px] text-green-600 font-bold bg-white leading-none">
+                    Chargé
+                  </div>
+                )}
+                <div className="flex items-center gap-3 flex-wrap bg-white">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={rowActionButton18Style}
+                    className="transition-colors cursor-pointer font-sans"
+                  >
+                    Photographier
+                  </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+
+                  {photoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoUrl('')}
+                      style={{
+                        ...rowActionButton18Style,
+                        backgroundColor: '#ef4444',
+                      }}
+                      className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo Cliché - Arrière/Étiquette */}
+              <div className="space-y-1.5 bg-white">
+                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                  Photographie arrière / étiquette.
+                </label>
+                {photoArriereUrl && (
+                  <div className="text-[18px] text-green-600 font-bold bg-white leading-none">
+                    Chargé
+                  </div>
+                )}
+                <div className="flex items-center gap-3 flex-wrap bg-white">
+                  <button
+                    type="button"
+                    onClick={() => fileInputArriereRef.current?.click()}
+                    style={rowActionButton18Style}
+                    className="transition-colors cursor-pointer font-sans"
+                  >
+                    Photographier
+                  </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    ref={fileInputArriereRef}
+                    onChange={handleFileChangeArriere}
+                    className="hidden"
+                  />
+
+                  {photoArriereUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoArriereUrl('')}
+                      style={{
+                        ...rowActionButton18Style,
+                        backgroundColor: '#ef4444',
+                      }}
+                      className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo Cliché - Résultat du test */}
+              <div className="space-y-1.5 bg-white">
+                <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                  Résultat du test.
+                </label>
+                {photoResultatTestUrl && (
+                  <div className="text-[18px] text-green-600 font-bold bg-white leading-none">
+                    Chargé
+                  </div>
+                )}
+                <div className="flex items-center gap-3 flex-wrap bg-white">
+                  <button
+                    type="button"
+                    onClick={() => fileInputResultatTestRef.current?.click()}
+                    style={rowActionButton18Style}
+                    className="transition-colors cursor-pointer font-sans"
+                  >
+                    Photographier
+                  </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    ref={fileInputResultatTestRef}
+                    onChange={handleFileChangeResultatTest}
+                    className="hidden"
+                  />
+
+                  {photoResultatTestUrl && (
+                    <button
+                      type="button"
+                      onClick={() => setPhotoResultatTestUrl('')}
+                      style={{
+                        ...rowActionButton18Style,
+                        backgroundColor: '#ef4444',
+                      }}
+                      className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                    >
+                      Supprimer
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Section 2 - Client & Contrat */}
@@ -2058,100 +2818,102 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="pt-3 mt-2 space-y-3">
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Émettre une facture brouillon.
-                </label>
-                <div className="flex items-center gap-4 text-xs mt-1">
-                  <FormRadio
-                    label="Oui"
-                    checked={emettreFactureBrouillon === 'Oui'}
-                    onChange={() => setEmettreFactureBrouillon('Oui')}
-                  />
-                  <FormRadio
-                    label="Non"
-                    checked={emettreFactureBrouillon === 'Non'}
-                    onChange={() => {
-                      setEmettreFactureBrouillon('Non');
-                      setServiceEmettreId('');
-                    }}
-                  />
-                </div>
-              </div>
-
-              {emettreFactureBrouillon === 'Oui' && (
-                <div className="space-y-1 animate-fadeIn">
-                  <label htmlFor="serviceEmettreId" className="block text-[11px] font-bold text-black uppercase">
-                    Sélection d’un service.
+            {isVisibleFactureBrouillon && (
+              <div className="pt-3 mt-2 space-y-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-black uppercase">
+                    Émettre une facture brouillon.
                   </label>
-                  <select
-                    id="serviceEmettreId"
-                    value={serviceEmettreId}
-                    onChange={(e) => setServiceEmettreId(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                    required={emettreFactureBrouillon === 'Oui'}
-                  >
-                    <option value="">Sélectionner un service...</option>
-                     {(() => {
-                      const serviceStocks = (stocks || []).filter(st => {
-                        const variable = variables.find(v => v.id === st.denominationPieceId);
-                        if (!variable) return false;
-                        const cat = (variable.category || '').toLowerCase();
-                        const nom = (variable.nom || '').toLowerCase();
-                        return cat.includes('service') || nom.includes('service');
-                      });
-
-                      const serviceVariablesOnly = (variables || []).filter(v => {
-                        const cat = (v.category || '').toLowerCase();
-                        const nom = (v.nom || '').toLowerCase();
-                        const isService = cat.includes('service') || nom.includes('service');
-                        if (!isService) return false;
-                        return !serviceStocks.some(st => st.denominationPieceId === v.id);
-                      });
-
-                      const hasAny = serviceStocks.length > 0 || serviceVariablesOnly.length > 0;
-                      
-                      if (hasAny) {
-                        return (
-                          <>
-                            {serviceStocks.map(st => {
-                              const variable = variables.find(v => v.id === st.denominationPieceId);
-                              const label = variable
-                                ? (variable.marque && variable.marque !== 'Standard' ? `${variable.nom} (${variable.marque})` : variable.nom)
-                                : 'Service Inconnu';
-                              return (
-                                <option key={st.id} value={st.id}>
-                                  {label} — {st.prixVenteHt} € HT
-                                </option>
-                              );
-                            })}
-                            {serviceVariablesOnly.map(v => (
-                              <option key={v.id} value={v.id}>
-                                {v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''} — 150 € HT (Virtuel)
-                              </option>
-                            ))}
-                          </>
-                        );
-                      }
-
-                      // Fallback options when tenant has empty variables/stocks
-                      const fallbacks = [
-                        { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
-                        { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
-                        { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
-                      ];
-
-                      return fallbacks.map(fb => (
-                        <option key={fb.id} value={fb.id}>
-                          {fb.label} — {fb.price} € HT
-                        </option>
-                      ));
-                    })()}
-                  </select>
+                  <div className="flex items-center gap-4 text-xs mt-1">
+                    <FormRadio
+                      label="Oui"
+                      checked={emettreFactureBrouillon === 'Oui'}
+                      onChange={() => setEmettreFactureBrouillon('Oui')}
+                    />
+                    <FormRadio
+                      label="Non"
+                      checked={emettreFactureBrouillon === 'Non'}
+                      onChange={() => {
+                        setEmettreFactureBrouillon('Non');
+                        setServiceEmettreId('');
+                      }}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {emettreFactureBrouillon === 'Oui' && (
+                  <div className="space-y-1 animate-fadeIn">
+                    <label htmlFor="serviceEmettreId" className="block text-[11px] font-bold text-black uppercase">
+                      Sélection d’un service.
+                    </label>
+                    <select
+                      id="serviceEmettreId"
+                      value={serviceEmettreId}
+                      onChange={(e) => setServiceEmettreId(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                      required={emettreFactureBrouillon === 'Oui'}
+                    >
+                      <option value="">Sélectionner un service...</option>
+                       {(() => {
+                        const serviceStocks = (stocks || []).filter(st => {
+                          const variable = variables.find(v => v.id === st.denominationPieceId);
+                          if (!variable) return false;
+                          const cat = (variable.category || '').toLowerCase();
+                          const nom = (variable.nom || '').toLowerCase();
+                          return cat.includes('service') || nom.includes('service');
+                        });
+
+                        const serviceVariablesOnly = (variables || []).filter(v => {
+                          const cat = (v.category || '').toLowerCase();
+                          const nom = (v.nom || '').toLowerCase();
+                          const isService = cat.includes('service') || nom.includes('service');
+                          if (!isService) return false;
+                          return !serviceStocks.some(st => st.denominationPieceId === v.id);
+                        });
+
+                        const hasAny = serviceStocks.length > 0 || serviceVariablesOnly.length > 0;
+                        
+                        if (hasAny) {
+                          return (
+                            <>
+                              {serviceStocks.map(st => {
+                                const variable = variables.find(v => v.id === st.denominationPieceId);
+                                const label = variable
+                                  ? (variable.marque && variable.marque !== 'Standard' ? `${variable.nom} (${variable.marque})` : variable.nom)
+                                  : 'Service Inconnu';
+                                return (
+                                  <option key={st.id} value={st.id}>
+                                    {label} — {st.prixVenteHt} € HT
+                                  </option>
+                                );
+                              })}
+                              {serviceVariablesOnly.map(v => (
+                                <option key={v.id} value={v.id}>
+                                  {v.nom}{v.marque && v.marque !== 'Standard' ? ` (${v.marque})` : ''} — 150 € HT (Virtuel)
+                                </option>
+                              ))}
+                            </>
+                          );
+                        }
+
+                        // Fallback options when tenant has empty variables/stocks
+                        const fallbacks = [
+                          { id: 'st_fallback_srv_1', label: 'Maintenance Préventive standard (Défibeo)', price: 150 },
+                          { id: 'st_fallback_srv_2', label: 'Mise en service DAE (Défibeo)', price: 120 },
+                          { id: 'st_fallback_srv_3', label: 'Audit de conformité (Défibeo)', price: 95 }
+                        ];
+
+                        return fallbacks.map(fb => (
+                          <option key={fb.id} value={fb.id}>
+                            {fb.label} — {fb.price} € HT
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Section 3 - Coffret */}
@@ -2612,31 +3374,17 @@ export default function GmaoCorrectionForm({
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label htmlFor="snap-insertionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                  Insertion.
-                </label>
-                <input
-                  type="date"
-                  id="snap-insertionElectrodeA"
-                  value={snapshot.insertionElectrodeA || ''}
-                  onChange={(e) => handleSnapshotChange('insertionElectrodeA', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
-              <div className="space-y-1">
-                <label htmlFor="snap-peremptionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                  Péremption.
-                </label>
-                <input
-                  type="date"
-                  id="snap-peremptionElectrodeA"
-                  value={snapshot.peremptionElectrodeA || ''}
-                  onChange={(e) => handleSnapshotChange('peremptionElectrodeA', e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                />
-              </div>
+            <div className="space-y-1">
+              <label htmlFor="snap-peremptionElectrodeA" className="block text-[11px] font-bold text-black uppercase">
+                Péremption.
+              </label>
+              <input
+                type="date"
+                id="snap-peremptionElectrodeA"
+                value={snapshot.peremptionElectrodeA || ''}
+                onChange={(e) => handleSnapshotChange('peremptionElectrodeA', e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+              />
             </div>
 
             <div className="pt-3 mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 animate-fadeIn">
@@ -2702,8 +3450,8 @@ export default function GmaoCorrectionForm({
                   Électrode A conforme et fonctionnelle.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={electrodeAConformeSante === 'Oui'} onChange={() => setElectrodeAConformeSante('Oui')} />
-                  <FormRadio label="Non" checked={electrodeAConformeSante === 'Non'} onChange={() => setElectrodeAConformeSante('Non')} />
+                  <FormRadio label="Oui" checked={electrodeAConformeSante === 'Oui'} onChange={() => setElectrodeAConformeSante('Oui')} disabled={electrodeARemplacee === 'Oui'} />
+                  <FormRadio label="Non" checked={electrodeAConformeSante === 'Non'} onChange={() => setElectrodeAConformeSante('Non')} disabled={electrodeARemplacee === 'Oui'} />
                 </div>
               </div>
             </div>
@@ -2754,9 +3502,14 @@ export default function GmaoCorrectionForm({
                       if (matched) {
                         setSelectionElectrodeARemplacee(matched.traceId);
                         setCustomElectrodeARemplacee('');
+                        handleSnapshotChange('lotElectrodeA', matched.lotOrSerial);
+                        if (matched.expirationDate) {
+                          handleSnapshotChange('peremptionElectrodeA', matched.expirationDate);
+                        }
                       } else {
                         setSelectionElectrodeARemplacee('Autre');
                         setCustomElectrodeARemplacee(cleanText);
+                        handleSnapshotChange('lotElectrodeA', cleanText);
                       }
                     }}
                   />
@@ -2834,9 +3587,14 @@ export default function GmaoCorrectionForm({
                       if (matched) {
                         setSelectionElectrodeASecoursRemplacee(matched.traceId);
                         setCustomElectrodeASecoursRemplacee('');
+                        handleSnapshotChange('lotElectrodeASecours', matched.lotOrSerial);
+                        if (matched.expirationDate) {
+                          handleSnapshotChange('peremptionSecoursElectrodeA', matched.expirationDate);
+                        }
                       } else {
                         setSelectionElectrodeASecoursRemplacee('Autre');
                         setCustomElectrodeASecoursRemplacee(cleanText);
+                        handleSnapshotChange('lotElectrodeASecours', cleanText);
                       }
                     }}
                   />
@@ -3063,8 +3821,8 @@ export default function GmaoCorrectionForm({
                   Électrode P conforme et fonctionnelle.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={electrodePConformeSante === 'Oui'} onChange={() => setElectrodePConformeSante('Oui')} />
-                  <FormRadio label="Non" checked={electrodePConformeSante === 'Non'} onChange={() => setElectrodePConformeSante('Non')} />
+                  <FormRadio label="Oui" checked={electrodePConformeSante === 'Oui'} onChange={() => setElectrodePConformeSante('Oui')} disabled={electrodePRemplacee === 'Oui'} />
+                  <FormRadio label="Non" checked={electrodePConformeSante === 'Non'} onChange={() => setElectrodePConformeSante('Non')} disabled={electrodePRemplacee === 'Oui'} />
                 </div>
               </div>
             </div>
@@ -3115,9 +3873,14 @@ export default function GmaoCorrectionForm({
                       if (matched) {
                         setSelectionElectrodePRemplacee(matched.traceId);
                         setCustomElectrodePRemplacee('');
+                        handleSnapshotChange('lotElectrodeP', matched.lotOrSerial);
+                        if (matched.expirationDate) {
+                          handleSnapshotChange('peremptionElectrodeP', matched.expirationDate);
+                        }
                       } else {
                         setSelectionElectrodePRemplacee('Autre');
                         setCustomElectrodePRemplacee(cleanText);
+                        handleSnapshotChange('lotElectrodeP', cleanText);
                       }
                     }}
                   />
@@ -3195,9 +3958,14 @@ export default function GmaoCorrectionForm({
                       if (matched) {
                         setSelectionElectrodePSecoursRemplacee(matched.traceId);
                         setCustomElectrodePSecoursRemplacee('');
+                        handleSnapshotChange('lotElectrodePSecours', matched.lotOrSerial);
+                        if (matched.expirationDate) {
+                          handleSnapshotChange('peremptionSecoursElectrodeP', matched.expirationDate);
+                        }
                       } else {
                         setSelectionElectrodePSecoursRemplacee('Autre');
                         setCustomElectrodePSecoursRemplacee(cleanText);
+                        handleSnapshotChange('lotElectrodePSecours', cleanText);
                       }
                     }}
                   />
@@ -3365,7 +4133,7 @@ export default function GmaoCorrectionForm({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-white">
               <div className="space-y-1 bg-white">
                 <label htmlFor="snap-peremptionBatterie" className="block text-[11px] font-bold text-black uppercase">
                   Péremption.
@@ -3375,6 +4143,32 @@ export default function GmaoCorrectionForm({
                   id="snap-peremptionBatterie"
                   value={snapshot.peremptionBatterie || ''}
                   onChange={(e) => handleSnapshotChange('peremptionBatterie', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="space-y-1 bg-white">
+                <label htmlFor="snap-fabricationBatterie" className="block text-[11px] font-bold text-black uppercase">
+                  Fabrication.
+                </label>
+                <input
+                  type="date"
+                  id="snap-fabricationBatterie"
+                  value={snapshot.fabricationBatterie || ''}
+                  onChange={(e) => handleSnapshotChange('fabricationBatterie', e.target.value)}
+                  className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                />
+              </div>
+
+              <div className="space-y-1 bg-white">
+                <label htmlFor="snap-insertionBatterie" className="block text-[11px] font-bold text-black uppercase">
+                  Insertion.
+                </label>
+                <input
+                  type="date"
+                  id="snap-insertionBatterie"
+                  value={snapshot.insertionBatterie || ''}
+                  onChange={(e) => handleSnapshotChange('insertionBatterie', e.target.value)}
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
                 />
               </div>
@@ -3397,8 +4191,8 @@ export default function GmaoCorrectionForm({
                   Batterie conforme et fonctionnelle.
                 </label>
                 <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={batterieConformeSante === 'Oui'} onChange={() => setBatterieConformeSante('Oui')} />
-                  <FormRadio label="Non" checked={batterieConformeSante === 'Non'} onChange={() => setBatterieConformeSante('Non')} />
+                  <FormRadio label="Oui" checked={batterieConformeSante === 'Oui'} onChange={() => setBatterieConformeSante('Oui')} disabled={batterieRemplacee === 'Oui'} />
+                  <FormRadio label="Non" checked={batterieConformeSante === 'Non'} onChange={() => setBatterieConformeSante('Non')} disabled={batterieRemplacee === 'Oui'} />
                 </div>
               </div>
             </div>
@@ -3449,9 +4243,14 @@ export default function GmaoCorrectionForm({
                       if (matched) {
                         setSelectionBatterieRemplacee(matched.traceId);
                         setCustomBatterieRemplacee('');
+                        handleSnapshotChange('lotBatterie', matched.lotOrSerial);
+                        if (matched.expirationDate) {
+                          handleSnapshotChange('peremptionBatterie', matched.expirationDate);
+                        }
                       } else {
                         setSelectionBatterieRemplacee('Autre');
                         setCustomBatterieRemplacee(cleanText);
+                        handleSnapshotChange('lotBatterie', cleanText);
                       }
                     }}
                   />
@@ -3628,68 +4427,6 @@ export default function GmaoCorrectionForm({
                   <FormRadio label="Non" checked={techBranchementElectrodesConforme === 'Non'} onChange={() => setTechBranchementElectrodesConforme('Non')} />
                 </div>
               </div>
-
-              {/* 7. Délivrance du choc conforme. */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Délivrance du choc conforme.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={techDelivranceChocConforme === 'Oui'} onChange={() => setTechDelivranceChocConforme('Oui')} />
-                  <FormRadio label="Non" checked={techDelivranceChocConforme === 'Non'} onChange={() => setTechDelivranceChocConforme('Non')} />
-                  <FormRadio label="Non approprié" checked={techDelivranceChocConforme === 'Non approprié'} onChange={() => setTechDelivranceChocConforme('Non approprié')} />
-                </div>
-              </div>
-
-              {/* Spacer */}
-              <div className="col-span-1 md:col-span-2 bg-white" />
-
-              {(currentLang === 'Français, France') && (
-                <div 
-                  className="col-span-1 md:col-span-2 rounded-xl p-4 leading-relaxed space-y-2 text-left"
-                  style={{ background: '#ffe8f6', border: 'none', fontSize: '16px', color: '#69236d' }}
-                >
-                  <div className="font-bold flex items-start home-important" style={{ color: '#69236d', fontSize: '16px' }}>
-                    <span>Important : Conformément aux manuels techniques des fabricants et aux recommandations de l'ANSM, la réalisation de tests de décharge de choc externe sur simulateur est proscrite ou déconseillée pour les modèles suivants :</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-1 pl-3" style={{ color: '#69236d', fontSize: '16px' }}>
-                    <li><strong style={{ color: '#69236d' }}>ZOLL</strong> : AED Plus et AED 3</li>
-                    <li><strong style={{ color: '#69236d' }}>PHILIPS</strong> : HeartStart HS1 et FRx</li>
-                    <li><strong style={{ color: '#69236d' }}>CARDIAC SCIENCE / ZOLL</strong> : Powerheart G3 et G5 (la validation repose exclusivement sur la technologie d'autotest intégrée Rescue Ready)</li>
-                    <li><strong style={{ color: '#69236d' }}>LIFEAZ</strong> : Clark (télésurveillance et autotests internes dématérialisés)</li>
-                  </ul>
-                </div>
-              )}
-
-              {/* 8. Résultat du test en joules de l’électrode A */}
-              <div className="space-y-1 bg-white">
-                <label htmlFor="techResultatJoulesElectrodeA" className="block text-[11px] font-bold text-black uppercase">
-                  Résultat du test en joules de l’électrode A.
-                </label>
-                <input
-                  type="number"
-                  id="techResultatJoulesElectrodeA"
-                  value={techResultatJoulesElectrodeA}
-                  onChange={(e) => setTechResultatJoulesElectrodeA(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-805 rounded-lg text-xs font-mono"
-                  placeholder="Saisissez un chiffre..."
-                />
-              </div>
-
-              {/* 9. Résultat du test en joules de l’électrode P */}
-              <div className="space-y-1 bg-white">
-                <label htmlFor="techResultatJoulesElectrodeA2" className="block text-[11px] font-bold text-black uppercase">
-                  Résultat du test en joules de l’électrode P.
-                </label>
-                <input
-                  type="number"
-                  id="techResultatJoulesElectrodeA2"
-                  value={techResultatJoulesElectrodeA2}
-                  onChange={(e) => setTechResultatJoulesElectrodeA2(e.target.value)}
-                  className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-805 rounded-lg text-xs font-mono"
-                  placeholder="Saisissez un chiffre..."
-                />
-              </div>
             </div>
           </div>
 
@@ -3718,96 +4455,116 @@ export default function GmaoCorrectionForm({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
-              {/* 1. Trousse de secours présente */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Trousse de secours présente.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={kitTrousseSecoursPresent === 'Oui'} onChange={() => setKitTrousseSecoursPresent('Oui')} />
-                  <FormRadio label="Non" checked={kitTrousseSecoursPresent === 'Non'} onChange={() => setKitTrousseSecoursPresent('Non')} />
+              {/* Left Column: Trousse presence & Péremption */}
+              <div className="space-y-3 bg-white">
+                <div className="space-y-1 bg-white">
+                  <label className="block text-[11px] font-bold text-black uppercase">
+                    Trousse de secours présente.
+                  </label>
+                  <div className="flex gap-6 items-center pt-1 bg-white">
+                    <FormRadio label="Oui" checked={kitTrousseSecoursPresent === 'Oui'} onChange={() => setKitTrousseSecoursPresent('Oui')} />
+                    <FormRadio label="Non" checked={kitTrousseSecoursPresent === 'Non'} onChange={() => { setKitTrousseSecoursPresent('Non'); setKitPeremption(''); }} />
+                  </div>
                 </div>
-              </div>
 
-              {/* 2. Kit de secours remplacé ou ajouté */}
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Kit de secours remplacé ou ajouté.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio label="Oui" checked={kitSecoursRemplaceOuAjoute === 'Oui'} onChange={() => setKitSecoursRemplaceOuAjoute('Oui')} />
-                  <FormRadio label="Non" checked={kitSecoursRemplaceOuAjoute === 'Non'} onChange={() => setKitSecoursRemplaceOuAjoute('Non')} />
-                </div>
-              </div>
-            </div>
-
-            {/* Selection with NO line divider */}
-            {kitSecoursRemplaceOuAjoute === 'Oui' && (
-              <div className="pt-3 space-y-1 bg-white animate-fadeIn">
-                <label htmlFor="select-kit-rempc" className="block text-[11px] font-bold text-black uppercase">
-                  Sélection d’un kit de secours.
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    id="select-kit-rempc"
-                    value={selectionKitSecoursRemplace}
-                    onChange={(e) => {
-                      setSelectionKitSecoursRemplace(e.target.value);
-                      if (e.target.value !== 'Autre') {
-                        setCustomKitSecoursRemplace('');
-                      }
-                    }}
-                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                  >
-                    <option value="">Sélectionner le kit de secours stockée...</option>
-                    {getAvailableKitsTraceabilities().map(item => (
-                      <option key={item.traceId} value={item.traceId}>
-                        {item.label}
-                      </option>
-                    ))}
-                    <option value="Autre">Autre</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setIsScanKitOpen(true)}
-                    style={rowActionButton18Style}
-                    className="shrink-0 transition-colors cursor-pointer font-sans"
-                  >
-                    Scan
-                  </button>
-                </div>
-                {isScanKitOpen && (
-                  <BarcodeScannerModal
-                    isOpen={isScanKitOpen}
-                    onClose={() => setIsScanKitOpen(false)}
-                    onScanSuccess={(scannedText) => {
-                      setIsScanKitOpen(false);
-                      const cleanText = scannedText.trim();
-                      const traceList = getAvailableKitsTraceabilities();
-                      const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
-                      if (matched) {
-                        setSelectionKitSecoursRemplace(matched.traceId);
-                        setCustomKitSecoursRemplace('');
-                      } else {
-                        setSelectionKitSecoursRemplace('Autre');
-                        setCustomKitSecoursRemplace(cleanText);
-                      }
-                    }}
+                <div className={`space-y-1 bg-white transition-opacity duration-200 ${kitTrousseSecoursPresent !== 'Oui' ? 'opacity-50 pointer-events-none' : ''}`}>
+                  <label htmlFor="kitPeremption" className="block text-[11px] font-bold text-black uppercase">
+                    Péremption de la trousse.
+                  </label>
+                  <input
+                    type="date"
+                    id="kitPeremption"
+                    value={kitPeremption || ''}
+                    onChange={(e) => setKitPeremption(e.target.value)}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                    disabled={kitTrousseSecoursPresent !== 'Oui'}
                   />
-                )}
-                {selectionKitSecoursRemplace === 'Autre' && (
-                  <div className="pt-2">
-                    <input
-                      type="text"
-                      placeholder="Référence libre (Référence ou Lot/Série)"
-                      value={customKitSecoursRemplace}
-                      onChange={(e) => setCustomKitSecoursRemplace(e.target.value)}
-                      className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                    />
+                </div>
+              </div>
+
+              {/* Right Column: Kit de secours remplacé ou ajouté */}
+              <div className="space-y-3 bg-white">
+                <div className="space-y-1 bg-white">
+                  <label className="block text-[11px] font-bold text-black uppercase">
+                    Kit de secours remplacé ou ajouté.
+                  </label>
+                  <div className="flex gap-6 items-center pt-1 bg-white">
+                    <FormRadio label="Oui" checked={kitSecoursRemplaceOuAjoute === 'Oui'} onChange={() => setKitSecoursRemplaceOuAjoute('Oui')} />
+                    <FormRadio label="Non" checked={kitSecoursRemplaceOuAjoute === 'Non'} onChange={() => setKitSecoursRemplaceOuAjoute('Non')} />
+                  </div>
+                </div>
+
+                {kitSecoursRemplaceOuAjoute === 'Oui' && (
+                  <div className="space-y-1 bg-white animate-fadeIn">
+                    <label htmlFor="select-kit-rempc" className="block text-[11px] font-bold text-black uppercase">
+                      Sélection d’un kit de secours.
+                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        id="select-kit-rempc"
+                        value={selectionKitSecoursRemplace}
+                        onChange={(e) => {
+                          setSelectionKitSecoursRemplace(e.target.value);
+                          if (e.target.value !== 'Autre') {
+                            setCustomKitSecoursRemplace('');
+                          }
+                        }}
+                        className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
+                      >
+                        <option value="">Sélectionner le kit de secours stockée...</option>
+                        {getAvailableKitsTraceabilities().map(item => (
+                          <option key={item.traceId} value={item.traceId}>
+                            {item.label}
+                          </option>
+                        ))}
+                        <option value="Autre">Autre</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => setIsScanKitOpen(true)}
+                        style={rowActionButton18Style}
+                        className="shrink-0 transition-colors cursor-pointer font-sans"
+                      >
+                        Scan
+                      </button>
+                    </div>
+                    {isScanKitOpen && (
+                      <BarcodeScannerModal
+                        isOpen={isScanKitOpen}
+                        onClose={() => setIsScanKitOpen(false)}
+                        onScanSuccess={(scannedText) => {
+                          setIsScanKitOpen(false);
+                          const cleanText = scannedText.trim();
+                          const traceList = getAvailableKitsTraceabilities();
+                          const matched = traceList.find(t => t.lotOrSerial.toLowerCase() === cleanText.toLowerCase());
+                          if (matched) {
+                            setSelectionKitSecoursRemplace(matched.traceId);
+                            setCustomKitSecoursRemplace('');
+                            if (matched.expirationDate) {
+                              setKitPeremption(matched.expirationDate);
+                            }
+                          } else {
+                            setSelectionKitSecoursRemplace('Autre');
+                            setCustomKitSecoursRemplace(cleanText);
+                          }
+                        }}
+                      />
+                    )}
+                    {selectionKitSecoursRemplace === 'Autre' && (
+                      <div className="pt-2">
+                        <input
+                          type="text"
+                          placeholder="Référence libre (Référence ou Lot/Série)"
+                          value={customKitSecoursRemplace}
+                          onChange={(e) => setCustomKitSecoursRemplace(e.target.value)}
+                          className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white pt-2">
               {/* 3. Ciseaux présents */}
@@ -3922,25 +4679,7 @@ export default function GmaoCorrectionForm({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white">
-              <div className="space-y-1 bg-white">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Fichier de données récupéré.
-                </label>
-                <div className="flex gap-6 items-center pt-1 bg-white">
-                  <FormRadio 
-                    label="Oui" 
-                    checked={fichierDonneesRecupere === 'Oui'} 
-                    onChange={() => setFichierDonneesRecupere('Oui')} 
-                  />
-                  <FormRadio 
-                    label="Non" 
-                    checked={fichierDonneesRecupere === 'Non'} 
-                    onChange={() => setFichierDonneesRecupere('Non')} 
-                  />
-                </div>
-              </div>
-
+            <div className="bg-white">
               <div className="space-y-1 bg-white">
                 <label className="block text-[11px] font-bold text-black uppercase">
                   Défibrillateur conforme et prêt à l’usage.
@@ -3974,6 +4713,80 @@ export default function GmaoCorrectionForm({
               />
             </div>
 
+            {/* Point 5: Pièces jointes (1-3 fichiers) avec Google Drive */}
+            <div className="pt-2 space-y-2 bg-white">
+              <label className="block text-[11px] font-bold text-black uppercase">
+                Pièces jointes (1 à 3 fichiers)
+              </label>
+              
+              {!googleDriveActive ? (
+                <div className="text-red-600 text-xs font-medium">
+                  Le connecteur Google Drive est désactivé. Les pièces jointes sont inactives. Activez-le dans les réglages pour l'utiliser.
+                </div>
+              ) : (
+                <div className="space-y-3 bg-white">
+                  <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:bg-slate-50 transition relative">
+                    <input
+                      type="file"
+                      id="report-attachments-input"
+                      multiple
+                      disabled={attachments.length >= 3 || isUploadingFiles}
+                      onChange={handleAttachmentUpload}
+                      accept=".png,.jpg,.jpeg,.heic,.pdf,.csv,.zip"
+                      className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                    <div className="text-xs text-slate-500 font-medium">
+                      {isUploadingFiles ? (
+                        <span className="text-indigo-600 font-semibold animate-pulse">Upload sur Google Drive en cours...</span>
+                      ) : attachments.length >= 3 ? (
+                        <span>Limite de 3 fichiers atteinte</span>
+                      ) : (
+                        <span>Glissez-déposez vos fichiers ici, ou <strong className="text-indigo-600 hover:underline">parcourez</strong></span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-slate-400 mt-1">
+                      Formats acceptés : PNG, JPEG, HEIC, PDF, CSV, ZIP
+                    </div>
+                  </div>
+
+                  {uploadError && (
+                    <div className="text-xs text-red-500 font-medium font-sans">
+                      {uploadError}
+                    </div>
+                  )}
+
+                  {attachments.length > 0 && (
+                    <div className="space-y-1.5">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Fichiers associés ({attachments.length}/3)
+                      </div>
+                      <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
+                        {attachments.map((file, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-2 bg-slate-50 text-xs text-slate-800">
+                            <a
+                              href={file.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-mono text-indigo-600 hover:underline truncate max-w-[200px]"
+                            >
+                              {file.name}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                              className="text-red-500 hover:text-red-700 text-[11px] font-bold"
+                            >
+                              Supprimer
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="space-y-1">
               <label htmlFor="client-pin-code" className="block text-[11px] font-bold text-black uppercase">
                 Signature client avec PIN.
@@ -3993,40 +4806,6 @@ export default function GmaoCorrectionForm({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-black uppercase">
-                  Signature du technicien.
-                </label>
-                <div className="border rounded-lg p-2 bg-white relative" style={{ borderColor: '#DEDEDE' }}>
-                  <canvas
-                    ref={canvasRef}
-                    width={350}
-                    height={150}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={stopDrawing}
-                    onMouseLeave={stopDrawing}
-                    onTouchStart={startDrawing}
-                    onTouchMove={draw}
-                    onTouchEnd={stopDrawing}
-                    className="w-full bg-white rounded border cursor-crosshair touch-none"
-                    style={{ height: '120px', borderColor: '#DEDEDE' }}
-                  />
-                  <div className="flex justify-between items-center mt-1.5">
-                    <span className="text-[16px] text-black font-semibold font-sans">
-                      Dessin requis.
-                    </span>
-                    <button
-                      type="button"
-                      onClick={clearSignature}
-                      className="text-[16px] text-red-500 font-bold hover:underline cursor-pointer"
-                    >
-                      Effacer
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
                 <label htmlFor="end-timestamp" className="block text-[11px] font-bold text-black uppercase">
                   Horodatage de clôture.
                 </label>
@@ -4035,7 +4814,7 @@ export default function GmaoCorrectionForm({
                   id="end-timestamp"
                   value={endTimeStamp}
                   onChange={(e) => setEndTimeStamp(e.target.value)}
-                  placeholder="Signez pour appliquer l’horodatage."
+                  placeholder="Horodatage de clôture du rapport."
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono text-slate-800"
                 />
               </div>

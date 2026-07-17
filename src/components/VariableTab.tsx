@@ -3,6 +3,55 @@ import { Variable, VariableCategory } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Sliders, Box, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { t } from '../utils/translate';
 
+// Custom Radio Component with exact design styling (representing white gap, rose border and pink dot)
+function FormRadio({
+  label,
+  checked,
+  onChange,
+  disabled
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
+      className={`inline-flex items-center gap-2 select-none justify-start text-left ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+      style={{ fontSize: '15px', color: '#000000', fontWeight: '500' }}
+    >
+      <span 
+        className="rounded-full relative transition-all bg-white"
+        style={{
+          border: checked ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+          width: '20px',
+          height: '20px',
+          minWidth: '20px',
+          minHeight: '20px',
+          backgroundColor: '#ffffff'
+        }}
+      >
+        {checked && (
+          <span 
+            className="rounded-full bg-[#fe4eba] absolute" 
+            style={{ 
+              width: '9px', 
+              height: '9px',
+              left: '50%',
+              top: '50%',
+              transform: 'translate(-50%, -50%)'
+            }} 
+          />
+        )}
+      </span>
+      <span className="text-[15px] font-semibold text-black">{label}</span>
+    </button>
+  );
+}
+
 interface VariableTabProps {
   variables: Variable[];
   onAddVariable: (variable: Omit<Variable, 'id'>) => void;
@@ -133,6 +182,38 @@ export default function VariableTab({
   const [rappelDateFin, setRappelDateFin] = useState('');
   const [rappelObservation, setRappelObservation] = useState('');
 
+  // Custom visibility configuration fields
+  const [visibiliteNumeroAtlasante, setVisibiliteNumeroAtlasante] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteVersionLogiciel, setVisibiliteVersionLogiciel] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteFactureBrouillon, setVisibiliteFactureBrouillon] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePadPakAdulte, setVisibilitePadPakAdulte] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteLotPadPakA, setVisibiliteLotPadPakA] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionPadPakA, setVisibilitePeremptionPadPakA] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteLotP, setVisibiliteLotP] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePadPakPediatrique, setVisibilitePadPakPediatrique] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteLotPadPakP, setVisibiliteLotPadPakP] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionPadPakP, setVisibilitePeremptionPadPakP] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteFabricationBatterie, setVisibiliteFabricationBatterie] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteInsertionBatterie, setVisibiliteInsertionBatterie] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionBatterie, setVisibilitePeremptionBatterie] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePourcentageBatterie, setVisibilitePourcentageBatterie] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteGantsPresents, setVisibiliteGantsPresents] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionServiettes, setVisibilitePeremptionServiettes] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteServiettesPresentes, setVisibiliteServiettesPresentes] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionMasque, setVisibilitePeremptionMasque] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteMasquePresent, setVisibiliteMasquePresent] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteCiseauxPresents, setVisibiliteCiseauxPresents] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePeremptionTrousse, setVisibilitePeremptionTrousse] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteRasoir, setVisibiliteRasoir] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteBranchementElectrodes, setVisibiliteBranchementElectrodes] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteGuidesVocaux, setVisibiliteGuidesVocaux] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteMessageNumeriqueConforme, setVisibiliteMessageNumeriqueConforme] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteEquipeMessageNumerique, setVisibiliteEquipeMessageNumerique] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteVoyantConforme, setVisibiliteVoyantConforme] = useState<'Oui' | 'Non'>('Oui');
+  const [visibiliteNettoyage, setVisibiliteNettoyage] = useState<'Oui' | 'Non'>('Oui');
+  const [visibilitePiecesJointes, setVisibilitePiecesJointes] = useState<'Oui' | 'Non'>('Oui');
+  const [infosTechnicien, setInfosTechnicien] = useState('');
+
   // Filtering variables
   const filteredVariables = useMemo(() => {
     return variables.filter((v) => {
@@ -160,6 +241,36 @@ export default function VariableTab({
     setRappelDateDebut('');
     setRappelDateFin('');
     setRappelObservation('');
+    setVisibiliteNumeroAtlasante('Oui');
+    setVisibiliteVersionLogiciel('Oui');
+    setVisibiliteFactureBrouillon('Oui');
+    setVisibilitePadPakAdulte('Oui');
+    setVisibiliteLotPadPakA('Oui');
+    setVisibilitePeremptionPadPakA('Oui');
+    setVisibiliteLotP('Oui');
+    setVisibilitePadPakPediatrique('Oui');
+    setVisibiliteLotPadPakP('Oui');
+    setVisibilitePeremptionPadPakP('Oui');
+    setVisibiliteFabricationBatterie('Oui');
+    setVisibiliteInsertionBatterie('Oui');
+    setVisibilitePeremptionBatterie('Oui');
+    setVisibilitePourcentageBatterie('Oui');
+    setVisibiliteGantsPresents('Oui');
+    setVisibilitePeremptionServiettes('Oui');
+    setVisibiliteServiettesPresentes('Oui');
+    setVisibilitePeremptionMasque('Oui');
+    setVisibiliteMasquePresent('Oui');
+    setVisibiliteCiseauxPresents('Oui');
+    setVisibilitePeremptionTrousse('Oui');
+    setVisibiliteRasoir('Oui');
+    setVisibiliteBranchementElectrodes('Oui');
+    setVisibiliteGuidesVocaux('Oui');
+    setVisibiliteMessageNumeriqueConforme('Oui');
+    setVisibiliteEquipeMessageNumerique('Oui');
+    setVisibiliteVoyantConforme('Oui');
+    setVisibiliteNettoyage('Oui');
+    setVisibilitePiecesJointes('Oui');
+    setInfosTechnicien('');
     setError('');
     setIsModalOpen(true);
   };
@@ -176,6 +287,36 @@ export default function VariableTab({
     setRappelDateDebut(v.rappelDateDebut || '');
     setRappelDateFin(v.rappelDateFin || '');
     setRappelObservation(v.rappelObservation || '');
+    setVisibiliteNumeroAtlasante(v.visibiliteNumeroAtlasante || 'Oui');
+    setVisibiliteVersionLogiciel(v.visibiliteVersionLogiciel || 'Oui');
+    setVisibiliteFactureBrouillon(v.visibiliteFactureBrouillon || 'Oui');
+    setVisibilitePadPakAdulte(v.visibilitePadPakAdulte || 'Oui');
+    setVisibiliteLotPadPakA(v.visibiliteLotPadPakA || 'Oui');
+    setVisibilitePeremptionPadPakA(v.visibilitePeremptionPadPakA || 'Oui');
+    setVisibiliteLotP(v.visibiliteLotP || 'Oui');
+    setVisibilitePadPakPediatrique(v.visibilitePadPakPediatrique || 'Oui');
+    setVisibiliteLotPadPakP(v.visibiliteLotPadPakP || 'Oui');
+    setVisibilitePeremptionPadPakP(v.visibilitePeremptionPadPakP || 'Oui');
+    setVisibiliteFabricationBatterie(v.visibiliteFabricationBatterie || 'Oui');
+    setVisibiliteInsertionBatterie(v.visibiliteInsertionBatterie || 'Oui');
+    setVisibilitePeremptionBatterie(v.visibilitePeremptionBatterie || 'Oui');
+    setVisibilitePourcentageBatterie(v.visibilitePourcentageBatterie || 'Oui');
+    setVisibiliteGantsPresents(v.visibiliteGantsPresents || 'Oui');
+    setVisibilitePeremptionServiettes(v.visibilitePeremptionServiettes || 'Oui');
+    setVisibiliteServiettesPresentes(v.visibiliteServiettesPresentes || 'Oui');
+    setVisibilitePeremptionMasque(v.visibilitePeremptionMasque || 'Oui');
+    setVisibiliteMasquePresent(v.visibiliteMasquePresent || 'Oui');
+    setVisibiliteCiseauxPresents(v.visibiliteCiseauxPresents || 'Oui');
+    setVisibilitePeremptionTrousse(v.visibilitePeremptionTrousse || 'Oui');
+    setVisibiliteRasoir(v.visibiliteRasoir || 'Oui');
+    setVisibiliteBranchementElectrodes(v.visibiliteBranchementElectrodes || 'Oui');
+    setVisibiliteGuidesVocaux(v.visibiliteGuidesVocaux || 'Oui');
+    setVisibiliteMessageNumeriqueConforme(v.visibiliteMessageNumeriqueConforme || 'Oui');
+    setVisibiliteEquipeMessageNumerique(v.visibiliteEquipeMessageNumerique || 'Oui');
+    setVisibiliteVoyantConforme(v.visibiliteVoyantConforme || 'Oui');
+    setVisibiliteNettoyage(v.visibiliteNettoyage || 'Oui');
+    setVisibilitePiecesJointes(v.visibilitePiecesJointes || 'Oui');
+    setInfosTechnicien(v.infosTechnicien || '');
     setError('');
     setIsModalOpen(true);
   };
@@ -195,7 +336,7 @@ export default function VariableTab({
 
     const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur';
 
-    const payload = {
+    const payload: any = {
       category: category as VariableCategory,
       nom: nom.trim(),
       marque: marque.trim() || 'Standard',
@@ -207,6 +348,39 @@ export default function VariableTab({
       rappelDateFin: hideRappelAlerte ? undefined : (rappelDateFin || undefined),
       rappelObservation: hideRappelAlerte ? undefined : (rappelObservation || undefined),
     };
+
+    if (category === 'Modèle Défibrillateur') {
+      payload.visibiliteNumeroAtlasante = visibiliteNumeroAtlasante;
+      payload.visibiliteVersionLogiciel = visibiliteVersionLogiciel;
+      payload.visibiliteFactureBrouillon = visibiliteFactureBrouillon;
+      payload.visibilitePadPakAdulte = visibilitePadPakAdulte;
+      payload.visibiliteLotPadPakA = visibiliteLotPadPakA;
+      payload.visibilitePeremptionPadPakA = visibilitePeremptionPadPakA;
+      payload.visibiliteLotP = visibiliteLotP;
+      payload.visibilitePadPakPediatrique = visibilitePadPakPediatrique;
+      payload.visibiliteLotPadPakP = visibiliteLotPadPakP;
+      payload.visibilitePeremptionPadPakP = visibilitePeremptionPadPakP;
+      payload.visibiliteFabricationBatterie = visibiliteFabricationBatterie;
+      payload.visibiliteInsertionBatterie = visibiliteInsertionBatterie;
+      payload.visibilitePeremptionBatterie = visibilitePeremptionBatterie;
+      payload.visibilitePourcentageBatterie = visibilitePourcentageBatterie;
+      payload.visibiliteGantsPresents = visibiliteGantsPresents;
+      payload.visibilitePeremptionServiettes = visibilitePeremptionServiettes;
+      payload.visibiliteServiettesPresentes = visibiliteServiettesPresentes;
+      payload.visibilitePeremptionMasque = visibilitePeremptionMasque;
+      payload.visibiliteMasquePresent = visibiliteMasquePresent;
+      payload.visibiliteCiseauxPresents = visibiliteCiseauxPresents;
+      payload.visibilitePeremptionTrousse = visibilitePeremptionTrousse;
+      payload.visibiliteRasoir = visibiliteRasoir;
+      payload.visibiliteBranchementElectrodes = visibiliteBranchementElectrodes;
+      payload.visibiliteGuidesVocaux = visibiliteGuidesVocaux;
+      payload.visibiliteMessageNumeriqueConforme = visibiliteMessageNumeriqueConforme;
+      payload.visibiliteEquipeMessageNumerique = visibiliteEquipeMessageNumerique;
+      payload.visibiliteVoyantConforme = visibiliteVoyantConforme;
+      payload.visibiliteNettoyage = visibiliteNettoyage;
+      payload.visibilitePiecesJointes = visibilitePiecesJointes;
+      payload.infosTechnicien = infosTechnicien.trim();
+    }
 
     if (editingVariable) {
       onUpdateVariable({
@@ -458,6 +632,97 @@ export default function VariableTab({
                   />
                 </div>
               </div>
+
+              {/* Section Gérer les champs visibles */}
+              {category === 'Modèle Défibrillateur' && (
+                <div 
+                  className="bg-white p-5 space-y-4 animate-fadeIn"
+                  style={{
+                    border: '1px solid rgb(218, 218, 218)',
+                    borderRadius: '18px',
+                  }}
+                >
+                  <div className="mb-2 bg-transparent">
+                    <span 
+                      className="text-white px-3 py-1 text-[13px] inline-block font-sans"
+                      style={{
+                        backgroundColor: '#7b2882',
+                        borderRadius: '1000px',
+                        cursor: 'default',
+                        fontWeight: 100,
+                        textTransform: 'none',
+                      }}
+                    >
+                      Gérer les champs visibles
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { label: 'Visibilité du champ : Numéro Atlasanté (Identification et photos).', value: visibiliteNumeroAtlasante, setter: setVisibiliteNumeroAtlasante },
+                      { label: 'Visibilité du champ : Version du logiciel (Identification et photos).', value: visibiliteVersionLogiciel, setter: setVisibiliteVersionLogiciel },
+                      { label: 'Visibilité du champ : Émettre un facture brouillon (Client).', value: visibiliteFactureBrouillon, setter: setVisibiliteFactureBrouillon },
+                      { label: 'Visibilité du champ : PadPak (Électrode Adulte).', value: visibilitePadPakAdulte, setter: setVisibilitePadPakAdulte },
+                      { label: 'Visibilité du champ : Lot PadPak A (Électrode Adulte).', value: visibiliteLotPadPakA, setter: setVisibiliteLotPadPakA },
+                      { label: 'Visibilité du champ : Péremption PadPak A (Électrode Adulte).', value: visibilitePeremptionPadPakA, setter: setVisibilitePeremptionPadPakA },
+                      { label: 'Visibilité du champ : Lot P (Électrode Pédiatrique).', value: visibiliteLotP, setter: setVisibiliteLotP },
+                      { label: 'Visibilité du champ : PadPak (Électrode Pédiatrique).', value: visibilitePadPakPediatrique, setter: setVisibilitePadPakPediatrique },
+                      { label: 'Visibilité du champ : Lot PadPak P (Électrode Pédiatrique).', value: visibiliteLotPadPakP, setter: setVisibiliteLotPadPakP },
+                      { label: 'Visibilité du champ : Péremption PadPak P (Électrode Pédiatrique).', value: visibilitePeremptionPadPakP, setter: setVisibilitePeremptionPadPakP },
+                      { label: 'Visibilité du champ : Fabrication (Batterie).', value: visibiliteFabricationBatterie, setter: setVisibiliteFabricationBatterie },
+                      { label: 'Visibilité du champ : Insertion (Batterie).', value: visibiliteInsertionBatterie, setter: setVisibiliteInsertionBatterie },
+                      { label: 'Visibilité du champ : Péremption (Batterie).', value: visibilitePeremptionBatterie, setter: setVisibilitePeremptionBatterie },
+                      { label: 'Visibilité du champ : Pourcentage de charge (Batterie).', value: visibilitePourcentageBatterie, setter: setVisibilitePourcentageBatterie },
+                      { label: 'Visibilité du champ : Paire de gants présents (Kit de secours).', value: visibiliteGantsPresents, setter: setVisibiliteGantsPresents },
+                      { label: 'Visibilité du champ : Péremption des serviettes (Kit de secours).', value: visibilitePeremptionServiettes, setter: setVisibilitePeremptionServiettes },
+                      { label: 'Visibilité du champ : Serviettes présentes (Kit de secours).', value: visibiliteServiettesPresentes, setter: setVisibiliteServiettesPresentes },
+                      { label: 'Visibilité du champ : Péremption du masque (Kit de secours).', value: visibilitePeremptionMasque, setter: setVisibilitePeremptionMasque },
+                      { label: 'Visibilité du champ : Masque présent (Kit de secours).', value: visibiliteMasquePresent, setter: setVisibiliteMasquePresent },
+                      { label: 'Visibilité du champ : Ciseaux présents (Kit de secours).', value: visibiliteCiseauxPresents, setter: setVisibiliteCiseauxPresents },
+                      { label: 'Visibilité du champ : Péremption de la trousse (Kit de secours).', value: visibilitePeremptionTrousse, setter: setVisibilitePeremptionTrousse },
+                      { label: 'Visibilité du champ : Rasoir (Kit de secours).', value: visibiliteRasoir, setter: setVisibiliteRasoir },
+                      { label: 'Visibilité du champ : Branchement conforme des électrodes (Vérifications).', value: visibiliteBranchementElectrodes, setter: setVisibiliteBranchementElectrodes },
+                      { label: 'Visibilité du champ : Guides vocaux conformes (Vérifications).', value: visibiliteGuidesVocaux, setter: setVisibiliteGuidesVocaux },
+                      { label: 'Visibilité du champ : Message numérique conforme (Vérifications).', value: visibiliteMessageNumeriqueConforme, setter: setVisibiliteMessageNumeriqueConforme },
+                      { label: 'Visibilité du champ : Équipé d’un message numérique (Vérifications).', value: visibiliteEquipeMessageNumerique, setter: setVisibiliteEquipeMessageNumerique },
+                      { label: 'Visibilité du champ : Voyant conforme (Vérifications).', value: visibiliteVoyantConforme, setter: setVisibiliteVoyantConforme },
+                      { label: 'Visibilité du champ : Nettoyage (Vérifications).', value: visibiliteNettoyage, setter: setVisibiliteNettoyage },
+                      { label: 'Visibilité du champ : Pièces jointes (1 à 3 fichiers) (Clôture).', value: visibilitePiecesJointes, setter: setVisibilitePiecesJointes },
+                    ].map((cfg, i) => (
+                      <div key={i} className="space-y-1 p-2 bg-slate-50/50 rounded-lg">
+                        <label className="block text-[11px] font-bold text-slate-500 uppercase">
+                          {cfg.label}
+                        </label>
+                        <div className="flex gap-6 items-center pt-1">
+                          <FormRadio 
+                            label="Oui" 
+                            checked={cfg.value === 'Oui'} 
+                            onChange={() => cfg.setter('Oui')} 
+                          />
+                          <FormRadio 
+                            label="Non" 
+                            checked={cfg.value === 'Non'} 
+                            onChange={() => cfg.setter('Non')} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-4 space-y-1">
+                    <label htmlFor="input-infos-technicien" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Info(s) au technicien.
+                    </label>
+                    <textarea
+                      id="input-infos-technicien"
+                      value={infosTechnicien}
+                      onChange={(e) => setInfosTechnicien(e.target.value)}
+                      placeholder="Entrez des informations ou consignes pour le technicine."
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Section Rappel ou alerte */}
               {!hideRappelAlerte && (

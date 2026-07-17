@@ -69,6 +69,38 @@ export interface Variable {
   rappelDateDebut?: string;
   rappelDateFin?: string;
   rappelObservation?: string;
+
+  // Modèle de défibrillateur custom visibility configurations
+  visibiliteNumeroAtlasante?: 'Oui' | 'Non';
+  visibiliteVersionLogiciel?: 'Oui' | 'Non';
+  visibiliteFactureBrouillon?: 'Oui' | 'Non';
+  visibilitePadPakAdulte?: 'Oui' | 'Non';
+  visibiliteLotPadPakA?: 'Oui' | 'Non';
+  visibilitePeremptionPadPakA?: 'Oui' | 'Non';
+  visibiliteLotP?: 'Oui' | 'Non';
+  visibilitePadPakPediatrique?: 'Oui' | 'Non';
+  visibiliteLotPadPakP?: 'Oui' | 'Non';
+  visibilitePeremptionPadPakP?: 'Oui' | 'Non';
+  visibiliteFabricationBatterie?: 'Oui' | 'Non';
+  visibiliteInsertionBatterie?: 'Oui' | 'Non';
+  visibilitePeremptionBatterie?: 'Oui' | 'Non';
+  visibilitePourcentageBatterie?: 'Oui' | 'Non';
+  visibiliteGantsPresents?: 'Oui' | 'Non';
+  visibilitePeremptionServiettes?: 'Oui' | 'Non';
+  visibiliteServiettesPresentes?: 'Oui' | 'Non';
+  visibilitePeremptionMasque?: 'Oui' | 'Non';
+  visibiliteMasquePresent?: 'Oui' | 'Non';
+  visibiliteCiseauxPresents?: 'Oui' | 'Non';
+  visibilitePeremptionTrousse?: 'Oui' | 'Non';
+  visibiliteRasoir?: 'Oui' | 'Non';
+  visibiliteBranchementElectrodes?: 'Oui' | 'Non';
+  visibiliteGuidesVocaux?: 'Oui' | 'Non';
+  visibiliteMessageNumeriqueConforme?: 'Oui' | 'Non';
+  visibiliteEquipeMessageNumerique?: 'Oui' | 'Non';
+  visibiliteVoyantConforme?: 'Oui' | 'Non';
+  visibiliteNettoyage?: 'Oui' | 'Non';
+  visibilitePiecesJointes?: 'Oui' | 'Non';
+  infosTechnicien?: string;
 }
 
 export interface Defibrillateur {
@@ -80,6 +112,7 @@ export interface Defibrillateur {
   commentaire: string;
   modeleId: string; // Lookup Variable category 'Modèle Défibrillateur'
   numeroAtlasante?: string;
+  versionLogiciel?: string;
   
   // Section 2 - Client
   clientId: string; // Lookup Client
@@ -160,6 +193,7 @@ export interface Defibrillateur {
   modeleBatterieId: string; // Lookup Variable category 'Modèle Batterie'
   lotBatterie: string;
   insertionBatterie: string;
+  fabricationBatterie?: string;
   peremptionBatterie: string;
   livraisonBatterie: string;
   situationBatterie: 'Vert' | 'Orange' | 'Rouge';
@@ -168,6 +202,7 @@ export interface Defibrillateur {
   modeleBatterieSecoursId?: string;
   lotBatterieSecours?: string;
   peremptionBatterieSecours?: string;
+  peremptionTrousse?: string;
 
   // Section 9 - Catégories
   loue: 'Oui' | 'Non';
@@ -222,6 +257,7 @@ export interface Member {
   status: string;
   lastActive: string;
   pin: string;
+  signature?: string;
   locationLink?: string;
   gpsSharingLink?: string;
   adminSubRole?: 'Administrateur' | 'Administration' | 'Planification' | 'Logistique' | 'Comptabilité';
@@ -256,6 +292,7 @@ export interface CompanyInfo {
   enableDevisFactures?: 'Oui' | 'Non';
   gmailPartageLocalisation?: string;
   hiddenTabs?: string[];
+  communicationPortailClient?: string;
 }
 
 export interface PointageLog {
@@ -298,8 +335,9 @@ export interface StockTraceability {
   lotOrSerial: string;
   expirationDate?: string;
   volume: number; // always 1
-  situation: 'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant';
+  situation: 'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant' | 'Prêté';
   emplacement?: string;
+  comment?: string;
 }
 
 export interface StockRecord {

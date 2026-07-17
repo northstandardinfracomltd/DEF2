@@ -154,6 +154,7 @@ export const INITIAL_DEFIBRILLATEURS: Defibrillateur[] = [
     lotBatterie: '',
     insertionBatterie: '',
     peremptionBatterie: '',
+    peremptionTrousse: '',
     livraisonBatterie: '',
     situationBatterie: 'Vert',
     pourcentageBatterie: '100',

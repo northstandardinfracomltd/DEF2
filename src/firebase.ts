@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, doc, getDoc, setDoc, persistentLocalCache, persistentMultipleTabManager, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDoc, setDoc, persistentLocalCache, persistentMultipleTabManager, getDocFromServer, getFirestore, getDocFromCache } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 import {
   INITIAL_VARIABLES,
@@ -22,13 +22,72 @@ import {
 import { Member, Client, Defibrillateur } from './types';
 
 const app = initializeApp(firebaseConfig);
-export const db = initializeFirestore(app, {
-  localCache: persistentLocalCache({
-    tabManager: persistentMultipleTabManager(),
-  }),
-  experimentalForceLongPolling: true,
-});
+
+let firestoreInstance;
+try {
+  firestoreInstance = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager(),
+    }),
+    experimentalForceLongPolling: true,
+  });
+} catch (err) {
+  console.warn("Failed to initialize Firestore with persistent local cache and multi-tab manager:", err);
+  try {
+    firestoreInstance = initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+    });
+  } catch (err2) {
+    console.warn("Failed to initialize Firestore with experimentalForceLongPolling, falling back to basic getFirestore:", err2);
+    firestoreInstance = getFirestore(app);
+  }
+}
+
+export const db = firestoreInstance;
 export const auth = getAuth();
+
+/**
+ * Optimistic document loader:
+ * 1. Tries to get document from Firestore's persistent local cache (instant, 0ms, works fully offline).
+ * 2. If it's in the cache, it returns it instantly, and schedules a background refresh from the server to keep cache updated.
+ * 3. If it's not in the cache, it fetches it from the server with a short timeout.
+ * 4. Falls back to normal getDoc if both fail.
+ */
+async function getDocOptimistic(docRef: any, key?: string, timeoutMs: number = 15000): Promise<any> {
+  try {
+    const cachedSnap = await getDocFromCache(docRef);
+    if (cachedSnap.exists()) {
+      // Trigger background update silently to refresh cache/localStorage for the next visit
+      getDocFromServer(docRef).then((serverSnap) => {
+        if (serverSnap.exists() && key) {
+          const data = serverSnap.data() as any;
+          const val = data?.value;
+          if (val !== undefined) {
+            saveToLocalCache(key, val);
+          }
+        }
+      }).catch(() => {
+        // Silently ignore background fetch errors (e.g., if client is offline)
+      });
+      return cachedSnap;
+    }
+  } catch (cacheErr) {
+    // Document is not in local Firestore cache yet, proceed to fetch
+  }
+
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('Firestore server fetch timed out')), timeoutMs)
+  );
+  try {
+    return await Promise.race([
+      getDocFromServer(docRef),
+      timeoutPromise
+    ]);
+  } catch (err) {
+    console.log(`[Firestore Cache-First] getDocFromServer failed or timed out for ${docRef.id}, using fallback/cache.`);
+    throw err;
+  }
+}
 
 export interface Tenant {
   id: string;
@@ -92,12 +151,7 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string, te
   const key = getCollectionKey(collectionName, tenantId || getTenantId());
   try {
     const docRef = doc(db, 'appData', key);
-    let snap;
-    try {
-      snap = await getDocFromServer(docRef);
-    } catch {
-      snap = await getDoc(docRef);
-    }
+    const snap = await getDocOptimistic(docRef, key, 15000);
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -106,7 +160,7 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string, te
     }
     return getFromLocalCache<T>(key);
   } catch (error) {
-    console.error(`Error fetching collection ${collectionName} from Firestore (will try cache):`, error);
+    console.log(`[Firestore Cache-First] Fallback to cache for collection ${collectionName}: server fetch timed out or offline.`);
     return getFromLocalCache<T>(key);
   }
 }
@@ -189,7 +243,7 @@ export async function saveCollectionToFirestore<T>(collectionName: string, value
     await setDoc(docRef, { value: finalCleanValue });
     console.log(`Successfully synced ${key} to Firestore with hidden environment fields.`);
   } catch (error) {
-    console.error(`Error saving collection ${collectionName} to Firestore (kept in cache):`, error);
+    console.warn(`Error saving collection ${collectionName} to Firestore (kept in cache):`, error);
   }
 }
 
@@ -218,12 +272,7 @@ export function generateUniqueShortEnvId(existingCodes: string[]): string {
 export async function getRegisteredTenants(): Promise<Tenant[]> {
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
-    let snap;
-    try {
-      snap = await getDocFromServer(docRef);
-    } catch {
-      snap = await getDoc(docRef);
-    }
+    const snap = await getDocOptimistic(docRef, 'registered_tenants', 15000);
     if (snap.exists()) {
       const tenants = (snap.data().value || []) as Tenant[];
       let needsUpdate = false;
@@ -251,7 +300,7 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
     }
     return getFromLocalCache<Tenant[]>('registered_tenants') || [];
   } catch (err) {
-    console.error('Error fetching registered_tenants (will try cache):', err);
+    console.log('[Firestore Cache-First] Fallback to cache for registered_tenants (offline or timed out).');
     return getFromLocalCache<Tenant[]>('registered_tenants') || [];
   }
 }
@@ -262,12 +311,7 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
 export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promise<T | null> {
   try {
     const docRef = doc(db, 'appData', rawKey);
-    let snap;
-    try {
-      snap = await getDocFromServer(docRef);
-    } catch {
-      snap = await getDoc(docRef);
-    }
+    const snap = await getDocOptimistic(docRef, rawKey, 15000);
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -276,7 +320,7 @@ export async function fetchRawCollectionFromFirestore<T>(rawKey: string): Promis
     }
     return getFromLocalCache<T>(rawKey);
   } catch (error) {
-    console.error(`Error fetching raw collection ${rawKey} from Firestore (will try cache):`, error);
+    console.log(`[Firestore Cache-First] Fallback to cache for raw key ${rawKey} (offline or timed out).`);
     return getFromLocalCache<T>(rawKey);
   }
 }
@@ -618,6 +662,7 @@ export async function seedTenantDemoData(tenantId: string): Promise<void> {
       lotBatterie: 'LOTB-00912',
       insertionBatterie: '2026-01-15',
       peremptionBatterie: '2030-01-15',
+      peremptionTrousse: '',
       livraisonBatterie: '2025-11-01',
       situationBatterie: 'Vert',
       pourcentageBatterie: '100',
@@ -802,7 +847,7 @@ export async function checkIfDefibIdentifiantExistsAnywhere(
       }
     }
   } catch (error) {
-    console.error('Error checking global defibrillator uniqueness:', error);
+    console.warn('Error checking global defibrillator uniqueness:', error);
   }
 
   return { exists: false };
@@ -847,7 +892,7 @@ export async function findTenantAndDefibGlobally(identifiant: string): Promise<{
       }
     }
   } catch (error) {
-    console.error('Error finding tenant and defib globally:', error);
+    console.warn('Error finding tenant and defib globally:', error);
   }
   return null;
 }
@@ -870,7 +915,7 @@ export async function updateTenantLanguage(tenantId: string, lang: string): Prom
     saveToLocalCache('registered_tenants', updated);
     console.log(`Updated tenant ${tenantId} language to ${lang} in Firestore`);
   } catch (err) {
-    console.error(`Error updating language for tenant ${tenantId}:`, err);
+    console.warn(`Error updating language for tenant ${tenantId}:`, err);
   }
 }
 

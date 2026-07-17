@@ -123,6 +123,12 @@ export default function ClientPortal({
   onAddNotification,
 }: ClientPortalProps) {
   const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info' | 'autovigilance'>('defibs');
+  const [isCommunicationDismissed, setIsCommunicationDismissed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('dismissed_portal_communication') === 'true';
+    }
+    return false;
+  });
 
   const authenticatedClient = initialClient;
 
@@ -1981,9 +1987,43 @@ export default function ClientPortal({
           
           {/* Section 1: Défibrillateurs & Autres matériels */}
           {activePortalTab === 'defibs' && (
-            (clientDefibs.length === 0 && clientOthers.length === 0) ? null : (
-              <div className="space-y-6">
-                {clientDefibs.length > 0 && (
+            <div className="space-y-6">
+              {companyInfo?.communicationPortailClient && !isCommunicationDismissed && (
+                <div 
+                  className="p-5 rounded-2xl border border-pink-200 bg-pink-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans text-black relative animate-fadeIn"
+                  style={{
+                    backgroundColor: '#fff5fb',
+                    borderColor: '#fbcfe8'
+                  }}
+                >
+                  <div className="space-y-1.5 flex-1 text-left">
+                    <strong className="block text-[12px] uppercase tracking-wider text-[#fe4eba] font-bold">
+                      {t("Communication portail client")}
+                    </strong>
+                    <p className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-line">
+                      {companyInfo.communicationPortailClient}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      sessionStorage.setItem('dismissed_portal_communication', 'true');
+                      setIsCommunicationDismissed(true);
+                    }}
+                    className="self-start md:self-center px-4 py-2 bg-[#fe4eba] hover:bg-[#e1389e] text-white font-semibold text-xs rounded-xl shadow-sm transition-all border-none cursor-pointer"
+                  >
+                    {t("J'ai compris")}
+                  </button>
+                </div>
+              )}
+
+              {(clientDefibs.length === 0 && clientOthers.length === 0) ? (
+                <div className="text-center py-10 bg-white border border-slate-200 rounded-2xl p-5 text-slate-500 font-sans">
+                  {t("Aucun matériel enregistré pour le moment.")}
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {clientDefibs.length > 0 && (
                   <div className="space-y-6">
                     {clientDefibs.map((df) => {
                       const modelNom = variables.find(v => v.id === df.modeleId)?.nom || df.modeleId || 'Non spécifié';
@@ -2178,7 +2218,8 @@ export default function ClientPortal({
                   </div>
                 )}
               </div>
-            )
+              )}
+            </div>
           )}
 
           {/* Section 2: Devis et factures */}

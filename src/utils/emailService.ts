@@ -32,7 +32,7 @@ export async function getAppsScriptUrl(): Promise<string> {
       }
     }
   } catch (error) {
-    console.error('Error fetching global_email_config from firestore:', error);
+    console.warn('Error fetching global_email_config from firestore (using fallback):', error);
   }
 
   const localSaved = localStorage.getItem('defib_global_apps_script_url');
@@ -57,7 +57,7 @@ export async function saveAppsScriptUrl(url: string): Promise<void> {
     const docRef = doc(db, 'appData', 'global_email_config');
     await setDoc(docRef, { url: cleanUrl });
   } catch (error) {
-    console.error('Error saving global_email_config to firestore:', error);
+    console.warn('Error saving global_email_config to firestore:', error);
   }
 }
 

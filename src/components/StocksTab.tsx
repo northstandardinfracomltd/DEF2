@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { t } from '../utils/translate';
-import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability } from '../types';
+import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability, Member } from '../types';
 import { getLocationCustomName } from '../utils';
 import HelpBubble from './HelpBubble';
 
@@ -105,6 +105,7 @@ interface StocksTabProps {
   commercialDocs?: CommercialDoc[];
   achatsFournisseurs?: AchatFournisseur[];
   setActiveTab?: (tab: any) => void;
+  members?: Member[];
 }
 
 export default function StocksTab({
@@ -121,6 +122,7 @@ export default function StocksTab({
   commercialDocs = [],
   achatsFournisseurs = [],
   setActiveTab,
+  members = [],
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState('');
@@ -156,7 +158,7 @@ export default function StocksTab({
   const [selectedMovementId, setSelectedMovementId] = useState<string>('');
   const [lotOrSerial, setLotOrSerial] = useState<string>('');
   const [expirationDate, setExpirationDate] = useState<string>('');
-  const [situation, setSituation] = useState<'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant'>('Disponible');
+  const [situation, setSituation] = useState<'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant' | 'Prêté'>('Disponible');
 
   const filteredDistributedStocks = useMemo(() => {
     return distributedStocks.filter(ds => ds.denominationPieceId === newDenomStr);
@@ -1922,6 +1924,7 @@ export default function StocksTab({
                               <option value="Utilisé">Utilisé</option>
                               <option value="Indisponible">Indisponible</option>
                               <option value="Signalé manquant">Signalé manquant</option>
+                              <option value="Prêté">Prêté</option>
                             </select>
                           </div>
                         </div>
@@ -1961,214 +1964,276 @@ export default function StocksTab({
                     )}
 
                     {/* Table des Traçabilités */}
-                    {traceabilities.length > 0 && (
-                      <div 
-                        className="overflow-x-auto border rounded-xl mt-2 bg-white" 
-                        style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
-                      >
-                        <table className="w-full text-left font-sans border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Barre-code.</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Emplacement.</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
-                              <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
-                              <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Action.</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white">
-                            {traceabilities.map((trace, idx) => {
-                              const ALL_LOCATIONS = [
-                                'Centrale',
-                                'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E',
-                                'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
-                                'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E',
-                                'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
-                              ];
-                              const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
-                              let locationText = 'Centrale';
-                              if (trace.emplacement) {
-                                locationText = trace.emplacement;
-                              } else if (matchedMv) {
-                                if (matchedMv.type === 'Réapprovisionnement fournisseur') {
-                                  locationText = 'Centrale';
-                                } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
-                                  if (matchedMv.emplacement.includes(' : ')) {
-                                    locationText = matchedMv.emplacement.split(' : ')[1];
-                                  } else {
-                                    locationText = matchedMv.emplacement;
-                                  }
-                                } else if (matchedMv.emplacement) {
-                                  if (matchedMv.emplacement.includes(' : ')) {
-                                    locationText = matchedMv.emplacement.split(' : ')[1];
-                                  } else {
-                                    locationText = matchedMv.emplacement;
-                                  }
-                                }
-                              }
+                    {traceabilities.length > 0 && (() => {
+                      const ALL_LOCATIONS = [
+                        'Centrale',
+                        'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E',
+                        'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
+                        'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E',
+                        'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
+                      ];
 
-                              return (
-                                <tr 
-                                  key={trace.id} 
-                                  className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
-                                  style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
-                                >
-                                  {/* Code-barres */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <div className="flex items-center gap-2">
-                                      <div 
-                                        className="inline-block"
-                                        dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
-                                        style={{
-                                          backgroundColor: '#000000',
-                                          color: '#ffffff',
-                                          padding: '10px 20px',
-                                          fontSize: '18px',
-                                          borderRadius: '13px',
-                                        }}
-                                        className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
-                                        title="Imprimer / Télécharger"
-                                      >
-                                        Imprimer
-                                      </button>
-                                    </div>
-                                  </td>
+                      // Helper to determine the location for a traceability item
+                      const getTraceLocation = (trace: StockTraceability) => {
+                        if (trace.emplacement) return trace.emplacement;
+                        const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
+                        if (matchedMv) {
+                          if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+                            return 'Centrale';
+                          } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
+                            if (matchedMv.emplacement.includes(' : ')) {
+                              return matchedMv.emplacement.split(' : ')[1];
+                            } else {
+                              return matchedMv.emplacement;
+                            }
+                          } else if (matchedMv.emplacement) {
+                            if (matchedMv.emplacement.includes(' : ')) {
+                              return matchedMv.emplacement.split(' : ')[1];
+                            } else {
+                              return matchedMv.emplacement;
+                            }
+                          }
+                        }
+                        return 'Centrale';
+                      };
 
-                                  {/* Emplacement */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <select
-                                      value={trace.emplacement || locationText}
-                                      onChange={(e) => {
-                                        const updated = [...traceabilities];
-                                        updated[idx].emplacement = e.target.value;
-                                        setTraceabilities(updated);
-                                      }}
-                                      className="bg-white text-black p-1 border border-slate-300 rounded font-sans font-semibold"
-                                      style={{ fontSize: '18px', border: '1px solid #cbd5e1', minWidth: '130px' }}
-                                    >
-                                      {ALL_LOCATIONS.map(loc => (
-                                        <option key={loc} value={loc}>
-                                          {getLocationCustomName(loc)}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
+                      // Group traceabilities
+                      const groups: Record<string, { idx: number; trace: StockTraceability }[]> = {};
+                      traceabilities.forEach((trace, idx) => {
+                        const loc = getTraceLocation(trace);
+                        if (!groups[loc]) {
+                          groups[loc] = [];
+                        }
+                        groups[loc].push({ idx, trace });
+                      });
 
-                                  {/* Mouvement */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <select
-                                      value={trace.movementId}
-                                      onChange={(e) => {
-                                        const updated = [...traceabilities];
-                                        updated[idx].movementId = e.target.value;
-                                        setTraceabilities(updated);
-                                      }}
-                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
-                                      style={{ minHeight: '30px' }}
-                                    >
-                                      <option value="" disabled hidden>Sélectionnez un mouvement</option>
-                                      <option value="Autre">Autre (Aucun mouvement)</option>
-                                      {mouvements.filter(mv => mv.type !== 'Annulation').map(mv => (
-                                        <option key={mv.id} value={mv.id}>
-                                          {mv.date} - {mv.type} (Vol: {mv.volume})
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </td>
+                      return (
+                        <div 
+                          className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                          style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                        >
+                          <table className="w-full text-left font-sans border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Code barre / Imprimer.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
+                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Transférer vers:</th>
+                                <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Supprimer.</th>
+                              </tr>
+                            </thead>
+                            <tbody className="bg-white">
+                              {Object.entries(groups).map(([locName, items]) => {
+                                // Find technician associated with this location
+                                const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);
 
-                                  {/* Numéro de lot ou série */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <input
-                                      type="text"
-                                      value={trace.lotOrSerial}
-                                      onChange={(e) => {
-                                        const updated = [...traceabilities];
-                                        updated[idx].lotOrSerial = e.target.value;
-                                        setTraceabilities(updated);
-                                      }}
-                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-semibold text-xs font-mono"
-                                      style={{ minHeight: '30px' }}
-                                    />
-                                  </td>
+                                return (
+                                  <React.Fragment key={locName}>
+                                    {/* Intercalaire (Divider Row) */}
+                                    <tr className="bg-black select-none" style={{ borderBottom: '1px solid #000000', borderTop: '1px solid #000000' }}>
+                                      <td colSpan={9} className="px-4 py-3 bg-black">
+                                        <div className="flex items-center gap-6 font-sans text-[15px] font-bold text-white bg-transparent">
+                                          <span className="bg-transparent">
+                                            Emplacement : {getLocationCustomName(locName)}
+                                          </span>
+                                          {assignedTech && (
+                                            <span className="bg-transparent text-white font-bold">
+                                              Technicien : {assignedTech.name}
+                                            </span>
+                                          )}
+                                          <span className="text-white font-bold text-[15px] ml-auto bg-transparent pr-2">
+                                            {items.length} {items.length > 1 ? 'pièces' : 'pièce'}
+                                          </span>
+                                        </div>
+                                      </td>
+                                    </tr>
 
-                                  {/* Date de péremption */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <input
-                                      type="date"
-                                      value={trace.expirationDate || ''}
-                                      onChange={(e) => {
-                                        const updated = [...traceabilities];
-                                        updated[idx].expirationDate = e.target.value || undefined;
-                                        setTraceabilities(updated);
-                                      }}
-                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
-                                      style={{ minHeight: '30px' }}
-                                    />
-                                  </td>
+                                    {/* Rows for this group */}
+                                    {items.map(({ idx, trace }, itemGroupIdx) => {
+                                      return (
+                                        <tr 
+                                          key={trace.id} 
+                                          className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                          style={{ borderBottom: itemGroupIdx === items.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                                        >
+                                          {/* Code-barres / Imprimer */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <div className="flex items-center gap-4 bg-transparent whitespace-nowrap">
+                                              <div 
+                                                className="inline-block bg-transparent"
+                                                dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
+                                              />
+                                              <button
+                                                type="button"
+                                                onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
+                                                style={{
+                                                  backgroundColor: '#000000',
+                                                  color: '#ffffff',
+                                                  padding: '8px 16px',
+                                                  fontSize: '18px',
+                                                  borderRadius: '10px',
+                                                }}
+                                                className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                                title="Imprimer / Télécharger"
+                                              >
+                                                Imprimer
+                                              </button>
+                                            </div>
+                                          </td>
 
-                                  {/* Volume */}
-                                  <td className="px-3 py-2 bg-white text-center">
-                                    <input
-                                      type="number"
-                                      value={trace.volume}
-                                      disabled
-                                      className="w-16 bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs text-center cursor-not-allowed"
-                                      style={{ minHeight: '30px' }}
-                                    />
-                                  </td>
+                                          {/* Numéro de lot ou série */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <input
+                                              type="text"
+                                              value={trace.lotOrSerial}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].lotOrSerial = e.target.value;
+                                                setTraceabilities(updated);
+                                              }}
+                                              className="w-full bg-white text-black p-1 border border-slate-300 rounded font-semibold text-xs font-mono"
+                                              style={{ minHeight: '30px', minWidth: '130px' }}
+                                            />
+                                          </td>
 
-                                  {/* Situation */}
-                                  <td className="px-3 py-2 bg-white">
-                                    <select
-                                      value={trace.situation}
-                                      onChange={(e) => {
-                                        const updated = [...traceabilities];
-                                        updated[idx].situation = e.target.value as any;
-                                        setTraceabilities(updated);
-                                      }}
-                                      className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
-                                      style={{ minHeight: '30px' }}
-                                    >
-                                      <option value="Disponible">Disponible</option>
-                                      <option value="Utilisé">Utilisé</option>
-                                      <option value="Indisponible">Indisponible</option>
-                                      <option value="Signalé manquant">Signalé manquant</option>
-                                    </select>
-                                  </td>
+                                          {/* Date de péremption */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <input
+                                              type="date"
+                                              value={trace.expirationDate || ''}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].expirationDate = e.target.value || undefined;
+                                                setTraceabilities(updated);
+                                              }}
+                                              className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                              style={{ minHeight: '30px', minWidth: '130px' }}
+                                            />
+                                          </td>
 
-                                  {/* Actions */}
-                                  <td className="px-3 py-2 text-right bg-white">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setTraceabilities(traceabilities.filter((_, i) => i !== idx));
-                                      }}
-                                      style={{
-                                        backgroundColor: '#000000',
-                                        color: '#ffffff',
-                                        padding: '10px 20px',
-                                        fontSize: '18px',
-                                        borderRadius: '13px',
-                                      }}
-                                      className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
-                                    >
-                                      Supprimer
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
+                                          {/* Situation */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <select
+                                              value={trace.situation}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].situation = e.target.value as any;
+                                                setTraceabilities(updated);
+                                              }}
+                                              className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs font-semibold"
+                                              style={{ minHeight: '30px', minWidth: '180px' }}
+                                            >
+                                              <option value="Disponible">Disponible</option>
+                                              <option value="Utilisé">Utilisé</option>
+                                              <option value="Indisponible">Indisponible</option>
+                                              <option value="Signalé manquant">Signalé manquant</option>
+                                              <option value="Prêté">Prêté</option>
+                                            </select>
+                                          </td>
+
+                                          {/* Volume */}
+                                          <td className="px-3 py-3 bg-white text-center">
+                                            <input
+                                              type="number"
+                                              value={trace.volume}
+                                              disabled
+                                              className="w-16 bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs text-center cursor-not-allowed"
+                                              style={{ minHeight: '30px' }}
+                                            />
+                                          </td>
+
+                                          {/* Commentaire */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <input
+                                              type="text"
+                                              value={trace.comment || ''}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].comment = e.target.value;
+                                                setTraceabilities(updated);
+                                              }}
+                                              placeholder="Commentaire..."
+                                              className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                              style={{ minHeight: '30px', minWidth: '150px' }}
+                                            />
+                                          </td>
+
+                                          {/* Mouvement */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <select
+                                              value={trace.movementId}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].movementId = e.target.value;
+                                                setTraceabilities(updated);
+                                              }}
+                                              className="w-full bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs"
+                                              style={{ minHeight: '30px', minWidth: '280px' }}
+                                            >
+                                              <option value="" disabled hidden>Sélectionnez un mouvement</option>
+                                              <option value="Autre">Autre (Aucun mouvement)</option>
+                                              {mouvements.filter(mv => mv.type !== 'Annulation').map(mv => (
+                                                <option key={mv.id} value={mv.id}>
+                                                  {mv.date} - {mv.type} (Vol: {mv.volume})
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </td>
+
+                                          {/* Transférer vers */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <select
+                                              value={trace.emplacement || locName}
+                                              onChange={(e) => {
+                                                const updated = [...traceabilities];
+                                                updated[idx].emplacement = e.target.value;
+                                                setTraceabilities(updated);
+                                              }}
+                                              className="bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs font-semibold"
+                                              style={{ border: '1px solid #cbd5e1', minHeight: '30px', minWidth: '160px' }}
+                                            >
+                                              {ALL_LOCATIONS.map(loc => (
+                                                <option key={loc} value={loc}>
+                                                  {getLocationCustomName(loc)}
+                                                </option>
+                                              ))}
+                                            </select>
+                                          </td>
+
+                                          {/* Actions */}
+                                          <td className="px-3 py-3 text-right bg-white">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setTraceabilities(traceabilities.filter((_, i) => i !== idx));
+                                              }}
+                                              style={{
+                                                backgroundColor: '#000000',
+                                                color: '#ffffff',
+                                                padding: '8px 16px',
+                                                fontSize: '18px',
+                                                borderRadius: '10px',
+                                              }}
+                                              className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                            >
+                                              Supprimer
+                                            </button>
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </>
               )}
@@ -2204,8 +2269,15 @@ export default function StocksTab({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTraceabilityEnabled(false)}
-                    className="flex items-center gap-2 font-sans font-bold cursor-pointer select-none border-0 bg-transparent text-black"
+                    onClick={() => {
+                      if (traceabilities.length > 0) {
+                        alert("Impossible de désactiver la traçabilité car des pièces de traçabilité existent déjà dans le tableau.");
+                        return;
+                      }
+                      setTraceabilityEnabled(false);
+                    }}
+                    disabled={traceabilities.length > 0}
+                    className={`flex items-center gap-2 font-sans font-bold select-none border-0 bg-transparent text-black ${traceabilities.length > 0 ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     style={{ fontSize: '18px' }}
                   >
                     <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white ${traceabilityEnabled === false ? 'border-[#fe4eba]' : 'border-slate-300'}`}>

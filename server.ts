@@ -27,8 +27,84 @@ async function startServer() {
   });
 
   // Use json middleware for API routes
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // Endpoint for identifying a defibrillator model using Gemini API
+  app.post("/api/gemini/detect-model", async (req, res) => {
+    try {
+      const { image, mimeType, availableModels } = req.body;
+      if (!image) {
+        return res.status(400).json({ error: "L'image est requise pour la détection." });
+      }
+
+      if (!process.env.GEMINI_API_KEY) {
+        return res.status(500).json({ error: "La clé API Gemini n'est pas configurée sur le serveur." });
+      }
+
+      const { GoogleGenAI, Type } = await import("@google/genai");
+      const aiClient = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      const imagePart = {
+        inlineData: {
+          mimeType: mimeType || "image/jpeg",
+          data: image,
+        }
+      };
+
+      const promptText = `Tu es un expert en matériel médical, en particulier les défibrillateurs automatisés externes (DAE).
+Analyse l'image de la caméra ci-jointe pour identifier la marque/fabricant et le modèle exact du défibrillateur visible.
+
+Voici les modèles pré-définis de notre base de données :
+${JSON.stringify(availableModels || [], null, 2)}
+
+Identifie quel modèle de la liste correspond le mieux au défibrillateur présent sur l'image.
+Si l'image ne correspond à aucun modèle pré-défini mais que tu reconnais clairement le modèle (ex. Zoll AED Plus, Philips HeartStart HS1, Physio-Control Lifepak CR2, Defibtech Lifeline), renvoie la marque et le modèle réels de l'appareil. Dans ce cas, essaie de faire correspondre l'id à l'un des modèles de notre liste si possible, sinon renvoie une chaîne vide ou l'id le plus approchant.
+
+Renvoie obligatoirement un objet JSON contenant :
+- id : l'identifiant (id) du modèle pré-défini de notre liste (ou une chaîne vide s'il n'y a pas de correspondance acceptable).
+- nom : le nom complet du modèle identifié (ex. "Cardiac Science Powerheart G5").
+- marque : la marque de l'appareil (ex. "Cardiac Science").`;
+
+      const response = await aiClient.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: [
+          imagePart,
+          { text: promptText }
+        ],
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              id: { type: Type.STRING, description: "Identifiant du modèle pré-défini ou chaîne vide." },
+              nom: { type: Type.STRING, description: "Nom complet du modèle identifié." },
+              marque: { type: Type.STRING, description: "Marque ou fabricant identifié." }
+            },
+            required: ["id", "nom", "marque"]
+          }
+        }
+      });
+
+      const resultText = response.text;
+      if (!resultText) {
+        throw new Error("Aucune réponse n'a été générée par le modèle d'IA.");
+      }
+
+      const parsedResult = JSON.parse(resultText.trim());
+      res.json(parsedResult);
+    } catch (error: any) {
+      console.error("Gemini Detection Route Error:", error);
+      res.status(500).json({ error: error.message || "Une erreur est survenue lors de l'analyse par l'IA." });
+    }
+  });
 
   // Proxy route for Pennylane API to prevent CORS
   app.all("/api/pennylane/*", async (req, res) => {

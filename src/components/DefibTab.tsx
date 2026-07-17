@@ -930,6 +930,7 @@ export default function DefibTab({
   const [commentaire, setCommentaire] = useState('');
   const [modeleId, setModeleId] = useState('');
   const [numeroAtlasante, setNumeroAtlasante] = useState('');
+  const [versionLogiciel, setVersionLogiciel] = useState('');
 
   // Section 2 - Client Site Link (autopopulates from active client selection)
   const [clientId, setClientId] = useState('');
@@ -1181,6 +1182,7 @@ export default function DefibTab({
   const [modeleBatterieId, setModeleBatterieId] = useState('');
   const [lotBatterie, setLotBatterie] = useState('');
   const [insertionBatterie, setInsertionBatterie] = useState('');
+  const [fabricationBatterie, setFabricationBatterie] = useState('');
   const [peremptionBatterie, setPeremptionBatterie] = useState('');
   const [livraisonBatterie, setLivraisonBatterie] = useState('');
   const [situationBatterie, setSituationBatterie] = useState<'Vert' | 'Orange' | 'Rouge'>('Vert');
@@ -1189,6 +1191,7 @@ export default function DefibTab({
   const [modeleBatterieSecoursId, setModeleBatterieSecoursId] = useState('');
   const [lotBatterieSecours, setLotBatterieSecours] = useState('');
   const [peremptionBatterieSecours, setPeremptionBatterieSecours] = useState('');
+  const [peremptionTrousse, setPeremptionTrousse] = useState('');
 
   // Section 9 - Catégories
   const [loue, setLoue] = useState<'Oui' | 'Non'>('Non');
@@ -1281,6 +1284,7 @@ export default function DefibTab({
         (df.identifiant || '').toLowerCase().includes(search.toLowerCase()) ||
         (df.numeroSerie || '').toLowerCase().includes(search.toLowerCase()) ||
         (df.numeroAtlasante || '').toLowerCase().includes(search.toLowerCase()) ||
+        (df.versionLogiciel || '').toLowerCase().includes(search.toLowerCase()) ||
         (df.ville || '').toLowerCase().includes(search.toLowerCase()) ||
         (clientName || '').toLowerCase().includes(search.toLowerCase()) ||
         (modelName || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -1484,6 +1488,7 @@ export default function DefibTab({
     setNumeroSerie('');
     setCommentaire('');
     setNumeroAtlasante('');
+    setVersionLogiciel('');
     // Auto-select to the most recently created model variable, or CSPG5, or the first model
     const defaultModel = modelesDefib.length > 0 ? modelesDefib[modelesDefib.length - 1] : null;
     setModeleId(defaultModel ? defaultModel.id : '');
@@ -1570,6 +1575,7 @@ export default function DefibTab({
     setModeleBatterieId('');
     setLotBatterie('');
     setInsertionBatterie('');
+    setFabricationBatterie('');
     setPeremptionBatterie('');
     setLivraisonBatterie('');
     setSituationBatterie('Vert');
@@ -1616,6 +1622,7 @@ export default function DefibTab({
     setCommentaire(df.commentaire || '');
     setModeleId(df.modeleId);
     setNumeroAtlasante(df.numeroAtlasante || '');
+    setVersionLogiciel(df.versionLogiciel || '');
 
     setClientId(df.clientId);
     const linkedClient = clients.find(c => c.id === df.clientId);
@@ -1722,6 +1729,7 @@ export default function DefibTab({
     setModeleBatterieId(df.modeleBatterieId || '');
     setLotBatterie(df.lotBatterie || '');
     setInsertionBatterie(df.insertionBatterie || '');
+    setFabricationBatterie(df.fabricationBatterie || '');
     setPeremptionBatterie(df.peremptionBatterie || '');
     setLivraisonBatterie(df.livraisonBatterie || '');
     setSituationBatterie(df.situationBatterie || 'Vert');
@@ -1730,6 +1738,7 @@ export default function DefibTab({
     setModeleBatterieSecoursId(df.modeleBatterieSecoursId || '');
     setLotBatterieSecours(df.lotBatterieSecours || '');
     setPeremptionBatterieSecours(df.peremptionBatterieSecours || '');
+    setPeremptionTrousse(df.peremptionTrousse || '');
 
     setLoue(df.loue || 'Non');
     setPrete(df.prete || 'Non');
@@ -1792,6 +1801,7 @@ export default function DefibTab({
       const payload = {
       identifiant: identifiant.trim().toUpperCase(),
       numeroAtlasante: numeroAtlasante.trim(),
+      versionLogiciel: versionLogiciel.trim(),
       numeroSerie: numeroSerie.trim(),
       commentaire: commentaire.trim(),
       modeleId,
@@ -1867,6 +1877,7 @@ export default function DefibTab({
       modeleBatterieId,
       lotBatterie: lotBatterie.trim(),
       insertionBatterie,
+      fabricationBatterie,
       peremptionBatterie,
       livraisonBatterie,
       situationBatterie,
@@ -1876,6 +1887,7 @@ export default function DefibTab({
       modeleBatterieSecoursId: hasBatterieSecours === 'Oui' ? modeleBatterieSecoursId : '',
       lotBatterieSecours: hasBatterieSecours === 'Oui' ? lotBatterieSecours.trim() : '',
       peremptionBatterieSecours: hasBatterieSecours === 'Oui' ? peremptionBatterieSecours : '',
+      peremptionTrousse,
 
       loue,
       prete,
@@ -2479,6 +2491,11 @@ export default function DefibTab({
                             Atlas: {df.numeroAtlasante}
                           </div>
                         ) : null}
+                        {df.versionLogiciel ? (
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5" title="Version du logiciel">
+                            Soft: {df.versionLogiciel}
+                          </div>
+                        ) : null}
                       </td>
 
                       {/* Client */}
@@ -2907,7 +2924,7 @@ export default function DefibTab({
                           textTransform: 'none',
                         }}
                       >
-                        1 — Identification
+                        1 — Identification et photos
                       </span>
                     </div>
 
@@ -3034,6 +3051,21 @@ export default function DefibTab({
                           />
                         </div>
                       )}
+
+                      {/* Version du logiciel */}
+                      <div className="space-y-1">
+                        <label htmlFor="form-versionlogiciel" className="block text-[11px] font-bold text-slate-500 uppercase">
+                          Version du logiciel.
+                        </label>
+                        <input
+                          type="text"
+                          id="form-versionlogiciel"
+                          value={versionLogiciel}
+                          onChange={(e) => setVersionLogiciel(e.target.value)}
+                          placeholder="Ex: v1.4.2"
+                          className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        />
+                      </div>
                     </div>
 
                     {/* Commentaire simple */}
@@ -4522,17 +4554,7 @@ export default function DefibTab({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <label htmlFor="form-bat-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
-                        <input
-                          type="date"
-                          id="form-bat-ins"
-                          value={insertionBatterie}
-                          onChange={(e) => setInsertionBatterie(e.target.value)}
-                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
                       <div className="space-y-1">
                         <label htmlFor="form-bat-per" className="block text-[9px] font-bold text-slate-400 uppercase">Péremption.</label>
                         <input
@@ -4540,6 +4562,26 @@ export default function DefibTab({
                           id="form-bat-per"
                           value={peremptionBatterie}
                           onChange={(e) => setPeremptionBatterie(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-fab" className="block text-[9px] font-bold text-slate-400 uppercase">Fabrication.</label>
+                        <input
+                          type="date"
+                          id="form-bat-fab"
+                          value={fabricationBatterie}
+                          onChange={(e) => setFabricationBatterie(e.target.value)}
+                          className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label htmlFor="form-bat-ins" className="block text-[9px] font-bold text-slate-400 uppercase">Insertion.</label>
+                        <input
+                          type="date"
+                          id="form-bat-ins"
+                          value={insertionBatterie}
+                          onChange={(e) => setInsertionBatterie(e.target.value)}
                           className="w-full px-1.5 py-0.5 border border-slate-200 rounded text-[11px] font-mono"
                         />
                       </div>
@@ -4656,6 +4698,17 @@ export default function DefibTab({
                           className="w-full px-2 py-1 border border-slate-200 rounded text-xs font-semibold text-slate-850"
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label htmlFor="form-peremption-trousse" className="block text-[11px] font-bold text-slate-500 uppercase">Péremption de la trousse.</label>
+                      <input
+                        type="date"
+                        id="form-peremption-trousse"
+                        value={peremptionTrousse}
+                        onChange={(e) => setPeremptionTrousse(e.target.value)}
+                        className="w-full px-3 py-1 border border-slate-200 rounded-lg text-xs font-mono"
+                      />
                     </div>
 
                     <div className="space-y-1">

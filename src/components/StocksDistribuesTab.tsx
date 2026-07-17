@@ -1302,6 +1302,7 @@ export default function StocksDistribuesTab({
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>N° de lot ou série</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Volume</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Situation</th>
                             </tr>
                           </thead>
@@ -1344,11 +1345,16 @@ export default function StocksDistribuesTab({
                                 <td className="px-3 py-2 bg-white align-middle text-center font-semibold" style={{ fontSize: '15px' }}>
                                   {trace.volume}
                                 </td>
+                                <td className="px-3 py-2 bg-white align-middle text-slate-600 italic" style={{ fontSize: '14px' }}>
+                                  {trace.comment || '-'}
+                                </td>
                                 <td className="px-3 py-2 bg-white align-middle text-center" style={{ fontSize: '15px' }}>
                                   <span 
                                     className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold text-xs ${
                                       trace.situation === 'Disponible' 
                                         ? 'bg-green-100 text-green-800' 
+                                        : trace.situation === 'Prêté'
+                                        ? 'bg-blue-100 text-blue-800'
                                         : 'bg-red-100 text-red-800'
                                     }`}
                                   >
@@ -1500,6 +1506,7 @@ export default function StocksDistribuesTab({
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
                               <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire.</th>
                               <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
                             </tr>
                           </thead>
@@ -1652,6 +1659,29 @@ export default function StocksDistribuesTab({
                                       className="text-center font-sans cursor-not-allowed"
                                       style={{
                                         width: "80px",
+                                        backgroundColor: "#ffffff",
+                                        color: "#000000",
+                                        fontSize: "18px",
+                                        borderRadius: "13px",
+                                        border: "1px solid #cbd5e1",
+                                        padding: "6px 12px",
+                                        minHeight: "42px",
+                                        opacity: 1,
+                                        WebkitTextFillColor: "#000000",
+                                      }}
+                                    />
+                                  </td>
+
+                                  {/* Commentaire */}
+                                  <td className="px-3 py-2 bg-white align-middle">
+                                    <input
+                                      type="text"
+                                      value={trace.comment || ''}
+                                      disabled
+                                      readOnly
+                                      placeholder="-"
+                                      className="w-full font-sans cursor-not-allowed"
+                                      style={{
                                         backgroundColor: "#ffffff",
                                         color: "#000000",
                                         fontSize: "18px",

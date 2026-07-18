@@ -745,7 +745,7 @@ export default function App() {
   });
 
   useEffect(() => {
-    if (companyInfo) {
+    if (isFirebaseLoaded && tenantId === loadedTenantIdState && companyInfo) {
       let updated = false;
       const nextCompanyInfo = { ...companyInfo };
 
@@ -780,7 +780,7 @@ export default function App() {
         setCompanyInfo(nextCompanyInfo);
       }
     }
-  }, [companyInfo, tenantId]);
+  }, [companyInfo, tenantId, isFirebaseLoaded, loadedTenantIdState]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -2806,6 +2806,7 @@ export default function App() {
   useEffect(() => {
     async function loadFirebaseAndSeed() {
       setIsFirebaseLoaded(false);
+      setLoadedTenantIdState('');
       // 1. Instantly load local cache so the app is immediately usable (0ms delay!)
       try {
         const savedClients = localStorage.getItem(`defib_${tenantId}_clients`);

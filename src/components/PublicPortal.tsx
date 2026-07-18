@@ -938,45 +938,64 @@ export default function PublicPortal({
       selectedTechStock.volumeDisponible - (Number(rapatrimentVolume) || 0),
     );
 
+    // Get updated traceabilities
+    let countToUpdate = Number(rapatrimentVolume) || 0;
+    const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
+      let isAtThisLocation = t.emplacement === selectedTechStock.locationName;
+      if (!t.emplacement) {
+        const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
+        if (matchedMv && matchedMv.emplacement) {
+          const loc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+          if (loc === selectedTechStock.locationName) {
+            isAtThisLocation = true;
+          }
+        }
+      }
+
+      if (isAtThisLocation && (t.situation === "Disponible" || t.situation === "Signalé manquant") && countToUpdate > 0) {
+        countToUpdate--;
+        return {
+          ...t,
+          emplacement: "Centrale des stocks" as any,
+        };
+      }
+      return t;
+    });
+
+    // Check if any traceabilities remain at this location
+    const hasRemainingTraceabilities = updatedTraceabilities.some(t => 
+      t.emplacement === selectedTechStock.locationName && 
+      (t.situation === "Indisponible" || t.situation === "Signalé manquant" || t.situation === "Prêté" || t.situation === "Disponible")
+    );
+
+    const shouldKeep = newVolDispo > 0 || 
+                       (selectedTechStock.volumeReserve || 0) > 0 || 
+                       (selectedTechStock.volumeEntrant || 0) > 0 || 
+                       hasRemainingTraceabilities;
+
     // update distributed stock
     if (onUpdateDistributedStocks && distributedStocks) {
-      const updatedDs = distributedStocks.map((it) => {
-        if (it.id === selectedTechStock.id) {
-          return {
-            ...it,
-            volumeDisponible: newVolDispo,
-          };
-        }
-        return it;
-      });
+      let updatedDs: DistributedStockLocation[];
+      if (!shouldKeep) {
+        // Delete this distributed stock location
+        updatedDs = distributedStocks.filter(it => it.id !== selectedTechStock.id);
+      } else {
+        // Keep but update volumeDisponible
+        updatedDs = distributedStocks.map((it) => {
+          if (it.id === selectedTechStock.id) {
+            return {
+              ...it,
+              volumeDisponible: newVolDispo,
+            };
+          }
+          return it;
+        });
+      }
       onUpdateDistributedStocks(updatedDs);
     }
 
     // update central stocks and traceabilities
     if (onUpdateStocks) {
-      let countToUpdate = Number(rapatrimentVolume) || 0;
-      const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
-        let isAtThisLocation = t.emplacement === selectedTechStock.locationName;
-        if (!t.emplacement) {
-          const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
-          if (matchedMv && matchedMv.emplacement) {
-            const loc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
-            if (loc === selectedTechStock.locationName) {
-              isAtThisLocation = true;
-            }
-          }
-        }
-
-        if (isAtThisLocation && (t.situation === "Disponible" || t.situation === "Signalé manquant") && countToUpdate > 0) {
-          countToUpdate--;
-          return {
-            ...t,
-            emplacement: "Centrale des stocks",
-          };
-        }
-        return t;
-      });
-
       const updatedStocks = stocks.map((st) => {
         if (st.id === matchedStockRecord.id) {
           return {
@@ -6547,7 +6566,7 @@ export default function PublicPortal({
                   const currentTourForPause = selectedTourId
                     ? getSortedTours().find((t) => t.id === selectedTourId)
                     : null;
-                  const isTourFinished = currentTourForPause?.status === "Terminé";
+                  const isTourFinished = currentTourForPause ? currentTourForPause.status === "Terminé" : true;
                   const hasTodoMissions =
                     currentTourForPause && currentTourForPause.passages
                       ? currentTourForPause.passages.some(
@@ -6839,9 +6858,23 @@ export default function PublicPortal({
                                               style={{ color: "#000000" }}
                                             >
                                               {(() => {
-                                                const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || matchedOther?.clientId));
-                                                const siteVal = clientObj ? clientObj.denomination : (matchedDefib?.nomPrenomSite || matchedOther?.nomPrenomSite || p.clientName || "");
+                                                const siteVal = matchedDefib ? (matchedDefib.nomSite || "") : (matchedOther ? (matchedOther.nomPrenomSite || "") : "");
                                                 return siteVal === "Représentant Standard" || siteVal === "Représentant standard" || siteVal === "Non renseigné" ? "" : siteVal;
+                                              })()}
+                                            </span>
+                                          </p>
+
+                                          {/* Client */}
+                                          <p style={{ color: "#000000" }}>
+                                            Client :{" "}
+                                            <span
+                                              className="font-semibold"
+                                              style={{ color: "#000000" }}
+                                            >
+                                              {(() => {
+                                                const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || matchedOther?.clientId));
+                                                const clientVal = clientObj ? clientObj.denomination : (p.clientName || "");
+                                                return clientVal === "Représentant Standard" || clientVal === "Représentant standard" || clientVal === "Non renseigné" ? "" : clientVal;
                                               })()}
                                             </span>
                                           </p>
@@ -6935,7 +6968,7 @@ export default function PublicPortal({
                                                     style={{ color: "#fe4eba" }}
                                                     title="Cliquez pour copier"
                                                   >
-                                                    {gpsStr} {isCopied ? " (Copié !)" : " (Copier)"}
+                                                    {gpsStr}
                                                   </span>
                                                 );
                                               }
@@ -7119,13 +7152,14 @@ export default function PublicPortal({
                                           <div
                                             className="mt-2.5 p-3 rounded-lg"
                                             style={{
-                                              backgroundColor: "#fde5ff",
+                                              backgroundColor: "rgb(238, 241, 255)",
+                                              color: "rgb(49, 85, 255)",
                                             }}
                                           >
                                             <label
                                               className="block text-[18px] font-bold mb-1 font-sans"
                                               style={{
-                                                color: "#973e9e",
+                                                color: "rgb(49, 85, 255)",
                                                 textTransform: "none",
                                               }}
                                             >
@@ -7308,8 +7342,8 @@ export default function PublicPortal({
                                     style={{
                                       fontSize: "18px",
                                       border: "none",
-                                      color: "#973e9e",
-                                      backgroundColor: "#fde5ff",
+                                      color: "rgb(49, 85, 255)",
+                                      backgroundColor: "rgb(238, 241, 255)",
                                     }}
                                   >
                                     {tourErrorMap[t.id]}
@@ -7366,14 +7400,18 @@ export default function PublicPortal({
                           (d) =>
                             d.id === rep.defibId ||
                             d.identifiant === rep.defibIdentifiant,
-                        ) ||
-                        {};
+                        );
+                      const matchedOther = !snapshot ? otherEquipments?.find(
+                        (o) =>
+                          o.id === rep.defibId ||
+                          o.identifiant === rep.defibIdentifiant,
+                      ) : null;
                       const clientFound = clients.find(
-                        (c) => c.id === snapshot.clientId,
+                        (c) => c.id === (snapshot?.clientId || matchedOther?.clientId),
                       );
                       const clientName = clientFound
                         ? clientFound.denomination
-                        : snapshot.nomPrenomSite || "Non rattaché";
+                        : rep.clientName || "Non rattaché";
 
                       return (
                         <div
@@ -7468,13 +7506,13 @@ export default function PublicPortal({
                                 );
                               };
 
-                              const identifiantVal = snapshot.identifiant || rep.defibIdentifiant || "";
-                              const serieVal = snapshot.numeroSerie || rep.defibSerialNumber || "";
-                              const materielVal = snapshot.categorie ? formatToNormalCase(snapshot.categorie) : "Défibrillateur";
+                              const identifiantVal = snapshot?.identifiant || rep.defibIdentifiant || "";
+                              const serieVal = snapshot?.numeroSerie || rep.defibSerialNumber || "";
+                              const materielVal = snapshot?.categorie ? formatToNormalCase(snapshot.categorie) : (matchedOther?.categorie ? formatToNormalCase(matchedOther.categorie) : "Défibrillateur");
                               const techVal = rep.techName || "";
-                              const clientVal = clientFound ? clientFound.denomination : (rep.clientName || "");
-                              const siteVal = snapshot.nomSite || snapshot.nomPrenomSite || "";
-                              const locVal = snapshot.ville || snapshot.cp ? `${snapshot.cp || ""} ${snapshot.ville || ""}`.trim() : "";
+                              const clientVal = clientName;
+                              const siteVal = snapshot ? (snapshot.nomSite || "") : (matchedOther ? (matchedOther.nomPrenomSite || "") : "");
+                              const locVal = snapshot?.ville || snapshot?.cp ? `${snapshot.cp || ""} ${snapshot.ville || ""}`.trim() : (matchedOther?.ville || matchedOther?.codePostal ? `${matchedOther.codePostal || ""} ${matchedOther.ville || ""}`.trim() : "");
 
                               return (
                                 <>
@@ -7511,6 +7549,28 @@ export default function PublicPortal({
                                       </span>
                                     </p>
                                   )}
+                                  {isReal(siteVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Site :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {formatToNormalCase(siteVal)}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(clientVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Client :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {formatToNormalCase(clientVal)}
+                                      </span>
+                                    </p>
+                                  )}
                                   {isReal(materielVal) && (
                                     <p style={{ color: "#000000" }}>
                                       Matériel :{" "}
@@ -7530,28 +7590,6 @@ export default function PublicPortal({
                                         style={{ color: "#000000" }}
                                       >
                                         {techVal}
-                                      </span>
-                                    </p>
-                                  )}
-                                  {isReal(clientVal) && (
-                                    <p style={{ color: "#000000" }}>
-                                      Client :{" "}
-                                      <span
-                                        className="font-semibold"
-                                        style={{ color: "#000000" }}
-                                      >
-                                        {formatToNormalCase(clientVal)}
-                                      </span>
-                                    </p>
-                                  )}
-                                  {isReal(siteVal) && (
-                                    <p style={{ color: "#000000" }}>
-                                      Site :{" "}
-                                      <span
-                                        className="font-semibold"
-                                        style={{ color: "#000000" }}
-                                      >
-                                        {formatToNormalCase(siteVal)}
                                       </span>
                                     </p>
                                   )}

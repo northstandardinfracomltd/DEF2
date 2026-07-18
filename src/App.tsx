@@ -5971,7 +5971,7 @@ export default function App() {
                                                 const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
                                                 const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
                                                 const val = matchedDefib 
-                                                  ? (matchedDefib.nomSite || matchedDefib.nomPrenomSite || "") 
+                                                  ? (matchedDefib.nomSite || "") 
                                                   : (other ? (other.nomPrenomSite || "") : "");
                                                 return val === "Représentant Standard" || val === "Représentant standard" ? "" : val;
                                               })()}
@@ -6719,7 +6719,7 @@ export default function App() {
                                               const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
                                               const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
                                               const val = matchedDefib 
-                                                ? (matchedDefib.nomSite || matchedDefib.nomPrenomSite || "") 
+                                                ? (matchedDefib.nomSite || "") 
                                                 : (other ? (other.nomPrenomSite || "") : "");
                                               return val === "Représentant Standard" || val === "Représentant standard" ? "" : val;
                                             })()}

@@ -3465,6 +3465,50 @@ export default function App() {
     loadFirebaseAndSeed();
   }, [tenantId]);
 
+  // Real-time tab/webapp focus sync to instantly apply changes without refresh/delay
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleFocusSync = () => {
+      if (tenantId && tenantId !== 'demo' && isFirebaseLoaded) {
+        fetchCollectionFromFirestore<CompanyInfo>('companyInfo', tenantId).then((data) => {
+          if (data) {
+            setCompanyInfo((prev) => {
+              const merged = {
+                ...prev,
+                ...data,
+                hiddenTabs: data.hiddenTabs !== undefined ? data.hiddenTabs : (prev?.hiddenTabs || []),
+                customLocationNames: data.customLocationNames !== undefined ? data.customLocationNames : prev?.customLocationNames,
+                enableAutoEmails: data.enableAutoEmails !== undefined ? data.enableAutoEmails : prev?.enableAutoEmails,
+                enableSatisfactionAvis: data.enableSatisfactionAvis !== undefined ? data.enableSatisfactionAvis : prev?.enableSatisfactionAvis,
+                enableDevisFactures: data.enableDevisFactures !== undefined ? data.enableDevisFactures : prev?.enableDevisFactures,
+                communicationPortailClient: data.communicationPortailClient !== undefined ? data.communicationPortailClient : prev?.communicationPortailClient,
+                pdfHeaderBgColor: data.pdfHeaderBgColor !== undefined ? data.pdfHeaderBgColor : prev?.pdfHeaderBgColor,
+                pdfCardBorderColor: data.pdfCardBorderColor !== undefined ? data.pdfCardBorderColor : prev?.pdfCardBorderColor,
+                pdfCardBgColor: data.pdfCardBgColor !== undefined ? data.pdfCardBgColor : prev?.pdfCardBgColor,
+                pdfLabelTextColor: data.pdfLabelTextColor !== undefined ? data.pdfLabelTextColor : prev?.pdfLabelTextColor,
+                pdfHeaderImg: data.pdfHeaderImg !== undefined ? data.pdfHeaderImg : prev?.pdfHeaderImg,
+                pdfPageHeaderText: data.pdfPageHeaderText !== undefined ? data.pdfPageHeaderText : prev?.pdfPageHeaderText,
+                pdfPageFooterText: data.pdfPageFooterText !== undefined ? data.pdfPageFooterText : prev?.pdfPageFooterText,
+                pdfLastPageInfoText: data.pdfLastPageInfoText !== undefined ? data.pdfLastPageInfoText : prev?.pdfLastPageInfoText,
+              };
+              const strVal = JSON.stringify(merged);
+              localStorage.setItem(`defib_${tenantId}_company_info`, strVal);
+              loadedDataRef.current.companyInfo = strVal;
+              return merged;
+            });
+          }
+        }).catch(err => console.warn("Focus sync companyInfo failed:", err));
+      }
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    // Also run once on mount
+    handleFocusSync();
+    return () => {
+      window.removeEventListener('focus', handleFocusSync);
+    };
+  }, [tenantId, isFirebaseLoaded]);
+
   const loadApiConnectors = React.useCallback(() => {
     fetchCollectionFromFirestore<any>('api_connectors', tenantId).then(data => {
       if (data) {

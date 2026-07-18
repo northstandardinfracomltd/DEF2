@@ -1584,7 +1584,7 @@ export default function PublicPortal({
 
   const getBonCommandeLabel = (p: any) => {
     if (p.bonCommandeId === 'custom') {
-      return p.customBonCommande || "Non renseigné";
+      return p.customBonCommande || "";
     }
     if (p.bonCommandeId) {
       const doc = commercialDocs?.find((d: any) => d.id === p.bonCommandeId);
@@ -1592,7 +1592,7 @@ export default function PublicPortal({
         return doc.bonCommandeEntete || doc.bonCommandeReference || doc.ref || p.bonCommandeId;
       }
     }
-    return "Non renseigné";
+    return "";
   };
 
   const [selectedDefibId, setSelectedDefibId] = useState("");
@@ -4279,10 +4279,10 @@ export default function PublicPortal({
   };
 
   const getNextPassageZone = () => {
-    if (!selectedTourId) return "Ville_CP";
+    if (!selectedTourId) return "";
     const activeTour = getSortedTours().find((t) => t.id === selectedTourId);
     if (!activeTour || !activeTour.passages || activeTour.passages.length === 0)
-      return "Ville_CP";
+      return "";
 
     const donePassages = activeTour.passages.filter(
       (p: any) => p.status === "Effectué",
@@ -4307,7 +4307,7 @@ export default function PublicPortal({
       );
     }
 
-    if (!nextPassage) return "Ville_CP";
+    if (!nextPassage) return "";
 
     const defib = defibrillateurs.find(
       (d: any) =>
@@ -4337,7 +4337,7 @@ export default function PublicPortal({
       return nextPassage.address;
     }
 
-    return "Ville_CP";
+    return "";
   };
 
   return (
@@ -6611,7 +6611,7 @@ export default function PublicPortal({
                                 />
                               </button>
                             </div>
-                            {pauseEnabled && (
+                            {pauseEnabled && getNextPassageZone() && (
                               <div className="text-[18px] font-semibold text-[#fe4eba] font-sans">
                                 {t("Zone recommandée pour votre pause :")}{" "}
                                 <span className="font-bold">
@@ -6803,8 +6803,8 @@ export default function PublicPortal({
                                             >
                                               {(() => {
                                                 const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || matchedOther?.clientId));
-                                                const siteVal = clientObj ? clientObj.denomination : (matchedDefib?.nomPrenomSite || matchedOther?.nomPrenomSite || p.clientName || "Non renseigné");
-                                                return siteVal === "Représentant Standard" || siteVal === "Représentant standard" ? "Non renseigné" : siteVal;
+                                                const siteVal = clientObj ? clientObj.denomination : (matchedDefib?.nomPrenomSite || matchedOther?.nomPrenomSite || p.clientName || "");
+                                                return siteVal === "Représentant Standard" || siteVal === "Représentant standard" || siteVal === "Non renseigné" ? "" : siteVal;
                                               })()}
                                             </span>
                                           </p>
@@ -6834,9 +6834,7 @@ export default function PublicPortal({
                                               className="font-semibold"
                                               style={{ color: "#000000" }}
                                             >
-                                              {p.address || (
-                                                <span className="text-gray-400 italic">Non renseignée</span>
-                                              )}
+                                              {p.address || ""}
                                             </span>
                                           </p>
                                           <p style={{ color: "#000000" }}>
@@ -6854,9 +6852,7 @@ export default function PublicPortal({
                                                 {equipmentPhone}
                                               </a>
                                             ) : (
-                                              <span className="font-semibold text-gray-400">
-                                                Non renseigné
-                                              </span>
+                                              ""
                                             )}
                                           </p>
                                           {p.reason &&
@@ -6903,11 +6899,7 @@ export default function PublicPortal({
                                                   </span>
                                                 );
                                               }
-                                              return (
-                                                <span className="font-semibold text-gray-400">
-                                                  Non renseigné
-                                                </span>
-                                              );
+                                              return "";
                                             })()}
                                           </p>
 
@@ -7624,8 +7616,8 @@ export default function PublicPortal({
                   {/* Details shown ONLY when a stock is selected */}
                   {selectedTechStock ? (
                     <div className="space-y-4 mt-6">
-                      {/* Section 1: Volumes (4-col grid) */}
-                      <div className="grid grid-cols-4 gap-1.5">
+                      {/* Section 1: Volumes (3-col grid) */}
+                      <div className="grid grid-cols-3 gap-1.5">
                         <div
                           className="p-4 text-center"
                           style={{
@@ -9655,7 +9647,7 @@ export default function PublicPortal({
                   >
                     <div className="space-y-4">
                       {/* Live map link replaced by toggle */}
-                      {!companyInfo?.hiddenTabs?.includes("Localisation (Webapp)") && (
+                      {!companyInfo?.hiddenTabs?.includes("Localisation (Webapp)") && !companyInfo?.hiddenTabs?.includes("Localisations") && (
                         <div className="space-y-1.5" style={{ marginTop: "24px" }}>
                           <div
                             className="bg-white border px-4 py-[25px]"

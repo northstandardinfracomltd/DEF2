@@ -3163,6 +3163,75 @@ export default function PublicPortal({
     }
   }, [activeTab, techSignature]);
 
+  // Auto-geocode connected technician's start address
+  useEffect(() => {
+    const triggerGeocoding = async () => {
+      if (!techStartCity.trim()) return;
+      
+      // Try full address first (with street)
+      let fullAddress = "";
+      if (techStartStreet.trim()) {
+        fullAddress = `${techStartStreet.trim()}, ${techStartZip.trim()} ${techStartCity.trim()}, ${techStartCountry.trim()}`;
+      } else {
+        fullAddress = `${techStartZip.trim()} ${techStartCity.trim()}, ${techStartCountry.trim()}`;
+      }
+      
+      let coord = await geocodeAddress(fullAddress);
+      
+      // Fallback: try without street if full address fails
+      if (!coord && techStartStreet.trim()) {
+        const fallbackAddress = `${techStartZip.trim()} ${techStartCity.trim()}, ${techStartCountry.trim()}`;
+        coord = await geocodeAddress(fallbackAddress);
+      }
+      
+      if (coord) {
+        setTechStartLat(String(coord.lat));
+        setTechStartLng(String(coord.lng));
+      }
+    };
+
+    const delayDebounce = setTimeout(() => {
+      triggerGeocoding();
+    }, 1200); // 1.2s debounce
+
+    return () => clearTimeout(delayDebounce);
+  }, [techStartStreet, techStartCity, techStartZip, techStartCountry]);
+
+  const handleGetCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          setTechStartLat(String(latitude.toFixed(6)));
+          setTechStartLng(String(longitude.toFixed(6)));
+          
+          // Reverse geocode to populate address if possible (optional but great!)
+          try {
+            const response = await fetch(
+              `https://api-adresse.data.gouv.fr/reverse/?lon=${longitude}&lat=${latitude}`
+            );
+            if (response.ok) {
+              const data = await response.json();
+              if (data?.features?.[0]?.properties) {
+                const props = data.features[0].properties;
+                if (props.name) setTechStartStreet(props.name);
+                if (props.city) setTechStartCity(props.city);
+                if (props.postcode) setTechStartZip(props.postcode);
+              }
+            }
+          } catch (e) {
+            console.error("Reverse geocoding failed", e);
+          }
+        },
+        (error) => {
+          alert("Impossible d'obtenir la position actuelle : " + error.message);
+        }
+      );
+    } else {
+      alert("La géolocalisation n'est pas supportée par votre navigateur.");
+    }
+  };
+
   // Handle DAE lookup selection
   const handleDefibLookupChange = (daeId: string) => {
     setSelectedDefibId(daeId);
@@ -6170,7 +6239,7 @@ export default function PublicPortal({
             )}
 
             {/* Top Bar Navigation and Tab Selector Wrapper with Linear Gradient */}
-            <div style={{ background: "linear-gradient(rgb(126, 46, 134), rgb(54, 9, 58))", paddingTop: "12px" }}>
+            <div style={{ background: "linear-gradient(93deg, rgb(12 40 166), rgb(0 14 80))", padding: "2px 0px" }}>
               {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
               <nav
                 className="py-0 px-0 relative shrink-0"
@@ -9307,8 +9376,8 @@ export default function PublicPortal({
                 >
                   {/* Nom du logiciel / Entreprise */}
                   <div
-                    style={{ color: "#000000" }}
-                    className="font-gochi text-2xl text-left tracking-wide select-none"
+                    style={{ color: "rgb(0, 0, 0)", fontSize: "28px", marginTop: "55px" }}
+                    className="font-gochi text-left tracking-wide select-none"
                   >
                     {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
                       ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
@@ -9522,46 +9591,70 @@ export default function PublicPortal({
                           </div>
                         </div>
 
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={handleGetCurrentLocation}
+                            style={{
+                              fontSize: "14px",
+                              padding: "10px 14px",
+                              borderRadius: "10px",
+                              backgroundColor: "#f3f4f6",
+                              color: "#1f2937",
+                              border: "1px solid #dedede",
+                              fontWeight: "bold",
+                              cursor: "pointer",
+                            }}
+                            className="hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 w-full"
+                          >
+                            <span>📍 Obtenir mes coordonnées via GPS (actuel)</span>
+                          </button>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Latitude */}
                           <div className="space-y-1">
                             <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Latitude.</label>
                             <input
                               type="text"
+                              readOnly
                               required
                               value={techStartLat}
-                              onChange={(e) => setTechStartLat(e.target.value)}
-                              placeholder="Ex: 48.8566"
+                              placeholder="Rempli automatiquement"
                               style={{
                                 fontSize: "15px",
                                 padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
-                                color: "#000000",
+                                color: "#4b5563",
+                                backgroundColor: "#f3f4f6",
+                                cursor: "not-allowed",
                               }}
-                              className="w-full bg-white focus:border-indigo-500"
+                              className="w-full"
                             />
                           </div>
-
+ 
                           {/* Longitude */}
                           <div className="space-y-1">
                             <label style={{ fontSize: "18px", color: "#000000" }} className="block font-bold">Longitude.</label>
                             <input
                               type="text"
+                              readOnly
                               required
                               value={techStartLng}
-                              onChange={(e) => setTechStartLng(e.target.value)}
-                              placeholder="Ex: 2.3522"
+                              placeholder="Rempli automatiquement"
                               style={{
                                 fontSize: "15px",
                                 padding: "14px",
                                 borderRadius: "10px",
                                 border: "1px solid #dedede",
                                 outline: "none",
-                                color: "#000000",
+                                color: "#4b5563",
+                                backgroundColor: "#f3f4f6",
+                                cursor: "not-allowed",
                               }}
-                              className="w-full bg-white focus:border-indigo-500"
+                              className="w-full"
                             />
                           </div>
                         </div>

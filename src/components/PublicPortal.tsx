@@ -9591,26 +9591,6 @@ export default function PublicPortal({
                           </div>
                         </div>
 
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={handleGetCurrentLocation}
-                            style={{
-                              fontSize: "14px",
-                              padding: "10px 14px",
-                              borderRadius: "10px",
-                              backgroundColor: "#f3f4f6",
-                              color: "#1f2937",
-                              border: "1px solid #dedede",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                            }}
-                            className="hover:bg-gray-200 transition-colors flex items-center justify-center gap-2 w-full"
-                          >
-                            <span>📍 Obtenir mes coordonnées via GPS (actuel)</span>
-                          </button>
-                        </div>
-
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           {/* Latitude */}
                           <div className="space-y-1">

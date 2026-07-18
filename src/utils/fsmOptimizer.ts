@@ -66,7 +66,11 @@ export function sortMissionsByProximity(
 ): any[] {
   if (missions.length === 0) return [];
 
-  const unvisited = [...missions];
+  // Separate missions that have no coordinates
+  const noCoordsMissions = missions.filter(m => !equipmentCoords[m.defibIdentifiant]);
+  const hasCoordsMissions = missions.filter(m => equipmentCoords[m.defibIdentifiant]);
+
+  const unvisited = [...hasCoordsMissions];
   const ordered: any[] = [];
   let currentCoord = startCoord;
 
@@ -76,7 +80,8 @@ export function sortMissionsByProximity(
 
     for (let i = 0; i < unvisited.length; i++) {
       const m = unvisited[i];
-      const coord = equipmentCoords[m.defibIdentifiant] || { lat: 48.8566, lng: 2.3522 }; // Fallback to Paris if coords missing
+      const coord = equipmentCoords[m.defibIdentifiant];
+      if (!coord) continue;
       const dist = getHaversineDistance(currentCoord, coord);
 
       if (preference === 'loin') {
@@ -103,7 +108,8 @@ export function sortMissionsByProximity(
     }
   }
 
-  return ordered;
+  // Prepend missions with no coordinates to the ordered list
+  return [...noCoordsMissions, ...ordered];
 }
 
 /**

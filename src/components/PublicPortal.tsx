@@ -452,8 +452,33 @@ export default function PublicPortal({
   const [disabledProjectNumber, setDisabledProjectNumber] = useState("");
 
   // Selected tour ID for mobile view
-  const [selectedTourId, setSelectedTourId] = useState<string>("");
-  const [pauseEnabled, setPauseEnabled] = useState(false);
+  const [selectedTourId, setSelectedTourId] = useState<string>(() => {
+    try {
+      return localStorage.getItem("defib_selected_tour_id") || "";
+    } catch (e) {
+      return "";
+    }
+  });
+  const [pauseEnabled, setPauseEnabled] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("defib_pause_enabled") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("defib_selected_tour_id", selectedTourId || "");
+    } catch (e) {}
+  }, [selectedTourId]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("defib_pause_enabled", pauseEnabled ? "true" : "false");
+    } catch (e) {}
+  }, [pauseEnabled]);
+
   const [showConfirmRecalculate, setShowConfirmRecalculate] = useState(false);
 
   const handleRecalculateTour = async () => {
@@ -1057,7 +1082,7 @@ export default function PublicPortal({
                     }
                   }
                   let model = "Défibrillateur standard";
-                  let address = m.clientName || "Adresse non spécifiée";
+                  let address = "";
                   if (defib) {
                     const modelVar = variables.find(
                       (v: any) => v.id === defib.modeleId,
@@ -1084,6 +1109,10 @@ export default function PublicPortal({
                     ].filter(Boolean);
                     if (addrParts.length > 0) {
                       address = addrParts.join(", ");
+                    }
+                  } else {
+                    if (m.clientName && m.clientName !== "Représentant Standard" && m.clientName !== "Représentant standard") {
+                      address = m.clientName;
                     }
                   }
                   const calculatedDate = (() => {
@@ -1430,7 +1459,7 @@ export default function PublicPortal({
                 }
               }
               let model = "Défibrillateur standard";
-              let address = m.clientName || "Adresse non spécifiée";
+              let address = "";
               if (defib) {
                 const modelVar = variables.find(
                   (v: any) => v.id === defib.modeleId,
@@ -1455,6 +1484,10 @@ export default function PublicPortal({
                 ].filter(Boolean);
                 if (addrParts.length > 0) {
                   address = addrParts.join(", ");
+                }
+              } else {
+                if (m.clientName && m.clientName !== "Représentant Standard" && m.clientName !== "Représentant standard") {
+                  address = m.clientName;
                 }
               }
               const calculatedDate = (() => {
@@ -1517,6 +1550,26 @@ export default function PublicPortal({
   };
 
   // PDF Report state variables
+  const [copiedGps, setCopiedGps] = useState<string | null>(null);
+  const handleCopyGps = (gpsText: string) => {
+    navigator.clipboard.writeText(gpsText);
+    setCopiedGps(gpsText);
+    setTimeout(() => setCopiedGps(null), 2000);
+  };
+
+  const getBonCommandeLabel = (p: any) => {
+    if (p.bonCommandeId === 'custom') {
+      return p.customBonCommande || "Non renseigné";
+    }
+    if (p.bonCommandeId) {
+      const doc = commercialDocs?.find((d: any) => d.id === p.bonCommandeId);
+      if (doc) {
+        return doc.bonCommandeEntete || doc.bonCommandeReference || doc.ref || p.bonCommandeId;
+      }
+    }
+    return "Non renseigné";
+  };
+
   const [selectedDefibId, setSelectedDefibId] = useState("");
   const [selectedDefibData, setSelectedDefibData] =
     useState<Defibrillateur | null>(null);
@@ -6439,12 +6492,64 @@ export default function PublicPortal({
                           (p: any) => p.status === "À faire",
                         )
                       : false;
+                  const isTourOpen = !!(currentTourForPause && currentTourForPause.status !== "Terminé");
 
                   return (
                     <div
                       className="space-y-4 pb-16 animate-fadeIn"
                       id="tab-interventions-screen"
                     >
+                      {/* Technician Name display field */}
+                      <div className="px-1 select-none">
+                        <input
+                          type="text"
+                          readOnly
+                          value={authenticatedUser?.name || ""}
+                          className="w-full bg-white text-black transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
+                          style={{
+                            border: "1px solid rgb(201, 190, 205)",
+                            borderRadius: "14px",
+                            padding: "14px 20px",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            boxShadow: "none",
+                            outline: "none",
+                            textAlign: "center",
+                          }}
+                        />
+                      </div>
+
+                      {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
+                      <div className="px-1 select-none pb-4">
+                        <select
+                          value={selectedTourId}
+                          disabled={isTourOpen}
+                          onChange={(e) => setSelectedTourId(e.target.value)}
+                          className={`w-full bg-white text-black ${isTourOpen ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center`}
+                          style={{
+                            border: "1px solid rgb(201, 190, 205)",
+                            borderRadius: "14px",
+                            padding: "14px 20px",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            boxShadow: "none",
+                            outline: "none",
+                            textAlign: "center",
+                            textAlignLast: "center",
+                          }}
+                        >
+                          <option value="" disabled>
+                            Sélectionnez une tournée
+                          </option>
+                          {getSortedTours().map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {truncateTourTitle(t.title)} - {t.startDate}{" "}
+                              {t.status === "Terminé" ? " (Terminé)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
                       {/* Toggle "Suspendre pour pause" */}
                       {selectedTourId && hasTodoMissions && (
                         <div className="px-1" id="pause-toggle-block">
@@ -6528,8 +6633,8 @@ export default function PublicPortal({
                         <div className="px-1 animate-fadeIn">
                           <div
                             style={{
-                              backgroundColor: "#fde5ff",
-                              color: "#973e9e",
+                              backgroundColor: "rgb(238, 241, 255)",
+                              color: "rgb(49, 85, 255)",
                               borderRadius: "13px",
                               fontSize: "18px",
                               border: "none",
@@ -6541,56 +6646,6 @@ export default function PublicPortal({
                           </div>
                         </div>
                       )}
-
-                      {/* Technician Name display field */}
-                      <div className="px-1 select-none mb-3">
-                        <input
-                          type="text"
-                          readOnly
-                          value={authenticatedUser?.name || ""}
-                          className="w-full bg-white text-black transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
-                          style={{
-                            border: "1px solid rgb(201, 190, 205)",
-                            borderRadius: "14px",
-                            padding: "14px 20px",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            boxShadow: "none",
-                            outline: "none",
-                            textAlign: "center",
-                          }}
-                        />
-                      </div>
-
-                      {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
-                      <div className="px-1 select-none">
-                        <select
-                          value={selectedTourId}
-                          onChange={(e) => setSelectedTourId(e.target.value)}
-                          className="w-full bg-white text-black cursor-pointer appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
-                          style={{
-                            border: "1px solid rgb(201, 190, 205)",
-                            borderRadius: "14px",
-                            padding: "14px 20px",
-                            fontSize: "18px",
-                            fontWeight: "bold",
-                            boxShadow: "none",
-                            outline: "none",
-                            textAlign: "center",
-                            textAlignLast: "center",
-                          }}
-                        >
-                          <option value="" disabled>
-                            Sélectionnez une tournée
-                          </option>
-                          {getSortedTours().map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {truncateTourTitle(t.title)} - {t.startDate}{" "}
-                              {t.status === "Terminé" ? " (Terminé)" : ""}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
 
                       {/* List of stacked tournées */}
                       {selectedTourId &&
@@ -6714,6 +6769,21 @@ export default function PublicPortal({
                                               "var(--font-sans), sans-serif",
                                           }}
                                         >
+                                          {/* Site */}
+                                          <p style={{ color: "#000000" }}>
+                                            Site :{" "}
+                                            <span
+                                              className="font-semibold"
+                                              style={{ color: "#000000" }}
+                                            >
+                                              {(() => {
+                                                const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || matchedOther?.clientId));
+                                                const siteVal = clientObj ? clientObj.denomination : (matchedDefib?.nomPrenomSite || matchedOther?.nomPrenomSite || p.clientName || "Non renseigné");
+                                                return siteVal === "Représentant Standard" || siteVal === "Représentant standard" ? "Non renseigné" : siteVal;
+                                              })()}
+                                            </span>
+                                          </p>
+
                                           <p style={{ color: "#000000" }}>
                                             Matériel :{" "}
                                             <span
@@ -6734,12 +6804,14 @@ export default function PublicPortal({
                                             </span>
                                           </p>
                                           <p style={{ color: "#000000" }}>
-                                            Adresse :{" "}
+                                            Localisation :{" "}
                                             <span
                                               className="font-semibold"
                                               style={{ color: "#000000" }}
                                             >
-                                              {p.address}
+                                              {p.address || (
+                                                <span className="text-gray-400 italic">Non renseignée</span>
+                                              )}
                                             </span>
                                           </p>
                                           <p style={{ color: "#000000" }}>
@@ -6765,7 +6837,7 @@ export default function PublicPortal({
                                           {p.reason &&
                                             p.reason.trim() !== "" && (
                                               <p style={{ color: "#000000" }}>
-                                                Motif :{" "}
+                                                Raison :{" "}
                                                 <span
                                                   className="font-semibold"
                                                   style={{ color: "#000000" }}
@@ -6774,6 +6846,46 @@ export default function PublicPortal({
                                                 </span>
                                               </p>
                                             )}
+
+                                          {/* Bon de commande */}
+                                          <p style={{ color: "#000000" }}>
+                                            Bon de commande :{" "}
+                                            <span
+                                              className="font-semibold"
+                                              style={{ color: "#000000" }}
+                                            >
+                                              {getBonCommandeLabel(p)}
+                                            </span>
+                                          </p>
+
+                                          {/* Coordonnées GPS */}
+                                          <p style={{ color: "#000000" }}>
+                                            Coordonnées GPS :{" "}
+                                            {(() => {
+                                              const lat = matchedDefib?.latitude || matchedOther?.latitude || "";
+                                              const lng = matchedDefib?.longitude || matchedOther?.longitude || "";
+                                              if (lat && lng) {
+                                                const gpsStr = `${lat}, ${lng}`;
+                                                const isCopied = copiedGps === gpsStr;
+                                                return (
+                                                  <span
+                                                    onClick={() => handleCopyGps(gpsStr)}
+                                                    className="font-semibold underline cursor-pointer hover:opacity-80 transition-all"
+                                                    style={{ color: "#fe4eba" }}
+                                                    title="Cliquez pour copier"
+                                                  >
+                                                    {gpsStr} {isCopied ? " (Copié !)" : " (Copier)"}
+                                                  </span>
+                                                );
+                                              }
+                                              return (
+                                                <span className="font-semibold text-gray-400">
+                                                  Non renseigné
+                                                </span>
+                                              );
+                                            })()}
+                                          </p>
+
                                           {p.estimatedDate && (
                                             <p style={{ color: "#000000" }}>
                                               Date estimée :{" "}
@@ -6822,7 +6934,7 @@ export default function PublicPortal({
                                                 part.trim() !== "",
                                             ) && (
                                               <p style={{ color: "#000000" }}>
-                                                Pièce(s) :{" "}
+                                                Pièce(s) requise(s) :{" "}
                                                 <span
                                                   className="font-semibold"
                                                   style={{ color: "#000000" }}
@@ -7325,6 +7437,26 @@ export default function PublicPortal({
                                 style={{ color: "#000000" }}
                               >
                                 {formatToNormalCase(clientName)}
+                              </span>
+                            </p>
+                            <p style={{ color: "#000000" }}>
+                              Série :{" "}
+                              <span
+                                className="font-semibold"
+                                style={{ color: "#000000" }}
+                              >
+                                {snapshot.numeroSerie || rep.defibSerialNumber || "Non renseigné"}
+                              </span>
+                            </p>
+                            <p style={{ color: "#000000" }}>
+                              Localisation :{" "}
+                              <span
+                                className="font-semibold"
+                                style={{ color: "#000000" }}
+                              >
+                                {snapshot.ville || snapshot.cp
+                                  ? `${snapshot.cp || ""} ${snapshot.ville || ""}`.trim()
+                                  : "Non renseignée"}
                               </span>
                             </p>
                           </div>

@@ -170,8 +170,12 @@ export default function App() {
     try {
       const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
       setLocationNames(saved ? JSON.parse(saved) : {});
+      
+      const savedEnable = localStorage.getItem(`defib_${tenantId}_enable_other_equipments`);
+      setEnableOtherEquipments(savedEnable || 'Non');
     } catch (e) {
       setLocationNames({});
+      setEnableOtherEquipments('Non');
     }
   }, [tenantId]);
 
@@ -858,7 +862,18 @@ export default function App() {
 
   const handleUpdateOtherEquipments = (val: string) => {
     setEnableOtherEquipments(val);
-    localStorage.setItem('defib_enable_other_equipments', val);
+    localStorage.setItem(`defib_${tenantId}_enable_other_equipments`, val);
+    
+    // Also save in companyInfo
+    setCompanyInfo(prev => {
+      const updated = { ...prev, enableOtherEquipments: val };
+      localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(updated));
+      if (isFirebaseLoaded && tenantId) {
+        saveCollectionToFirestore('companyInfo', updated);
+      }
+      return updated;
+    });
+
     addNotification('Système', 'Un utilisateur vient de modifier les préférences pour les autres types d’équipements.');
   };
 
@@ -2789,10 +2804,11 @@ export default function App() {
   // Load from Firebase on startup, fallback to LocalStorage/Seed Defaults
   useEffect(() => {
     async function loadFirebaseAndSeed() {
+      setIsFirebaseLoaded(false);
       // 1. Instantly load local cache so the app is immediately usable (0ms delay!)
       try {
         const savedClients = localStorage.getItem(`defib_${tenantId}_clients`);
-        let offlineClients: Client[] = savedClients ? JSON.parse(savedClients) : INITIAL_CLIENTS;
+        let offlineClients: Client[] = savedClients ? JSON.parse(savedClients) : (tenantId === 'demo' ? INITIAL_CLIENTS : []);
         let offlineChanged = false;
         const sanitizedOffline = offlineClients.map(c => {
           if (!c.signaturePin || !c.signaturePin.trim()) {
@@ -2807,10 +2823,12 @@ export default function App() {
         }
 
         const savedVariables = localStorage.getItem(`defib_${tenantId}_variables`);
-        setVariables(savedVariables ? JSON.parse(savedVariables) : INITIAL_VARIABLES);
+        const baseVariables = savedVariables ? JSON.parse(savedVariables) : INITIAL_VARIABLES;
+        setVariables(baseVariables);
 
         const savedDefibs = localStorage.getItem(`defib_${tenantId}_defibrillateurs`);
-        setDefibrillateurs(savedDefibs ? JSON.parse(savedDefibs) : INITIAL_DEFIBRILLATEURS);
+        const baseDefibrillateurs = savedDefibs ? JSON.parse(savedDefibs) : (tenantId === 'demo' ? INITIAL_DEFIBRILLATEURS : []);
+        setDefibrillateurs(baseDefibrillateurs);
 
         const defaultInfo = {
           name: tenantId === 'demo' ? "Défibeo Solutions" : "Mon Cabinet",
@@ -2820,70 +2838,115 @@ export default function App() {
           phone: tenantId === 'demo' ? "+33 1 47 20 00 01" : ""
         };
         const savedCompanyInfo = localStorage.getItem(`defib_${tenantId}_company_info`);
-        setCompanyInfo(savedCompanyInfo ? JSON.parse(savedCompanyInfo) : defaultInfo);
+        const baseCompanyInfo = savedCompanyInfo ? JSON.parse(savedCompanyInfo) : defaultInfo;
+        setCompanyInfo(baseCompanyInfo);
 
         const savedMembers = localStorage.getItem(`defib_${tenantId}_members`);
-        setMembers(savedMembers ? JSON.parse(savedMembers) : INITIAL_MEMBERS);
+        const baseMembers = savedMembers ? JSON.parse(savedMembers) : (tenantId === 'demo' ? INITIAL_MEMBERS : []);
+        setMembers(baseMembers);
 
         const savedTickets = localStorage.getItem(`defib_${tenantId}_support_tickets`);
-        setTickets(savedTickets ? JSON.parse(savedTickets) : INITIAL_TICKETS);
+        const baseTickets = savedTickets ? JSON.parse(savedTickets) : (tenantId === 'demo' ? INITIAL_TICKETS : []);
+        setTickets(baseTickets);
 
         const savedMemos = localStorage.getItem(`defib_${tenantId}_memos`);
-        setMemos(savedMemos ? JSON.parse(savedMemos) : []);
+        const baseMemos = savedMemos ? JSON.parse(savedMemos) : [];
+        setMemos(baseMemos);
 
         const savedCommercialDocs = localStorage.getItem(`defib_${tenantId}_commercial_docs`);
-        setCommercialDocs(savedCommercialDocs ? JSON.parse(savedCommercialDocs) : INITIAL_COMMERCIAL_DOCS);
+        const baseDocs = savedCommercialDocs ? JSON.parse(savedCommercialDocs) : (tenantId === 'demo' ? INITIAL_COMMERCIAL_DOCS : []);
+        setCommercialDocs(baseDocs);
 
         const savedGedDocs = localStorage.getItem(`defib_${tenantId}_ged_docs`);
-        setGedDocs(savedGedDocs ? JSON.parse(savedGedDocs) : INITIAL_GED_DOCS);
+        const baseGed = savedGedDocs ? JSON.parse(savedGedDocs) : (tenantId === 'demo' ? INITIAL_GED_DOCS : []);
+        setGedDocs(baseGed);
 
         const savedStocks = localStorage.getItem(`defib_${tenantId}_stocks`);
-        setStocks(savedStocks ? JSON.parse(savedStocks) : INITIAL_STOCKS);
+        const baseStocks = savedStocks ? JSON.parse(savedStocks) : (tenantId === 'demo' ? INITIAL_STOCKS : []);
+        setStocks(baseStocks);
 
         const savedDistrib = localStorage.getItem(`defib_${tenantId}_distributed_stocks`);
-        setDistributedStocks(savedDistrib ? JSON.parse(savedDistrib) : INITIAL_DISTRIBUTED_STOCKS);
+        const baseDistrib = savedDistrib ? JSON.parse(savedDistrib) : (tenantId === 'demo' ? INITIAL_DISTRIBUTED_STOCKS : []);
+        setDistributedStocks(baseDistrib);
 
         const savedReviews = localStorage.getItem(`defib_${tenantId}_customer_reviews`);
-        setCustomerReviews(savedReviews ? JSON.parse(savedReviews) : INITIAL_REVIEWS);
+        const baseReviews = savedReviews ? JSON.parse(savedReviews) : (tenantId === 'demo' ? INITIAL_REVIEWS : []);
+        setCustomerReviews(baseReviews);
 
         const savedReports = localStorage.getItem(`defib_${tenantId}_generated_reports`);
-        setGeneratedReports(savedReports ? JSON.parse(savedReports) : INITIAL_REPORTS);
+        const baseReports = savedReports ? JSON.parse(savedReports) : (tenantId === 'demo' ? INITIAL_REPORTS : []);
+        setGeneratedReports(baseReports);
 
         const savedFsmTours = localStorage.getItem(`defib_${tenantId}_fsm_tours`);
-        setFsmTours(savedFsmTours ? JSON.parse(savedFsmTours) : INITIAL_TOURS);
+        const baseTours = savedFsmTours ? JSON.parse(savedFsmTours) : (tenantId === 'demo' ? INITIAL_TOURS : []);
+        setFsmTours(baseTours);
 
         const savedExpenses = localStorage.getItem(`defib_${tenantId}_expenses`);
-        setExpenses(savedExpenses ? JSON.parse(savedExpenses) : INITIAL_EXPENSES);
+        const baseExpenses = savedExpenses ? JSON.parse(savedExpenses) : (tenantId === 'demo' ? INITIAL_EXPENSES : []);
+        setExpenses(baseExpenses);
 
         const savedOtherEquipments = localStorage.getItem(`defib_${tenantId}_other_equipments`);
-        setOtherEquipments(savedOtherEquipments ? JSON.parse(savedOtherEquipments) : INITIAL_OTHER_EQUIPMENTS);
+        const baseOtherEquip = savedOtherEquipments ? JSON.parse(savedOtherEquipments) : (tenantId === 'demo' ? INITIAL_OTHER_EQUIPMENTS : []);
+        setOtherEquipments(baseOtherEquip);
 
         const savedPointagesHistory = localStorage.getItem(`defib_${tenantId}_pointages_history`);
-        setPointages(savedPointagesHistory ? JSON.parse(savedPointagesHistory) : []);
+        const basePointages = savedPointagesHistory ? JSON.parse(savedPointagesHistory) : [];
+        setPointages(basePointages);
 
         const savedPointagesAutoVigilance = localStorage.getItem(`defib_${tenantId}_pointages_auto_vigilance`);
-        setPointagesAutoVigilance(savedPointagesAutoVigilance ? JSON.parse(savedPointagesAutoVigilance) : []);
+        const basePointagesAuto = savedPointagesAutoVigilance ? JSON.parse(savedPointagesAutoVigilance) : [];
+        setPointagesAutoVigilance(basePointagesAuto);
 
         const savedAchatsFournisseurs = localStorage.getItem(`defib_${tenantId}_achats_fournisseurs`);
-        setAchatsFournisseurs(savedAchatsFournisseurs ? JSON.parse(savedAchatsFournisseurs) : []);
+        const baseAchats = savedAchatsFournisseurs ? JSON.parse(savedAchatsFournisseurs) : [];
+        setAchatsFournisseurs(baseAchats);
 
         const savedVeilles = localStorage.getItem(`defib_${tenantId}_veilles`);
-        setVeilles(savedVeilles ? JSON.parse(savedVeilles) : INITIAL_VEILLES);
+        const baseVeilles = savedVeilles ? JSON.parse(savedVeilles) : (tenantId === 'demo' ? INITIAL_VEILLES : []);
+        setVeilles(baseVeilles);
 
+        let cleanedNotifications: AppNotification[] = [];
         const savedNotifications = localStorage.getItem(`defib_${tenantId}_notifications`);
         if (savedNotifications) {
           try {
             const loadedNotifs = JSON.parse(savedNotifications) as AppNotification[];
-            const cleanedNotifs = loadedNotifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
-            setNotifications(cleanedNotifs);
+            cleanedNotifications = loadedNotifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
+            setNotifications(cleanedNotifications);
           } catch (e) {}
         } else {
           setNotifications([]);
         }
 
-        // Set loaded to true IMMEDIATELY so there is 0ms delay / blocking for the user!
-        setIsFirebaseLoaded(true);
+        const savedEnable = localStorage.getItem(`defib_${tenantId}_enable_other_equipments`);
+        setEnableOtherEquipments(savedEnable || baseCompanyInfo.enableOtherEquipments || 'Non');
+
+        // Prime the loadedDataRef instantly with the loaded offline cached data
+        // to prevent any race condition auto-saves from triggering on startup
+        loadedDataRef.current = {
+          clients: JSON.stringify(sanitizedOffline),
+          variables: JSON.stringify(baseVariables),
+          defibrillateurs: JSON.stringify(baseDefibrillateurs),
+          stocks: JSON.stringify(baseStocks),
+          companyInfo: JSON.stringify(baseCompanyInfo),
+          members: JSON.stringify(baseMembers),
+          tickets: JSON.stringify(baseTickets),
+          pointages: JSON.stringify(basePointages),
+          pointagesAutoVigilance: JSON.stringify(basePointagesAuto),
+          commercialDocs: JSON.stringify(baseDocs),
+          customerReviews: JSON.stringify(baseReviews),
+          notifications: JSON.stringify(cleanedNotifications),
+          gedDocs: JSON.stringify(baseGed),
+          expenses: JSON.stringify(baseExpenses),
+          veilles: JSON.stringify(baseVeilles),
+          generatedReports: JSON.stringify(baseReports),
+          fsmTours: JSON.stringify(baseTours),
+          memos: JSON.stringify(baseMemos),
+          otherEquipments: JSON.stringify(baseOtherEquip),
+          achats_fournisseurs: JSON.stringify(baseAchats)
+        };
+
         loadedTenantIdRef.current = tenantId;
+        setIsFirebaseLoaded(true);
       } catch (localErr) {
         console.warn("Failed to load instant offline fallback data:", localErr);
       }

@@ -632,6 +632,37 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
   };
   await setDoc(doc(db, 'appData', getCollectionKey('notifications', tenantId)), { value: [welcomeNotification] });
 
+  // Pre-populate client-side local storage with clean, empty data and the custom company/member profiles for this new environment
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(`defib_${tenantId}_company_info`, JSON.stringify(customCompanyInfo));
+      window.localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(customMembers));
+      window.localStorage.setItem(`defib_${tenantId}_clients`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_variables`, JSON.stringify(INITIAL_VARIABLES));
+      window.localStorage.setItem(`defib_${tenantId}_defibrillateurs`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_support_tickets`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_memos`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_commercial_docs`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_ged_docs`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_customer_reviews`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_generated_reports`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_fsm_tours`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_expenses`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_other_equipments`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_pointages_history`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_pointages_auto_vigilance`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify([]));
+      window.localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify([welcomeNotification]));
+      window.localStorage.setItem(`defib_${tenantId}_location_names`, JSON.stringify({}));
+      window.localStorage.setItem(`defib_${tenantId}_enable_other_equipments`, 'Non');
+    }
+  } catch (e) {
+    console.warn("Failed to seed new tenant's client-side local storage cache:", e);
+  }
+
   return tenantId;
 }
 

@@ -101,6 +101,8 @@ export default function SettingsModal({
     }
   }, [isOpen, isPage]);
   
+  const myTenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+
   // Local states for form editing without auto-saving until save clicked ("pas d'auto-save")
   const [localCompany, setLocalCompany] = React.useState<CompanyInfo>(companyInfo);
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
@@ -1645,7 +1647,7 @@ export default function SettingsModal({
                 type="button"
                 onClick={() => {
                   setEnableOtherEquipments("Oui");
-                  localStorage.setItem('defib_enable_other_equipments', 'Oui');
+                  localStorage.setItem(`defib_${myTenantId}_enable_other_equipments`, 'Oui');
                   onUpdateOtherEquipments?.("Oui");
                   setShowDisableOtherEquipmentsConfirmation(false);
                 }}
@@ -1676,7 +1678,7 @@ export default function SettingsModal({
                     setShowDisableOtherEquipmentsConfirmation(true);
                   } else {
                     setEnableOtherEquipments("Non");
-                    localStorage.setItem('defib_enable_other_equipments', 'Non');
+                    localStorage.setItem(`defib_${myTenantId}_enable_other_equipments`, 'Non');
                     onUpdateOtherEquipments?.("Non");
                     setShowDisableOtherEquipmentsConfirmation(false);
                   }

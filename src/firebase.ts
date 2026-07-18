@@ -21,7 +21,33 @@ import {
 } from './utils';
 import { Member, Client, Defibrillateur } from './types';
 
-const app = initializeApp(firebaseConfig);
+const isProductionDomain = typeof window !== 'undefined' && 
+  window.location.hostname && 
+  !window.location.hostname.includes('run.app') && 
+  !window.location.hostname.includes('localhost') && 
+  !window.location.hostname.includes('127.0.0.1');
+
+const PROD_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBsfSHoSrPXwnwLcWtIGLPUwUd7ZYWVCvA",
+  authDomain: "defibeo.firebaseapp.com",
+  projectId: "defibeo",
+  storageBucket: "defibeo.appspot.com",
+  messagingSenderId: "627487981610",
+  appId: "1:627487981610:web:e4f496748c4ee0d1710353",
+  measurementId: ""
+};
+
+const firebaseConfigOverride = {
+  apiKey: (import.meta as any).env.VITE_FIREBASE_API_KEY || (isProductionDomain ? PROD_FIREBASE_CONFIG.apiKey : firebaseConfig.apiKey),
+  authDomain: (import.meta as any).env.VITE_FIREBASE_AUTH_DOMAIN || (isProductionDomain ? PROD_FIREBASE_CONFIG.authDomain : firebaseConfig.authDomain),
+  projectId: (import.meta as any).env.VITE_FIREBASE_PROJECT_ID || (isProductionDomain ? PROD_FIREBASE_CONFIG.projectId : firebaseConfig.projectId),
+  storageBucket: (import.meta as any).env.VITE_FIREBASE_STORAGE_BUCKET || (isProductionDomain ? PROD_FIREBASE_CONFIG.storageBucket : firebaseConfig.storageBucket),
+  messagingSenderId: (import.meta as any).env.VITE_FIREBASE_MESSAGING_SENDER_ID || (isProductionDomain ? PROD_FIREBASE_CONFIG.messagingSenderId : firebaseConfig.messagingSenderId),
+  appId: (import.meta as any).env.VITE_FIREBASE_APP_ID || (isProductionDomain ? PROD_FIREBASE_CONFIG.appId : firebaseConfig.appId),
+  measurementId: (import.meta as any).env.VITE_FIREBASE_MEASUREMENT_ID || (isProductionDomain ? PROD_FIREBASE_CONFIG.measurementId : firebaseConfig.measurementId)
+};
+
+const app = initializeApp(firebaseConfigOverride);
 
 let firestoreInstance;
 try {

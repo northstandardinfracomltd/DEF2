@@ -1024,9 +1024,7 @@ export default function StocksTab({
                                 disabled={st.quantite > 0}
                                 onClick={() => {
                                   if (st.quantite > 0) return;
-                                  if (confirm('Retirer cet article du stock ?')) {
-                                    saveStocks(stocks.filter(s => s.id !== st.id));
-                                  }
+                                  saveStocks(stocks.filter(s => s.id !== st.id));
                                 }}
                                 style={{
                                   ...rowActionButtonStyle,

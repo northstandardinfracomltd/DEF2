@@ -149,20 +149,28 @@ export function getFromLocalCache<T>(key: string): T | null {
  */
 export async function fetchCollectionFromFirestore<T>(collectionName: string, tenantId?: string): Promise<T | null> {
   const key = getCollectionKey(collectionName, tenantId || getTenantId());
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return getFromLocalCache<T>(key);
+  }
   try {
     const docRef = doc(db, 'appData', key);
-    const snap = await getDocOptimistic(docRef, key, 4000);
-    if (snap.exists()) {
-      const payload = snap.data();
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Fetch timed out')), 5000)
+    );
+    const serverSnap = await Promise.race([
+      getDocFromServer(docRef),
+      timeoutPromise
+    ]);
+    if (serverSnap.exists()) {
+      const payload = serverSnap.data();
       const val = payload.value as T;
       saveToLocalCache(key, val);
       return val;
     }
-    return getFromLocalCache<T>(key);
   } catch (error) {
-    console.log(`[Firestore Cache-First] Fallback to cache for collection ${collectionName}: server fetch timed out or offline.`);
-    return getFromLocalCache<T>(key);
+    console.log(`[Firestore Server-First] Failed to fetch collection ${collectionName} from server, falling back to cache:`, error);
   }
+  return getFromLocalCache<T>(key);
 }
 
 /**
@@ -341,18 +349,23 @@ export async function fetchRawCollectionFromFirestore<T>(rawKey: string, timeout
   }
   try {
     const docRef = doc(db, 'appData', rawKey);
-    const snap = await getDocOptimistic(docRef, rawKey, timeoutMs);
-    if (snap.exists()) {
-      const payload = snap.data();
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Fetch timed out')), 5000)
+    );
+    const serverSnap = await Promise.race([
+      getDocFromServer(docRef),
+      timeoutPromise
+    ]);
+    if (serverSnap.exists()) {
+      const payload = serverSnap.data();
       const val = payload.value as T;
       saveToLocalCache(rawKey, val);
       return val;
     }
-    return getFromLocalCache<T>(rawKey);
   } catch (error) {
-    console.log(`[Firestore Cache-First] Fallback to cache for raw key ${rawKey} (offline or timed out).`);
-    return getFromLocalCache<T>(rawKey);
+    console.log(`[Firestore Server-First] Failed to fetch raw key ${rawKey} from server, falling back to cache:`, error);
   }
+  return getFromLocalCache<T>(rawKey);
 }
 
 /**

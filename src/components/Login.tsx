@@ -1122,7 +1122,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
                   <input
                     id="email"
                     name="email"
-                    type={loginRole === 'technicien' ? 'text' : 'email'}
+                    type={(loginRole === 'technicien' || loginRole === 'client') ? 'text' : 'email'}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

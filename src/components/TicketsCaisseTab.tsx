@@ -119,10 +119,8 @@ export default function TicketsCaisseTab({
   };
 
   const handleDeleteExpense = (id: string) => {
-    if (confirm('Voulez-vous vraiment supprimer ce ticket de caisse ?')) {
-      const updated = expenses.filter(e => e.id !== id);
-      onUpdateExpenses(updated);
-    }
+    const updated = expenses.filter(e => e.id !== id);
+    onUpdateExpenses(updated);
   };
 
   // Harmonized styling constants

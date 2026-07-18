@@ -134,10 +134,8 @@ export default function AchatsFournisseursTab({
   };
 
   const handleDeleteAchat = (id: string) => {
-    if (confirm(t("Êtes-vous sûr de vouloir supprimer cet achat fournisseur ?"))) {
-      const updated = achatsFournisseurs.filter((a) => a.id !== id);
-      saveAchatsFournisseurs(updated);
-    }
+    const updated = achatsFournisseurs.filter((a) => a.id !== id);
+    saveAchatsFournisseurs(updated);
   };
 
   // Consult uploaded PDF

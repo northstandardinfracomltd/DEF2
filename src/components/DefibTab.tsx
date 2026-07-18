@@ -577,20 +577,18 @@ export default function DefibTab({
   const [isCampaignLoading, setIsCampaignLoading] = useState(false);
 
   const handleTriggerVigilanceCampaign = async () => {
-    if (confirm("Voulez-vous lancer l'envoi des e-mails de rappel d'auto-vigilance pour tous les défibrillateurs actifs configurés en 'Rappel mensuel = Oui' ?")) {
-      setIsCampaignLoading(true);
-      try {
-        const count = await runMonthlyVigilanceCampaign(defibrillateurs, clients, {
-          name: companyInfo?.name || "Défibeo Suite",
-          email: companyInfo?.email || ""
-        });
-        alert(`Campagne de rappel d'auto-vigilance exécutée avec succès ! ${count} e-mail(s) ont été envoyés via votre Google Apps Script.`);
-      } catch (err) {
-        console.error("Failed to run campaign:", err);
-        alert("Erreur lors de l'exécution de la campagne d'auto-vigilance. Veuillez vérifier que l'URL d'Apps Script est paramétrée.");
-      } finally {
-        setIsCampaignLoading(false);
-      }
+    setIsCampaignLoading(true);
+    try {
+      const count = await runMonthlyVigilanceCampaign(defibrillateurs, clients, {
+        name: companyInfo?.name || "Défibeo Suite",
+        email: companyInfo?.email || ""
+      });
+      alert(`Campagne de rappel d'auto-vigilance exécutée avec succès ! ${count} e-mail(s) ont été envoyés via votre Google Apps Script.`);
+    } catch (err) {
+      console.error("Failed to run campaign:", err);
+      alert("Erreur lors de l'exécution de la campagne d'auto-vigilance. Veuillez vérifier que l'URL d'Apps Script est paramétrée.");
+    } finally {
+      setIsCampaignLoading(false);
     }
   };
 
@@ -2005,10 +2003,8 @@ export default function DefibTab({
 
   // Bulk deletion
   const handleBulkDeleteAction = () => {
-    if (confirm(`Voulez-vous vraiment supprimer définitivement ces ${selectedIds.length} défibrillateur(s) ?`)) {
-      onBulkDelete(selectedIds);
-      setSelectedIds([]);
-    }
+    onBulkDelete(selectedIds);
+    setSelectedIds([]);
   };
 
   // Safe search resetting helper

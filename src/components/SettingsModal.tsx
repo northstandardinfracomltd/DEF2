@@ -738,20 +738,23 @@ export default function SettingsModal({
     const isOwnSession = currentUser && m.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim();
     
     const loggedInMember = currentUser ? localMembers.find(lm => lm.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()) : null;
-    const isCurrentUserAdminOrSuperAdmin = loggedInMember && (
+    const loggedUserRole = localStorage.getItem('defib_logged_user_role');
+    const isPrimaryTenantAdmin = loggedUserRole === 'admin' || loggedUserRole === 'megaadmin';
+
+    const isCurrentUserAdminOrSuperAdmin = isPrimaryTenantAdmin || (loggedInMember && (
       loggedInMember.role === 'Administrateur' || 
       loggedInMember.role === 'Super-Administrateur' || 
       loggedInMember.role === 'Propriétaire / Admin' || 
       loggedInMember.role?.toLowerCase().includes('super') || 
       loggedInMember.role?.toLowerCase().includes('propriétaire') ||
       loggedInMember.role?.toLowerCase().includes('admin')
-    );
-    const isCurrentUserSuperAdmin = loggedInMember && (
+    ));
+    const isCurrentUserSuperAdmin = isPrimaryTenantAdmin || (loggedInMember && (
       loggedInMember.role === 'Super-Administrateur' || 
       loggedInMember.role === 'Propriétaire / Admin' || 
       loggedInMember.role?.toLowerCase().includes('super') || 
       loggedInMember.role?.toLowerCase().includes('propriétaire')
-    );
+    ));
     return !!(isOwnSession || isCurrentUserSuperAdmin || (isTech && isCurrentUserAdminOrSuperAdmin));
   };
 
@@ -2242,20 +2245,23 @@ export default function SettingsModal({
                     const isOwnSession = currentUser && m.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim();
                     
                     const loggedInMember = currentUser ? localMembers.find(lm => lm.email?.toLowerCase().trim() === currentUser.email?.toLowerCase().trim()) : null;
-                    const isCurrentUserAdminOrSuperAdmin = loggedInMember && (
+                    const loggedUserRole = localStorage.getItem('defib_logged_user_role');
+                    const isPrimaryTenantAdmin = loggedUserRole === 'admin' || loggedUserRole === 'megaadmin';
+
+                    const isCurrentUserAdminOrSuperAdmin = isPrimaryTenantAdmin || (loggedInMember && (
                       loggedInMember.role === 'Administrateur' || 
                       loggedInMember.role === 'Super-Administrateur' || 
                       loggedInMember.role === 'Propriétaire / Admin' || 
                       loggedInMember.role?.toLowerCase().includes('super') || 
                       loggedInMember.role?.toLowerCase().includes('propriétaire') ||
                       loggedInMember.role?.toLowerCase().includes('admin')
-                    );
-                    const isCurrentUserSuperAdmin = loggedInMember && (
+                    ));
+                    const isCurrentUserSuperAdmin = isPrimaryTenantAdmin || (loggedInMember && (
                       loggedInMember.role === 'Super-Administrateur' || 
                       loggedInMember.role === 'Propriétaire / Admin' || 
                       loggedInMember.role?.toLowerCase().includes('super') || 
                       loggedInMember.role?.toLowerCase().includes('propriétaire')
-                    );
+                    ));
                     const canEditThisMember = isOwnSession || isCurrentUserSuperAdmin || (isTech && isCurrentUserAdminOrSuperAdmin);
 
                     return (

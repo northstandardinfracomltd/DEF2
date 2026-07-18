@@ -3879,13 +3879,6 @@ export default function PublicPortal({
   };
 
   const handleDeactivateGoogleCalendar = () => {
-    if (
-      !window.confirm(
-        "Voulez-vous désactiver la synchronisation de Google Calendar ?",
-      )
-    ) {
-      return;
-    }
     const techName = authenticatedUser?.name || "common";
     localStorage.removeItem(`defib_google_cal_email_${techName}`);
     localStorage.removeItem(`defib_google_cal_id_${techName}`);

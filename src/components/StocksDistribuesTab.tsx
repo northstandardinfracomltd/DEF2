@@ -362,10 +362,8 @@ export default function StocksDistribuesTab({
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('Voulez-vous vraiment supprimer cette affectation de stock distribué ?')) {
-      const updated = distributedStocks.filter(x => x.id !== id);
-      saveDistributedStocks(updated);
-    }
+    const updated = distributedStocks.filter(x => x.id !== id);
+    saveDistributedStocks(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

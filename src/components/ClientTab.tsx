@@ -2049,9 +2049,7 @@ export default function ClientTab({
                             <button
                               onClick={() => {
                                 if (isDeleteDisabled) return;
-                                if (confirm(`Êtes-vous sûr de vouloir supprimer le client "${client.denomination}" ?`)) {
-                                  onDeleteClient(client.id);
-                                }
+                                onDeleteClient(client.id);
                               }}
                               disabled={isDeleteDisabled}
                               id={`btn-delete-client-${client.id}`}

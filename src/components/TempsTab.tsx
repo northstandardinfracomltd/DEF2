@@ -90,13 +90,11 @@ export default function TempsTab({
   };
 
   const handleDeletePointage = (id: string) => {
-    if (confirm('Voulez-vous vraiment supprimer cette ligne de pointage ?')) {
-      const updated = pointages.filter(p => p.id !== id);
-      onUpdatePointages(updated);
-      if (editingId === id) {
-        setEditingId(null);
-        setEditForm(null);
-      }
+    const updated = pointages.filter(p => p.id !== id);
+    onUpdatePointages(updated);
+    if (editingId === id) {
+      setEditingId(null);
+      setEditForm(null);
     }
   };
 

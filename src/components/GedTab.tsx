@@ -86,10 +86,8 @@ export default function GedTab({
   };
 
   const handleDeleteGed = (id: string) => {
-    if (confirm(t('Êtes-vous sûr de vouloir supprimer ce document de la GED ?'))) {
-      const updated = gedDocs.filter(d => d.id !== id);
-      saveGedDocs(updated);
-    }
+    const updated = gedDocs.filter(d => d.id !== id);
+    saveGedDocs(updated);
   };
 
   // Harmonized styling constants

@@ -2741,13 +2741,11 @@ export default function App() {
   };
 
   const handleDeletePointage = (id: string) => {
-    if (confirm('Voulez-vous vraiment supprimer cette ligne de pointage ?')) {
-      const updated = pointages.filter(p => p.id !== id);
-      savePointages(updated);
-      if (editingPointageId === id) {
-        setEditingPointageId(null);
-        setEditPointageForm(null);
-      }
+    const updated = pointages.filter(p => p.id !== id);
+    savePointages(updated);
+    if (editingPointageId === id) {
+      setEditingPointageId(null);
+      setEditPointageForm(null);
     }
   };
 
@@ -2942,6 +2940,7 @@ export default function App() {
               const strVal = JSON.stringify(finalData);
               localStorage.setItem(`defib_${tenantId}_${localStorageKeySuffix}`, strVal);
               loadedDataRef.current[localStorageKeySuffix] = strVal;
+              loadedDataRef.current[collectionName] = strVal;
             }
           } catch (err) {
             console.warn(`Background sync failed for ${collectionName}:`, err);
@@ -4664,10 +4663,8 @@ export default function App() {
   };
 
   const handleDeleteGed = (id: string) => {
-    if (confirm('Voulez-vous vraiment supprimer ce document ?')) {
-      const updated = gedDocs.filter(d => d.id !== id);
-      saveGedDocs(updated);
-    }
+    const updated = gedDocs.filter(d => d.id !== id);
+    saveGedDocs(updated);
   };
 
   const handleConsultGed = (doc: GedDocument) => {
@@ -4686,10 +4683,8 @@ export default function App() {
   };
 
   const handleDeleteExpense = (id: string) => {
-    if (confirm('Voulez-vous vraiment supprimer ce ticket de caisse ?')) {
-      const updated = expenses.filter(e => e.id !== id);
-      saveExpenses(updated);
-    }
+    const updated = expenses.filter(e => e.id !== id);
+    saveExpenses(updated);
   };
 
 
@@ -8141,9 +8136,7 @@ export default function App() {
                                       <button
                                         type="button"
                                         onClick={() => {
-                                          if (confirm("Voulez-vous supprimer ce ticket de support ?")) {
-                                            handleDeleteTicket(t.id);
-                                          }
+                                          handleDeleteTicket(t.id);
                                         }}
                                         style={rowActionButtonStyle}
                                         className="cursor-pointer"
@@ -9328,10 +9321,8 @@ export default function App() {
             <VeillesTab
               veilles={veilles}
               onDeleteVeille={(id) => {
-                if (confirm("Voulez-vous vraiment supprimer ce relevé de veille ?")) {
-                  const updated = veilles.filter((v) => v.id !== id);
-                  saveVeilles(updated);
-                }
+                const updated = veilles.filter((v) => v.id !== id);
+                saveVeilles(updated);
               }}
             />
           )}

@@ -106,6 +106,7 @@ export default function SettingsModal({
   const [localMembers, setLocalMembers] = React.useState<Member[]>(members);
   const [isSaving, setIsSaving] = React.useState(false);
   const [copiedEmbed, setCopiedEmbed] = React.useState(false);
+  const [memberToDeleteIndex, setMemberToDeleteIndex] = React.useState<number | null>(null);
   const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
   const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
   const [localLocationNames, setLocalLocationNames] = React.useState<Record<string, string>>(() => {
@@ -931,16 +932,17 @@ export default function SettingsModal({
     });
   };
 
-  const handleRemoveMember = (index: number) => {
+  const handleRemoveMember = async (index: number) => {
     const m = localMembers[index];
     const isSuperAdmin = m.role === 'Super-Administrateur' || m.role === 'Propriétaire / Admin' || m.role?.toLowerCase().includes('super') || m.role?.toLowerCase().includes('propriétaire');
     if (isSuperAdmin) {
       alert("Impossible de supprimer le Super-Administrateur principal.");
       return;
     }
-    if (confirm(`Voulez-vous vraiment supprimer le membre "${m.name}" ?`)) {
-      setLocalMembers(prev => prev.filter((_, idx) => idx !== index));
-    }
+    const updatedList = localMembers.filter((_, idx) => idx !== index);
+    setLocalMembers(updatedList);
+    setMemberToDeleteIndex(null);
+    await handleSaveAll(updatedList);
   };
 
   const [isVerifyingEmail, setIsVerifyingEmail] = React.useState(false);

@@ -2262,13 +2262,7 @@ export default function ClientPortal({
                     <div class="pdf-line">
                       <span class="pdf-label">Défibrillateur conforme et prêt à l’usage :</span> <span class="pdf-bold">${snapshot.conforme === 'Oui' || report.conforme === 'Oui' ? 'Oui' : 'Non'}</span>
                     </div>
-                    <div class="pdf-line">
-                      <span class="pdf-label">Technicien :</span> <span class="pdf-bold">${report.techName || '-'}</span>
-                    </div>
-                    <div class="pdf-line">
-                      <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ''}</span>
-                    </div>
-                    <div class="pdf-line">
+                    <div class="pdf-line" style="margin-top: 15px;">
                       <span class="pdf-label">Horodatage entrant :</span> <span class="pdf-bold">${report.date || '-'}</span>
                     </div>
                     <div class="pdf-line">
@@ -2277,8 +2271,19 @@ export default function ClientPortal({
                     <div class="pdf-line">
                       <span class="pdf-label">Durée :</span> <span class="pdf-bold">${computeDurationText(report.date, report.endTimeStamp)}</span>
                     </div>
-                    <div class="pdf-line" style="margin-bottom: 4px;">
+                    <div class="pdf-line" style="margin-top: 15px;">
                       <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || '-'}</span>
+                    </div>
+                    <div class="pdf-line" style="margin-top: 6px;">
+                      <span class="pdf-label">Fichier(s) :</span>
+                      <span class="pdf-bold">
+                        ${report.attachments && report.attachments.length > 0
+                          ? report.attachments.map((file: any) => `<a href="${file.url}" target="_blank" style="color: #772a7e; text-decoration: underline; margin-right: 8px;">${file.name}</a>`).join(', ')
+                          : '-'}
+                      </span>
+                    </div>
+                    <div class="pdf-line" style="margin-top: 6px; margin-bottom: 4px;">
+                      <span class="pdf-label">Technicien :</span> <span class="pdf-bold">${report.techName || '-'}</span>
                     </div>
                     
                     <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">

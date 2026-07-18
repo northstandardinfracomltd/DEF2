@@ -2664,13 +2664,7 @@ export default function PublicPortal({
                   <div class="pdf-line">
                     <span class="pdf-label">Défibrillateur conforme et prêt à l’usage :</span> <span class="pdf-bold">${snapshot.conforme === "Oui" || report.conforme === "Oui" ? "Oui" : "Non"}</span>
                   </div>
-                  <div class="pdf-line">
-                    <span class="pdf-label">Technicien :</span> <span class="pdf-bold">${report.techName || "-"}</span>
-                  </div>
-                  <div class="pdf-line">
-                    <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ""}</span>
-                  </div>
-                  <div class="pdf-line">
+                  <div class="pdf-line" style="margin-top: 15px;">
                     <span class="pdf-label">Horodatage entrant :</span> <span class="pdf-bold">${report.date || "-"}</span>
                   </div>
                   <div class="pdf-line">
@@ -2678,6 +2672,20 @@ export default function PublicPortal({
                   </div>
                   <div class="pdf-line">
                     <span class="pdf-label">Durée :</span> <span class="pdf-bold">${computeDurationText(report.date, report.endTimeStamp)}</span>
+                  </div>
+                  <div class="pdf-line" style="margin-top: 15px;">
+                    <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || "-"}</span>
+                  </div>
+                  <div class="pdf-line" style="margin-top: 6px;">
+                    <span class="pdf-label">Fichier(s) :</span>
+                    <span class="pdf-bold">
+                      ${report.attachments && report.attachments.length > 0
+                        ? report.attachments.map((file: any) => `<a href="${file.url}" target="_blank" style="color: #772a7e; text-decoration: underline; margin-right: 8px;">${file.name}</a>`).join(', ')
+                        : "-"}
+                    </span>
+                  </div>
+                  <div class="pdf-line" style="margin-top: 6px; margin-bottom: 4px;">
+                    <span class="pdf-label">Technicien :</span> <span class="pdf-bold">${report.techName || "-"}</span>
                   </div>
                         <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
                       <!-- Photos (Up to 3 photos stacked vertically) -->
@@ -7189,22 +7197,57 @@ export default function PublicPortal({
                           id={`report-card-${rep.id}`}
                         >
                           {/* Gelule Date en premier */}
-                          <div className="flex items-center justify-center pb-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pb-1">
                             <span
                               style={{
                                 color: "#ffffff",
                                 backgroundColor: "#5d1f74",
-                                padding: "10px 20px",
+                                padding: "8px 16px",
                                 borderRadius: "9999px",
                                 fontWeight: "bold",
-                                fontSize: "16px",
+                                fontSize: "14px",
                                 display: "inline-block",
-                                width: "auto",
-                                textAlign: "center",
                               }}
                             >
                               {rep.date}
                             </span>
+                            {rep.validated ? (
+                              <span
+                                style={{
+                                  color: "#047857",
+                                  backgroundColor: "#d1fae5",
+                                  padding: "6px 14px",
+                                  borderRadius: "9999px",
+                                  fontWeight: "bold",
+                                  fontSize: "13px",
+                                  border: "1px solid #a7f3d0",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981" }}></span>
+                                Validé par GMAO
+                              </span>
+                            ) : (
+                              <span
+                                style={{
+                                  color: "#b45309",
+                                  backgroundColor: "#fef3c7",
+                                  padding: "6px 14px",
+                                  borderRadius: "9999px",
+                                  fontWeight: "bold",
+                                  fontSize: "13px",
+                                  border: "1px solid #fde68a",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f59e0b" }}></span>
+                                En attente de validation
+                              </span>
+                            )}
                           </div>
 
                           <div

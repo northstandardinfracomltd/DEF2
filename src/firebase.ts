@@ -270,14 +270,36 @@ export function generateUniqueShortEnvId(existingCodes: string[]): string {
  * Fetches the master list of registered tenants. 
  */
 export async function getRegisteredTenants(): Promise<Tenant[]> {
+  const demoTenant: Tenant = {
+    id: 'demo',
+    companyName: 'Défibeo Solutions',
+    companyEmail: 'contact@defibeo-solutions.com',
+    companyPhone: '+33 1 47 20 00 01',
+    adminName: 'Admin Démo',
+    adminEmail: 'account@demo.com',
+    adminPasswordHexOrPlain: '123456',
+    lang: 'Français',
+    createdAt: '2026-06-15',
+    shortEnvId: 'D10'
+  };
+
+  const addDemoIfNeeded = (list: Tenant[]) => {
+    if (!list.some(t => t.id === 'demo')) {
+      return [demoTenant, ...list];
+    }
+    return list;
+  };
+
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    const cached = getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    return addDemoIfNeeded(cached);
   }
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
     const snap = await getDocOptimistic(docRef, 'registered_tenants', 4000);
     if (snap.exists()) {
-      const tenants = (snap.data().value || []) as Tenant[];
+      let tenants = (snap.data().value || []) as Tenant[];
+      tenants = addDemoIfNeeded(tenants);
       let needsUpdate = false;
       const existingShortCodes = tenants
         .map(t => t.shortEnvId)
@@ -301,10 +323,12 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
       saveToLocalCache('registered_tenants', updatedTenants);
       return updatedTenants;
     }
-    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    const cached = getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    return addDemoIfNeeded(cached);
   } catch (err) {
     console.log('[Firestore Cache-First] Fallback to cache for registered_tenants (offline or timed out).');
-    return getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    const cached = getFromLocalCache<Tenant[]>('registered_tenants') || [];
+    return addDemoIfNeeded(cached);
   }
 }
 

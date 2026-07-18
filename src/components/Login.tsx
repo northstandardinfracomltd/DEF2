@@ -642,7 +642,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               if (fetchedClients && Array.isArray(fetchedClients)) {
                 const found = fetchedClients.find(
                   (c: any) =>
-                    c.email && c.email.trim().toLowerCase() === emailLower &&
+                    ((c.email && c.email.trim().toLowerCase() === emailLower) ||
+                     (c.denomination && c.denomination.trim().toLowerCase() === emailLower)) &&
                     c.accessKey && c.accessKey.trim() === pass
                 );
                 if (found) {
@@ -704,7 +705,8 @@ export default function Login({ onLoginSuccess }: LoginProps) {
               if (fetchedMembers && Array.isArray(fetchedMembers)) {
                 const found = fetchedMembers.find(
                   (m: any) =>
-                    m.email && m.email.trim().toLowerCase() === emailLower &&
+                    ((m.email && m.email.trim().toLowerCase() === emailLower) ||
+                     (m.name && m.name.trim().toLowerCase() === emailLower)) &&
                     m.pin && m.pin.trim() === pass &&
                     (m.role?.toLowerCase().includes('tech') || m.role?.toLowerCase().includes('technicien') || m.role?.toLowerCase().includes('maintenance'))
                 );

@@ -297,6 +297,10 @@ export interface CompanyInfo {
   pdfPageHeaderText?: string;
   pdfPageFooterText?: string;
   pdfLastPageInfoText?: string;
+  pdfHeaderBgColor?: string;
+  pdfCardBorderColor?: string;
+  pdfCardBgColor?: string;
+  pdfLabelTextColor?: string;
 }
 
 export interface PointageLog {

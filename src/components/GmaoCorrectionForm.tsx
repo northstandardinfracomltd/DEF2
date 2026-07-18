@@ -25,6 +25,7 @@ interface GmaoCorrectionFormProps {
   onUpdateStocks?: (updatedStocks: StockRecord[]) => void;
   members?: Member[];
   forceSmartphoneLayout?: boolean;
+  isWebapp?: boolean;
 }
 
 const DEFAULT_DEFIB: Defibrillateur = {
@@ -276,6 +277,43 @@ const parseDateSafely = (dateStr: string): Date | null => {
   return null;
 };
 
+const parseDateString = (str: string): Date | null => {
+  if (!str) return null;
+  const match = str.trim().match(/^(\d{2})[/-](\d{2})[/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (match) {
+    const day = parseInt(match[1], 10);
+    const month = parseInt(match[2], 10) - 1;
+    const year = parseInt(match[3], 10);
+    const hours = parseInt(match[4], 10);
+    const minutes = parseInt(match[5], 10);
+    const seconds = match[6] ? parseInt(match[6], 10) : 0;
+    const d = new Date(year, month, day, hours, minutes, seconds);
+    if (!isNaN(d.getTime())) return d;
+  }
+  
+  const parsed = new Date(str);
+  if (!isNaN(parsed.getTime())) return parsed;
+  
+  try {
+    const parts = str.trim().split(' ');
+    if (parts.length >= 2) {
+      const dateParts = parts[0].split(/[/-]/);
+      const timeParts = parts[1].split(':');
+      if (dateParts.length === 3 && timeParts.length >= 2) {
+        const day = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1;
+        const year = parseInt(dateParts[2], 10);
+        const hours = parseInt(timeParts[0], 10);
+        const minutes = parseInt(timeParts[1], 10);
+        const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+        const d = new Date(year, month, day, hours, minutes, seconds);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
 export default function GmaoCorrectionForm({
   report,
   isNew = false,
@@ -290,7 +328,8 @@ export default function GmaoCorrectionForm({
   stocks = [],
   onUpdateStocks,
   members = [],
-  forceSmartphoneLayout = false
+  forceSmartphoneLayout = false,
+  isWebapp = false
 }: GmaoCorrectionFormProps) {
 
   const availableMembers = React.useMemo<Member[]>(() => {
@@ -349,37 +388,199 @@ export default function GmaoCorrectionForm({
     return null;
   }, [stocks]);
 
-  const uploadFileToGoogleDrive = async (accessToken: string, file: File): Promise<string> => {
-    const metadata = {
-      name: file.name,
-      mimeType: file.type || 'application/octet-stream',
-    };
+  const compressFileOrConvertToBase64 = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64Str = reader.result as string;
+        if (file.type.startsWith('image/')) {
+          const img = new Image();
+          img.src = base64Str;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const max_size = 800;
+            if (width > max_size || height > max_size) {
+              if (width > height) {
+                height *= max_size / width;
+                width = max_size;
+              } else {
+                width *= max_size / height;
+                height = max_size;
+              }
+            }
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.5));
+            } else {
+              resolve(base64Str);
+            }
+          };
+          img.onerror = () => {
+            resolve(base64Str);
+          };
+        } else {
+          resolve(base64Str);
+        }
+      };
+      reader.onerror = (err) => reject(err);
+      reader.readAsDataURL(file);
+    });
+  };
 
-    const formData = new FormData();
-    formData.append(
-      'metadata',
-      new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+  const getOrCreateDefibeoFolder = async (accessToken: string): Promise<string> => {
+    // Search for existing non-trashed folder named "Defibeo"
+    const query = encodeURIComponent("name = 'Defibeo' and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    const searchResponse = await fetch(
+      `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id)`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
     );
-    formData.append('file', file);
 
-    const response = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+    if (!searchResponse.ok) {
+      const errText = await searchResponse.text();
+      throw new Error(`Erreur lors de la recherche du dossier Defibeo : ${searchResponse.statusText} - ${errText}`);
+    }
+
+    const searchResult = await searchResponse.json();
+    if (searchResult.files && searchResult.files.length > 0) {
+      return searchResult.files[0].id;
+    }
+
+    // Create the folder if it doesn't exist
+    const createResponse = await fetch(
+      'https://www.googleapis.com/drive/v3/files',
       {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
         },
-        body: formData,
+        body: JSON.stringify({
+          name: 'Defibeo',
+          mimeType: 'application/vnd.google-apps.folder',
+        }),
       }
     );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Google Drive upload failed: ${response.statusText} - ${errorText}`);
+    if (!createResponse.ok) {
+      const errText = await createResponse.text();
+      throw new Error(`Erreur lors de la création du dossier Defibeo : ${createResponse.statusText} - ${errText}`);
     }
 
-    const result = await response.json();
-    return result.webViewLink || `https://drive.google.com/file/d/${result.id}/view`;
+    const createResult = await createResponse.json();
+    return createResult.id;
+  };
+
+  const makeFilePubliclyReadable = async (accessToken: string, fileId: string): Promise<void> => {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/drive/v3/files/${fileId}/permissions`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            role: 'reader',
+            type: 'anyone',
+          }),
+        }
+      );
+      if (!response.ok) {
+        console.warn(`Impossible de définir les permissions publiques sur le fichier ${fileId}:`, await response.text());
+      }
+    } catch (e) {
+      console.warn(`Erreur de permissions publiques pour le fichier ${fileId}:`, e);
+    }
+  };
+
+  const uploadFileToGoogleDrive = async (accessToken: string, file: File): Promise<string> => {
+    if (!accessToken) {
+      throw new Error("Le connecteur Google Drive n'est pas configuré ou est inactif. Veuillez l'activer dans les réglages.");
+    }
+
+    // Support mock for testing/preview environments if necessary
+    if (accessToken.startsWith('mock_')) {
+      if (file.size > 1024 * 1024) {
+        throw new Error("Le fichier est trop volumineux (max 1 Mo pour le stockage de secours).");
+      }
+      return await compressFileOrConvertToBase64(file);
+    }
+
+    try {
+      // 1. Find or create the Defibeo folder
+      const folderId = await getOrCreateDefibeoFolder(accessToken);
+
+      // 2. Upload file directly inside Defibeo folder
+      const metadata = {
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        parents: [folderId],
+      };
+
+      const formData = new FormData();
+      formData.append(
+        'metadata',
+        new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+      );
+      formData.append('file', file);
+
+      const response = await fetch(
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: formData,
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        const isAuthError = response.status === 401 || 
+                            errorText.includes('UNAUTHENTICATED') || 
+                            errorText.includes('authError') || 
+                            errorText.includes('invalid credentials') || 
+                            errorText.includes('Invalid Credentials');
+        
+        if (isAuthError) {
+          throw new Error("Votre session Google Drive a expiré ou vos identifiants d'accès ne sont plus valides. Veuillez désactiver puis réactiver le connecteur Google Drive dans l'onglet des réglages de l'application (en cliquant sur la déconnexion/reconnexion) pour renouveler vos autorisations d'accès.");
+        }
+
+        throw new Error(`Échec de l'upload sur Google Drive : ${response.statusText} - ${errorText}`);
+      }
+
+      const result = await response.json();
+      
+      // 3. Make file accessible by link to avoid permission request dialogs for viewers
+      if (result.id) {
+        await makeFilePubliclyReadable(accessToken, result.id);
+      }
+
+      return result.webViewLink || `https://drive.google.com/file/d/${result.id}/view`;
+    } catch (err: any) {
+      console.error("Google Drive Upload Error:", err);
+      // Re-throw with user friendly text to block silent failures and let the UI display the clear error
+      const isAuthError = err?.message?.includes('401') || 
+                          err?.message?.includes('UNAUTHENTICATED') || 
+                          err?.message?.includes('authError') ||
+                          err?.message?.includes('credentials');
+      if (isAuthError) {
+        throw new Error("Session Google Drive expirée ou invalide. Veuillez désactiver puis réactiver le connecteur Google Drive dans les réglages pour renouveler vos accès.");
+      }
+      throw err;
+    }
   };
 
   const getAvailableTraceabilities = React.useCallback((category?: string) => {
@@ -486,7 +687,11 @@ export default function GmaoCorrectionForm({
 
   // Report fields
   const [clientPinCode, setClientPinCode] = useState(report?.clientPinCode || '');
-  const [reportTitle, setReportTitle] = useState(report?.title || 'RAPPORT TECHNIQUE DÉFIBRILLATEUR');
+  const [reportTitle, setReportTitle] = useState(() => {
+    if (!report?.title) return 'RAPPORT D’INTERVENTION';
+    if (report.title === 'RAPPORT TECHNIQUE DÉFIBRILLATEUR') return 'RAPPORT D’INTERVENTION';
+    return report.title;
+  });
   const [techName, setTechName] = useState(() => {
     if (report?.techName) return report.techName;
     try {
@@ -813,6 +1018,42 @@ export default function GmaoCorrectionForm({
   const [endTimeStamp, setEndTimeStamp] = useState(report?.endTimeStamp || '');
   const isDrawing = useRef(false);
 
+  const [currentTickTime, setCurrentTickTime] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!isWebapp) return;
+    const interval = setInterval(() => {
+      setCurrentTickTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isWebapp]);
+
+  const parsedStart = useMemo(() => {
+    return parseDateString(interventionDate);
+  }, [interventionDate]);
+
+  const parsedEnd = useMemo(() => {
+    return parseDateString(endTimeStamp);
+  }, [endTimeStamp]);
+
+  const chronoText = useMemo(() => {
+    if (!parsedStart) return "00:00";
+    const end = parsedEnd || currentTickTime;
+    let diffMs = end.getTime() - parsedStart.getTime();
+    if (diffMs < 0) diffMs = 0;
+    
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    
+    const pad = (num: number) => String(num).padStart(2, '0');
+    if (hrs > 0) {
+      return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  }, [parsedStart, parsedEnd, currentTickTime]);
+
   // Auto-generate reference intervention
   useEffect(() => {
     if (snapshot.identifiant) {
@@ -843,13 +1084,34 @@ export default function GmaoCorrectionForm({
   }, [snapshot.identifiant, interventionDate]);
 
   useEffect(() => {
-    // Load Google Drive credentials
-    const driveActive = localStorage.getItem('defib_google_drive_active') === 'true';
-    const driveEmail = localStorage.getItem('defib_google_drive_email') || '';
-    const driveToken = localStorage.getItem('defib_google_drive_token') || '';
-    setGoogleDriveActive(driveActive);
-    setGoogleDriveEmail(driveEmail);
-    setGoogleDriveAccessToken(driveToken);
+    // Load Google Drive credentials from Firestore
+    const activeTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+    fetchCollectionFromFirestore<any>('api_connectors', activeTenant)
+      .then(data => {
+        if (data) {
+          if (data.googleDriveActive !== undefined) setGoogleDriveActive(data.googleDriveActive);
+          if (data.googleDriveEmail !== undefined) setGoogleDriveEmail(data.googleDriveEmail);
+          if (data.googleDriveAccessToken !== undefined) setGoogleDriveAccessToken(data.googleDriveAccessToken);
+        } else {
+          // Fallback to localStorage
+          const driveActive = localStorage.getItem('defib_google_drive_active') === 'true';
+          const driveEmail = localStorage.getItem('defib_google_drive_email') || '';
+          const driveToken = localStorage.getItem('defib_google_drive_token') || '';
+          setGoogleDriveActive(driveActive);
+          setGoogleDriveEmail(driveEmail);
+          setGoogleDriveAccessToken(driveToken);
+        }
+      })
+      .catch(err => {
+        console.error('Error loading Google Drive credentials from Firestore:', err);
+        // Fallback to localStorage on error
+        const driveActive = localStorage.getItem('defib_google_drive_active') === 'true';
+        const driveEmail = localStorage.getItem('defib_google_drive_email') || '';
+        const driveToken = localStorage.getItem('defib_google_drive_token') || '';
+        setGoogleDriveActive(driveActive);
+        setGoogleDriveEmail(driveEmail);
+        setGoogleDriveAccessToken(driveToken);
+      });
   }, []);
 
   useEffect(() => {
@@ -1758,6 +2020,27 @@ export default function GmaoCorrectionForm({
 
   return (
     <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-[440px] mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg force-smartphone-layout" id="gmao-correction-layout">
+      {isWebapp && isNew && (
+        <div className="sticky top-0 right-0 z-50 flex justify-end pointer-events-none w-full -mr-0 md:-mr-4 mt-0 mb-[-36px]">
+          <div 
+            className="flex items-center px-3.5 py-1.5 text-white font-sans pointer-events-auto shadow-none border-none"
+            style={{
+              backgroundColor: '#5c1b62',
+              border: 'none',
+              boxShadow: 'none',
+              borderBottomLeftRadius: '13px',
+              borderTopRightRadius: '0px',
+              borderTopLeftRadius: '0px',
+              borderBottomRightRadius: '0px',
+              fontWeight: 100,
+              fontSize: '16px'
+            }}
+          >
+            {chronoText}
+          </div>
+        </div>
+      )}
+
       <button
         type="button"
         onClick={onCancel}
@@ -2199,7 +2482,7 @@ export default function GmaoCorrectionForm({
                   className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
                 >
                   <option value="">Sélection d’un titre.</option>
-                  <option value="RAPPORT TECHNIQUE DÉFIBRILLATEUR">RAPPORT TECHNIQUE DÉFIBRILLATEUR</option>
+                  <option value="RAPPORT D’INTERVENTION">RAPPORT D’INTERVENTION</option>
                   <option value="CONSTAT DE MAINTENANCE DÉFIBRILLATEUR">CONSTAT DE MAINTENANCE DÉFIBRILLATEUR</option>
                   <option value="RI RAPPORT INTERVENTION">RI RAPPORT INTERVENTION</option>
                   <option value="RAPPORT DISTANCIEL">RAPPORT DISTANCIEL</option>
@@ -4749,7 +5032,7 @@ export default function GmaoCorrectionForm({
                 </div>
               ) : (
                 <div className="space-y-3 bg-white">
-                  <div className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:bg-slate-50 transition relative">
+                  <div className="border border-solid border-slate-300 rounded-lg p-4 text-center cursor-pointer hover:bg-slate-50 transition relative">
                     <input
                       type="file"
                       id="report-attachments-input"
@@ -4759,13 +5042,13 @@ export default function GmaoCorrectionForm({
                       accept=".png,.jpg,.jpeg,.heic,.pdf,.csv,.zip"
                       className="absolute inset-0 opacity-0 cursor-pointer"
                     />
-                    <div className="text-xs text-slate-500 font-medium">
+                    <div className="font-medium">
                       {isUploadingFiles ? (
-                        <span className="text-indigo-600 font-semibold animate-pulse">Upload sur Google Drive en cours...</span>
+                        <span className="text-indigo-600 font-semibold animate-pulse text-sm">Upload sur Google Drive en cours...</span>
                       ) : attachments.length >= 3 ? (
-                        <span>Limite de 3 fichiers atteinte</span>
+                        <span className="text-xs text-slate-500">Limite de 3 fichiers atteinte</span>
                       ) : (
-                        <span>Glissez-déposez vos fichiers ici, ou <strong className="text-indigo-600 hover:underline">parcourez</strong></span>
+                        <span className="text-base text-black">Glissez-déposez vos fichiers ici, ou <strong className="text-indigo-600 hover:underline">parcourez</strong></span>
                       )}
                     </div>
                     <div className="text-[10px] text-slate-400 mt-1">

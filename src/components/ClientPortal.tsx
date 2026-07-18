@@ -1311,6 +1311,57 @@ export default function ClientPortal({
     window.open(url, '_blank');
   };
 
+  const computeDurationText = (startStr: string, endStr: string): string => {
+    if (!startStr || !endStr) return "-";
+    const parseDateString = (str: string): Date | null => {
+      if (!str) return null;
+      const match = str.trim().match(/^(\d{2})[/-](\d{2})[/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const year = parseInt(match[3], 10);
+        const hours = parseInt(match[4], 10);
+        const minutes = parseInt(match[5], 10);
+        const seconds = match[6] ? parseInt(match[6], 10) : 0;
+        return new Date(year, month, day, hours, minutes, seconds);
+      }
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) return parsed;
+      try {
+        const parts = str.trim().split(' ');
+        if (parts.length >= 2) {
+          const dateParts = parts[0].split(/[/-]/);
+          const timeParts = parts[1].split(':');
+          if (dateParts.length === 3 && timeParts.length >= 2) {
+            const day = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10) - 1;
+            const year = parseInt(dateParts[2], 10);
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+            return new Date(year, month, day, hours, minutes, seconds);
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
+
+    const start = parseDateString(startStr);
+    const end = parseDateString(endStr);
+    if (!start || !end) return "-";
+    let diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) diffMs = 0;
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (num: number) => String(num).padStart(2, '0');
+    if (hrs > 0) {
+      return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  };
+
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || defibrillateurs.find(d => d.id === report.defibId || d.identifiant === report.defibIdentifiant) || {};
     const pdfLogo = companyInfo.logo || '';
@@ -1318,6 +1369,10 @@ export default function ClientPortal({
     const pdfPageHeaderText = companyInfo.pdfPageHeaderText || '';
     const pdfPageFooterText = companyInfo.pdfPageFooterText || '';
     const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || '';
+    const pdfHeaderBgColor = companyInfo.pdfHeaderBgColor || '#7c2882';
+    const pdfCardBorderColor = companyInfo.pdfCardBorderColor || '#7d2882';
+    const pdfCardBgColor = companyInfo.pdfCardBgColor || '#fef2ff';
+    const pdfLabelTextColor = companyInfo.pdfLabelTextColor || '#9f71a2';
     const hasLastPage = !!pdfLastPageInfoText.trim();
 
     const compLogo = companyInfo.logo || '';
@@ -1470,9 +1525,9 @@ export default function ClientPortal({
               margin: 0 15mm;
             }
             .pdf-card {
-              border: 2px solid #7d2882;
+              border: 2px solid ${pdfCardBorderColor};
               border-radius: 13px;
-              background-color: #fef2ff;
+              background-color: ${pdfCardBgColor};
               padding: 0px;
               display: flex;
               flex-direction: column;
@@ -1483,7 +1538,7 @@ export default function ClientPortal({
             .pdf-card-header {
               padding: 10px 14px;
               font-size: 16px;
-              background-color: #7C2882;
+              background-color: ${pdfHeaderBgColor};
               color: #ffffff;
               border-bottom: none;
               text-align: center;
@@ -1503,7 +1558,7 @@ export default function ClientPortal({
               font-size: 16px;
             }
             .pdf-label {
-              color: rgb(159 113 162);
+              color: ${pdfLabelTextColor};
             }
             .pdf-bold {
               color: #000000;
@@ -1940,9 +1995,9 @@ export default function ClientPortal({
             }
 
             .pdf-card {
-              border: 2px solid #7d2882;
+              border: 2px solid ${pdfCardBorderColor};
               border-radius: 13px;
-              background-color: #fef2ff;
+              background-color: ${pdfCardBgColor};
               padding: 0px;
               display: flex;
               flex-direction: column;
@@ -1952,7 +2007,7 @@ export default function ClientPortal({
             }
 
             .pdf-card-header {
-              background-color: #7C2882;
+              background-color: ${pdfHeaderBgColor};
               color: #ffffff;
               border-bottom: none;
               font-size: 16px;
@@ -1982,7 +2037,7 @@ export default function ClientPortal({
             }
 
             .pdf-label {
-              color: rgb(159 113 162);
+              color: ${pdfLabelTextColor};
               font-family: "Civilprom", sans-serif !important;
             }
 
@@ -2214,10 +2269,13 @@ export default function ClientPortal({
                       <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ''}</span>
                     </div>
                     <div class="pdf-line">
-                      <span class="pdf-label">Horodatage début d’intervention :</span> <span class="pdf-bold">${report.date || '-'}</span>
+                      <span class="pdf-label">Horodatage entrant :</span> <span class="pdf-bold">${report.date || '-'}</span>
                     </div>
                     <div class="pdf-line">
-                      <span class="pdf-label">Horodatage fin d’intervention :</span> <span class="pdf-bold">${report.endTimeStamp || '-'}</span>
+                      <span class="pdf-label">Horodatage clôture :</span> <span class="pdf-bold">${report.endTimeStamp || '-'}</span>
+                    </div>
+                    <div class="pdf-line">
+                      <span class="pdf-label">Durée :</span> <span class="pdf-bold">${computeDurationText(report.date, report.endTimeStamp)}</span>
                     </div>
                     <div class="pdf-line" style="margin-bottom: 4px;">
                       <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || '-'}</span>

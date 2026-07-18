@@ -1392,86 +1392,7 @@ export default function SettingsModal({
             </div>
           )}
 
-          <div 
-            className="p-5 rounded-xl border flex flex-col gap-4"
-            style={{
-              borderColor: 'rgb(218, 218, 218)',
-              background: '#ffffff00',
-              boxShadow: 'none',
-              maxWidth: '100%',
-              margin: '0px 0px 16px 0px',
-            }}
-          >
-            <div className="space-y-2">
-              <p 
-                className="font-sans leading-relaxed"
-                style={{ 
-                  fontSize: '16px', 
-                  fontWeight: 400, 
-                  color: '#000000', 
-                  cursor: 'default' 
-                }}
-              >
-                {t("Parrainez une nouvelle entreprise et obtenez 4 mois d’abonnement gratuits. Indiquez-nous l'entreprise à laquelle vous avez recommandé Defibeo afin que nous puissions suivre son inscription et vous attribuer votre récompense.")}
-              </p>
-            </div>
-            
-            <div className="space-y-1 w-full">
-              <label className="block text-sm font-bold text-black font-sans">
-                {t("Entreprise filleul.")}
-              </label>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
-                <input
-                  type="text"
-                  value={referralCompany}
-                  onChange={(e) => {
-                    setReferralCompany(e.target.value);
-                    if (referralSent) setReferralSent(false);
-                  }}
-                  className="flex-1 w-full text-black placeholder-[#747474] font-sans text-sm"
-                  placeholder={t("Entrez un texte.")}
-                  style={{
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    height: '48px',
-                    boxSizing: 'border-box',
-                    outline: 'none'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={handleSendReferral}
-                  disabled={isSendingReferral || !referralCompany.trim()}
-                  className="font-sans font-semibold active:scale-95 transition-all cursor-pointer shrink-0"
-                  style={{
-                    backgroundColor: '#000000',
-                    color: '#ffffff',
-                    fontSize: '18px',
-                    borderRadius: '13px',
-                    padding: '0px 24px',
-                    opacity: (!referralCompany.trim() || isSendingReferral) ? 0.5 : 1,
-                    cursor: (!referralCompany.trim() || isSendingReferral) ? 'not-allowed' : 'pointer',
-                    height: '48px',
-                    border: '1px solid #000000',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxSizing: 'border-box'
-                  }}
-                >
-                  {isSendingReferral ? t("Envoi...") : t("Valider")}
-                </button>
-              </div>
-            </div>
 
-            {referralSent && (
-              <p className="text-emerald-600 font-sans text-sm font-medium mt-1">
-                {t("Merci ! Votre demande de parrainage a été envoyée avec succès.")}
-              </p>
-            )}
-          </div>
-          
           {/* SECTION 1: RÉGLAGES */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 text-left" id="settings-section-company">
             {renderSectionHeader(t("Réglages"))}
@@ -2026,252 +1947,98 @@ export default function SettingsModal({
                   className="w-full p-3 border border-slate-200 rounded-lg text-sm bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 font-sans"
                 />
               </div>
+
+              {/* PDF Custom Colors Grid */}
+              <div className="space-y-4 pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-[14px] font-bold text-black font-sans leading-tight">
+                      {t("Couleur d'arrière plan des entêtes des sections.")}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={7}
+                      value={localCompany.pdfHeaderBgColor ?? '#7c2882'}
+                      onChange={(e) => handleCompanyChange('pdfHeaderBgColor', e.target.value)}
+                      className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                      placeholder="#7c2882"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[14px] font-bold text-black font-sans leading-tight">
+                      {t("Couleur de bordure des sections.")}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={7}
+                      value={localCompany.pdfCardBorderColor ?? '#7d2882'}
+                      onChange={(e) => handleCompanyChange('pdfCardBorderColor', e.target.value)}
+                      className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                      placeholder="#7d2882"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[14px] font-bold text-black font-sans leading-tight">
+                      {t("Couleur d'arrière plan des sections.")}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={7}
+                      value={localCompany.pdfCardBgColor ?? '#fef2ff'}
+                      onChange={(e) => handleCompanyChange('pdfCardBgColor', e.target.value)}
+                      className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                      placeholder="#fef2ff"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[14px] font-bold text-black font-sans leading-tight">
+                      {t("Couleur du texte des labels des champs.")}
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={7}
+                      value={localCompany.pdfLabelTextColor ?? '#9f71a2'}
+                      onChange={(e) => handleCompanyChange('pdfLabelTextColor', e.target.value)}
+                      className="w-full text-black placeholder-[#747474] font-sans text-sm"
+                      placeholder="#9f71a2"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCompanyChange('pdfHeaderBgColor', '#7c2882');
+                    handleCompanyChange('pdfCardBorderColor', '#7d2882');
+                    handleCompanyChange('pdfCardBgColor', '#fef2ff');
+                    handleCompanyChange('pdfLabelTextColor', '#9f71a2');
+                  }}
+                  style={{
+                    backgroundColor: '#000000',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                    borderRadius: '13px',
+                    padding: '11px 22px',
+                    fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                    fontWeight: 100,
+                    cursor: 'pointer',
+                    border: 'none',
+                    width: '100%',
+                    textTransform: 'none'
+                  }}
+                  className="mt-2 font-sans"
+                >
+                  {t("Réinitialiser les couleurs")}
+                </button>
+              </div>
             </div>
           </div>
           </div>
 
-          {/* SECTION: INTEGRATION DU FORMULAIRE DE CONTACT */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-embed-form">
-            {renderSectionHeader(t("Intégrez le formulaire de contact à votre site web"), false)}
-            
-            <p className="text-[16px] text-black font-sans leading-relaxed">
-              {t("Générez un formulaire de contact professionnel à intégrer sur votre site internet. Tous les messages envoyés depuis ce formulaire remonteront dans votre onglet CRM et vous recevrez un email de notification.")}
-            </p>
 
-            <div className="space-y-3 mt-3">
-              <textarea
-                readOnly
-                value={`<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
-<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
-  <style>
-    @font-face {
-      font-family: 'Civilprom';
-      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
-    }
-    #defibeo-contact-box, #defibeo-contact-box * {
-      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    }
-    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
-      color: #000000 !important;
-      opacity: 0.6;
-      font-size: 16px !important;
-    }
-  </style>
-
-  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
-  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
-  
-  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
-    <input type="hidden" name="tenantId" value="${localStorage.getItem('defib_tenant_id') || 'demo'}" />
-    
-    <div>
-      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
-      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
-    </div>
-    
-    <div>
-      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
-      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
-    </div>
-    
-    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
-    
-    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
-  </form>
-
-  <script>
-    (function() {
-      var form = document.getElementById('defibeo-contact-form');
-      if (!form) return;
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var btn = document.getElementById('defibeo-submit-btn');
-        var msgDiv = document.getElementById('defibeo-response-msg');
-        
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.innerText = 'Envoi en cours...';
-        
-        var tenantId = form.querySelector('[name="tenantId"]').value;
-        var email = form.querySelector('[name="email"]').value;
-        var message = form.querySelector('[name="message"]').value;
-        
-        var params = new URLSearchParams();
-        params.append('tenantId', tenantId);
-        params.append('email', email);
-        params.append('message', message);
-        
-        fetch('${window.location.origin}/api/crm/embed-lead', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json'
-          },
-          body: params
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          btn.disabled = false;
-          btn.style.opacity = '1';
-          btn.innerText = 'Envoyer';
-          msgDiv.style.display = 'block';
-          msgDiv.style.padding = '0';
-          msgDiv.style.border = 'none';
-          msgDiv.style.background = 'none';
-          
-          if (data.success) {
-            msgDiv.style.color = '#16a34a';
-            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
-            form.reset();
-          } else {
-            msgDiv.style.color = '#dc2626';
-            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
-          }
-        })
-        .catch(function(err) {
-          btn.disabled = false;
-          btn.style.opacity = '1';
-          btn.innerText = 'Envoyer';
-          msgDiv.style.display = 'block';
-          msgDiv.style.padding = '0';
-          msgDiv.style.border = 'none';
-          msgDiv.style.background = 'none';
-          msgDiv.style.color = '#dc2626';
-          msgDiv.innerText = 'Erreur de connexion.';
-        });
-      });
-    })();
-  </script>
-</div>`}
-                className="w-full h-48 bg-[#1e293b] text-[#f8fafc] font-mono text-[11px] p-3 rounded-lg focus:outline-none border-0 resize-none select-all font-sans"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  const activeId = localStorage.getItem('defib_tenant_id') || 'demo';
-                  const embedCode = `<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
-<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
-  <style>
-    @font-face {
-      font-family: 'Civilprom';
-      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
-    }
-    #defibeo-contact-box, #defibeo-contact-box * {
-      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
-    }
-    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
-      color: #000000 !important;
-      opacity: 0.6;
-      font-size: 16px !important;
-    }
-  </style>
-
-  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
-  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
-  
-  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
-    <input type="hidden" name="tenantId" value="${activeId}" />
-    
-    <div>
-      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
-      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
-    </div>
-    
-    <div>
-      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
-      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
-    </div>
-    
-    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
-    
-    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
-  </form>
-
-  <script>
-    (function() {
-      var form = document.getElementById('defibeo-contact-form');
-      if (!form) return;
-      form.addEventListener('submit', function(e) {
-        e.preventDefault();
-        var btn = document.getElementById('defibeo-submit-btn');
-        var msgDiv = document.getElementById('defibeo-response-msg');
-        
-        btn.disabled = true;
-        btn.style.opacity = '0.7';
-        btn.innerText = 'Envoi en cours...';
-        
-        var tenantId = form.querySelector('[name="tenantId"]').value;
-        var email = form.querySelector('[name="email"]').value;
-        var message = form.querySelector('[name="message"]').value;
-        
-        var params = new URLSearchParams();
-        params.append('tenantId', tenantId);
-        params.append('email', email);
-        params.append('message', message);
-        
-        fetch('${window.location.origin}/api/crm/embed-lead', {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json'
-          },
-          body: params
-        })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          btn.disabled = false;
-          btn.style.opacity = '1';
-          btn.innerText = 'Envoyer';
-          msgDiv.style.display = 'block';
-          msgDiv.style.padding = '0';
-          msgDiv.style.border = 'none';
-          msgDiv.style.background = 'none';
-          
-          if (data.success) {
-            msgDiv.style.color = '#16a34a';
-            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
-            form.reset();
-          } else {
-            msgDiv.style.color = '#dc2626';
-            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
-          }
-        })
-        .catch(function(err) {
-          btn.disabled = false;
-          btn.style.opacity = '1';
-          btn.innerText = 'Envoyer';
-          msgDiv.style.display = 'block';
-          msgDiv.style.padding = '0';
-          msgDiv.style.border = 'none';
-          msgDiv.style.background = 'none';
-          msgDiv.style.color = '#dc2626';
-          msgDiv.innerText = 'Erreur de connexion.';
-        });
-      });
-    })();
-  </script>
-</div>`;
-                  navigator.clipboard.writeText(embedCode);
-                  setCopiedEmbed(true);
-                  setTimeout(() => setCopiedEmbed(false), 2000);
-                }}
-                style={{
-                  backgroundColor: '#000000',
-                  color: '#ffffff',
-                  fontSize: '18px',
-                  fontWeight: 'normal',
-                  borderRadius: '12px',
-                  padding: '12px 24px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  width: '100%',
-                  display: 'block'
-                }}
-                className="hover:opacity-90 active:scale-[0.99] transition-all font-sans"
-              >
-                {copiedEmbed ? t("Copié !") : t("Copier le code")}
-              </button>
-            </div>
-          </div>
-          
           {/* SECTION 2: INTITULÉS DES EMPLACEMENTS */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-location-names">
             {renderSectionHeader(t("Intitulés des emplacements"))}
@@ -3331,7 +3098,7 @@ export default function SettingsModal({
                             }}
                             className="font-bold select-none"
                           >
-                            {t("Indisponible")}
+                            {t("Contacter Defibeo")}
                           </span>
                         </div>
                       </div>
@@ -3413,7 +3180,7 @@ export default function SettingsModal({
                             }}
                             className="font-bold select-none"
                           >
-                            {t("Indisponible")}
+                            {t("Contacter Defibeo")}
                           </span>
                         </div>
                       </div>
@@ -4012,18 +3779,18 @@ export default function SettingsModal({
                     <div className="mt-4 space-y-3 animate-slideUp">
                       <div className="space-y-1">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">{t("Compte Google Connecté")}</label>
-                        <div className="text-black font-sans text-sm bg-white p-2 border border-slate-300 rounded flex items-center justify-between">
-                          <span className="font-medium text-xs break-all">{googleDriveEmail || t("Inconnu")}</span>
+                        <div className="text-black font-sans bg-white p-2 flex items-center justify-between rounded-[13px]">
+                          <span className="font-medium text-[16px] break-all">{googleDriveEmail || t("Inconnu")}</span>
                           <button
                             type="button"
                             onClick={() => handleGoogleDriveToggle(true)}
-                            className="text-xs text-blue-600 hover:underline select-none ml-2"
+                            className="text-[16px] text-blue-600 hover:underline select-none ml-2"
                           >
                             {t("Changer")}
                           </button>
                         </div>
                       </div>
-                      <div className="text-[11px] text-slate-500 font-sans">
+                      <div className="text-[16px] text-black font-sans" style={{ color: '#000' }}>
                         {t("Synchronisation active avec Google Drive et Google Calendar.")}
                       </div>
                     </div>
@@ -4218,6 +3985,329 @@ export default function SettingsModal({
               </div>
 
             </div>
+          </div>
+
+          {/* SECTION: INTEGRATION DU FORMULAIRE DE CONTACT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 mt-4 text-left" id="settings-section-embed-form">
+            {renderSectionHeader(t("Intégrez le formulaire de contact à votre site web"), false)}
+            
+            <p className="text-[16px] text-black font-sans leading-relaxed">
+              {t("Générez un formulaire de contact professionnel à intégrer sur votre site internet. Tous les messages envoyés depuis ce formulaire remonteront dans votre onglet CRM et vous recevrez un email de notification.")}
+            </p>
+
+            <div className="space-y-3 mt-3">
+              <textarea
+                readOnly
+                value={`<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <style>
+    @font-face {
+      font-family: 'Civilprom';
+      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
+    }
+    #defibeo-contact-box, #defibeo-contact-box * {
+      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
+      color: #000000 !important;
+      opacity: 0.6;
+      font-size: 16px !important;
+    }
+  </style>
+
+  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'}</h2>
+  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+  
+  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
+    <input type="hidden" name="tenantId" value="${localStorage.getItem('defib_tenant_id') || 'demo'}" />
+    
+    <div>
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
+    </div>
+    
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
+    
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
+  </form>
+
+  <script>
+    (function() {
+      var form = document.getElementById('defibeo-contact-form');
+      if (!form) return;
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('defibeo-submit-btn');
+        var msgDiv = document.getElementById('defibeo-response-msg');
+        
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerText = 'Envoi en cours...';
+        
+        var tenantId = form.querySelector('[name="tenantId"]').value;
+        var email = form.querySelector('[name="email"]').value;
+        var message = form.querySelector('[name="message"]').value;
+        
+        var params = new URLSearchParams();
+        params.append('tenantId', tenantId);
+        params.append('email', email);
+        params.append('message', message);
+        
+        fetch('${window.location.origin}/api/crm/embed-lead', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          body: params
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer';
+          msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
+          
+          if (data.success) {
+            msgDiv.style.color = '#16a34a';
+            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
+            form.reset();
+          } else {
+            msgDiv.style.color = '#dc2626';
+            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
+          }
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer';
+          msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
+          msgDiv.style.color = '#dc2626';
+          msgDiv.innerText = 'Erreur de connexion.';
+        });
+      });
+    })();
+  </script>
+</div>`}
+                className="w-full h-48 bg-[#1e293b] text-[#f8fafc] font-mono text-[11px] p-3 rounded-lg focus:outline-none border-0 resize-none select-all font-sans"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const activeId = localStorage.getItem('defib_tenant_id') || 'demo';
+                  const embedCode = `<!-- Formulaire de contact Défibeo pour ${localCompany.name || localCompany.nomLogiciel || 'Votre Entreprise'} -->
+<div class="defibeo-contact-wrapper" id="defibeo-contact-box" style="max-width: 500px; margin: 20px auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); text-align: left; box-sizing: border-box;">
+  <style>
+    @font-face {
+      font-family: 'Civilprom';
+      src: url('https://civilprom.s3.eu-north-1.amazonaws.com/Civilprom1.otf') format('opentype');
+    }
+    #defibeo-contact-box, #defibeo-contact-box * {
+      font-family: 'Civilprom', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    }
+    #defibeo-contact-box input::placeholder, #defibeo-contact-box textarea::placeholder {
+      color: #000000 !important;
+      opacity: 0.6;
+      font-size: 16px !important;
+    }
+  </style>
+
+  <h2 style="font-size: 18px; color: #000000; margin-top: 0; margin-bottom: 8px; text-align: left; font-weight: normal;">Envoyer un message à ${localCompany.name || localCompany.nomLogiciel || 'Défibeo Solutions'}</h2>
+  <p style="font-size: 16px; color: #000000; margin-bottom: 24px; text-align: left; line-height: 1.5;">Vous avez une question ou besoin d'assistance ? Remplissez ce formulaire pour nous contacter.</p>
+  
+  <form id="defibeo-contact-form" style="display: flex; flex-direction: column; gap: 16px;">
+    <input type="hidden" name="tenantId" value="${activeId}" />
+    
+    <div>
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Adresse Email</label>
+      <input type="email" name="email" required style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s;" placeholder="votre@email.com" />
+    </div>
+    
+    <div>
+      <label style="display: block; font-size: 16px; color: #000000; margin-bottom: 6px;">Message</label>
+      <textarea name="message" required rows="4" style="width: 100%; padding: 12px 16px; border: 1px solid #cbd5e0; border-radius: 13px; font-size: 16px; color: #000000; box-sizing: border-box; outline: none; transition: border-color 0.2s; resize: vertical;" placeholder="Entrez votre message, veuillez détailler votre demande et mentionner votre nom et votre entreprise."></textarea>
+    </div>
+    
+    <button type="submit" id="defibeo-submit-btn" style="background-color: #3556ec; color: #ffffff; padding: 14px 20px; border: none; border-radius: 13px; font-size: 16px; font-weight: normal; cursor: pointer; transition: background-color 0.2s; display: block; width: 100%; text-align: center; margin-top: 8px;">Envoyer</button>
+    
+    <div id="defibeo-response-msg" style="display: none; font-size: 14px; text-align: left; margin-top: 10px;"></div>
+  </form>
+
+  <script>
+    (function() {
+      var form = document.getElementById('defibeo-contact-form');
+      if (!form) return;
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var btn = document.getElementById('defibeo-submit-btn');
+        var msgDiv = document.getElementById('defibeo-response-msg');
+        
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.innerText = 'Envoi en cours...';
+        
+        var tenantId = form.querySelector('[name="tenantId"]').value;
+        var email = form.querySelector('[name="email"]').value;
+        var message = form.querySelector('[name="message"]').value;
+        
+        var params = new URLSearchParams();
+        params.append('tenantId', tenantId);
+        params.append('email', email);
+        params.append('message', message);
+        
+        fetch('${window.location.origin}/api/crm/embed-lead', {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json'
+          },
+          body: params
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer';
+          msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
+          
+          if (data.success) {
+            msgDiv.style.color = '#16a34a';
+            msgDiv.innerText = '✓ Message envoyé avec succès. Merci !';
+            form.reset();
+          } else {
+            msgDiv.style.color = '#dc2626';
+            msgDiv.innerText = 'Erreur : ' + (data.error || 'Une erreur est survenue.');
+          }
+        })
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.innerText = 'Envoyer';
+          msgDiv.style.display = 'block';
+          msgDiv.style.padding = '0';
+          msgDiv.style.border = 'none';
+          msgDiv.style.background = 'none';
+          msgDiv.style.color = '#dc2626';
+          msgDiv.innerText = 'Erreur de connexion.';
+        });
+      });
+    })();
+  </script>
+</div>`;
+                  navigator.clipboard.writeText(embedCode);
+                  setCopiedEmbed(true);
+                  setTimeout(() => setCopiedEmbed(false), 2000);
+                }}
+                style={{
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  fontSize: '18px',
+                  fontWeight: 'normal',
+                  borderRadius: '12px',
+                  padding: '12px 24px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  display: 'block'
+                }}
+                className="hover:opacity-90 active:scale-[0.99] transition-all font-sans"
+              >
+                {copiedEmbed ? t("Copié !") : t("Copier le code")}
+              </button>
+            </div>
+          </div>
+
+          {/* SECTION: PARRAINAGE */}
+          <div 
+            className="p-5 rounded-xl border flex flex-col gap-4 mt-4 text-left"
+            style={{
+              borderColor: 'rgb(218, 218, 218)',
+              background: '#ffffff00',
+              boxShadow: 'none',
+              maxWidth: '100%',
+              margin: '16px 0px 16px 0px',
+            }}
+          >
+            <div className="space-y-2">
+              <p 
+                className="font-sans leading-relaxed"
+                style={{ 
+                  fontSize: '16px', 
+                  fontWeight: 400, 
+                  color: '#000000', 
+                  cursor: 'default' 
+                }}
+              >
+                {t("Parrainez une nouvelle entreprise et obtenez 4 mois d’abonnement gratuits. Indiquez-nous l'entreprise à laquelle vous avez recommandé Defibeo afin que nous puissions suivre son inscription et vous attribuer votre récompense.")}
+              </p>
+            </div>
+            
+            <div className="space-y-1 w-full">
+              <label className="block text-sm font-bold text-black font-sans">
+                {t("Entreprise filleul.")}
+              </label>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full">
+                <input
+                  type="text"
+                  value={referralCompany}
+                  onChange={(e) => {
+                    setReferralCompany(e.target.value);
+                    if (referralSent) setReferralSent(false);
+                  }}
+                  className="flex-1 w-full text-black placeholder-[#747474] font-sans text-sm"
+                  placeholder={t("Entrez un texte.")}
+                  style={{
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    height: '48px',
+                    boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleSendReferral}
+                  disabled={isSendingReferral || !referralCompany.trim()}
+                  className="font-sans font-semibold active:scale-95 transition-all cursor-pointer shrink-0"
+                  style={{
+                    backgroundColor: '#000000',
+                    color: '#ffffff',
+                    fontSize: '18px',
+                    borderRadius: '13px',
+                    padding: '0px 24px',
+                    opacity: (!referralCompany.trim() || isSendingReferral) ? 0.5 : 1,
+                    cursor: (!referralCompany.trim() || isSendingReferral) ? 'not-allowed' : 'pointer',
+                    height: '48px',
+                    border: '1px solid #000000',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  {isSendingReferral ? t("Envoi...") : t("Valider")}
+                </button>
+              </div>
+            </div>
+
+            {referralSent && (
+              <p className="text-emerald-600 font-sans text-sm font-medium mt-1">
+                {t("Merci ! Votre demande de parrainage a été envoyée avec succès.")}
+              </p>
+            )}
           </div>
 
           {onLogout && (

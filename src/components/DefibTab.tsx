@@ -2654,9 +2654,9 @@ export default function DefibTab({
                                       borderRadius: '1000px',
                                       backgroundColor: '#dc2626',
                                       color: '#ffffff',
-                                      fontSize: '11px',
-                                      fontWeight: '700',
-                                      padding: '2px 8px',
+                                      fontSize: '16px',
+                                      fontWeight: 100,
+                                      padding: '6px 14px',
                                       whiteSpace: 'nowrap',
                                       width: 'fit-content',
                                       textTransform: 'none'

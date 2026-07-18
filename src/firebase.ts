@@ -53,7 +53,7 @@ export const auth = getAuth();
  * 3. If it's not in the cache, it fetches it from the server with a short timeout.
  * 4. Falls back to normal getDoc if both fail.
  */
-async function getDocOptimistic(docRef: any, key?: string, timeoutMs: number = 15000): Promise<any> {
+async function getDocOptimistic(docRef: any, key?: string, timeoutMs: number = 4000): Promise<any> {
   try {
     const cachedSnap = await getDocFromCache(docRef);
     if (cachedSnap.exists()) {
@@ -151,7 +151,7 @@ export async function fetchCollectionFromFirestore<T>(collectionName: string, te
   const key = getCollectionKey(collectionName, tenantId || getTenantId());
   try {
     const docRef = doc(db, 'appData', key);
-    const snap = await getDocOptimistic(docRef, key, 15000);
+    const snap = await getDocOptimistic(docRef, key, 4000);
     if (snap.exists()) {
       const payload = snap.data();
       const val = payload.value as T;
@@ -275,7 +275,7 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
   }
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
-    const snap = await getDocOptimistic(docRef, 'registered_tenants', 15000);
+    const snap = await getDocOptimistic(docRef, 'registered_tenants', 4000);
     if (snap.exists()) {
       const tenants = (snap.data().value || []) as Tenant[];
       let needsUpdate = false;

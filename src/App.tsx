@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
+const translate = t;
 import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification, VeilleRecord } from './types';
 import {
   INITIAL_CLIENTS,
@@ -1640,6 +1641,57 @@ export default function App() {
     return `<svg width="${totalWidth}" height="${totalHeight}" viewBox="0 0 ${totalWidth} ${totalHeight}" xmlns="http://www.w3.org/2000/svg">${rects}${textElement}</svg>`;
   };
 
+  const computeDurationText = (startStr: string, endStr: string): string => {
+    if (!startStr || !endStr) return "-";
+    const parseDateString = (str: string): Date | null => {
+      if (!str) return null;
+      const match = str.trim().match(/^(\d{2})[/-](\d{2})[/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const year = parseInt(match[3], 10);
+        const hours = parseInt(match[4], 10);
+        const minutes = parseInt(match[5], 10);
+        const seconds = match[6] ? parseInt(match[6], 10) : 0;
+        return new Date(year, month, day, hours, minutes, seconds);
+      }
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) return parsed;
+      try {
+        const parts = str.trim().split(' ');
+        if (parts.length >= 2) {
+          const dateParts = parts[0].split(/[/-]/);
+          const timeParts = parts[1].split(':');
+          if (dateParts.length === 3 && timeParts.length >= 2) {
+            const day = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10) - 1;
+            const year = parseInt(dateParts[2], 10);
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+            return new Date(year, month, day, hours, minutes, seconds);
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
+
+    const start = parseDateString(startStr);
+    const end = parseDateString(endStr);
+    if (!start || !end) return "-";
+    let diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) diffMs = 0;
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (num: number) => String(num).padStart(2, '0');
+    if (hrs > 0) {
+      return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  };
+
   const handleDownloadReport = (report: any) => {
     const snapshot = report.defibSnapshot || {};
     const pdfLogo = companyInfo.logo || '';
@@ -1648,6 +1700,10 @@ export default function App() {
     const pdfPageFooterText = companyInfo.pdfPageFooterText || '';
     const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || '';
     const hasLastPage = !!pdfLastPageInfoText.trim();
+    const pdfHeaderBgColor = companyInfo.pdfHeaderBgColor || '#7c2882';
+    const pdfCardBorderColor = companyInfo.pdfCardBorderColor || '#7d2882';
+    const pdfCardBgColor = companyInfo.pdfCardBgColor || '#fef2ff';
+    const pdfLabelTextColor = companyInfo.pdfLabelTextColor || '#9f71a2';
 
     const compLogo = companyInfo.logo || '';
     const compName = companyInfo.name || 'Défibeo Solutions';
@@ -1685,8 +1741,8 @@ export default function App() {
       .flatMap((t: any) => t.missions || [])
       .find((m: any) => m.defibIdentifiant === (snapshot.identifiant || report.defibIdentifiant));
     const bonCommandeId = report.bonCommandeId || matchedMission?.bonCommandeId;
-    const bcDoc = bonCommandeId ? (commercialDocs || []).find((doc: any) => doc.id === bonCommandeId) : null;
-    const bonCommandeEntete = bcDoc?.bonCommandeEntete || '';
+    const bcDoc = bonCommandeId && bonCommandeId !== 'custom' ? (commercialDocs || []).find((doc: any) => doc.id === bonCommandeId) : null;
+    const bonCommandeEntete = bcDoc?.bonCommandeEntete || (bonCommandeId === 'custom' ? matchedMission?.customBonCommande : '') || '';
 
     const renderHeader = () => {
       const showHeaderImg = pdfHeaderImg ? `<img src="${pdfHeaderImg}" style="max-height: 80px; max-width: 100%; object-fit: contain;" alt="Header Illustration" referrerPolicy="no-referrer" />` : '';
@@ -1815,9 +1871,9 @@ export default function App() {
               margin: 0 15mm;
             }
             .pdf-card {
-              border: 2px solid #7d2882;
+              border: 2px solid ${pdfCardBorderColor};
               border-radius: 13px;
-              background-color: #fef2ff;
+              background-color: ${pdfCardBgColor};
               padding: 0px;
               display: flex;
               flex-direction: column;
@@ -1828,7 +1884,7 @@ export default function App() {
             .pdf-card-header {
               padding: 10px 14px;
               font-size: 16px;
-              background-color: #7C2882;
+              background-color: ${pdfHeaderBgColor};
               color: #ffffff;
               border-bottom: none;
               text-align: center;
@@ -1848,7 +1904,7 @@ export default function App() {
               font-size: 16px;
             }
             .pdf-label {
-              color: rgb(159 113 162);
+              color: ${pdfLabelTextColor};
             }
             .pdf-bold {
               color: #000000;
@@ -2228,9 +2284,9 @@ export default function App() {
           }
 
           .pdf-card {
-            border: 2px solid #7d2882;
+            border: 2px solid ${pdfCardBorderColor};
             border-radius: 13px;
-            background-color: #fef2ff;
+            background-color: ${pdfCardBgColor};
             padding: 0px;
             display: flex;
             flex-direction: column;
@@ -2240,7 +2296,7 @@ export default function App() {
           }
 
           .pdf-card-header {
-            background-color: #7C2882;
+            background-color: ${pdfHeaderBgColor};
             color: #ffffff;
             border-bottom: none;
             font-size: 16px;
@@ -2270,7 +2326,7 @@ export default function App() {
           }
 
           .pdf-label {
-            color: rgb(159 113 162);
+            color: ${pdfLabelTextColor};
             font-family: "Civilprom", sans-serif !important;
           }
 
@@ -2528,10 +2584,13 @@ export default function App() {
                     <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ''}</span>
                   </div>
                   <div class="pdf-line">
-                    <span class="pdf-label">Horodatage début d’intervention :</span> <span class="pdf-bold">${report.date || '-'}</span>
+                    <span class="pdf-label">Horodatage entrant :</span> <span class="pdf-bold">${report.date || '-'}</span>
                   </div>
                   <div class="pdf-line">
-                    <span class="pdf-label">Horodatage fin d’intervention :</span> <span class="pdf-bold">${report.endTimeStamp || '-'}</span>
+                    <span class="pdf-label">Horodatage clôture :</span> <span class="pdf-bold">${report.endTimeStamp || '-'}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Durée :</span> <span class="pdf-bold">${computeDurationText(report.date, report.endTimeStamp)}</span>
                   </div>
                   <div class="pdf-line" style="margin-bottom: 4px;">
                     <span class="pdf-label">Commentaire :</span> <span class="pdf-bold" style="white-space: pre-line;">${snapshot.commentaire || report.defibSnapshot?.commentaire || '-'}</span>
@@ -2902,7 +2961,34 @@ export default function App() {
 
         syncBackground<Variable[]>('variables', 'variables', setVariables);
         syncBackground<Defibrillateur[]>('defibrillateurs', 'defibrillateurs', setDefibrillateurs);
-        syncBackground<CompanyInfo>('companyInfo', 'company_info', setCompanyInfo);
+        syncBackground<CompanyInfo>('companyInfo', 'company_info', setCompanyInfo, (firestoreData) => {
+          const localRaw = localStorage.getItem(`defib_${tenantId}_company_info`);
+          if (localRaw) {
+            try {
+              const localData = JSON.parse(localRaw) as CompanyInfo;
+              return {
+                ...firestoreData,
+                pdfHeaderBgColor: localData.pdfHeaderBgColor || firestoreData.pdfHeaderBgColor,
+                pdfCardBorderColor: localData.pdfCardBorderColor || firestoreData.pdfCardBorderColor,
+                pdfCardBgColor: localData.pdfCardBgColor || firestoreData.pdfCardBgColor,
+                pdfLabelTextColor: localData.pdfLabelTextColor || firestoreData.pdfLabelTextColor,
+                pdfHeaderImg: localData.pdfHeaderImg || firestoreData.pdfHeaderImg,
+                pdfPageHeaderText: localData.pdfPageHeaderText || firestoreData.pdfPageHeaderText,
+                pdfPageFooterText: localData.pdfPageFooterText || firestoreData.pdfPageFooterText,
+                pdfLastPageInfoText: localData.pdfLastPageInfoText || firestoreData.pdfLastPageInfoText,
+                hiddenTabs: localData.hiddenTabs || firestoreData.hiddenTabs,
+                locationNames: localData.locationNames || firestoreData.locationNames,
+                enableAutoEmails: localData.enableAutoEmails || firestoreData.enableAutoEmails,
+                enableSatisfactionAvis: localData.enableSatisfactionAvis || firestoreData.enableSatisfactionAvis,
+                enableDevisFactures: localData.enableDevisFactures || firestoreData.enableDevisFactures,
+                communicationPortailClient: localData.communicationPortailClient !== undefined ? localData.communicationPortailClient : firestoreData.communicationPortailClient
+              };
+            } catch (e) {
+              console.error("Error merging local company info:", e);
+            }
+          }
+          return firestoreData;
+        });
         syncBackground<Member[]>('members', 'members', setMembers);
         syncBackground<SupportTicket[]>('tickets', 'support_tickets', setTickets);
         syncBackground<CommercialDoc[]>('commercialDocs', 'commercial_docs', setCommercialDocs);
@@ -6518,7 +6604,9 @@ export default function App() {
                                             value={m.bonCommandeId || ''}
                                             onChange={(e) => {
                                               const nextBcId = e.target.value;
-                                              if (nextBcId) {
+                                              if (nextBcId === 'custom') {
+                                                updateFsmMission(t.id, m.id, { bonCommandeId: 'custom' });
+                                              } else if (nextBcId) {
                                                 const selectedBcDoc = commercialDocs.find(doc => doc.id === nextBcId);
                                                 if (selectedBcDoc) {
                                                   const nonServiceParts = selectedBcDoc.items
@@ -6550,6 +6638,7 @@ export default function App() {
                                             }}
                                           >
                                             <option value="">-- Aucun --</option>
+                                            <option value="custom">Autre (Texte libre)</option>
                                             {(() => {
                                               const matchedClient = (() => {
                                                 if (m.clientId) {
@@ -6589,6 +6678,26 @@ export default function App() {
                                               ));
                                             })()}
                                           </select>
+                                          {m.bonCommandeId === 'custom' && (
+                                            <div className="mt-2 space-y-0.5 bg-transparent">
+                                              <input
+                                                type="text"
+                                                value={m.customBonCommande || ''}
+                                                onChange={(e) => updateFsmMission(t.id, m.id, { customBonCommande: e.target.value })}
+                                                placeholder={translate("Saisir le bon de commande...")}
+                                                className="w-full font-sans focus:outline-none"
+                                                style={{
+                                                  border: '1px solid #dedede',
+                                                  borderRadius: '13px',
+                                                  padding: '12px',
+                                                  fontSize: '16px',
+                                                  fontWeight: '100',
+                                                  color: '#000000',
+                                                  backgroundColor: '#ffffff'
+                                                }}
+                                              />
+                                            </div>
+                                          )}
                                         </div>
 
                                         {/* Date estimée. */}
@@ -7533,17 +7642,11 @@ export default function App() {
                                     <button
                                       type="button"
                                       onClick={() => handleDownloadReport(rep)}
-                                      disabled={!rep.validated}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        backgroundColor: !rep.validated ? '#cbd5e1' : rowActionButtonStyle.backgroundColor,
-                                        color: !rep.validated ? '#64748b' : rowActionButtonStyle.color,
-                                        opacity: !rep.validated ? 0.35 : 1,
-                                        boxShadow: !rep.validated ? 'none' : rowActionButtonStyle.boxShadow,
-                                        cursor: !rep.validated ? 'not-allowed' : 'pointer',
                                         border: 'none',
                                       }}
-                                      className={!rep.validated ? "cursor-not-allowed opacity-35" : "cursor-pointer"}
+                                      className="cursor-pointer"
                                     >
                                       Télécharger
                                     </button>

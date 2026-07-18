@@ -1531,7 +1531,7 @@ export default function PublicPortal({
 
   // Custom Maintenance Fields for Tab 2
   const [receiptTitle, setReceiptTitle] = useState(
-    "RAPPORT TECHNIQUE DÉFIBRILLATEUR",
+    "RAPPORT D’INTERVENTION",
   );
   const [missionSite, setMissionSite] = useState<"DÉPLACEMENT" | "ATELIER SAV">(
     "DÉPLACEMENT",
@@ -1631,6 +1631,57 @@ export default function PublicPortal({
     null,
   );
 
+  const computeDurationText = (startStr: string, endStr: string): string => {
+    if (!startStr || !endStr) return "-";
+    const parseDateString = (str: string): Date | null => {
+      if (!str) return null;
+      const match = str.trim().match(/^(\d{2})[/-](\d{2})[/-](\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?/);
+      if (match) {
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10) - 1;
+        const year = parseInt(match[3], 10);
+        const hours = parseInt(match[4], 10);
+        const minutes = parseInt(match[5], 10);
+        const seconds = match[6] ? parseInt(match[6], 10) : 0;
+        return new Date(year, month, day, hours, minutes, seconds);
+      }
+      const parsed = new Date(str);
+      if (!isNaN(parsed.getTime())) return parsed;
+      try {
+        const parts = str.trim().split(' ');
+        if (parts.length >= 2) {
+          const dateParts = parts[0].split(/[/-]/);
+          const timeParts = parts[1].split(':');
+          if (dateParts.length === 3 && timeParts.length >= 2) {
+            const day = parseInt(dateParts[0], 10);
+            const month = parseInt(dateParts[1], 10) - 1;
+            const year = parseInt(dateParts[2], 10);
+            const hours = parseInt(timeParts[0], 10);
+            const minutes = parseInt(timeParts[1], 10);
+            const seconds = timeParts[2] ? parseInt(timeParts[2], 10) : 0;
+            return new Date(year, month, day, hours, minutes, seconds);
+          }
+        }
+      } catch (e) {}
+      return null;
+    };
+
+    const start = parseDateString(startStr);
+    const end = parseDateString(endStr);
+    if (!start || !end) return "-";
+    let diffMs = end.getTime() - start.getTime();
+    if (diffMs < 0) diffMs = 0;
+    const totalSecs = Math.floor(diffMs / 1000);
+    const hrs = Math.floor(totalSecs / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    const pad = (num: number) => String(num).padStart(2, '0');
+    if (hrs > 0) {
+      return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
+    }
+    return `${pad(mins)}:${pad(secs)}`;
+  };
+
   const handleDownloadReport = (report: any) => {
     const snapshot =
       report.defibSnapshot ||
@@ -1712,6 +1763,10 @@ export default function PublicPortal({
       const pdfPageHeaderText = companyInfo.pdfPageHeaderText || '';
       const pdfPageFooterText = companyInfo.pdfPageFooterText || '';
       const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || '';
+      const pdfHeaderBgColor = companyInfo.pdfHeaderBgColor || '#7c2882';
+      const pdfCardBorderColor = companyInfo.pdfCardBorderColor || '#7d2882';
+      const pdfCardBgColor = companyInfo.pdfCardBgColor || '#fef2ff';
+      const pdfLabelTextColor = companyInfo.pdfLabelTextColor || '#9f71a2';
       const hasLastPage = pdfLastPageInfoText && pdfLastPageInfoText.trim().length > 0;
 
       const totalPages = hasLastPage ? 3 : 2;
@@ -1834,9 +1889,9 @@ export default function PublicPortal({
               margin: 0 15mm;
             }
             .pdf-card {
-              border: 2px solid #7d2882;
+              border: 2px solid ${pdfCardBorderColor};
               border-radius: 13px;
-              background-color: #fef2ff;
+              background-color: ${pdfCardBgColor};
               padding: 0px;
               display: flex;
               flex-direction: column;
@@ -1847,7 +1902,7 @@ export default function PublicPortal({
             .pdf-card-header {
               padding: 10px 14px;
               font-size: 16px;
-              background-color: #7C2882;
+              background-color: ${pdfHeaderBgColor};
               color: #ffffff;
               border-bottom: none;
               text-align: center;
@@ -1867,7 +1922,7 @@ export default function PublicPortal({
               font-size: 16px;
             }
             .pdf-label {
-              color: rgb(159 113 162);
+              color: ${pdfLabelTextColor};
             }
             .pdf-bold {
               color: #000000;
@@ -2085,6 +2140,10 @@ export default function PublicPortal({
     const docTitle = report.title || "Rapport d’intervention GMAO";
     const pdfLastPageInfoText = companyInfo.pdfLastPageInfoText || "";
     const hasLastPage = pdfLastPageInfoText && pdfLastPageInfoText.trim().length > 0;
+    const pdfHeaderBgColor = companyInfo.pdfHeaderBgColor || '#7c2882';
+    const pdfCardBorderColor = companyInfo.pdfCardBorderColor || '#7d2882';
+    const pdfCardBgColor = companyInfo.pdfCardBgColor || '#fef2ff';
+    const pdfLabelTextColor = companyInfo.pdfLabelTextColor || '#9f71a2';
     const totalPages = hasLastPage ? 6 : 5;
 
     const renderHeader = (title: string) => {
@@ -2160,6 +2219,7 @@ export default function PublicPortal({
     const defibModelName = defibModel
       ? `${defibModel.marque} ${defibModel.nom}`
       : snapshot.modeleId || "Non spécifié";
+    const isVisiblePiecesJointes = defibModel ? (defibModel.visibilitePiecesJointes !== 'Non') : true;
 
     const coffretModel = variables.find(
       (v) => v.id === snapshot.modeleCoffretId,
@@ -2342,9 +2402,9 @@ export default function PublicPortal({
           }
 
           .pdf-card {
-            border: 2px solid #7d2882;
+            border: 2px solid ${pdfCardBorderColor};
             border-radius: 13px;
-            background-color: #fef2ff;
+            background-color: ${pdfCardBgColor};
             padding: 0px;
             display: flex;
             flex-direction: column;
@@ -2354,7 +2414,7 @@ export default function PublicPortal({
           }
 
           .pdf-card-header {
-            background-color: #7C2882;
+            background-color: ${pdfHeaderBgColor};
             color: #ffffff;
             border-bottom: none;
             font-size: 16px;
@@ -2384,7 +2444,7 @@ export default function PublicPortal({
           }
 
           .pdf-label {
-            color: rgb(159 113 162);
+            color: ${pdfLabelTextColor};
             font-family: "Civilprom", sans-serif !important;
           }
 
@@ -2611,10 +2671,13 @@ export default function PublicPortal({
                     <span class="pdf-label">Fichier de données récupéré :</span> <span class="pdf-bold">${report.fichierDonneesRecupere || ""}</span>
                   </div>
                   <div class="pdf-line">
-                    <span class="pdf-label">Horodatage début d’intervention :</span> <span class="pdf-bold">${report.date || "-"}</span>
+                    <span class="pdf-label">Horodatage entrant :</span> <span class="pdf-bold">${report.date || "-"}</span>
                   </div>
                   <div class="pdf-line">
-                    <span class="pdf-label">Horodatage fin d’intervention :</span> <span class="pdf-bold">${report.endTimeStamp || "-"}</span>
+                    <span class="pdf-label">Horodatage clôture :</span> <span class="pdf-bold">${report.endTimeStamp || "-"}</span>
+                  </div>
+                  <div class="pdf-line">
+                    <span class="pdf-label">Durée :</span> <span class="pdf-bold">${computeDurationText(report.date, report.endTimeStamp)}</span>
                   </div>
                         <div style="display: flex; flex-direction: row; gap: 20px; width: 100%; padding-top: 8px; margin-top: 4px;">
                       <!-- Photos (Up to 3 photos stacked vertically) -->
@@ -4239,6 +4302,7 @@ export default function PublicPortal({
                     initialDefibId={selectedDefibId}
                     stocks={stocks}
                     forceSmartphoneLayout={true}
+                    isWebapp={true}
                     onCancel={() => {
                       setIsReportOverlayOpen(false);
                       setReportToEdit(null);
@@ -4765,8 +4829,8 @@ export default function PublicPortal({
                               onChange={(e) => setReceiptTitle(e.target.value)}
                               className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 text-xs font-black rounded-lg text-slate-800 cursor-pointer"
                             >
-                              <option value="RAPPORT TECHNIQUE DÉFIBRILLATEUR">
-                                RAPPORT TECHNIQUE DÉFIBRILLATEUR
+                              <option value="RAPPORT D’INTERVENTION">
+                                RAPPORT D’INTERVENTION
                               </option>
                               <option value="CONSTAT DE MAINTENANCE DÉFIBRILLATEUR">
                                 CONSTAT DE MAINTENANCE DÉFIBRILLATEUR
@@ -5046,7 +5110,7 @@ export default function PublicPortal({
                                   <select
                                     value={selectedDefibData.clientId || ""}
                                     onChange={(e) => {
-                                      const val = e.target.value;
+                                      const val = e.target.value.slice(0, 25);
                                       const matched = clients.find(
                                         (c) => c.id === val,
                                       );
@@ -6807,7 +6871,7 @@ export default function PublicPortal({
                                                 );
                                                 // Pre-fill fields for nicer wizard UX!
                                                 setReceiptTitle(
-                                                  "Rapport technique défibrillateur",
+                                                  "RAPPORT D’INTERVENTION",
                                                 );
                                                 setMissionSite("DÉPLACEMENT");
                                                 setReportActiveTourId(t.id);
@@ -6875,7 +6939,7 @@ export default function PublicPortal({
                                             maxLength={25}
                                             value={p.rejectionReason || ""}
                                             onChange={(e) => {
-                                              const val = e.target.value;
+                                              const val = e.target.value.slice(0, 25);
                                               const updated = tours.map(
                                                 (item) => {
                                                   if (item.id === t.id) {
@@ -7073,7 +7137,7 @@ export default function PublicPortal({
                       setSelectedOtherEquipmentUnique(null);
                       setSelectedDefibId("");
                       setSelectedDefibData(null);
-                      setReceiptTitle("Rapport technique défibrillateur");
+                      setReceiptTitle("RAPPORT D’INTERVENTION");
                       setMissionSite("DÉPLACEMENT");
                       setReportActiveTourId("");
                       setReportActivePassageNum(null);
@@ -9567,14 +9631,14 @@ export default function PublicPortal({
                       </div>
 
                       {/* Signature Section */}
-                      <div className="space-y-3 pt-4 border-t border-slate-100 text-left">
+                      <div className="space-y-3 text-left">
                         <label
                           style={{ fontSize: "18px", color: "#000000" }}
                           className="block font-bold text-black select-none"
                         >
                           Signature.
                         </label>
-                        <p style={{ fontSize: "15px", color: "#64748b", lineHeight: "1.5" }} className="font-sans font-normal">
+                        <p style={{ fontSize: "15px", color: "black", lineHeight: "1.5" }} className="font-sans font-normal">
                           Dessinez votre signature ci-dessous. Elle sera automatiquement apposée sur tous vos rapports de maintenance validés.
                         </p>
 
@@ -9591,7 +9655,7 @@ export default function PublicPortal({
                             onTouchStart={startSigDrawing}
                             onTouchMove={drawSig}
                             onTouchEnd={stopSigDrawing}
-                            style={{ border: "1px dashed #cbd5e1", borderRadius: "6px" }}
+                            style={{ borderRadius: "6px" }}
                           />
                           <div className="flex justify-between items-center mt-2">
                             <button
@@ -9601,9 +9665,6 @@ export default function PublicPortal({
                             >
                               Effacer
                             </button>
-                            <span className="text-xs text-slate-400 font-sans italic">
-                              {techSignature ? "Signature présente." : "Pas de signature dessinée."}
-                            </span>
                           </div>
                         </div>
                       </div>

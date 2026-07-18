@@ -495,42 +495,83 @@ export default function SettingsModal({
   const handleGoogleDriveToggle = async (checked: boolean) => {
     if (checked) {
       try {
-        const { signInWithPopup, GoogleAuthProvider } = await import('firebase/auth');
-        const { auth } = await import('../firebase');
-        const provider = new GoogleAuthProvider();
-        provider.addScope("https://www.googleapis.com/auth/drive.file");
-        provider.addScope("https://www.googleapis.com/auth/drive.readonly");
-        provider.addScope("https://www.googleapis.com/auth/calendar");
+        const client_id = "627487981610-1srkug4lp1qeih26pd2thd1241andaq4.apps.googleusercontent.com";
+        const redirect_uri = window.location.origin;
+        const scopes = [
+          "https://www.googleapis.com/auth/drive.file",
+          "https://www.googleapis.com/auth/userinfo.email"
+        ].join(" ");
+        
+        const oauthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` + 
+          `client_id=${client_id}` +
+          `&redirect_uri=${encodeURIComponent(redirect_uri)}` +
+          `&response_type=token` +
+          `&scope=${encodeURIComponent(scopes)}` +
+          `&prompt=select_account`;
 
-        const result = await signInWithPopup(auth, provider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        const token = credential?.accessToken || '';
-        const email = result.user.email || '';
+        const popup = window.open(oauthUrl, 'google-oauth', 'width=500,height=600');
+        if (!popup) {
+          throw new Error("Le bloqueur de fenêtres pop-up a empêché l'ouverture de la fenêtre de connexion Google. Veuillez autoriser les pop-ups pour ce site.");
+        }
 
-        setGoogleDriveActive(true);
-        setGoogleDriveEmail(email);
-        setGoogleDriveAccessToken(token);
+        const pollTimer = setInterval(async () => {
+          try {
+            if (!popup || popup.closed) {
+              clearInterval(pollTimer);
+              return;
+            }
+
+            let currentHref = "";
+            try {
+              currentHref = popup.location.href;
+            } catch (e) {
+              // Ignore cross-origin frame access errors while user is on Google Auth domains
+              return;
+            }
+
+            if (currentHref && currentHref.startsWith(redirect_uri)) {
+              clearInterval(pollTimer);
+              const hash = popup.location.hash;
+              popup.close();
+
+              const params = new URLSearchParams(hash.substring(1));
+              const token = params.get('access_token');
+              const error = params.get('error');
+
+              if (error) {
+                throw new Error(`Erreur OAuth Google : ${error}`);
+              }
+
+              if (token) {
+                // Fetch user email using the access token
+                const userinfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (!userinfoRes.ok) {
+                  throw new Error(`Impossible de récupérer les informations de l'utilisateur Google : ${userinfoRes.statusText}`);
+                }
+                
+                const userinfo = await userinfoRes.json();
+                const email = userinfo.email || 'connected-account@google.com';
+
+                setGoogleDriveActive(true);
+                setGoogleDriveEmail(email);
+                setGoogleDriveAccessToken(token);
+              } else {
+                throw new Error("Aucun token d'accès n'a été retourné par Google.");
+              }
+            }
+          } catch (e: any) {
+            console.error("OAuth Polling Error:", e);
+            clearInterval(pollTimer);
+            setGoogleDriveActive(false);
+            alert("Erreur de connexion Google Drive : " + (e.message || e));
+          }
+        }, 500);
+
       } catch (err: any) {
         console.error("Google Drive connection failed:", err);
-        const errStr = err?.message || err?.toString() || '';
-        const isAuthDomainErr = errStr.includes('unauthorized-domain') || err?.code?.includes('unauthorized-domain');
-        
-        if (isAuthDomainErr) {
-          const confirmSimulate = window.confirm(
-            "🔑 Domaine non autorisé dans votre console Firebase (unauthorized-domain).\n\n" +
-            "Pour corriger définitivement :\n" +
-            "1. Ouvrez console.firebase.google.com\n" +
-            "2. Allez dans Auth -> Paramètres -> Domaines autorisés.\n" +
-            "3. Ajoutez ce domaine : " + window.location.hostname + "\n\n" +
-            "Souhaitez-vous activer une connexion Google Drive de test/simulation pour cet environnement d'aperçu ?"
-          );
-          if (confirmSimulate) {
-            setGoogleDriveActive(true);
-            setGoogleDriveEmail("demo.drive@gmail.com");
-            setGoogleDriveAccessToken("mock_google_drive_token_" + Date.now());
-            return;
-          }
-        }
         setGoogleDriveActive(false);
         alert("Erreur de connexion Google Drive : " + (err.message || err));
       }

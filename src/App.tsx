@@ -4816,7 +4816,7 @@ export default function App() {
     setMembers(updatedMembers);
     localStorage.setItem('defib_members', JSON.stringify(updatedMembers));
     localStorage.setItem(`defib_${tenantId}_members`, JSON.stringify(updatedMembers));
-    if (isFirebaseLoaded && tenantId && tenantId !== 'demo') {
+    if (isFirebaseLoaded && tenantId) {
       saveCollectionToFirestore('members', updatedMembers).catch(console.error);
     }
 

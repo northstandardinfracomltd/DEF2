@@ -91,6 +91,7 @@ const downloadBarcodeSVG = (text: string) => {
 };
 
 const ALL_LOCATIONS = [
+  'Centrale des stocks',
   'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E', 'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
   'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E', 'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
 ] as const;
@@ -127,7 +128,7 @@ export default function StocksDistribuesTab({
 
   // Form states - now maps to a StockRecord (Centrale des stocks) instead of raw variable
   const [selectedStockId, setSelectedStockId] = useState('');
-  const [locationName, setLocationName] = useState<DistributedStockLocation['locationName']>('Entrepôt A');
+  const [locationName, setLocationName] = useState<DistributedStockLocation['locationName']>('Centrale des stocks');
   const [volumeDisponible, setVolumeDisponible] = useState<number>(0);
   const [volumeReserve, setVolumeReserve] = useState<number>(0);
   const [volumeEntrant, setVolumeEntrant] = useState<number>(0);

@@ -233,10 +233,10 @@ export default function StocksTab({
     }
 
     const matchedMv = mouvements.find(mv => mv.id === selectedMovementId);
-    let initialLocation = 'Centrale';
+    let initialLocation = 'Centrale des stocks';
     if (matchedMv) {
       if (matchedMv.type === 'Réapprovisionnement fournisseur') {
-        initialLocation = 'Centrale';
+        initialLocation = 'Centrale des stocks';
       } else if (matchedMv.emplacement) {
         if (matchedMv.emplacement.includes(' : ')) {
           initialLocation = matchedMv.emplacement.split(' : ')[1];
@@ -318,7 +318,7 @@ export default function StocksTab({
       statut: 'Préparation',
       bonCommande: '',
       trackingLink: '',
-      emplacement: 'Centrale',
+      emplacement: 'Centrale des stocks',
       isCanceled: true // Canceled / disabled by definition since it's an Annulation row
     };
 
@@ -1975,7 +1975,7 @@ export default function StocksTab({
                     {/* Table des Traçabilités */}
                     {traceabilities.length > 0 && (() => {
                       const ALL_LOCATIONS = [
-                        'Centrale',
+                        'Centrale des stocks',
                         'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E',
                         'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
                         'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E',
@@ -1988,7 +1988,7 @@ export default function StocksTab({
                         const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
                         if (matchedMv) {
                           if (matchedMv.type === 'Réapprovisionnement fournisseur') {
-                            return 'Centrale';
+                            return 'Centrale des stocks';
                           } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
                             if (matchedMv.emplacement.includes(' : ')) {
                               return matchedMv.emplacement.split(' : ')[1];
@@ -2003,7 +2003,7 @@ export default function StocksTab({
                             }
                           }
                         }
-                        return 'Centrale';
+                        return 'Centrale des stocks';
                       };
 
                       // Group traceabilities

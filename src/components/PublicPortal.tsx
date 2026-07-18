@@ -754,18 +754,19 @@ export default function PublicPortal({
   }, [stocks, selectedTechStock]);
 
   const filteredTraceabilities = useMemo(() => {
-    if (!matchedStockRecord || !matchedStockRecord.traceabilities) return [];
+    if (!matchedStockRecord || !matchedStockRecord.traceabilities || !selectedTechStock) return [];
     return matchedStockRecord.traceabilities.filter(
-      (t) => t.situation === "Disponible" || t.situation === "Signalé manquant"
+      (t) => (t.situation === "Disponible" || t.situation === "Signalé manquant") &&
+             t.emplacement === selectedTechStock.locationName
     );
-  }, [matchedStockRecord]);
+  }, [matchedStockRecord, selectedTechStock]);
 
   const availableTraceabilitiesCount = useMemo(() => {
-    if (!matchedStockRecord || !matchedStockRecord.traceabilities) return 0;
+    if (!matchedStockRecord || !matchedStockRecord.traceabilities || !selectedTechStock) return 0;
     return matchedStockRecord.traceabilities.filter(
-      (t) => t.situation === "Disponible"
+      (t) => t.situation === "Disponible" && t.emplacement === selectedTechStock.locationName
     ).length;
-  }, [matchedStockRecord]);
+  }, [matchedStockRecord, selectedTechStock]);
 
   const handleUpdateTraceability = (traceId: string, updates: Partial<StockTraceability>) => {
     if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
@@ -951,13 +952,37 @@ export default function PublicPortal({
       onUpdateDistributedStocks(updatedDs);
     }
 
-    // update central stocks
+    // update central stocks and traceabilities
     if (onUpdateStocks) {
+      let countToUpdate = Number(rapatrimentVolume) || 0;
+      const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
+        let isAtThisLocation = t.emplacement === selectedTechStock.locationName;
+        if (!t.emplacement) {
+          const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
+          if (matchedMv && matchedMv.emplacement) {
+            const loc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+            if (loc === selectedTechStock.locationName) {
+              isAtThisLocation = true;
+            }
+          }
+        }
+
+        if (isAtThisLocation && (t.situation === "Disponible" || t.situation === "Signalé manquant") && countToUpdate > 0) {
+          countToUpdate--;
+          return {
+            ...t,
+            emplacement: "Centrale des stocks",
+          };
+        }
+        return t;
+      });
+
       const updatedStocks = stocks.map((st) => {
         if (st.id === matchedStockRecord.id) {
           return {
             ...st,
             mouvements: updatedMovements,
+            traceabilities: updatedTraceabilities,
           };
         }
         return st;
@@ -1113,7 +1138,7 @@ export default function PublicPortal({
                       (v: any) => v.id === defib.modeleId,
                     );
                     if (modelVar) {
-                      model = modelVar.marque
+                      model = modelVar.marque && modelVar.marque !== "Standard"
                         ? `${modelVar.marque} ${modelVar.nom}`
                         : modelVar.nom;
                     }
@@ -1490,7 +1515,7 @@ export default function PublicPortal({
                   (v: any) => v.id === defib.modeleId,
                 );
                 if (modelVar) {
-                  model = modelVar.marque
+                  model = modelVar.marque && modelVar.marque !== "Standard"
                     ? `${modelVar.marque} ${modelVar.nom}`
                     : modelVar.nom;
                 }
@@ -2295,7 +2320,7 @@ export default function PublicPortal({
     // Resolving Model names from Variable list
     const defibModel = variables.find((v) => v.id === snapshot.modeleId);
     const defibModelName = defibModel
-      ? `${defibModel.marque} ${defibModel.nom}`
+      ? (defibModel.marque && defibModel.marque !== "Standard" ? `${defibModel.marque} ${defibModel.nom}` : defibModel.nom)
       : snapshot.modeleId || "Non spécifié";
     const isVisiblePiecesJointes = defibModel ? (defibModel.visibilitePiecesJointes !== 'Non') : true;
 
@@ -2303,42 +2328,42 @@ export default function PublicPortal({
       (v) => v.id === snapshot.modeleCoffretId,
     );
     const coffretModelName = coffretModel
-      ? `${coffretModel.marque} ${coffretModel.nom}`
+      ? (coffretModel.marque && coffretModel.marque !== "Standard" ? `${coffretModel.marque} ${coffretModel.nom}` : coffretModel.nom)
       : snapshot.modeleCoffretId || "Non spécifié";
 
     const electrodeAModel = variables.find(
       (v) => v.id === snapshot.modeleElectrodeAId,
     );
     const electrodeAModelName = electrodeAModel
-      ? `${electrodeAModel.marque} ${electrodeAModel.nom}`
+      ? (electrodeAModel.marque && electrodeAModel.marque !== "Standard" ? `${electrodeAModel.marque} ${electrodeAModel.nom}` : electrodeAModel.nom)
       : snapshot.modeleElectrodeAId || "Non spécifié";
 
     const electrodeASecoursModel = variables.find(
       (v) => v.id === snapshot.modeleElectrodeASecoursId,
     );
     const electrodeASecoursModelName = electrodeASecoursModel
-      ? `${electrodeASecoursModel.marque} ${electrodeASecoursModel.nom}`
+      ? (electrodeASecoursModel.marque && electrodeASecoursModel.marque !== "Standard" ? `${electrodeASecoursModel.marque} ${electrodeASecoursModel.nom}` : electrodeASecoursModel.nom)
       : "";
 
     const electrodePModel = variables.find(
       (v) => v.id === snapshot.modeleElectrodePId,
     );
     const electrodePModelName = electrodePModel
-      ? `${electrodePModel.marque} ${electrodePModel.nom}`
+      ? (electrodePModel.marque && electrodePModel.marque !== "Standard" ? `${electrodePModel.marque} ${electrodePModel.nom}` : electrodePModel.nom)
       : snapshot.modeleElectrodePId || "Non spécifié";
 
     const electrodePSecoursModel = variables.find(
       (v) => v.id === snapshot.modeleElectrodePSecoursId,
     );
     const electrodePSecoursModelName = electrodePSecoursModel
-      ? `${electrodePSecoursModel.marque} ${electrodePSecoursModel.nom}`
+      ? (electrodePSecoursModel.marque && electrodePSecoursModel.marque !== "Standard" ? `${electrodePSecoursModel.marque} ${electrodePSecoursModel.nom}` : electrodePSecoursModel.nom)
       : "";
 
     const batterieModel = variables.find(
       (v) => v.id === snapshot.modeleBatterieId,
     );
     const batterieModelName = batterieModel
-      ? `${batterieModel.marque} ${batterieModel.nom}`
+      ? (batterieModel.marque && batterieModel.marque !== "Standard" ? `${batterieModel.marque} ${batterieModel.nom}` : batterieModel.nom)
       : snapshot.modeleBatterieId || "Non spécifié";
 
     // Helper to resolve stock pieces
@@ -4309,35 +4334,46 @@ export default function PublicPortal({
 
     if (!nextPassage) return "";
 
+    let resolvedZone = "";
+
     const defib = defibrillateurs.find(
       (d: any) =>
         d.identifiant === nextPassage.identifiant ||
         d.id === nextPassage.identifiant,
     );
-    if (defib && defib.ville) {
-      const cpStr = defib.cp ? ` ${defib.cp}` : "";
-      return `${defib.ville}${cpStr}`;
-    }
-
-    const other = otherEquipments.find(
-      (o: any) =>
-        o.identifiant === nextPassage.identifiant ||
-        o.id === nextPassage.identifiant,
-    );
-    if (other && other.ville) {
-      const cpStr = other.codePostal ? ` ${other.codePostal}` : "";
-      return `${other.ville}${cpStr}`;
-    }
-
-    if (nextPassage.address) {
-      const parts = nextPassage.address.split(",");
-      if (parts.length > 1) {
-        return parts[parts.length - 1].trim();
+    if (defib && defib.ville && defib.ville.trim() && defib.ville !== "Ville_CP" && defib.ville !== "Non renseigné") {
+      const cpStr = defib.cp && defib.cp !== "CP" && defib.cp !== "Ville_CP" ? ` ${defib.cp}` : "";
+      resolvedZone = `${defib.ville}${cpStr}`;
+    } else {
+      const other = otherEquipments.find(
+        (o: any) =>
+          o.identifiant === nextPassage.identifiant ||
+          o.id === nextPassage.identifiant,
+      );
+      if (other && other.ville && other.ville.trim() && other.ville !== "Ville_CP" && other.ville !== "Non renseigné") {
+        const cpStr = other.codePostal && other.codePostal !== "CP" && other.codePostal !== "Ville_CP" ? ` ${other.codePostal}` : "";
+        resolvedZone = `${other.ville}${cpStr}`;
+      } else if (nextPassage.address) {
+        const parts = nextPassage.address.split(",");
+        if (parts.length > 1) {
+          resolvedZone = parts[parts.length - 1].trim();
+        } else {
+          resolvedZone = nextPassage.address;
+        }
       }
-      return nextPassage.address;
     }
 
-    return "";
+    if (!resolvedZone) return "";
+    const cleanZone = resolvedZone.trim();
+    if (
+      cleanZone.toLowerCase().includes("ville_cp") || 
+      cleanZone.toLowerCase().includes("non renseigné") || 
+      cleanZone === "CP" ||
+      cleanZone === "Ville CP"
+    ) {
+      return "";
+    }
+    return cleanZone;
   };
 
   return (
@@ -6511,13 +6547,14 @@ export default function PublicPortal({
                   const currentTourForPause = selectedTourId
                     ? getSortedTours().find((t) => t.id === selectedTourId)
                     : null;
+                  const isTourFinished = currentTourForPause?.status === "Terminé";
                   const hasTodoMissions =
                     currentTourForPause && currentTourForPause.passages
                       ? currentTourForPause.passages.some(
                           (p: any) => p.status === "À faire",
                         )
                       : false;
-                  const isTourOpen = !!(currentTourForPause && currentTourForPause.status !== "Terminé");
+                  const isTourOpen = !!(currentTourForPause && !isTourFinished);
 
                   return (
                     <div
@@ -6576,15 +6613,14 @@ export default function PublicPortal({
                       </div>
 
                       {/* Toggle "Suspendre pour pause" */}
-                      {selectedTourId && hasTodoMissions && (
+                      {selectedTourId && !isTourFinished && hasTodoMissions && (
                         <div className="px-1" id="pause-toggle-block">
                           <div
-                            className={`bg-white border px-4 space-y-3 ${
-                              pauseEnabled ? "py-4" : "py-[25px]"
-                            }`}
+                            className="bg-white border px-4 space-y-3 flex flex-col justify-center"
                             style={{
                               borderColor: "rgb(201, 190, 205)",
                               borderRadius: "14px",
+                              minHeight: "78px",
                             }}
                           >
                             <div className="flex items-center justify-between">
@@ -6625,13 +6661,14 @@ export default function PublicPortal({
                       )}
 
                       {/* Section "Affiner la tournée" */}
-                      {selectedTourId && (
+                      {selectedTourId && !isTourFinished && (
                         <div className="px-1" id="affiner-tournee-block">
                           <div
-                            className="bg-white border p-4 space-y-3"
+                            className="bg-white border px-4 space-y-3 flex flex-col justify-center"
                             style={{
                               borderColor: "rgb(201, 190, 205)",
                               borderRadius: "14px",
+                              minHeight: "78px",
                             }}
                           >
                             <div className="flex items-center justify-between">
@@ -6654,7 +6691,7 @@ export default function PublicPortal({
                       )}
 
                       {/* Info warning if work pointage is not in progress and a tour is selected */}
-                      {selectedTourId && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
+                      {selectedTourId && !isTourFinished && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
                         <div className="px-1 animate-fadeIn">
                           <div
                             style={{
@@ -6834,12 +6871,12 @@ export default function PublicPortal({
                                               className="font-semibold"
                                               style={{ color: "#000000" }}
                                             >
-                                              {p.address || ""}
+                                              {p.address && p.address !== "Non renseigné" ? p.address : ""}
                                             </span>
                                           </p>
                                           <p style={{ color: "#000000" }}>
                                             Téléphone :{" "}
-                                            {equipmentPhone ? (
+                                            {equipmentPhone && equipmentPhone !== "Non renseigné" ? (
                                               <a
                                                 href={`tel:${equipmentPhone.replace(/\s+/g, "")}`}
                                                 className="font-semibold underline hover:opacity-75 transition-opacity"
@@ -6875,7 +6912,10 @@ export default function PublicPortal({
                                               className="font-semibold"
                                               style={{ color: "#000000" }}
                                             >
-                                              {getBonCommandeLabel(p)}
+                                              {(() => {
+                                                const lbl = getBonCommandeLabel(p);
+                                                return lbl === "Non renseigné" ? "" : lbl;
+                                              })()}
                                             </span>
                                           </p>
 
@@ -6935,31 +6975,29 @@ export default function PublicPortal({
                                               className="font-semibold"
                                               style={{ color: "#000000" }}
                                             >
-                                              {p.estimatedSlot || "--"}
+                                              {p.estimatedSlot && p.estimatedSlot !== "Non renseigné" && p.estimatedSlot !== "--" ? p.estimatedSlot : ""}
                                             </span>
                                           </p>
-                                          {p.requiredParts &&
-                                            p.requiredParts.length > 0 &&
-                                            p.requiredParts.some(
-                                              (part) =>
-                                                part &&
-                                                part.trim() !==
-                                                  "Aucune pièce" &&
-                                                part.trim() !==
-                                                  "Aucune pièce requise" &&
-                                                part.trim() !== "Aucune" &&
-                                                part.trim() !== "",
-                                            ) && (
-                                              <p style={{ color: "#000000" }}>
-                                                Pièce(s) requise(s) :{" "}
-                                                <span
-                                                  className="font-semibold"
-                                                  style={{ color: "#000000" }}
-                                                >
-                                                  {p.requiredParts.join(", ")}
-                                                </span>
-                                              </p>
-                                            )}
+                                          <p style={{ color: "#000000" }}>
+                                            Pièce(s) requise(s) :{" "}
+                                            <span
+                                              className="font-semibold"
+                                              style={{ color: "#000000" }}
+                                            >
+                                              {(() => {
+                                                if (!p.requiredParts || p.requiredParts.length === 0) return "";
+                                                const cleanParts = p.requiredParts.filter(
+                                                  (part: any) =>
+                                                    part &&
+                                                    part.trim() !== "Aucune pièce" &&
+                                                    part.trim() !== "Aucune pièce requise" &&
+                                                    part.trim() !== "Aucune" &&
+                                                    part.trim() !== ""
+                                                );
+                                                return cleanParts.join(", ");
+                                              })()}
+                                            </span>
+                                          </p>
                                         </div>
                                       </div>
 
@@ -7407,75 +7445,130 @@ export default function PublicPortal({
                               fontFamily: "var(--font-sans), sans-serif",
                             }}
                           >
-                            <p style={{ color: "#000000" }}>
-                              Document :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {formatToNormalCase(
-                                  rep.title || "Rapport de maintenance",
-                                )}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Identifiant :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {snapshot.identifiant || rep.defibIdentifiant}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Équipement :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {snapshot.categorie
-                                  ? formatToNormalCase(snapshot.categorie)
-                                  : "Défibrillateur"}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Technicien :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {rep.techName}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Client :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {formatToNormalCase(clientName)}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Série :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {snapshot.numeroSerie || rep.defibSerialNumber || "Non renseigné"}
-                              </span>
-                            </p>
-                            <p style={{ color: "#000000" }}>
-                              Localisation :{" "}
-                              <span
-                                className="font-semibold"
-                                style={{ color: "#000000" }}
-                              >
-                                {snapshot.ville || snapshot.cp
-                                  ? `${snapshot.cp || ""} ${snapshot.ville || ""}`.trim()
-                                  : "Non renseignée"}
-                              </span>
-                            </p>
+                            {(() => {
+                              const isReal = (val: any): boolean => {
+                                if (!val) return false;
+                                const s = String(val).trim();
+                                if (!s) return false;
+                                const lower = s.toLowerCase();
+                                return !(
+                                  lower === "non renseigné" ||
+                                  lower === "non renseignee" ||
+                                  lower === "non renseignée" ||
+                                  lower === "non rattaché" ||
+                                  lower === "non rattache" ||
+                                  lower === "représentant standard" ||
+                                  lower === "representant standard" ||
+                                  lower === "a trier" ||
+                                  lower === "ville_cp" ||
+                                  lower === "--" ||
+                                  lower === "-" ||
+                                  lower === "cp" ||
+                                  lower === "ville cp"
+                                );
+                              };
+
+                              const identifiantVal = snapshot.identifiant || rep.defibIdentifiant || "";
+                              const serieVal = snapshot.numeroSerie || rep.defibSerialNumber || "";
+                              const materielVal = snapshot.categorie ? formatToNormalCase(snapshot.categorie) : "Défibrillateur";
+                              const techVal = rep.techName || "";
+                              const clientVal = clientFound ? clientFound.denomination : (rep.clientName || "");
+                              const siteVal = snapshot.nomSite || snapshot.nomPrenomSite || "";
+                              const locVal = snapshot.ville || snapshot.cp ? `${snapshot.cp || ""} ${snapshot.ville || ""}`.trim() : "";
+
+                              return (
+                                <>
+                                  <p style={{ color: "#000000" }}>
+                                    Document :{" "}
+                                    <span
+                                      className="font-semibold"
+                                      style={{ color: "#000000" }}
+                                    >
+                                      {formatToNormalCase(
+                                        rep.title || "Rapport de maintenance",
+                                      )}
+                                    </span>
+                                  </p>
+                                  {isReal(identifiantVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Identifiant :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {identifiantVal}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(serieVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Série :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {serieVal}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(materielVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Matériel :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {materielVal}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(techVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Technicien :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {techVal}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(clientVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Client :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {formatToNormalCase(clientVal)}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(siteVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Site :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {formatToNormalCase(siteVal)}
+                                      </span>
+                                    </p>
+                                  )}
+                                  {isReal(locVal) && (
+                                    <p style={{ color: "#000000" }}>
+                                      Localisation :{" "}
+                                      <span
+                                        className="font-semibold"
+                                        style={{ color: "#000000" }}
+                                      >
+                                        {locVal}
+                                      </span>
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
 
                           <button
@@ -8728,13 +8821,13 @@ export default function PublicPortal({
 
                   {/* Digital Clock Section */}
                   <div
-                    style={{ backgroundColor: "#fde5ff" }}
+                    style={{ backgroundColor: "rgb(238, 241, 255)" }}
                     className="p-5 rounded-2xl text-center space-y-2"
                   >
                     <span
                       style={{
                         fontSize: "18px",
-                        color: "#973e9e",
+                        color: "rgb(49, 85, 255)",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
                       className="font-normal block"
@@ -8744,7 +8837,7 @@ export default function PublicPortal({
                     <div
                       style={{
                         fontSize: "18px",
-                        color: "#973e9e",
+                        color: "rgb(49, 85, 255)",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
                       className="font-bold"
@@ -8759,7 +8852,7 @@ export default function PublicPortal({
                     <div
                       style={{
                         fontSize: "18px",
-                        color: "#973e9e",
+                        color: "rgb(49, 85, 255)",
                         fontFamily: "var(--font-sans), sans-serif",
                       }}
                       className="font-bold"
@@ -8832,15 +8925,15 @@ export default function PublicPortal({
                         {isTracking && (
                           <div
                             style={{
-                              backgroundColor: "#fde5ff",
-                              color: "#973e9e",
+                              backgroundColor: "rgb(238, 241, 255)",
+                              color: "rgb(49, 85, 255)",
                             }}
                             className="p-5 rounded-2xl text-center space-y-2"
                           >
                             <span
                               style={{
                                 fontSize: "18px",
-                                color: "#973e9e",
+                                color: "rgb(49, 85, 255)",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
                               className="font-normal block"
@@ -8850,7 +8943,7 @@ export default function PublicPortal({
                             <div
                               style={{
                                 fontSize: "18px",
-                                color: "#973e9e",
+                                color: "rgb(49, 85, 255)",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
                               className="font-bold"
@@ -8860,7 +8953,7 @@ export default function PublicPortal({
                             <p
                               style={{
                                 fontSize: "18px",
-                                color: "#973e9e",
+                                color: "rgb(49, 85, 255)",
                                 fontFamily: "var(--font-sans), sans-serif",
                               }}
                               className="font-bold"
@@ -9647,7 +9740,7 @@ export default function PublicPortal({
                   >
                     <div className="space-y-4">
                       {/* Live map link replaced by toggle */}
-                      {!companyInfo?.hiddenTabs?.includes("Localisation (Webapp)") && !companyInfo?.hiddenTabs?.includes("Localisations") && (
+                      {!companyInfo?.hiddenTabs?.includes("Localisation") && !companyInfo?.hiddenTabs?.includes("Localisation (Webapp)") && !companyInfo?.hiddenTabs?.includes("Localisations") && (
                         <div className="space-y-1.5" style={{ marginTop: "24px" }}>
                           <div
                             className="bg-white border px-4 py-[25px]"

@@ -331,7 +331,7 @@ export interface DistributedStockLocation {
   id: string;
   denominationPieceId: string;
   stockId?: string;
-  locationName: 'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Entrepôt D' | 'Entrepôt E' | 'Entrepôt F' | 'Entrepôt G' | 'Entrepôt H' | 'Entrepôt I' | 'Entrepôt J' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Véhicule D' | 'Véhicule E' | 'Véhicule F' | 'Véhicule G' | 'Véhicule H' | 'Véhicule I' | 'Véhicule J';
+  locationName: 'Centrale des stocks' | 'Entrepôt A' | 'Entrepôt B' | 'Entrepôt C' | 'Entrepôt D' | 'Entrepôt E' | 'Entrepôt F' | 'Entrepôt G' | 'Entrepôt H' | 'Entrepôt I' | 'Entrepôt J' | 'Véhicule A' | 'Véhicule B' | 'Véhicule C' | 'Véhicule D' | 'Véhicule E' | 'Véhicule F' | 'Véhicule G' | 'Véhicule H' | 'Véhicule I' | 'Véhicule J';
   volumeDisponible: number;
   volumeReserve: number;
   volumeEntrant: number;

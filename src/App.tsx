@@ -781,6 +781,32 @@ export default function App() {
       }
     }
   }, [companyInfo, tenantId, isFirebaseLoaded, loadedTenantIdState]);
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (!e.key) return;
+      if (e.key === 'defib_company_info' || e.key === `defib_${tenantId}_company_info`) {
+        if (e.newValue) {
+          try {
+            const info = JSON.parse(e.newValue);
+            setCompanyInfo(info);
+          } catch (err) {}
+        }
+      }
+      if (e.key === 'defib_fsm_tours' || e.key === `defib_${tenantId}_fsm_tours`) {
+        if (e.newValue) {
+          try {
+            const tours = JSON.parse(e.newValue);
+            setFsmTours(tours);
+          } catch (err) {}
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [tenantId]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [memos, setMemos] = useState<Memo[]>([]);
@@ -5919,13 +5945,36 @@ export default function App() {
                                           })()}
                                         </div>
 
-                                        {/* Row 2: Site & Identifiant & Localisation */}
-                                        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-transparent">
+                                        {/* Row 2: Client & Site & Identifiant & Localisation */}
+                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 bg-transparent">
+                                          <div className="space-y-0.5 bg-transparent">
+                                            <label className="block mb-1 fsm-label-style">Client.</label>
+                                            <input
+                                              type="text"
+                                              value={(() => {
+                                                const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                                const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                                const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || other?.clientId));
+                                                return clientObj ? clientObj.denomination : (m.clientName || "");
+                                              })()}
+                                              disabled={true}
+                                              className="w-full font-sans cursor-not-allowed"
+                                              placeholder="Nom du Client"
+                                            />
+                                          </div>
+
                                           <div className="space-y-0.5 bg-transparent">
                                             <label className="block mb-1 fsm-label-style">Site.</label>
                                             <input
                                               type="text"
-                                              value={m.clientName || ""}
+                                              value={(() => {
+                                                const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                                const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                                const val = matchedDefib 
+                                                  ? (matchedDefib.nomSite || matchedDefib.nomPrenomSite || "") 
+                                                  : (other ? (other.nomPrenomSite || "") : "");
+                                                return val === "Représentant Standard" || val === "Représentant standard" ? "" : val;
+                                              })()}
                                               disabled={true}
                                               className="w-full font-sans cursor-not-allowed"
                                               placeholder="Nom du Site"
@@ -6204,6 +6253,20 @@ export default function App() {
                                   if (finalStatus !== 'Brouillon' && (!finalTech || finalTech.trim() === '')) {
                                     alert("Veuillez sélectionner un technicien pour planifier cette tournée.");
                                     return;
+                                  }
+                                  if (finalStatus === 'Terminé') {
+                                    const uncompletedMissions = (t.missions || []).filter(
+                                      (m: any) => m.status === 'À faire'
+                                    );
+                                    if (uncompletedMissions.length > 0) {
+                                      const hasUnfilledReasons = uncompletedMissions.some(
+                                        (m: any) => !m.reason || !m.reason.trim()
+                                      );
+                                      if (hasUnfilledReasons) {
+                                        alert("Impossible de marquer cette tournée comme terminée. Veuillez renseigner le motif de non-réalisation pour toutes les missions non effectuées (Situation : À faire).");
+                                        return;
+                                      }
+                                    }
                                   }
 
                                   // Disable button and lower opacity
@@ -6628,14 +6691,38 @@ export default function App() {
                                         })()}
                                       </div>
 
-                                      {/* Ligne 2: Site., Identifiant., Localisation., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
+                                      {/* Ligne 2: Client., Site., Identifiant., Localisation., Raison., Bon de commande., Date estimée., Créneau estimé., Situation. */}
                                       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 w-full bg-transparent">
+                                        {/* Client. (toujours disabled) */}
+                                        <div className="space-y-0.5 bg-transparent">
+                                          <label className="block mb-1 fsm-label-style">Client.</label>
+                                          <input
+                                            type="text"
+                                            value={(() => {
+                                              const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                              const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                              const clientObj = clients?.find(c => c.id === (matchedDefib?.clientId || other?.clientId));
+                                              return clientObj ? clientObj.denomination : (m.clientName || "");
+                                            })()}
+                                            disabled={true}
+                                            className="w-full font-sans cursor-not-allowed"
+                                            placeholder="Nom du Client"
+                                          />
+                                        </div>
+
                                         {/* Site. (toujours disabled) */}
                                         <div className="space-y-0.5 bg-transparent">
                                           <label className="block mb-1 fsm-label-style">Site.</label>
                                           <input
                                             type="text"
-                                            value={m.clientName || ""}
+                                            value={(() => {
+                                              const matchedDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
+                                              const other = !matchedDefib ? otherEquipments.find((o: any) => o.identifiant === m.defibIdentifiant) : null;
+                                              const val = matchedDefib 
+                                                ? (matchedDefib.nomSite || matchedDefib.nomPrenomSite || "") 
+                                                : (other ? (other.nomPrenomSite || "") : "");
+                                              return val === "Représentant Standard" || val === "Représentant standard" ? "" : val;
+                                            })()}
                                             disabled={true}
                                             className="w-full font-sans cursor-not-allowed"
                                             placeholder="Nom du Site"

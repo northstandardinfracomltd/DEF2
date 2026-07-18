@@ -286,7 +286,7 @@ export interface CompanyInfo {
   nomLogiciel?: string;
   conditionsLegalesLink?: string;
   mentionsLegalesFactures?: string;
-  locationNames?: Record<string, string>;
+  customLocationNames?: Record<string, string>;
   enableAutoEmails?: 'Oui' | 'Non';
   enableSatisfactionAvis?: 'Oui' | 'Non';
   enableDevisFactures?: 'Oui' | 'Non';

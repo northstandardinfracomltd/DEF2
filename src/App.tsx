@@ -169,7 +169,7 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+      const saved = localStorage.getItem(`defib_${tenantId}_custom_location_names`);
       setLocationNames(saved ? JSON.parse(saved) : {});
       
       const savedEnable = localStorage.getItem(`defib_${tenantId}_enable_other_equipments`);
@@ -749,16 +749,16 @@ export default function App() {
       let updated = false;
       const nextCompanyInfo = { ...companyInfo };
 
-      if (companyInfo.locationNames) {
-        setLocationNames(companyInfo.locationNames);
-        localStorage.setItem(`defib_${tenantId}_location_names`, JSON.stringify(companyInfo.locationNames));
+      if (companyInfo.customLocationNames) {
+        setLocationNames(companyInfo.customLocationNames);
+        localStorage.setItem(`defib_${tenantId}_custom_location_names`, JSON.stringify(companyInfo.customLocationNames));
       } else {
         try {
-          const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+          const saved = localStorage.getItem(`defib_${tenantId}_custom_location_names`);
           if (saved) {
             const parsed = JSON.parse(saved);
             if (Object.keys(parsed).length > 0) {
-              nextCompanyInfo.locationNames = parsed;
+              nextCompanyInfo.customLocationNames = parsed;
               setLocationNames(parsed);
               updated = true;
             }
@@ -3047,7 +3047,7 @@ export default function App() {
                 pdfPageFooterText: localData.pdfPageFooterText || firestoreData.pdfPageFooterText,
                 pdfLastPageInfoText: localData.pdfLastPageInfoText || firestoreData.pdfLastPageInfoText,
                 hiddenTabs: localData.hiddenTabs || firestoreData.hiddenTabs,
-                locationNames: localData.locationNames || firestoreData.locationNames,
+                customLocationNames: localData.customLocationNames || firestoreData.customLocationNames,
                 enableAutoEmails: localData.enableAutoEmails || firestoreData.enableAutoEmails,
                 enableSatisfactionAvis: localData.enableSatisfactionAvis || firestoreData.enableSatisfactionAvis,
                 enableDevisFactures: localData.enableDevisFactures || firestoreData.enableDevisFactures,

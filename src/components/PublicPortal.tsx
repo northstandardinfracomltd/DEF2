@@ -6170,67 +6170,7 @@ export default function PublicPortal({
             )}
 
             {/* Top Bar Navigation and Tab Selector Wrapper with Linear Gradient */}
-            <div style={{ background: "linear-gradient(rgb(126, 46, 134), rgb(54, 9, 58))" }}>
-              {/* Top Bar Navigation for Mobile - requested Header style: 
-                  TOUT EN HAUT À GAUCHE: Le nom de l'entreprise
-                  À DROITE: Le Prénom/Nom de l'utilisateur */}
-              <header
-                className="px-5 pb-3.5 pt-8 flex flex-col gap-2.5 shrink-0 select-none text-white"
-                style={{ background: "transparent", borderBottom: "none" }}
-              >
-                {/* Ligne 1 : Nom de l'entreprise - centré */}
-                <div className="flex items-center justify-center text-center pt-2">
-                  <div
-                    style={{ color: "#ffffff", paddingTop: "10px" }}
-                    className="font-gochi text-2xl text-center tracking-wide"
-                  >
-                    {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
-                      ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
-                      : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
-                  </div>
-                </div>
-
-                {/* Ligne 2 : Technicien et Quitter - 50% / 50% */}
-                <div className="flex items-center justify-between gap-2.5 w-full">
-                  <span
-                    style={{
-                      fontSize: "16px",
-                      padding: "10px",
-                      background: "transparent",
-                      border: "1px solid #ffffff2b",
-                      color: "#fff",
-                      borderRadius: "9999px",
-                      textAlign: "center",
-                      width: "50%",
-                      fontWeight: "bold",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                    className="truncate"
-                  >
-                    {authenticatedUser.name.length > 10 ? authenticatedUser.name.substring(0, 10) + "..." : authenticatedUser.name}
-                  </span>
-                  <button
-                    onClick={handleLogout}
-                    style={{
-                      fontSize: "16px",
-                      padding: "10px",
-                      background: "#ffffff1a",
-                      border: "1px solid #ffffff2b",
-                      color: "#fff",
-                      borderRadius: "9999px",
-                      width: "50%",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                    className="hover:bg-[#ffffff2a] transition-all text-center"
-                  >
-                    Quitter
-                  </button>
-                </div>
-              </header>
-
+            <div style={{ background: "linear-gradient(rgb(126, 46, 134), rgb(54, 9, 58))", paddingTop: "12px" }}>
               {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
               <nav
                 className="py-0 px-0 relative shrink-0"
@@ -6532,6 +6472,26 @@ export default function PublicPortal({
                           </div>
                         </div>
                       )}
+
+                      {/* Technician Name display field */}
+                      <div className="px-1 select-none mb-3">
+                        <input
+                          type="text"
+                          readOnly
+                          value={authenticatedUser?.name || ""}
+                          className="w-full bg-white text-black transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
+                          style={{
+                            border: "1px solid rgb(201, 190, 205)",
+                            borderRadius: "14px",
+                            padding: "14px 20px",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            boxShadow: "none",
+                            outline: "none",
+                            textAlign: "center",
+                          }}
+                        />
+                      </div>
 
                       {/* Select native dropdown system for choosing active tour - sorted by date newest first */}
                       <div className="px-1 select-none">
@@ -7225,20 +7185,18 @@ export default function PublicPortal({
                             ) : (
                               <span
                                 style={{
-                                  color: "#b45309",
-                                  backgroundColor: "#fef3c7",
+                                  color: "rgb(255 255 255)",
+                                  backgroundColor: "#000",
                                   padding: "6px 14px",
                                   borderRadius: "9999px",
                                   fontWeight: "bold",
-                                  fontSize: "13px",
-                                  border: "1px solid #fde68a",
+                                  fontSize: "16px",
+                                  border: "none",
                                   display: "inline-flex",
                                   alignItems: "center",
-                                  gap: "4px",
                                 }}
                               >
-                                <span style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#f59e0b" }}></span>
-                                En attente de validation
+                                Modération
                               </span>
                             )}
                           </div>
@@ -9347,6 +9305,16 @@ export default function PublicPortal({
                   className="space-y-6 pb-16 animate-fadeIn"
                   id="tab-localisation-screen"
                 >
+                  {/* Nom du logiciel / Entreprise */}
+                  <div
+                    style={{ color: "#000000" }}
+                    className="font-gochi text-2xl text-left tracking-wide select-none"
+                  >
+                    {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
+                      ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
+                      : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
+                  </div>
+
                   <style>{`
                     #tab-localisation-screen input,
                     #tab-localisation-screen select,
@@ -10075,6 +10043,26 @@ export default function PublicPortal({
                           </button>
                         </div>
                       )}
+
+                      {/* Quitter la session button */}
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        style={{
+                          backgroundColor: "#dc2626",
+                          color: "#ffffff",
+                          fontSize: "18px",
+                          fontWeight: "bold",
+                          borderRadius: "12px",
+                          padding: "14px 20px",
+                          border: "none",
+                          cursor: "pointer",
+                          width: "100%",
+                        }}
+                        className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 mt-4"
+                      >
+                        <span>Quitter la session</span>
+                      </button>
                     </div>
                   </form>
                 </div>

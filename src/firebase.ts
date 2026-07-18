@@ -570,7 +570,8 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     website: `${tenantData.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.defibeo.com`,
     email: tenantData.companyEmail,
     phone: tenantData.companyPhone,
-    nomLogiciel: tenantData.nomLogiciel || tenantData.companyName || "Défibeo Suite"
+    nomLogiciel: tenantData.nomLogiciel || tenantData.companyName || "Défibeo Suite",
+    customLocationNames: {}
   };
 
   const customMembers = [
@@ -591,10 +592,21 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
   await setDoc(doc(db, 'appData', getCollectionKey('companyInfo', tenantId)), { value: customCompanyInfo });
   await setDoc(doc(db, 'appData', getCollectionKey('members', tenantId)), { value: customMembers });
 
+  // Custom function to attach envId and tenantId to records for security rules
+  const addEnvFields = <T>(list: T[]): T[] => {
+    return list.map(item => ({
+      ...item,
+      envId: tenantId,
+      tenantId: tenantId
+    }));
+  };
+
+  // Seed dynamic variables with initial default variables
+  await setDoc(doc(db, 'appData', getCollectionKey('variables', tenantId)), { value: addEnvFields(INITIAL_VARIABLES) });
+
   // Initialize all dynamic tables to completely empty arrays
   const cleanPartitions = [
     'clients',
-    'variables',
     'defibrillateurs',
     'otherEquipments',
     'tickets',
@@ -656,7 +668,7 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
       window.localStorage.setItem(`defib_${tenantId}_achats_fournisseurs`, JSON.stringify([]));
       window.localStorage.setItem(`defib_${tenantId}_veilles`, JSON.stringify([]));
       window.localStorage.setItem(`defib_${tenantId}_notifications`, JSON.stringify([welcomeNotification]));
-      window.localStorage.setItem(`defib_${tenantId}_location_names`, JSON.stringify({}));
+      window.localStorage.setItem(`defib_${tenantId}_custom_location_names`, JSON.stringify({}));
       window.localStorage.setItem(`defib_${tenantId}_enable_other_equipments`, 'Non');
     }
   } catch (e) {

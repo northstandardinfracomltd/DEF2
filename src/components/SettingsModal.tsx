@@ -112,12 +112,12 @@ export default function SettingsModal({
   const [enableOtherEquipments, setEnableOtherEquipments] = React.useState(propEnableOtherEquipments);
   const [showDisableOtherEquipmentsConfirmation, setShowDisableOtherEquipmentsConfirmation] = React.useState(false);
   const [localLocationNames, setLocalLocationNames] = React.useState<Record<string, string>>(() => {
-    if (companyInfo && companyInfo.locationNames) {
-      return companyInfo.locationNames;
+    if (companyInfo && companyInfo.customLocationNames) {
+      return companyInfo.customLocationNames;
     }
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     try {
-      const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+      const saved = localStorage.getItem(`defib_${tenantId}_custom_location_names`);
       return saved ? JSON.parse(saved) : {};
     } catch (e) {
       return {};
@@ -227,12 +227,12 @@ export default function SettingsModal({
 
   React.useEffect(() => {
     if (isOpen) {
-      if (companyInfo && companyInfo.locationNames) {
-        setLocalLocationNames(companyInfo.locationNames);
+      if (companyInfo && companyInfo.customLocationNames) {
+        setLocalLocationNames(companyInfo.customLocationNames);
       } else {
         const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
         try {
-          const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+          const saved = localStorage.getItem(`defib_${tenantId}_custom_location_names`);
           setLocalLocationNames(saved ? JSON.parse(saved) : {});
         } catch (e) {
           setLocalLocationNames({});
@@ -1133,7 +1133,7 @@ export default function SettingsModal({
 
     const companyToSave = {
       ...localCompany,
-      locationNames: localLocationNames,
+      customLocationNames: localLocationNames,
       enableAutoEmails: enableAutoEmails,
       enableSatisfactionAvis: enableSatisfactionAvis,
       enableDevisFactures: enableDevisFactures,
@@ -1183,7 +1183,7 @@ export default function SettingsModal({
     );
 
     // Sauvegarder les intitulés personnalisés des emplacements
-    localStorage.setItem(`defib_${myTenantId}_location_names`, JSON.stringify(localLocationNames));
+    localStorage.setItem(`defib_${myTenantId}_custom_location_names`, JSON.stringify(localLocationNames));
     localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
     localStorage.setItem(`defib_${myTenantId}_enable_satisfaction_avis`, enableSatisfactionAvis);
     localStorage.setItem(`defib_${myTenantId}_enable_devis_factures`, enableDevisFactures);

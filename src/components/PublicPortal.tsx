@@ -53,6 +53,7 @@ import {
   DistributedStockLocation,
   StockMovement,
   VeilleRecord,
+  StockTraceability,
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
 import { getRegionsForCountry } from "../utils/regions";
@@ -758,6 +759,30 @@ export default function PublicPortal({
       (t) => t.situation === "Disponible" || t.situation === "Signalé manquant"
     );
   }, [matchedStockRecord]);
+
+  const availableTraceabilitiesCount = useMemo(() => {
+    if (!matchedStockRecord || !matchedStockRecord.traceabilities) return 0;
+    return matchedStockRecord.traceabilities.filter(
+      (t) => t.situation === "Disponible"
+    ).length;
+  }, [matchedStockRecord]);
+
+  const handleUpdateTraceability = (traceId: string, updates: Partial<StockTraceability>) => {
+    if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
+    const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
+      if (t.id === traceId) {
+        return { ...t, ...updates };
+      }
+      return t;
+    });
+    const updatedStocks = stocks.map((st) => {
+      if (st.id === matchedStockRecord.id) {
+        return { ...st, traceabilities: updatedTraceabilities };
+      }
+      return st;
+    });
+    onUpdateStocks(updatedStocks);
+  };
 
   const selectedStockVariable = useMemo(() => {
     if (!selectedTechStock) return null;
@@ -7599,12 +7624,12 @@ export default function PublicPortal({
                   {/* Details shown ONLY when a stock is selected */}
                   {selectedTechStock ? (
                     <div className="space-y-4 mt-6">
-                      {/* Section 1: Volumes (3-col grid) */}
-                      <div className="grid grid-cols-3 gap-1.5">
+                      {/* Section 1: Volumes (4-col grid) */}
+                      <div className="grid grid-cols-4 gap-1.5">
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7617,7 +7642,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {selectedTechStock.volumeDisponible}
                           </div>
@@ -7625,7 +7650,7 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Disponible et avec vous
@@ -7635,7 +7660,7 @@ export default function PublicPortal({
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7648,7 +7673,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {selectedTechStock.volumeReserve}
                           </div>
@@ -7656,7 +7681,7 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Réservé et avec vous
@@ -7666,7 +7691,7 @@ export default function PublicPortal({
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7679,7 +7704,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {selectedTechStock.volumeEntrant}
                           </div>
@@ -7687,18 +7712,18 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Entrant via la centrale
                           </div>
                         </div>
 
-                        {/* Section: Outgoing Stats (3-col grid below) */}
+                        {/* Section: Outgoing Stats (part of 4-col grid) */}
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7711,7 +7736,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {outgoingStats.week1.vol}
                           </div>
@@ -7719,7 +7744,7 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Sortant cette semaine
@@ -7729,7 +7754,7 @@ export default function PublicPortal({
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7742,7 +7767,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {outgoingStats.week2.vol}
                           </div>
@@ -7750,7 +7775,7 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Sortant semaine prochaine
@@ -7760,7 +7785,7 @@ export default function PublicPortal({
                         <div
                           className="p-4 text-center"
                           style={{
-                            backgroundColor: "#fde5ff",
+                            backgroundColor: "rgb(238, 241, 255)",
                             borderRadius: "13px",
                             border: "none",
                             boxShadow: "none",
@@ -7773,7 +7798,7 @@ export default function PublicPortal({
                         >
                           <div
                             className="font-extrabold font-sans"
-                            style={{ fontSize: "22px", color: "#973e9e" }}
+                            style={{ fontSize: "22px", color: "rgb(49, 85, 255)" }}
                           >
                             {outgoingStats.next30.vol}
                           </div>
@@ -7781,7 +7806,7 @@ export default function PublicPortal({
                             className="font-bold mt-1 font-sans leading-tight"
                             style={{
                               fontSize: "16px",
-                              color: "#973e9e",
+                              color: "rgb(49, 85, 255)",
                             }}
                           >
                             Sortant 7 à 30 jours
@@ -8190,12 +8215,6 @@ export default function PublicPortal({
                                     className="px-3 py-3 font-semibold text-black font-sans"
                                     style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
                                   >
-                                    Mouvement.
-                                  </th>
-                                  <th
-                                    className="px-3 py-3 font-semibold text-black font-sans"
-                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
-                                  >
                                     Numéro de lot ou série.
                                   </th>
                                   <th
@@ -8216,13 +8235,25 @@ export default function PublicPortal({
                                   >
                                     Situation.
                                   </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Commentaire.
+                                  </th>
+                                  <th
+                                    className="px-3 py-3 font-semibold text-black font-sans"
+                                    style={{ fontSize: "16px", color: "#000000", whiteSpace: "nowrap" }}
+                                  >
+                                    Mouvement d’origine.
+                                  </th>
                                 </tr>
                               </thead>
                               <tbody className="bg-white">
                                 {filteredTraceabilities.length === 0 ? (
                                   <tr>
                                     <td
-                                      colSpan={isInventoryMode ? 7 : 6}
+                                      colSpan={isInventoryMode ? 8 : 7}
                                       className="text-center text-xs text-slate-400 py-4 font-sans bg-white"
                                     >
                                       Aucun matériel de traçabilité enregistré.
@@ -8296,50 +8327,16 @@ export default function PublicPortal({
                                             </button>
                                           </div>
                                         </td>
-                                        {/* Mouvement */}
-                                        <td className="px-3 py-2 bg-white align-middle">
-                                          <select
-                                            value={trace.movementId}
-                                            disabled
-                                            className="w-full font-sans cursor-not-allowed appearance-none"
-                                            style={{
-                                              backgroundColor: "#ffffff",
-                                              color: "#000000",
-                                              fontSize: "18px",
-                                              borderRadius: "13px",
-                                              border: "1px solid #cbd5e1",
-                                              padding: "6px 12px",
-                                              minHeight: "42px",
-                                              minWidth: "280px",
-                                              opacity: 1, // ensure fully visible when disabled
-                                              WebkitTextFillColor: "#000000",
-                                              appearance: "none",
-                                              WebkitAppearance: "none",
-                                              MozAppearance: "none",
-                                              backgroundImage: "none",
-                                            }}
-                                          >
-                                            <option value="" disabled hidden>
-                                              Sélectionnez un mouvement
-                                            </option>
-                                            <option value="Autre">Autre (Aucun mouvement)</option>
-                                            {(matchedStockRecord?.mouvements || [])
-                                              .filter((mv) => mv.type !== "Annulation")
-                                              .map((mv) => (
-                                                <option key={mv.id} value={mv.id}>
-                                                  {mv.date} - {mv.type} (Vol: {mv.volume})
-                                                </option>
-                                              ))}
-                                          </select>
-                                        </td>
                                         {/* Numéro de lot ou série */}
                                         <td className="px-3 py-2 bg-white align-middle">
                                           <input
                                             type="text"
                                             value={trace.lotOrSerial}
-                                            disabled
-                                            readOnly
-                                            className="w-full font-semibold font-sans cursor-not-allowed"
+                                            disabled={!isInventoryMode}
+                                            onChange={(e) => {
+                                              handleUpdateTraceability(trace.id, { lotOrSerial: e.target.value });
+                                            }}
+                                            className={`w-full font-semibold font-sans ${!isInventoryMode ? "cursor-not-allowed text-slate-700" : "bg-white text-black"}`}
                                             style={{
                                               backgroundColor: "#ffffff",
                                               color: "#000000",
@@ -8358,9 +8355,11 @@ export default function PublicPortal({
                                           <input
                                             type="date"
                                             value={trace.expirationDate || ""}
-                                            disabled
-                                            readOnly
-                                            className="w-full font-sans cursor-not-allowed"
+                                            disabled={!isInventoryMode}
+                                            onChange={(e) => {
+                                              handleUpdateTraceability(trace.id, { expirationDate: e.target.value });
+                                            }}
+                                            className={`w-full font-sans ${!isInventoryMode ? "cursor-not-allowed text-slate-700" : "bg-white text-black"}`}
                                             style={{
                                               backgroundColor: "#ffffff",
                                               color: "#000000",
@@ -8418,6 +8417,67 @@ export default function PublicPortal({
                                             }}
                                           />
                                         </td>
+                                        {/* Commentaire */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <input
+                                            type="text"
+                                            value={trace.comment || ""}
+                                            disabled={!isInventoryMode}
+                                            onChange={(e) => {
+                                              handleUpdateTraceability(trace.id, { comment: e.target.value });
+                                            }}
+                                            placeholder={isInventoryMode ? "Saisir un commentaire" : ""}
+                                            className={`w-full font-sans ${!isInventoryMode ? "cursor-not-allowed text-slate-700" : "bg-white text-black"}`}
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              minWidth: "220px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                            }}
+                                          />
+                                        </td>
+                                        {/* Mouvement d'origine */}
+                                        <td className="px-3 py-2 bg-white align-middle">
+                                          <select
+                                            value={trace.movementId}
+                                            disabled
+                                            className="w-full font-sans cursor-not-allowed appearance-none"
+                                            style={{
+                                              backgroundColor: "#ffffff",
+                                              color: "#000000",
+                                              fontSize: "18px",
+                                              borderRadius: "13px",
+                                              border: "1px solid #cbd5e1",
+                                              padding: "6px 12px",
+                                              minHeight: "42px",
+                                              minWidth: "280px",
+                                              opacity: 1,
+                                              WebkitTextFillColor: "#000000",
+                                              appearance: "none",
+                                              WebkitAppearance: "none",
+                                              MozAppearance: "none",
+                                              backgroundImage: "none",
+                                            }}
+                                          >
+                                            <option value="" disabled hidden>
+                                              Sélectionnez un mouvement
+                                            </option>
+                                            <option value="Autre">Autre (Aucun mouvement)</option>
+                                            {(matchedStockRecord?.mouvements || [])
+                                              .filter((mv) => mv.type !== "Annulation")
+                                              .map((mv) => (
+                                                <option key={mv.id} value={mv.id}>
+                                                  {mv.date} - {mv.type} (Vol: {mv.volume})
+                                                </option>
+                                              ))}
+                                          </select>
+                                        </td>
                                       </tr>
                                     );
                                   })
@@ -8454,18 +8514,19 @@ export default function PublicPortal({
                           <button
                             type="button"
                             onClick={() => {
-                              setRapatrimentVolume(
-                                selectedTechStock.volumeDisponible,
-                              );
+                              const n = matchedStockRecord?.traceabilities 
+                                ? matchedStockRecord.traceabilities.filter((t) => t.situation === "Disponible").length 
+                                : 0;
+                              setRapatrimentVolume(n > 0 ? n : 0);
                               setRapatrimentTrackingLink("");
                               setRapatrimentDate(
                                 new Date().toISOString().split("T")[0],
                               );
-                              setRapatrimentStatut("Préparation");
+                              setRapatrimentStatut("Expédié");
                               setShowRapatriementForm(true);
                             }}
                             style={{
-                              backgroundColor: "#000000",
+                              backgroundColor: "rgb(239, 68, 68)",
                               color: "#ffffff",
                               borderRadius: "13px",
                               fontSize: "18px",
@@ -8484,49 +8545,71 @@ export default function PublicPortal({
 
                         {/* Rapatriement sub-form */}
                         {showRapatriementForm && (
-                          <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl space-y-3 font-sans text-xs text-black">
-                            <div className="border-b border-slate-200/60 pb-1 flex items-center justify-between bg-transparent">
-                              <h4 className="font-extrabold text-[#5d1f74] bg-transparent">
-                                Créer un retour
-                              </h4>
-                              <span className="text-[9px] text-slate-400 uppercase font-bold bg-transparent">
-                                Rapatriement
-                              </span>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-2.5 bg-transparent">
-                              <div className="flex flex-col gap-0.5 bg-transparent">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase bg-transparent">
-                                  Type
+                          <div className="p-0 space-y-4 font-sans text-black bg-transparent border-none shadow-none">
+                            <div className="grid grid-cols-1 gap-4 bg-transparent">
+                              <div className="flex flex-col gap-1.5 bg-transparent">
+                                <label className="text-black font-semibold bg-transparent" style={{ fontSize: "16px" }}>
+                                  Type.
                                 </label>
                                 <input
                                   type="text"
                                   value="Rapatriement"
                                   disabled
-                                  className="w-full bg-slate-100 border border-slate-200 p-2 rounded text-slate-550 font-bold bg-transparent"
+                                  className="w-full bg-slate-100 border border-slate-200 text-slate-500 font-bold bg-transparent"
+                                  style={{
+                                    borderRadius: "13px",
+                                    padding: "10px 14px",
+                                    fontSize: "16px",
+                                    height: "44px",
+                                  }}
                                 />
                               </div>
 
-                              <div className="flex flex-col gap-0.5 bg-transparent">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase bg-transparent">
-                                  Volume *
+                              <div className="flex flex-col gap-1.5 bg-transparent">
+                                <label className="text-black font-semibold bg-transparent" style={{ fontSize: "16px" }}>
+                                  Volume.
                                 </label>
-                                <input
-                                  type="number"
+                                <select
                                   value={rapatrimentVolume}
                                   onChange={(e) =>
                                     setRapatrimentVolume(
                                       Number(e.target.value) || 0,
                                     )
                                   }
-                                  placeholder="Indiquer le volume"
-                                  className="w-full bg-white border border-slate-200 p-2 rounded text-black font-semibold"
-                                />
+                                  className="w-full bg-white text-black font-medium transition-all"
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "13px",
+                                    padding: "10px 14px",
+                                    fontSize: "16px",
+                                    height: "44px",
+                                  }}
+                                >
+                                  {(() => {
+                                    const n = matchedStockRecord?.traceabilities
+                                      ? matchedStockRecord.traceabilities.filter(
+                                          (t) => t.situation === "Disponible"
+                                        ).length
+                                      : 0;
+                                    if (n <= 0) {
+                                      return <option value={0}>0</option>;
+                                    }
+                                    const opts = [];
+                                    for (let i = 1; i <= n; i++) {
+                                      opts.push(
+                                        <option key={i} value={i}>
+                                          {i}
+                                        </option>
+                                      );
+                                    }
+                                    return opts;
+                                  })()}
+                                </select>
                               </div>
 
-                              <div className="flex flex-col gap-0.5 bg-transparent">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase bg-transparent">
-                                  Lien de suivi
+                              <div className="flex flex-col gap-1.5 bg-transparent">
+                                <label className="text-black font-semibold bg-transparent" style={{ fontSize: "16px" }}>
+                                  Lien transporteur.
                                 </label>
                                 <input
                                   type="text"
@@ -8535,13 +8618,20 @@ export default function PublicPortal({
                                     setRapatrimentTrackingLink(e.target.value)
                                   }
                                   placeholder="Coller lien de suivi"
-                                  className="w-full bg-white border border-slate-200 p-2 rounded text-black font-semibold"
+                                  className="w-full bg-white text-black font-semibold"
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "13px",
+                                    padding: "10px 14px",
+                                    fontSize: "16px",
+                                    height: "44px",
+                                  }}
                                 />
                               </div>
 
-                              <div className="flex flex-col gap-0.5 bg-transparent">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase bg-transparent">
-                                  Date *
+                              <div className="flex flex-col gap-1.5 bg-transparent">
+                                <label className="text-black font-semibold bg-transparent" style={{ fontSize: "16px" }}>
+                                  Date.
                                 </label>
                                 <input
                                   type="date"
@@ -8549,24 +8639,40 @@ export default function PublicPortal({
                                   onChange={(e) =>
                                     setRapatrimentDate(e.target.value)
                                   }
-                                  className="w-full bg-white border border-slate-200 p-2 rounded text-black font-semibold"
+                                  className="w-full bg-white text-black font-semibold"
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "13px",
+                                    padding: "10px 14px",
+                                    fontSize: "16px",
+                                    height: "44px",
+                                  }}
                                 />
                               </div>
 
-                              <div className="flex flex-col gap-0.5 bg-transparent">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase bg-transparent">
-                                  Statut *
+                              <div className="flex flex-col gap-1.5 bg-transparent">
+                                <label className="text-black font-semibold bg-transparent" style={{ fontSize: "16px" }}>
+                                  Statut.
                                 </label>
                                 <select
                                   value={rapatrimentStatut}
                                   onChange={(e) =>
                                     setRapatrimentStatut(e.target.value as any)
                                   }
-                                  className="w-full bg-white border border-slate-200 p-2 rounded text-black font-semibold cursor-pointer"
+                                  className="w-full bg-white text-black font-medium cursor-pointer"
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    borderRadius: "13px",
+                                    padding: "10px 14px",
+                                    fontSize: "16px",
+                                    height: "44px",
+                                    appearance: "none",
+                                    WebkitAppearance: "none",
+                                    MozAppearance: "none",
+                                    backgroundImage: "none",
+                                  }}
                                 >
-                                  <option value="Préparation">
-                                    Préparation
-                                  </option>
+                                  <option value="Préparation">Préparation</option>
                                   <option value="Expédié">Expédié</option>
                                   <option value="Terminé">Terminé</option>
                                   <option value="Annulé">Annulé</option>
@@ -8574,18 +8680,30 @@ export default function PublicPortal({
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 pt-2 bg-transparent font-sans">
+                            <div className="flex items-center gap-3 pt-3 bg-transparent font-sans">
                               <button
                                 type="button"
                                 onClick={() => setShowRapatriementForm(false)}
-                                className="flex-1 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg font-bold text-center transition-colors cursor-pointer"
+                                className="flex-1 py-3 text-white hover:opacity-95 transition-all text-center cursor-pointer border-0"
+                                style={{
+                                  backgroundColor: "#000000",
+                                  borderRadius: "13px",
+                                  fontSize: "18px",
+                                  fontWeight: "bold",
+                                }}
                               >
                                 Annuler
                               </button>
                               <button
                                 type="button"
                                 onClick={handleConfirmRapatriement}
-                                className="flex-1 py-2 bg-[#fe4eba] hover:opacity-90 text-white rounded-lg font-bold text-center transition-opacity cursor-pointer"
+                                className="flex-1 py-3 text-white hover:opacity-90 transition-opacity cursor-pointer border-0"
+                                style={{
+                                  backgroundColor: "#fe4eba",
+                                  borderRadius: "13px",
+                                  fontSize: "18px",
+                                  fontWeight: "bold",
+                                }}
                               >
                                 Confirmer
                               </button>

@@ -575,20 +575,62 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
 
   const customMembers = [
     {
+      id: 'member-admin-' + tenantId,
       name: tenantData.adminName,
       role: 'Propriétaire / Admin',
       email: tenantData.adminEmail,
       status: 'Actif',
       lastActive: 'En ligne',
-      pin: '1234'
+      pin: '1234',
+      envId: tenantId,
+      tenantId: tenantId
     }
   ];
 
-  // Store seeded partitions
-  await setDoc(doc(db, 'appData', `${tenantId}_companyInfo`), { value: customCompanyInfo });
-  
-  // Seed the demo/dummy data automatically at creation
-  await seedTenantDemoData(tenantId);
+  // Store seeded partitions with clean, non-overwritten companyInfo and members
+  await setDoc(doc(db, 'appData', getCollectionKey('companyInfo', tenantId)), { value: customCompanyInfo });
+  await setDoc(doc(db, 'appData', getCollectionKey('members', tenantId)), { value: customMembers });
+
+  // Initialize all dynamic tables to completely empty arrays
+  const cleanPartitions = [
+    'clients',
+    'variables',
+    'defibrillateurs',
+    'otherEquipments',
+    'tickets',
+    'commercialDocs',
+    'gedDocs',
+    'stocks',
+    'distributed_stocks',
+    'customerReviews',
+    'expenses',
+    'veilles',
+    'generatedReports',
+    'fsmTours',
+    'pointages',
+    'pointagesAutoVigilance',
+    'memos',
+    'achats_fournisseurs'
+  ];
+
+  await Promise.all(
+    cleanPartitions.map(tableName =>
+      setDoc(doc(db, 'appData', getCollectionKey(tableName, tenantId)), { value: [] })
+    )
+  );
+
+  // Initialize notifications with the clean welcome message
+  const nowStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+  const welcomeNotification = {
+    id: 'notif-' + Date.now(),
+    category: 'Système',
+    title: 'Votre nouvel environnement Défibeo a été créé avec succès.',
+    timestamp: nowStr,
+    situation: 'Terminé',
+    envId: tenantId,
+    tenantId: tenantId
+  };
+  await setDoc(doc(db, 'appData', getCollectionKey('notifications', tenantId)), { value: [welcomeNotification] });
 
   return tenantId;
 }
@@ -621,11 +663,11 @@ export async function seedTenantDemoData(tenantId: string): Promise<void> {
 
   // Reset/seed Company Info for this tenant
   const customCompanyInfo = {
-    nom: tenant ? tenant.companyName : "Défibeo Demo",
-    adresse: "12 Rue de la Paix, 75001 Paris",
-    siret: "12345678901234",
-    email: tenant ? tenant.companyEmail : "demo@demo.com",
-    phone: tenant ? tenant.companyPhone : "0100000000",
+    name: tenant ? tenant.companyName : "Défibeo Solutions",
+    logo: "",
+    website: tenant ? `${tenant.companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.defibeo.com` : "demo.defibeo-solutions.com",
+    email: tenant ? tenant.companyEmail : "contact@defibeo-solutions.com",
+    phone: tenant ? tenant.companyPhone : "+33 1 47 20 00 01",
     nomLogiciel: tenant ? (tenant.nomLogiciel || tenant.companyName) : "Défibeo Suite"
   };
   await setDoc(doc(db, 'appData', getCollectionKey('companyInfo', tenantId)), { value: customCompanyInfo });

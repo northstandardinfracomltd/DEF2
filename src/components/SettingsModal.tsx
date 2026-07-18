@@ -721,16 +721,24 @@ export default function SettingsModal({
   };
 
   const handleToggleTabVisibility = (tabLabel: string) => {
-    setLocalCompany(prev => {
-      const currentHidden = prev.hiddenTabs || [];
-      const newHidden = currentHidden.includes(tabLabel)
-        ? currentHidden.filter(t => t !== tabLabel)
-        : [...currentHidden, tabLabel];
-      return {
-        ...prev,
-        hiddenTabs: newHidden
-      };
-    });
+    const currentHidden = localCompany.hiddenTabs || [];
+    const newHidden = currentHidden.includes(tabLabel)
+      ? currentHidden.filter(t => t !== tabLabel)
+      : [...currentHidden, tabLabel];
+
+    const updatedCompany = {
+      ...localCompany,
+      hiddenTabs: newHidden
+    };
+
+    setLocalCompany(updatedCompany);
+    onUpdateCompanyInfo(updatedCompany);
+
+    if (myTenantId && myTenantId !== 'demo') {
+      saveCollectionToFirestore('companyInfo', updatedCompany).catch(err =>
+        console.error('Error saving company info directly to Firestore:', err)
+      );
+    }
   };
 
   const canEditMember = (index: number) => {
@@ -1905,6 +1913,7 @@ export default function SettingsModal({
                 "Temps",
                 "Temps (Webapp)",
                 "Localisations",
+                "Localisation (Webapp)",
                 "Tickets Caisse",
                 "Frais (Webapp)",
                 "Variables",

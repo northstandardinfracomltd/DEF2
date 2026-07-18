@@ -3036,22 +3036,24 @@ export default function App() {
           if (localRaw) {
             try {
               const localData = JSON.parse(localRaw) as CompanyInfo;
+              // Firestore takes absolute priority, local is only fallback for missing values
               return {
+                ...localData,
                 ...firestoreData,
-                pdfHeaderBgColor: localData.pdfHeaderBgColor || firestoreData.pdfHeaderBgColor,
-                pdfCardBorderColor: localData.pdfCardBorderColor || firestoreData.pdfCardBorderColor,
-                pdfCardBgColor: localData.pdfCardBgColor || firestoreData.pdfCardBgColor,
-                pdfLabelTextColor: localData.pdfLabelTextColor || firestoreData.pdfLabelTextColor,
-                pdfHeaderImg: localData.pdfHeaderImg || firestoreData.pdfHeaderImg,
-                pdfPageHeaderText: localData.pdfPageHeaderText || firestoreData.pdfPageHeaderText,
-                pdfPageFooterText: localData.pdfPageFooterText || firestoreData.pdfPageFooterText,
-                pdfLastPageInfoText: localData.pdfLastPageInfoText || firestoreData.pdfLastPageInfoText,
-                hiddenTabs: localData.hiddenTabs || firestoreData.hiddenTabs,
-                customLocationNames: localData.customLocationNames || firestoreData.customLocationNames,
-                enableAutoEmails: localData.enableAutoEmails || firestoreData.enableAutoEmails,
-                enableSatisfactionAvis: localData.enableSatisfactionAvis || firestoreData.enableSatisfactionAvis,
-                enableDevisFactures: localData.enableDevisFactures || firestoreData.enableDevisFactures,
-                communicationPortailClient: localData.communicationPortailClient !== undefined ? localData.communicationPortailClient : firestoreData.communicationPortailClient
+                hiddenTabs: firestoreData.hiddenTabs !== undefined ? firestoreData.hiddenTabs : (localData.hiddenTabs || []),
+                customLocationNames: firestoreData.customLocationNames !== undefined ? firestoreData.customLocationNames : localData.customLocationNames,
+                enableAutoEmails: firestoreData.enableAutoEmails !== undefined ? firestoreData.enableAutoEmails : localData.enableAutoEmails,
+                enableSatisfactionAvis: firestoreData.enableSatisfactionAvis !== undefined ? firestoreData.enableSatisfactionAvis : localData.enableSatisfactionAvis,
+                enableDevisFactures: firestoreData.enableDevisFactures !== undefined ? firestoreData.enableDevisFactures : localData.enableDevisFactures,
+                communicationPortailClient: firestoreData.communicationPortailClient !== undefined ? firestoreData.communicationPortailClient : localData.communicationPortailClient,
+                pdfHeaderBgColor: firestoreData.pdfHeaderBgColor !== undefined ? firestoreData.pdfHeaderBgColor : localData.pdfHeaderBgColor,
+                pdfCardBorderColor: firestoreData.pdfCardBorderColor !== undefined ? firestoreData.pdfCardBorderColor : localData.pdfCardBorderColor,
+                pdfCardBgColor: firestoreData.pdfCardBgColor !== undefined ? firestoreData.pdfCardBgColor : localData.pdfCardBgColor,
+                pdfLabelTextColor: firestoreData.pdfLabelTextColor !== undefined ? firestoreData.pdfLabelTextColor : localData.pdfLabelTextColor,
+                pdfHeaderImg: firestoreData.pdfHeaderImg !== undefined ? firestoreData.pdfHeaderImg : localData.pdfHeaderImg,
+                pdfPageHeaderText: firestoreData.pdfPageHeaderText !== undefined ? firestoreData.pdfPageHeaderText : localData.pdfPageHeaderText,
+                pdfPageFooterText: firestoreData.pdfPageFooterText !== undefined ? firestoreData.pdfPageFooterText : localData.pdfPageFooterText,
+                pdfLastPageInfoText: firestoreData.pdfLastPageInfoText !== undefined ? firestoreData.pdfLastPageInfoText : localData.pdfLastPageInfoText,
               };
             } catch (e) {
               console.error("Error merging local company info:", e);

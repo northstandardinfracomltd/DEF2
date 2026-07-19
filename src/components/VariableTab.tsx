@@ -689,7 +689,7 @@ export default function VariableTab({
                       { label: 'Visibilité du champ : Nettoyage (Vérifications).', value: visibiliteNettoyage, setter: setVisibiliteNettoyage },
                       { label: 'Visibilité du champ : Pièces jointes (1 à 3 fichiers) (Clôture).', value: visibilitePiecesJointes, setter: setVisibilitePiecesJointes },
                     ].map((cfg, i) => (
-                      <div key={i} className="space-y-1 p-2 bg-slate-50/50 rounded-lg">
+                      <div key={i} className="space-y-1 p-2 bg-transparent rounded-lg">
                         <label className="block text-[11px] font-bold text-slate-500 uppercase">
                           {cfg.label}
                         </label>

@@ -796,6 +796,36 @@ export default function StocksDistribuesTab({
 
                       const rowStats = getPieceOutgoingStats(item.denominationPieceId);
 
+                      const hasTraceabilitiesInThisLocation = (() => {
+                        if (!matchedStock || !matchedStock.traceabilities) return false;
+                        return matchedStock.traceabilities.some(t => {
+                          let currentLoc = 'Centrale des stocks';
+                          if (t.emplacement) {
+                            currentLoc = t.emplacement;
+                          } else {
+                            const matchedMv = (matchedStock.mouvements || []).find(mv => mv.id === t.movementId);
+                            if (matchedMv) {
+                              if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+                                currentLoc = 'Centrale des stocks';
+                              } else if (matchedMv.emplacement) {
+                                if (matchedMv.emplacement.includes(' : ')) {
+                                  currentLoc = matchedMv.emplacement.split(' : ')[1];
+                                } else {
+                                  currentLoc = matchedMv.emplacement;
+                                }
+                              }
+                            }
+                          }
+                          const normLoc = (loc: string) => loc === 'Centrale' ? 'Centrale des stocks' : loc;
+                          return normLoc(currentLoc) === normLoc(item.locationName);
+                        });
+                      })();
+
+                      const isDeleteDisabled = (item.volumeDisponible || 0) !== 0 ||
+                                               (item.volumeReserve || 0) !== 0 ||
+                                               (item.volumeEntrant || 0) !== 0 ||
+                                               hasTraceabilitiesInThisLocation;
+
                       return (
                         <tr
                           key={item.id}
@@ -883,14 +913,15 @@ export default function StocksDistribuesTab({
                               </button>
                               <button
                                 type="button"
-                                disabled={item.volumeDisponible !== 0}
+                                disabled={isDeleteDisabled}
                                 onClick={() => handleDelete(item.id)}
                                 style={{
                                   ...rowActionButtonStyle,
-                                  opacity: item.volumeDisponible !== 0 ? 0.35 : 1,
-                                  cursor: item.volumeDisponible !== 0 ? 'not-allowed' : 'pointer'
+                                  opacity: isDeleteDisabled ? 0.35 : 1,
+                                  cursor: isDeleteDisabled ? 'not-allowed' : 'pointer'
                                 }}
                                 className="font-sans"
+                                title={isDeleteDisabled ? "Impossible de supprimer : stock non nul ou éléments de traçabilité présents" : "Supprimer"}
                               >
                                 Supprimer
                               </button>
@@ -1271,111 +1302,10 @@ export default function StocksDistribuesTab({
                   </div>
                 )}
 
-                {mainStockItem?.traceabilityEnabled && (
-                  <div className="mt-6 flex flex-col gap-4">
-                    <div className="flex bg-white select-none">
-                      <span 
-                        className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans"
-                        style={{
-                          color: '#fff',
-                          backgroundColor: '#fa53d5',
-                          fontSize: '14px',
-                          border: 'none',
-                          textTransform: 'none',
-                          letterSpacing: 'normal'
-                        }}
-                      >
-                        Matériels de traçabilité dans cet emplacement (Lecture seule)
-                      </span>
-                    </div>
-
-                    {traceabilities.length > 0 ? (
-                      <div 
-                        className="overflow-x-auto border rounded-xl bg-white" 
-                        style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
-                      >
-                        <table className="w-full text-left font-sans border-collapse text-xs">
-                          <thead>
-                            <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Code-barres</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>N° de lot ou série</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Volume</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire</th>
-                              <th className="px-3 py-3 font-semibold text-black font-sans text-center" style={{ fontSize: '15px', color: '#000000', whiteSpace: 'nowrap' }}>Situation</th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-white text-black">
-                            {traceabilities.map((trace, idx) => (
-                              <tr 
-                                key={trace.id} 
-                                className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
-                                style={{ borderBottom: idx === traceabilities.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
-                              >
-                                <td className="px-3 py-2 bg-white align-middle">
-                                  <div className="flex items-center gap-2">
-                                    <div 
-                                      className="inline-block"
-                                      dangerouslySetInnerHTML={{ __html: generateBarcodeSVGString(trace.lotOrSerial) }} 
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => downloadBarcodeSVG(trace.lotOrSerial)}
-                                      style={{
-                                        backgroundColor: '#000000',
-                                        color: '#ffffff',
-                                        padding: '4px 8px',
-                                        fontSize: '12px',
-                                        borderRadius: '6px',
-                                      }}
-                                      className="font-sans font-semibold active:scale-95 transition-all cursor-pointer border-0"
-                                      title="Imprimer"
-                                    >
-                                      Imprimer
-                                    </button>
-                                  </div>
-                                </td>
-                                <td className="px-3 py-2 bg-white align-middle font-semibold" style={{ fontSize: '15px' }}>
-                                  {trace.lotOrSerial}
-                                </td>
-                                <td className="px-3 py-2 bg-white align-middle" style={{ fontSize: '15px' }}>
-                                  {trace.expirationDate ? new Date(trace.expirationDate).toLocaleDateString('fr-FR') : '-'}
-                                </td>
-                                <td className="px-3 py-2 bg-white align-middle text-center font-semibold" style={{ fontSize: '15px' }}>
-                                  {trace.volume}
-                                </td>
-                                <td className="px-3 py-2 bg-white align-middle text-slate-600 italic" style={{ fontSize: '14px' }}>
-                                  {trace.comment || '-'}
-                                </td>
-                                <td className="px-3 py-2 bg-white align-middle text-center" style={{ fontSize: '15px' }}>
-                                  <span 
-                                    className={`inline-flex items-center justify-center px-2.5 py-0.5 rounded-full font-semibold text-xs ${
-                                      trace.situation === 'Disponible' 
-                                        ? 'bg-green-100 text-green-800' 
-                                        : trace.situation === 'Prêté'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-red-100 text-red-800'
-                                    }`}
-                                  >
-                                    {trace.situation}
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-slate-500 font-sans italic" style={{ fontSize: '15px', color: '#6b7280' }}>
-                        Aucun matériel de traçabilité enregistré dans cet emplacement pour le moment.
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               {/* Section Inventaire de traçabilité en lecture seule */}
-              {mainStockItem?.traceabilityEnabled && (
+              {mainStockItem?.traceabilityEnabled && traceabilities.length > 0 && (
                 <>
                   <div className="md:col-span-4 mt-2" style={{ borderTop: '1px solid rgb(218, 218, 218)', margin: '0 -20px' }} />
                   <div className="md:col-span-4 pt-5 mt-2 bg-white flex flex-col gap-4">
@@ -1484,7 +1414,6 @@ export default function StocksDistribuesTab({
                       </p>
                     )}
 
-                    {traceabilities.length > 0 ? (
                       <div 
                         className="overflow-x-auto border rounded-xl mt-2 bg-white" 
                         style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
@@ -1722,11 +1651,6 @@ export default function StocksDistribuesTab({
                           </tbody>
                         </table>
                       </div>
-                    ) : (
-                      <p className="text-sm text-slate-500 font-sans italic" style={{ fontSize: '16px', color: '#6b7280' }}>
-                        Aucun matériel de traçabilité enregistré dans cet emplacement pour le moment.
-                      </p>
-                    )}
                   </div>
                 </>
               )}

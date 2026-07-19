@@ -2512,11 +2512,6 @@ export default function DefibTab({
                             Atlas: {df.numeroAtlasante}
                           </div>
                         ) : null}
-                        {df.versionLogiciel ? (
-                          <div className="text-[10px] text-slate-400 font-mono mt-0.5" title="Version du logiciel">
-                            Soft: {df.versionLogiciel}
-                          </div>
-                        ) : null}
                       </td>
 
                       {/* Client */}

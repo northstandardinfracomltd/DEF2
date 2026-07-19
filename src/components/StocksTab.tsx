@@ -2291,20 +2291,6 @@ export default function StocksTab({
                               <div className="flex justify-end gap-3 bg-transparent mt-2">
                                 <button
                                   type="button"
-                                  onClick={() => setSelectedTraceIds([])}
-                                  style={{
-                                    backgroundColor: '#e2e8f0',
-                                    color: '#475569',
-                                    padding: '10px 20px',
-                                    fontSize: '18px',
-                                    borderRadius: '13px',
-                                  }}
-                                  className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
-                                >
-                                  Désélectionner tout
-                                </button>
-                                <button
-                                  type="button"
                                   onClick={handleSelectedDistributionSubmit}
                                   style={{
                                     backgroundColor: '#fe4eba',

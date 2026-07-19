@@ -176,6 +176,7 @@ export default function StocksTab({
   const [distribDate, setDistribDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [distribSuiviColis, setDistribSuiviColis] = useState<string>('');
   const [distribStatut, setDistribStatut] = useState<'Préparation' | 'Expédié' | 'Terminé' | 'Annulé'>('Préparation');
+  const [distribMvType, setDistribMvType] = useState<'Distribution' | 'Rapatriement'>('Distribution');
 
   // Helper to determine the location for a traceability item
   const getTraceLocation = (trace: StockTraceability) => {
@@ -224,7 +225,7 @@ export default function StocksTab({
     // Create a new movement record
     const newMv: StockMovement = {
       id: mvId,
-      type: 'Distribution',
+      type: distribMvType,
       volume: selectedTraceIds.length,
       date: distribDate,
       statut: distribStatut,
@@ -255,16 +256,17 @@ export default function StocksTab({
 
     let updatedDistributedStocks = [...distributedStocks];
     let centralDecrementCount = 0;
+    let centralIncrementCount = 0;
 
     selectedTraceIds.forEach(id => {
       const t = traceabilities.find(item => item.id === id);
       if (!t) return;
       const srcLoc = getTraceLocation(t);
 
+      // Decrement the source
       if (srcLoc === 'Centrale des stocks') {
         centralDecrementCount++;
-      } else if (srcLoc !== distribEmplacement) {
-        // Decrement source location
+      } else {
         const srcIndex = updatedDistributedStocks.findIndex(
           ds => ds.locationName === srcLoc && ds.denominationPieceId === newDenomStr
         );
@@ -277,29 +279,35 @@ export default function StocksTab({
         }
       }
 
+      // Increment the destination (only if dest is different from src)
       if (srcLoc !== distribEmplacement) {
-        // Increment destination location
-        const destIndex = updatedDistributedStocks.findIndex(
-          ds => ds.locationName === distribEmplacement && ds.denominationPieceId === newDenomStr
-        );
-        if (destIndex >= 0) {
-          const dsDest = updatedDistributedStocks[destIndex];
-          updatedDistributedStocks[destIndex] = {
-            ...dsDest,
-            volumeDisponible: dsDest.volumeDisponible + (isTermine ? 1 : 0),
-            volumeEntrant: (dsDest.volumeEntrant || 0) + (isEnTransit ? 1 : 0)
-          };
+        if (distribEmplacement === 'Centrale des stocks') {
+          if (isTermine) {
+            centralIncrementCount++;
+          }
         } else {
-          const newDs: DistributedStockLocation = {
-            id: 'ds_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-            denominationPieceId: newDenomStr,
-            stockId: editingStockId || undefined,
-            locationName: distribEmplacement as any,
-            volumeDisponible: isTermine ? 1 : 0,
-            volumeReserve: 0,
-            volumeEntrant: isEnTransit ? 1 : 0
-          };
-          updatedDistributedStocks.unshift(newDs);
+          const destIndex = updatedDistributedStocks.findIndex(
+            ds => ds.locationName === distribEmplacement && ds.denominationPieceId === newDenomStr
+          );
+          if (destIndex >= 0) {
+            const dsDest = updatedDistributedStocks[destIndex];
+            updatedDistributedStocks[destIndex] = {
+              ...dsDest,
+              volumeDisponible: dsDest.volumeDisponible + (isTermine ? 1 : 0),
+              volumeEntrant: (dsDest.volumeEntrant || 0) + (isEnTransit ? 1 : 0)
+            };
+          } else {
+            const newDs: DistributedStockLocation = {
+              id: 'ds_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+              denominationPieceId: newDenomStr,
+              stockId: editingStockId || undefined,
+              locationName: distribEmplacement as any,
+              volumeDisponible: isTermine ? 1 : 0,
+              volumeReserve: 0,
+              volumeEntrant: isEnTransit ? 1 : 0
+            };
+            updatedDistributedStocks.unshift(newDs);
+          }
         }
       }
     });
@@ -311,6 +319,9 @@ export default function StocksTab({
     if (centralDecrementCount > 0) {
       setNewQty(prev => Math.max(0, prev - centralDecrementCount));
     }
+    if (centralIncrementCount > 0) {
+      setNewQty(prev => prev + centralIncrementCount);
+    }
 
     // Reset selection and form
     setSelectedTraceIds([]);
@@ -318,6 +329,7 @@ export default function StocksTab({
     setDistribSuiviColis('');
     setDistribStatut('Préparation');
     setDistribDate(new Date().toISOString().split('T')[0]);
+    setDistribMvType('Distribution');
 
     alert("La distribution des pièces sélectionnées a été enregistrée avec succès !");
   };
@@ -1249,7 +1261,7 @@ export default function StocksTab({
           >
             <div>
               <h3 className="text-2xl font-bold font-gochi" id="form-modal-title" style={{ color: '#000', cursor: 'default' }}>
-                {editingStockId ? 'MODIFICATION STOCK DE LA CENTRALE' : 'NOUVEAU STOCK DE LA CENTRALE'}
+                {editingStockId ? 'Modification du stock de la centrale' : 'Nouveau stock de la centrale'}
               </h3>
             </div>
             
@@ -2186,20 +2198,19 @@ export default function StocksTab({
                         <>
                           {selectedTraceIds.length > 0 && (
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 flex flex-col font-sans mb-3 text-xs">
-                              <div className="flex items-center gap-2 bg-transparent mb-1">
-                                <span className="font-bold text-sm text-[#5f1f66]">⚡ Distribution rapide ({selectedTraceIds.length} {selectedTraceIds.length > 1 ? 'pièces sélectionnées' : 'pièce sélectionnée'})</span>
-                              </div>
                               <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 bg-transparent">
                                 {/* Type de mouvement */}
                                 <div className="flex flex-col gap-1 bg-transparent">
                                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type du mouvement *</label>
-                                  <input
-                                    type="text"
-                                    value="Distribution"
-                                    disabled
-                                    className="w-full bg-slate-100 p-2 border border-slate-200 rounded text-slate-500 font-semibold text-xs cursor-not-allowed"
+                                  <select
+                                    value={distribMvType}
+                                    onChange={(e) => setDistribMvType(e.target.value as any)}
+                                    className="w-full bg-white text-black p-2 rounded border border-slate-200 font-semibold text-xs"
                                     style={{ minHeight: '36px' }}
-                                  />
+                                  >
+                                    <option value="Distribution">Distribution</option>
+                                    <option value="Rapatriement">Rapatriement</option>
+                                  </select>
                                 </div>
 
                                 {/* Envoyer à */}
@@ -2213,7 +2224,7 @@ export default function StocksTab({
                                     required
                                   >
                                     <option value="" disabled hidden>Sélectionnez un emplacement</option>
-                                    {ALL_LOCATIONS.filter(l => l !== 'Centrale des stocks').map(loc => (
+                                    {ALL_LOCATIONS.map(loc => (
                                       <option key={loc} value={loc}>
                                         {getLocationCustomName(loc)}
                                       </option>
@@ -2329,18 +2340,17 @@ export default function StocksTab({
                                           setSelectedTraceIds(allIds);
                                         }
                                       }}
-                                      className="flex items-center justify-center mx-auto focus:outline-none bg-transparent border-none p-0 cursor-pointer"
+                                      className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#fe4eba]/20 cursor-pointer mx-auto ${
+                                        traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id))
+                                          ? 'border-[#fe4eba] bg-transparent'
+                                          : 'border-slate-400 bg-white hover:border-[#fe4eba]'
+                                      }`}
+                                      style={{ borderWidth: '2.5px' }}
                                       title="Tout sélectionner / désélectionner"
                                     >
-                                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                        traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id))
-                                          ? 'border-[#fe4eba] bg-[#fe4eba]'
-                                          : 'border-slate-300 bg-white'
-                                      }`}>
-                                        {traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id)) && (
-                                          <span className="w-2.5 h-2.5 rounded-full bg-white" />
-                                        )}
-                                      </span>
+                                      {traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id)) && (
+                                        <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                                      )}
                                     </button>
                                   </th>
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Code barre / Imprimer.</th>
@@ -2399,18 +2409,17 @@ export default function StocksTab({
                                                     setSelectedTraceIds([...selectedTraceIds, trace.id]);
                                                   }
                                                 }}
-                                                className="flex items-center justify-center mx-auto focus:outline-none bg-transparent border-none p-0 cursor-pointer"
+                                                className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#fe4eba]/20 cursor-pointer mx-auto ${
+                                                  selectedTraceIds.includes(trace.id)
+                                                    ? 'border-[#fe4eba] bg-transparent'
+                                                    : 'border-slate-400 bg-white hover:border-[#fe4eba]'
+                                                }`}
+                                                style={{ borderWidth: '2.5px' }}
                                                 title="Sélectionner cet article"
                                               >
-                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                                                  selectedTraceIds.includes(trace.id)
-                                                    ? 'border-[#fe4eba] bg-[#fe4eba]'
-                                                    : 'border-slate-300 bg-white'
-                                                }`}>
-                                                  {selectedTraceIds.includes(trace.id) && (
-                                                    <span className="w-2.5 h-2.5 rounded-full bg-white" />
-                                                  )}
-                                                </span>
+                                                {selectedTraceIds.includes(trace.id) && (
+                                                  <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
+                                                )}
                                               </button>
                                             </td>
 

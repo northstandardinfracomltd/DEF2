@@ -91,6 +91,14 @@ const downloadBarcodeSVG = (text: string) => {
   URL.revokeObjectURL(url);
 };
 
+const ALL_LOCATIONS = [
+  'Centrale des stocks',
+  'Entrepôt A', 'Entrepôt B', 'Entrepôt C', 'Entrepôt D', 'Entrepôt E',
+  'Entrepôt F', 'Entrepôt G', 'Entrepôt H', 'Entrepôt I', 'Entrepôt J',
+  'Véhicule A', 'Véhicule B', 'Véhicule C', 'Véhicule D', 'Véhicule E',
+  'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
+];
+
 interface StocksTabProps {
   stocks: StockRecord[];
   variables: Variable[];
@@ -106,6 +114,7 @@ interface StocksTabProps {
   achatsFournisseurs?: AchatFournisseur[];
   setActiveTab?: (tab: any, bypassBlock?: boolean) => void;
   members?: Member[];
+  saveDistributedStocks?: (updated: DistributedStockLocation[]) => void;
 }
 
 export default function StocksTab({
@@ -123,6 +132,7 @@ export default function StocksTab({
   achatsFournisseurs = [],
   setActiveTab,
   members = [],
+  saveDistributedStocks,
 }: StocksTabProps) {
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [newDenomStr, setNewDenomStr] = useState('');
@@ -159,6 +169,158 @@ export default function StocksTab({
   const [lotOrSerial, setLotOrSerial] = useState<string>('');
   const [expirationDate, setExpirationDate] = useState<string>('');
   const [situation, setSituation] = useState<'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant' | 'Prêté'>('Disponible');
+
+  // New States for Selected Traceabilities Distribution Form
+  const [selectedTraceIds, setSelectedTraceIds] = useState<string[]>([]);
+  const [distribEmplacement, setDistribEmplacement] = useState<string>('');
+  const [distribDate, setDistribDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [distribSuiviColis, setDistribSuiviColis] = useState<string>('');
+  const [distribStatut, setDistribStatut] = useState<'Préparation' | 'Expédié' | 'Terminé' | 'Annulé'>('Préparation');
+
+  // Helper to determine the location for a traceability item
+  const getTraceLocation = (trace: StockTraceability) => {
+    if (trace.emplacement) return trace.emplacement;
+    const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
+    if (matchedMv) {
+      if (matchedMv.type === 'Réapprovisionnement fournisseur') {
+        return 'Centrale des stocks';
+      } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
+        if (matchedMv.emplacement.includes(' : ')) {
+          return matchedMv.emplacement.split(' : ')[1];
+        } else {
+          return matchedMv.emplacement;
+        }
+      } else if (matchedMv.emplacement) {
+        if (matchedMv.emplacement.includes(' : ')) {
+          return matchedMv.emplacement.split(' : ')[1];
+        } else {
+          return matchedMv.emplacement;
+        }
+      }
+    }
+    return 'Centrale des stocks';
+  };
+
+  const handleSelectedDistributionSubmit = () => {
+    if (selectedTraceIds.length === 0) return;
+    if (!distribEmplacement) {
+      alert("Veuillez sélectionner un emplacement d'envoi.");
+      return;
+    }
+    if (!distribDate) {
+      alert("La date de distribution est requise.");
+      return;
+    }
+
+    // Create the movement ID
+    const mvId = 'mv_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const currentVar = variables.find(v => v.id === newDenomStr);
+    const itemName = currentVar ? currentVar.nom : 'Pièce';
+    const ugsCode = newUgs || '0001';
+    
+    // Movement emplacement label
+    const mvEmplacementStr = `${itemName} ${ugsCode} : ${distribEmplacement}`;
+
+    // Create a new movement record
+    const newMv: StockMovement = {
+      id: mvId,
+      type: 'Distribution',
+      volume: selectedTraceIds.length,
+      date: distribDate,
+      statut: distribStatut,
+      bonCommande: '',
+      trackingLink: distribSuiviColis,
+      emplacement: mvEmplacementStr
+    };
+
+    // Update mouvements state
+    setMouvements(prev => [...prev, newMv]);
+
+    // Update traceabilities' emplacement and movementId
+    const updatedTraceabilities = traceabilities.map(t => {
+      if (selectedTraceIds.includes(t.id)) {
+        return {
+          ...t,
+          emplacement: distribEmplacement,
+          movementId: mvId
+        };
+      }
+      return t;
+    });
+    setTraceabilities(updatedTraceabilities);
+
+    // Update Distributed Stocks list
+    const isTermine = distribStatut === 'Terminé';
+    const isEnTransit = distribStatut === 'Préparation' || distribStatut === 'Expédié';
+
+    let updatedDistributedStocks = [...distributedStocks];
+    let centralDecrementCount = 0;
+
+    selectedTraceIds.forEach(id => {
+      const t = traceabilities.find(item => item.id === id);
+      if (!t) return;
+      const srcLoc = getTraceLocation(t);
+
+      if (srcLoc === 'Centrale des stocks') {
+        centralDecrementCount++;
+      } else if (srcLoc !== distribEmplacement) {
+        // Decrement source location
+        const srcIndex = updatedDistributedStocks.findIndex(
+          ds => ds.locationName === srcLoc && ds.denominationPieceId === newDenomStr
+        );
+        if (srcIndex >= 0) {
+          const dsSrc = updatedDistributedStocks[srcIndex];
+          updatedDistributedStocks[srcIndex] = {
+            ...dsSrc,
+            volumeDisponible: Math.max(0, dsSrc.volumeDisponible - 1)
+          };
+        }
+      }
+
+      if (srcLoc !== distribEmplacement) {
+        // Increment destination location
+        const destIndex = updatedDistributedStocks.findIndex(
+          ds => ds.locationName === distribEmplacement && ds.denominationPieceId === newDenomStr
+        );
+        if (destIndex >= 0) {
+          const dsDest = updatedDistributedStocks[destIndex];
+          updatedDistributedStocks[destIndex] = {
+            ...dsDest,
+            volumeDisponible: dsDest.volumeDisponible + (isTermine ? 1 : 0),
+            volumeEntrant: (dsDest.volumeEntrant || 0) + (isEnTransit ? 1 : 0)
+          };
+        } else {
+          const newDs: DistributedStockLocation = {
+            id: 'ds_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            denominationPieceId: newDenomStr,
+            stockId: editingStockId || undefined,
+            locationName: distribEmplacement as any,
+            volumeDisponible: isTermine ? 1 : 0,
+            volumeReserve: 0,
+            volumeEntrant: isEnTransit ? 1 : 0
+          };
+          updatedDistributedStocks.unshift(newDs);
+        }
+      }
+    });
+
+    if (saveDistributedStocks) {
+      saveDistributedStocks(updatedDistributedStocks);
+    }
+
+    if (centralDecrementCount > 0) {
+      setNewQty(prev => Math.max(0, prev - centralDecrementCount));
+    }
+
+    // Reset selection and form
+    setSelectedTraceIds([]);
+    setDistribEmplacement('');
+    setDistribSuiviColis('');
+    setDistribStatut('Préparation');
+    setDistribDate(new Date().toISOString().split('T')[0]);
+
+    alert("La distribution des pièces sélectionnées a été enregistrée avec succès !");
+  };
 
   const filteredDistributedStocks = useMemo(() => {
     return distributedStocks.filter(ds => ds.denominationPieceId === newDenomStr);
@@ -576,6 +738,13 @@ export default function StocksTab({
     setSituation('Disponible');
     setShowTraceabilityForm(false);
     setShowStockForm(false);
+
+    // Reset selection and distribution states
+    setSelectedTraceIds([]);
+    setDistribEmplacement('');
+    setDistribSuiviColis('');
+    setDistribStatut('Préparation');
+    setDistribDate(new Date().toISOString().split('T')[0]);
   };
 
   const handleSaveAndRedirectToVariables = () => {
@@ -615,6 +784,13 @@ export default function StocksTab({
       setExpirationDate('');
       setSituation('Disponible');
       setShowTraceabilityForm(false);
+      
+      // Reset selection and distribution states
+      setSelectedTraceIds([]);
+      setDistribEmplacement('');
+      setDistribSuiviColis('');
+      setDistribStatut('Préparation');
+      setDistribDate(new Date().toISOString().split('T')[0]);
       
       // Auto-generate UGS
       const numbers = stocks
@@ -950,6 +1126,13 @@ export default function StocksTab({
                             setTraceabilityEnabled(st.traceabilityEnabled ?? false);
                             setTraceabilities(st.traceabilities ?? []);
                             setShowStockForm(true);
+
+                            // Reset selection and distribution states
+                            setSelectedTraceIds([]);
+                            setDistribEmplacement('');
+                            setDistribSuiviColis('');
+                            setDistribStatut('Préparation');
+                            setDistribDate(new Date().toISOString().split('T')[0]);
                           }}
                         >
                           <td className="px-4 py-5 whitespace-nowrap font-sans text-xs font-bold text-slate-800 uppercase tracking-wide" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', fontSize: '15px' }}>
@@ -1013,6 +1196,13 @@ export default function StocksTab({
                                   setTraceabilityEnabled(st.traceabilityEnabled ?? false);
                                   setTraceabilities(st.traceabilities ?? []);
                                   setShowStockForm(true);
+
+                                  // Reset selection and distribution states
+                                  setSelectedTraceIds([]);
+                                  setDistribEmplacement('');
+                                  setDistribSuiviColis('');
+                                  setDistribStatut('Préparation');
+                                  setDistribDate(new Date().toISOString().split('T')[0]);
                                 }}
                                 style={rowActionButtonStyle}
                                 className="cursor-pointer font-sans"
@@ -1982,30 +2172,6 @@ export default function StocksTab({
                         'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
                       ];
 
-                      // Helper to determine the location for a traceability item
-                      const getTraceLocation = (trace: StockTraceability) => {
-                        if (trace.emplacement) return trace.emplacement;
-                        const matchedMv = mouvements.find(mv => mv.id === trace.movementId);
-                        if (matchedMv) {
-                          if (matchedMv.type === 'Réapprovisionnement fournisseur') {
-                            return 'Centrale des stocks';
-                          } else if ((matchedMv.type === 'Distribution' || matchedMv.type === 'Rapatriement') && matchedMv.emplacement) {
-                            if (matchedMv.emplacement.includes(' : ')) {
-                              return matchedMv.emplacement.split(' : ')[1];
-                            } else {
-                              return matchedMv.emplacement;
-                            }
-                          } else if (matchedMv.emplacement) {
-                            if (matchedMv.emplacement.includes(' : ')) {
-                              return matchedMv.emplacement.split(' : ')[1];
-                            } else {
-                              return matchedMv.emplacement;
-                            }
-                          }
-                        }
-                        return 'Centrale des stocks';
-                      };
-
                       // Group traceabilities
                       const groups: Record<string, { idx: number; trace: StockTraceability }[]> = {};
                       traceabilities.forEach((trace, idx) => {
@@ -2017,59 +2183,238 @@ export default function StocksTab({
                       });
 
                       return (
-                        <div 
-                          className="overflow-x-auto border rounded-xl mt-2 bg-white" 
-                          style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
-                        >
-                          <table className="w-full text-left font-sans border-collapse text-xs">
-                            <thead>
-                              <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Code barre / Imprimer.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
-                                <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
-                                <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Transférer vers:</th>
-                                <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Supprimer.</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white">
-                              {Object.entries(groups).map(([locName, items]) => {
-                                // Find technician associated with this location
-                                const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);
+                        <>
+                          {selectedTraceIds.length > 0 && (
+                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 gap-4 flex flex-col font-sans mb-3 text-xs">
+                              <div className="flex items-center gap-2 bg-transparent mb-1">
+                                <span className="font-bold text-sm text-[#5f1f66]">⚡ Distribution rapide ({selectedTraceIds.length} {selectedTraceIds.length > 1 ? 'pièces sélectionnées' : 'pièce sélectionnée'})</span>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 bg-transparent">
+                                {/* Type de mouvement */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Type du mouvement *</label>
+                                  <input
+                                    type="text"
+                                    value="Distribution"
+                                    disabled
+                                    className="w-full bg-slate-100 p-2 border border-slate-200 rounded text-slate-500 font-semibold text-xs cursor-not-allowed"
+                                    style={{ minHeight: '36px' }}
+                                  />
+                                </div>
 
-                                return (
-                                  <React.Fragment key={locName}>
-                                    {/* Intercalaire (Divider Row) */}
-                                    <tr className="bg-black select-none" style={{ borderBottom: '1px solid #000000', borderTop: '1px solid #000000' }}>
-                                      <td colSpan={9} className="px-4 py-3 bg-black">
-                                        <div className="flex items-center gap-6 font-sans text-[15px] font-bold text-white bg-transparent">
-                                          <span className="bg-transparent">
-                                            Emplacement : {getLocationCustomName(locName)}
-                                          </span>
-                                          {assignedTech && (
-                                            <span className="bg-transparent text-white font-bold">
-                                              Technicien : {assignedTech.name}
+                                {/* Envoyer à */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Envoyer à *</label>
+                                  <select
+                                    value={distribEmplacement}
+                                    onChange={(e) => setDistribEmplacement(e.target.value)}
+                                    className="w-full bg-white text-black p-2 rounded border border-slate-200 font-semibold text-xs"
+                                    style={{ minHeight: '36px' }}
+                                    required
+                                  >
+                                    <option value="" disabled hidden>Sélectionnez un emplacement</option>
+                                    {ALL_LOCATIONS.filter(l => l !== 'Centrale des stocks').map(loc => (
+                                      <option key={loc} value={loc}>
+                                        {getLocationCustomName(loc)}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+
+                                {/* Volume */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Volume *</label>
+                                  <input
+                                    type="number"
+                                    value={selectedTraceIds.length}
+                                    disabled
+                                    className="w-full bg-slate-100 p-2 border border-slate-200 rounded text-slate-500 font-semibold text-xs cursor-not-allowed"
+                                    style={{ minHeight: '36px' }}
+                                  />
+                                </div>
+
+                                {/* Date */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Date *</label>
+                                  <input
+                                    type="date"
+                                    value={distribDate}
+                                    onChange={(e) => setDistribDate(e.target.value)}
+                                    className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                                    style={{ minHeight: '36px' }}
+                                    required
+                                  />
+                                </div>
+
+                                {/* Suivi-colis */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Suivi colis</label>
+                                  <input
+                                    type="text"
+                                    placeholder="Lien de suivi"
+                                    value={distribSuiviColis}
+                                    onChange={(e) => setDistribSuiviColis(e.target.value)}
+                                    className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
+                                    style={{ minHeight: '36px' }}
+                                  />
+                                </div>
+
+                                {/* Statut */}
+                                <div className="flex flex-col gap-1 bg-transparent">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Statut *</label>
+                                  <select
+                                    value={distribStatut}
+                                    onChange={(e) => setDistribStatut(e.target.value as any)}
+                                    className="w-full bg-white text-black p-2 rounded border border-slate-200 font-semibold text-xs"
+                                    style={{ minHeight: '36px' }}
+                                  >
+                                    <option value="Préparation">Préparation</option>
+                                    <option value="Expédié">Expédié</option>
+                                    <option value="Terminé">Terminé</option>
+                                    <option value="Annulé">Annulé</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex justify-end gap-3 bg-transparent mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTraceIds([])}
+                                  style={{
+                                    backgroundColor: '#e2e8f0',
+                                    color: '#475569',
+                                    padding: '10px 20px',
+                                    fontSize: '18px',
+                                    borderRadius: '13px',
+                                  }}
+                                  className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0"
+                                >
+                                  Désélectionner tout
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSelectedDistributionSubmit}
+                                  style={{
+                                    backgroundColor: '#fe4eba',
+                                    color: '#ffffff',
+                                    padding: '10px 20px',
+                                    fontSize: '18px',
+                                    borderRadius: '13px',
+                                  }}
+                                  className="font-sans font-bold active:scale-95 transition-all text-white cursor-pointer border-0 shadow-xs"
+                                >
+                                  Valider la distribution
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
+                          <div 
+                            className="overflow-x-auto border rounded-xl mt-2 bg-white" 
+                            style={{ borderColor: 'oklch(0.88 0 0)', borderWidth: '1px' }}
+                          >
+                            <table className="w-full text-left font-sans border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-white" style={{ borderBottom: '1px solid oklch(0.88 0 0)' }}>
+                                  <th className="px-3 py-3 text-center font-semibold" style={{ width: '45px' }}>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        const allIds = traceabilities.map(t => t.id);
+                                        const isAllSelected = allIds.length > 0 && allIds.every(id => selectedTraceIds.includes(id));
+                                        if (isAllSelected) {
+                                          setSelectedTraceIds([]);
+                                        } else {
+                                          setSelectedTraceIds(allIds);
+                                        }
+                                      }}
+                                      className="flex items-center justify-center mx-auto focus:outline-none bg-transparent border-none p-0 cursor-pointer"
+                                      title="Tout sélectionner / désélectionner"
+                                    >
+                                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                        traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id))
+                                          ? 'border-[#fe4eba] bg-[#fe4eba]'
+                                          : 'border-slate-300 bg-white'
+                                      }`}>
+                                        {traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id)) && (
+                                          <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                                        )}
+                                      </span>
+                                    </button>
+                                  </th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Code barre / Imprimer.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                                  <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Transférer vers:</th>
+                                  <th className="px-3 py-3 text-right font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Supprimer.</th>
+                                </tr>
+                              </thead>
+                              <tbody className="bg-white">
+                                {Object.entries(groups).map(([locName, items]) => {
+                                  // Find technician associated with this location
+                                  const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);
+
+                                  return (
+                                    <React.Fragment key={locName}>
+                                      {/* Intercalaire (Divider Row) */}
+                                      <tr className="bg-black select-none" style={{ borderBottom: '1px solid #000000', borderTop: '1px solid #000000' }}>
+                                        <td colSpan={10} className="px-4 py-3 bg-black">
+                                          <div className="flex items-center gap-6 font-sans text-[15px] font-bold text-white bg-transparent">
+                                            <span className="bg-transparent">
+                                              Emplacement : {getLocationCustomName(locName)}
                                             </span>
-                                          )}
-                                          <span className="text-white font-bold text-[15px] ml-auto bg-transparent pr-2">
-                                            {items.length} {items.length > 1 ? 'pièces' : 'pièce'}
-                                          </span>
-                                        </div>
-                                      </td>
-                                    </tr>
+                                            {assignedTech && (
+                                              <span className="bg-transparent text-white font-bold">
+                                                Technicien : {assignedTech.name}
+                                              </span>
+                                            )}
+                                            <span className="text-white font-bold text-[15px] ml-auto bg-transparent pr-2">
+                                              {items.length} {items.length > 1 ? 'pièces' : 'pièce'}
+                                            </span>
+                                          </div>
+                                        </td>
+                                      </tr>
 
-                                    {/* Rows for this group */}
-                                    {items.map(({ idx, trace }, itemGroupIdx) => {
-                                      return (
-                                        <tr 
-                                          key={trace.id} 
-                                          className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
-                                          style={{ borderBottom: itemGroupIdx === items.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
-                                        >
-                                          {/* Code-barres / Imprimer */}
+                                      {/* Rows for this group */}
+                                      {items.map(({ idx, trace }, itemGroupIdx) => {
+                                        return (
+                                          <tr 
+                                            key={trace.id} 
+                                            className="hover:bg-slate-50 transition-all font-sans bg-white text-black" 
+                                            style={{ borderBottom: itemGroupIdx === items.length - 1 ? 'none' : '1px solid oklch(0.88 0 0)' }}
+                                          >
+                                            {/* Selection Radio-Check */}
+                                            <td className="px-3 py-3 bg-white text-center" style={{ width: '45px' }}>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  if (selectedTraceIds.includes(trace.id)) {
+                                                    setSelectedTraceIds(selectedTraceIds.filter(id => id !== trace.id));
+                                                  } else {
+                                                    setSelectedTraceIds([...selectedTraceIds, trace.id]);
+                                                  }
+                                                }}
+                                                className="flex items-center justify-center mx-auto focus:outline-none bg-transparent border-none p-0 cursor-pointer"
+                                                title="Sélectionner cet article"
+                                              >
+                                                <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                  selectedTraceIds.includes(trace.id)
+                                                    ? 'border-[#fe4eba] bg-[#fe4eba]'
+                                                    : 'border-slate-300 bg-white'
+                                                }`}>
+                                                  {selectedTraceIds.includes(trace.id) && (
+                                                    <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                                                  )}
+                                                </span>
+                                              </button>
+                                            </td>
+
+                                            {/* Code-barres / Imprimer */}
                                           <td className="px-3 py-3 bg-white">
                                             <div className="flex items-center gap-4 bg-transparent whitespace-nowrap">
                                               <div 
@@ -2241,8 +2586,9 @@ export default function StocksTab({
                             </tbody>
                           </table>
                         </div>
-                      );
-                    })()}
+                      </>
+                    );
+                  })()}
                   </div>
                 </>
               )}

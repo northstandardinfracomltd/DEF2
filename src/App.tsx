@@ -9453,6 +9453,7 @@ export default function App() {
               achatsFournisseurs={achatsFournisseurs}
               setActiveTab={setActiveTab}
               members={members}
+              saveDistributedStocks={saveDistributedStocks}
             />
           )}
 

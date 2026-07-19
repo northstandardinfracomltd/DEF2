@@ -963,15 +963,22 @@ export default function PublicPortal({
     });
 
     // Check if any traceabilities remain at this location
-    const hasRemainingTraceabilities = updatedTraceabilities.some(t => 
-      t.emplacement === selectedTechStock.locationName && 
-      (t.situation === "Indisponible" || t.situation === "Signalé manquant" || t.situation === "Prêté" || t.situation === "Disponible")
-    );
+    const hasRemainingTraceabilities = updatedTraceabilities.some((t) => {
+      let currentLoc = t.emplacement;
+      if (!currentLoc) {
+        const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
+        if (matchedMv && matchedMv.emplacement) {
+          currentLoc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+        }
+      }
+      const isAtThisLocation = currentLoc === selectedTechStock.locationName;
+      return isAtThisLocation && (t.situation === "Indisponible" || t.situation === "Signalé manquant" || t.situation === "Prêté" || t.situation === "Disponible");
+    });
 
     const shouldKeep = newVolDispo > 0 || 
                        (selectedTechStock.volumeReserve || 0) > 0 || 
                        (selectedTechStock.volumeEntrant || 0) > 0 || 
-                       hasRemainingTraceabilities;
+                       (matchedStockRecord.traceabilityEnabled ? hasRemainingTraceabilities : false);
 
     // update distributed stock
     if (onUpdateDistributedStocks && distributedStocks) {
@@ -6567,6 +6574,7 @@ export default function PublicPortal({
                     ? getSortedTours().find((t) => t.id === selectedTourId)
                     : null;
                   const isTourFinished = currentTourForPause ? currentTourForPause.status === "Terminé" : true;
+                  const isTourActive = !!(currentTourForPause && currentTourForPause.status !== "Terminé");
                   const hasTodoMissions =
                     currentTourForPause && currentTourForPause.passages
                       ? currentTourForPause.passages.some(
@@ -6632,7 +6640,7 @@ export default function PublicPortal({
                       </div>
 
                       {/* Toggle "Suspendre pour pause" */}
-                      {selectedTourId && !isTourFinished && hasTodoMissions && (
+                      {selectedTourId && isTourActive && hasTodoMissions && (
                         <div className="px-1" id="pause-toggle-block">
                           <div
                             className="bg-white border px-4 space-y-3 flex flex-col justify-center"
@@ -6680,7 +6688,7 @@ export default function PublicPortal({
                       )}
 
                       {/* Section "Affiner la tournée" */}
-                      {selectedTourId && !isTourFinished && (
+                      {selectedTourId && isTourActive && (
                         <div className="px-1" id="affiner-tournee-block">
                           <div
                             className="bg-white border px-4 space-y-3 flex flex-col justify-center"
@@ -6710,7 +6718,7 @@ export default function PublicPortal({
                       )}
 
                       {/* Info warning if work pointage is not in progress and a tour is selected */}
-                      {selectedTourId && !isTourFinished && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
+                      {selectedTourId && isTourActive && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
                         <div className="px-1 animate-fadeIn">
                           <div
                             style={{
@@ -7306,6 +7314,7 @@ export default function PublicPortal({
                                       return item;
                                     });
                                     saveTours(updatedTours);
+                                    setSelectedTourId("");
 
                                     alert(
                                       "La tournée a bien été marquée comme terminée !",
@@ -8634,20 +8643,31 @@ export default function PublicPortal({
                             Alerter
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const n = matchedStockRecord?.traceabilities 
-                                ? matchedStockRecord.traceabilities.filter((t) => t.situation === "Disponible").length 
-                                : 0;
-                              setRapatrimentVolume(n > 0 ? n : 0);
-                              setRapatrimentTrackingLink("");
-                              setRapatrimentDate(
-                                new Date().toISOString().split("T")[0],
-                              );
-                              setRapatrimentStatut("Expédié");
-                              setShowRapatriementForm(true);
-                            }}
+                           <button
+                             type="button"
+                             onClick={() => {
+                               const isTraceActive = matchedStockRecord?.traceabilityEnabled ?? false;
+                               const n = isTraceActive && matchedStockRecord?.traceabilities 
+                                 ? matchedStockRecord.traceabilities.filter((t) => {
+                                     if (t.situation !== "Disponible") return false;
+                                     let currentLoc = t.emplacement;
+                                     if (!currentLoc) {
+                                       const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
+                                       if (matchedMv && matchedMv.emplacement) {
+                                         currentLoc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+                                       }
+                                     }
+                                     return currentLoc === selectedTechStock.locationName;
+                                   }).length 
+                                 : (selectedTechStock?.volumeDisponible || 0);
+                               setRapatrimentVolume(n > 0 ? n : 0);
+                               setRapatrimentTrackingLink("");
+                               setRapatrimentDate(
+                                 new Date().toISOString().split("T")[0],
+                               );
+                               setRapatrimentStatut("Expédié");
+                               setShowRapatriementForm(true);
+                             }}
                             style={{
                               backgroundColor: "rgb(239, 68, 68)",
                               color: "#ffffff",
@@ -8709,11 +8729,20 @@ export default function PublicPortal({
                                   }}
                                 >
                                   {(() => {
-                                    const n = matchedStockRecord?.traceabilities
-                                      ? matchedStockRecord.traceabilities.filter(
-                                          (t) => t.situation === "Disponible"
-                                        ).length
-                                      : 0;
+                                    const isTraceActive = matchedStockRecord?.traceabilityEnabled ?? false;
+                                    const n = isTraceActive && matchedStockRecord?.traceabilities
+                                      ? matchedStockRecord.traceabilities.filter((t) => {
+                                          if (t.situation !== "Disponible") return false;
+                                          let currentLoc = t.emplacement;
+                                          if (!currentLoc) {
+                                            const matchedMv = (matchedStockRecord.mouvements || []).find(mv => mv.id === t.movementId);
+                                            if (matchedMv && matchedMv.emplacement) {
+                                              currentLoc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+                                            }
+                                          }
+                                          return currentLoc === selectedTechStock.locationName;
+                                        }).length
+                                      : (selectedTechStock?.volumeDisponible || 0);
                                     if (n <= 0) {
                                       return <option value={0}>0</option>;
                                     }
@@ -8859,7 +8888,7 @@ export default function PublicPortal({
 
                   {/* Digital Clock Section */}
                   <div
-                    style={{ backgroundColor: "rgb(238, 241, 255)" }}
+                    style={{ backgroundColor: "rgb(238, 241, 255)", color: "rgb(49, 85, 255)" }}
                     className="p-5 rounded-2xl text-center space-y-2"
                   >
                     <span

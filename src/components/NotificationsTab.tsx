@@ -49,22 +49,28 @@ export default function NotificationsTab({
         title: `L’utilisateur ${email} vient s’est connecté depuis l’IP ${currentIP}.`,
         timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
         situation: 'Terminé'
-      },
-      {
-        id: 'conn-2',
-        category: 'Système',
-        title: `L’utilisateur admin@defibeo.com vient s’est connecté depuis l’IP 82.124.35.102.`,
-        timestamp: '2026-07-08 09:12:00',
-        situation: 'Terminé'
-      },
-      {
-        id: 'conn-3',
-        category: 'Système',
-        title: `L’utilisateur tech.ouest@defibeo.com vient s’est connecté depuis l’IP 90.84.12.210.`,
-        timestamp: '2026-07-08 08:30:15',
-        situation: 'Terminé'
       }
     ];
+
+    const currentTenant = localStorage.getItem('defib_tenant_id') || 'demo';
+    if (currentTenant === 'demo') {
+      list.push(
+        {
+          id: 'conn-2',
+          category: 'Système',
+          title: `L’utilisateur admin@defibeo.com vient s’est connecté depuis l’IP 82.124.35.102.`,
+          timestamp: '2026-07-08 09:12:00',
+          situation: 'Terminé'
+        },
+        {
+          id: 'conn-3',
+          category: 'Système',
+          title: `L’utilisateur tech.ouest@defibeo.com vient s’est connecté depuis l’IP 90.84.12.210.`,
+          timestamp: '2026-07-08 08:30:15',
+          situation: 'Terminé'
+        }
+      );
+    }
     return list;
   });
 

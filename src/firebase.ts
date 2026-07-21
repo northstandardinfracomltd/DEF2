@@ -303,7 +303,7 @@ export function generateUniqueShortEnvId(existingCodes: string[]): string {
 /**
  * Fetches the master list of registered tenants. 
  */
-export async function getRegisteredTenants(): Promise<Tenant[]> {
+export async function getRegisteredTenants(bypassCache: boolean = false): Promise<Tenant[]> {
   const demoTenant: Tenant = {
     id: 'demo',
     companyName: 'Défibeo Solutions',
@@ -324,13 +324,15 @@ export async function getRegisteredTenants(): Promise<Tenant[]> {
     return list;
   };
 
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+  if (!bypassCache && typeof navigator !== 'undefined' && !navigator.onLine) {
     const cached = getFromLocalCache<Tenant[]>('registered_tenants') || [];
     return addDemoIfNeeded(cached);
   }
   try {
     const docRef = doc(db, 'appData', 'registered_tenants');
-    const snap = await getDocOptimistic(docRef, 'registered_tenants', 4000);
+    const snap = bypassCache
+      ? await getDocFromServer(docRef)
+      : await getDocOptimistic(docRef, 'registered_tenants', 4000);
     if (snap.exists()) {
       let tenants = (snap.data().value || []) as Tenant[];
       tenants = addDemoIfNeeded(tenants);
@@ -415,7 +417,7 @@ export async function checkIfEmailExistsAnywhere(
   }
 
   // 1. Check registered tenants main data
-  const tenants = await getRegisteredTenants();
+  const tenants = await getRegisteredTenants(true);
   for (const t of tenants) {
     if (excludeCurrentTenant?.tenantId === t.id && excludeCurrentTenant?.excludeOption === 'none') {
       continue;
@@ -516,7 +518,7 @@ export async function registerNewTenant(tenantData: Omit<Tenant, 'id' | 'created
     throw new Error(checkCompany.message);
   }
 
-  const tenants = await getRegisteredTenants();
+  const tenants = await getRegisteredTenants(true);
   const cleanTenantId = tenantData.customTenantId ? tenantData.customTenantId.trim() : '';
   if (cleanTenantId) {
     const existingTenantId = tenants.find(t => t.id.trim().toLowerCase() === cleanTenantId.toLowerCase());
@@ -958,7 +960,7 @@ export async function seedTenantDemoData(tenantId: string): Promise<void> {
  * Searches for admin credentials in dynamic tenant partitions.
  */
 export async function loginTenantAdmin(email: string, passwordPlain: string): Promise<Tenant | null> {
-  const tenants = await getRegisteredTenants();
+  const tenants = await getRegisteredTenants(true);
   const searchEmail = email.trim().toLowerCase();
   const searchPass = passwordPlain.trim();
   

@@ -2704,6 +2704,15 @@ export default function DefibTab({
         defibrillateurs={defibrillateurs}
         clients={clients}
         variables={variables}
+        selectedIds={selectedIds}
+        onToggleSelect={(id) => {
+          setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+        }}
+        fsmTours={fsmTours}
+        executeNouvelleTournee={executeNouvelleTournee}
+        executeAddToTrier={executeAddToTrier}
+        executeAddTournee={executeAddTournee}
+        isAnySelectedInTour={isAnySelectedInTour}
       />
         </>
       )}

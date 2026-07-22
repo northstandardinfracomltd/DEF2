@@ -6678,16 +6678,7 @@ export default function App() {
                                       }
                                     });
 
-                                    // 3. Direct piece variables
-                                    (variables || [])
-                                      .filter(v => v.category !== 'Modèle Service' && v.category !== 'Modèle Contrat' && v.category !== 'Fournisseur')
-                                      .forEach(v => {
-                                        const label = `${v.nom} (${v.category}${v.identifiant ? ' - ' + v.identifiant : ''})`;
-                                        if (!addedLabels.has(label)) {
-                                          stockItems.push({ id: `var_${v.id}`, name: v.nom, label });
-                                          addedLabels.add(label);
-                                        }
-                                      });
+
 
                                     const recommendedItems = currentMissionDefib && currentMissionDefib.modeleId
                                       ? stockItems.filter(item => Array.isArray(item.matchedStock?.usageRecommandeIds) && item.matchedStock.usageRecommandeIds.includes(currentMissionDefib.modeleId))

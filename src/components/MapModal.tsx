@@ -10,6 +10,13 @@ interface MapModalProps {
   defibrillateurs: Defibrillateur[];
   clients: Client[];
   variables: Variable[];
+  selectedIds?: string[];
+  onToggleSelect?: (id: string) => void;
+  fsmTours?: any[];
+  executeNouvelleTournee?: () => void;
+  executeAddToTrier?: () => void;
+  executeAddTournee?: (targetTourId: string) => void;
+  isAnySelectedInTour?: boolean;
 }
 
 // Sub-component to programmatically handle centering and zooming the Leaflet map
@@ -114,23 +121,32 @@ function getSafetyStatusColor(df: Defibrillateur): string {
   return '#94a3b8'; // gray fallback
 }
 
-// Custom Leaflet marker generator (no AED text, no border, matches getSafetyStatus color)
-const createCustomIcon = (colorHex: string, selected: boolean) => {
-  const selectStyle = selected 
+// Custom Leaflet marker generator (no AED text, matches getSafetyStatus color, shows selection outline and checkmark if checked)
+const createCustomIcon = (colorHex: string, activeFocused: boolean, isChecked: boolean) => {
+  const scaleStyle = activeFocused 
     ? `transform: scale(1.5);` 
+    : isChecked ? `transform: scale(1.3);` : ``;
+
+  const borderStyle = isChecked
+    ? `border: 2px solid #fe4eba; box-shadow: 0 0 0 3px rgba(254, 78, 186, 0.4);`
+    : `border: 1.5px solid white;`;
+
+  const checkMarkSvg = isChecked
+    ? `<span style="position: absolute; top: -1px; left: 1.5px; font-size: 10px; color: white; font-weight: bold; line-height: 1;">✓</span>`
     : ``;
-  
+
   return L.divIcon({
     html: `
       <div style="
+        position: relative;
         width: 14px;
         height: 14px;
         border-radius: 50%;
         background-color: ${colorHex};
-        border: 1.5px solid white;
-        ${selectStyle}
+        ${borderStyle}
+        ${scaleStyle}
         transition: all 0.2s ease-in-out;
-      "></div>
+      ">${checkMarkSvg}</div>
     `,
     className: 'custom-leaflet-icon',
     iconSize: [20, 20],
@@ -139,13 +155,17 @@ const createCustomIcon = (colorHex: string, selected: boolean) => {
   });
 };
 
-// Popup Content component using map trigger actions
+// Popup Content component using map trigger actions and selection checkbox
 function PopupContent({ 
   df, 
-  clientDenomination
+  clientDenomination,
+  isChecked,
+  onToggleSelect
 }: { 
   df: Defibrillateur; 
   clientDenomination: string;
+  isChecked: boolean;
+  onToggleSelect?: (id: string) => void;
 }) {
   const map = useMap();
   return (
@@ -159,6 +179,35 @@ function PopupContent({
       <div style={{ fontWeight: 'normal', fontSize: '18px', color: '#000000', marginBottom: '6px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default' }}>
         {df.numVoie ? `${df.numVoie}, ` : ''}{df.ville} {df.cp ? `(${df.cp})` : ''}
       </div>
+
+      {/* Radio Check / Checkbox Selection */}
+      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <label 
+          style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            cursor: 'pointer', 
+            fontSize: '16px', 
+            fontWeight: 'bold', 
+            color: '#000000',
+            userSelect: 'none'
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input 
+            type="checkbox" 
+            checked={isChecked}
+            onChange={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.(df.id);
+            }}
+            style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#fe4eba' }}
+          />
+          <span>Sélectionner pour tournée</span>
+        </label>
+      </div>
+
       <button
         type="button"
         onClick={(e) => {
@@ -172,7 +221,7 @@ function PopupContent({
           background: 'none',
           border: 'none',
           padding: 0,
-          margin: '4px 0 0 0',
+          margin: '8px 0 0 0',
           cursor: 'pointer',
           textDecoration: 'none',
           display: 'block'
@@ -189,9 +238,18 @@ export default function MapModal({
   onClose,
   defibrillateurs,
   clients,
-  variables
+  variables,
+  selectedIds = [],
+  onToggleSelect,
+  fsmTours = [],
+  executeNouvelleTournee,
+  executeAddToTrier,
+  executeAddTournee,
+  isAnySelectedInTour = false
 }: MapModalProps) {
   const [selectedDefibId, setSelectedDefibId] = useState<string | null>(null);
+  const [isTourDropdownOpen, setIsTourDropdownOpen] = useState(false);
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   
   // Real coordinates configuration
   const [mapCenter, setMapCenter] = useState<[number, number]>([46.603354, 1.888334]);
@@ -304,26 +362,209 @@ export default function MapModal({
 
       <div className="relative w-full h-full flex-1">
         
-        {/* Floating Close Button on Top of the Map in signature blue style */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-[1000]"
-          style={{
-            backgroundColor: 'rgb(53, 86, 236)',
-            boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
-            borderRadius: '12px',
-            fontSize: '18px',
-            padding: '9px 19px',
-            fontWeight: 'normal',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-            transition: 'all 0.1s ease-in-out'
-          }}
-        >
-          Fermer
-        </button>
+        {/* Top-Right Header Container: Tournée button (en haut à gauche de Fermer) + Fermer button */}
+        <div className="absolute top-4 right-4 z-[1000] flex items-center gap-3">
+          {/* Tournée Dropdown Container */}
+          <div className="relative">
+            <button
+              type="button"
+              disabled={isAnySelectedInTour}
+              onClick={() => {
+                if (selectedIds.length === 0) {
+                  alert("Veuillez d'abord sélectionner au moins un défibrillateur sur la carte.");
+                  return;
+                }
+                if (!isAnySelectedInTour) {
+                  setIsTourDropdownOpen(!isTourDropdownOpen);
+                }
+              }}
+              title={
+                selectedIds.length === 0
+                  ? "Sélectionnez au moins un défibrillateur"
+                  : isAnySelectedInTour
+                  ? "Action impossible : l'un des défibrillateurs sélectionnés fait déjà partie d'une tournée."
+                  : "Associer à une tournée"
+              }
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid rgb(218 218 218)',
+                borderRadius: '12px',
+                fontSize: '18px',
+                padding: '9px 19px',
+                fontWeight: 'normal',
+                color: '#000000',
+                cursor: isAnySelectedInTour ? 'not-allowed' : 'pointer',
+                opacity: isAnySelectedInTour ? 0.6 : 1,
+                fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
+              }}
+            >
+              {selectedIds.length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: '#fe4eba',
+                    color: '#ffffff',
+                    borderRadius: '9999px',
+                    padding: '2px 8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {selectedIds.length}
+                </span>
+              )}
+              <span>Tournée</span>
+            </button>
+
+            {/* Dropdown Menu */}
+            {isTourDropdownOpen && !isAnySelectedInTour && (
+              <div 
+                className="absolute right-0 mt-1 w-72 bg-white rounded-lg z-[1050] py-2.5 font-sans animate-fadeIn"
+                style={{ 
+                  fontSize: '18px',
+                  border: '1px solid rgb(218 218 218)',
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <div className="px-3 pb-2 bg-transparent flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      executeNouvelleTournee?.();
+                      setIsTourDropdownOpen(false);
+                      onClose();
+                    }}
+                    style={{
+                      backgroundColor: '#f3f4f6',
+                      borderRadius: '12px',
+                      fontSize: '18px',
+                      padding: '9px 19px',
+                      fontWeight: 'normal',
+                      color: '#000000',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '100%',
+                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                    }}
+                    className="w-full text-center transition-colors cursor-pointer hover:bg-slate-200"
+                  >
+                    Nouvelle Tournée
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      executeAddToTrier?.();
+                      setIsTourDropdownOpen(false);
+                      onClose();
+                    }}
+                    style={{
+                      backgroundColor: '#000000',
+                      borderRadius: '12px',
+                      fontSize: '18px',
+                      padding: '9px 19px',
+                      fontWeight: 'normal',
+                      color: '#ffffff',
+                      border: 'none',
+                      cursor: 'pointer',
+                      width: '100%',
+                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                    }}
+                    className="w-full text-center transition-colors cursor-pointer hover:opacity-90"
+                  >
+                    À trier
+                  </button>
+                </div>
+
+                {selectedDraftId && (
+                  <div className="px-3 pb-2 bg-transparent">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeAddTournee?.(selectedDraftId);
+                        setIsTourDropdownOpen(false);
+                        setSelectedDraftId(null);
+                        onClose();
+                      }}
+                      style={{
+                        backgroundColor: 'rgb(53, 86, 236)',
+                        borderRadius: '12px',
+                        fontSize: '18px',
+                        padding: '9px 19px',
+                        fontWeight: 'normal',
+                        color: '#ffffff',
+                        border: 'none',
+                        cursor: 'pointer',
+                        width: '100%',
+                        boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px',
+                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                      }}
+                      className="w-full text-center transition-colors cursor-pointer hover:bg-blue-700"
+                    >
+                      Confirmer l'action
+                    </button>
+                  </div>
+                )}
+                
+                {(() => {
+                  const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon' && t.id !== 'a-trier');
+                  if (drafts.length === 0) {
+                    return (
+                      <div className="px-4 py-2 text-black font-sans text-center" style={{ fontSize: '15px' }}>
+                        Aucune tournée en brouillon
+                      </div>
+                    );
+                  }
+                  return drafts.map(t => {
+                    const isSelected = selectedDraftId === t.id;
+                    const tourTitle = t.title || 'Nouvelle Tournée';
+                    const displayTitle = tourTitle.length > 25 ? tourTitle.substring(0, 25) + '(...)' : tourTitle;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedDraftId(isSelected ? null : t.id);
+                        }}
+                        className="w-full text-left px-4 py-2 font-semibold truncate cursor-pointer border-0 bg-transparent hover:bg-slate-50 font-sans"
+                        style={{ 
+                          fontSize: '16px',
+                          color: isSelected ? 'rgb(254, 78, 186)' : '#000000',
+                          textDecoration: isSelected ? 'underline' : 'none'
+                        }}
+                      >
+                        {displayTitle}
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Floating Close Button in signature blue style */}
+          <button
+            onClick={onClose}
+            style={{
+              backgroundColor: 'rgb(53, 86, 236)',
+              boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+              borderRadius: '12px',
+              fontSize: '18px',
+              padding: '9px 19px',
+              fontWeight: 'normal',
+              color: '#ffffff',
+              border: 'none',
+              cursor: 'pointer',
+              fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+              transition: 'all 0.1s ease-in-out'
+            }}
+          >
+            Fermer
+          </button>
+        </div>
 
         {/* Real OpenStreetMap Leaflet Container */}
         <MapContainer 
@@ -344,7 +585,8 @@ export default function MapModal({
             const coords = getDeviceCoords(df);
             if (!coords) return null;
 
-            const isSelected = df.id === selectedDefibId;
+            const isFocused = df.id === selectedDefibId;
+            const isChecked = selectedIds.includes(df.id);
             const statusColor = getSafetyStatusColor(df);
             const clientDenomination = clientMap.get(df.clientId)?.denomination || '';
 
@@ -352,7 +594,7 @@ export default function MapModal({
               <Marker
                 key={df.id}
                 position={coords}
-                icon={createCustomIcon(statusColor, isSelected)}
+                icon={createCustomIcon(statusColor, isFocused, isChecked)}
                 eventHandlers={{
                   click: (e) => {
                     setSelectedDefibId(df.id);
@@ -364,7 +606,12 @@ export default function MapModal({
                 }}
               >
                 <Popup closeButton={false}>
-                  <PopupContent df={df} clientDenomination={clientDenomination} />
+                  <PopupContent 
+                    df={df} 
+                    clientDenomination={clientDenomination} 
+                    isChecked={isChecked}
+                    onToggleSelect={onToggleSelect}
+                  />
                 </Popup>
               </Marker>
             );

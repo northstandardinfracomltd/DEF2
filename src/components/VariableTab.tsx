@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Variable, VariableCategory, Defibrillateur, StockRecord, DistributedStockLocation, OtherEquipment, AchatsFournisseurs, FsmTour } from '../types';
+import { Variable, VariableCategory, Defibrillateur, StockRecord, DistributedStockLocation, OtherEquipment, AchatFournisseur } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Sliders, Box, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { t } from '../utils/translate';
 
@@ -61,8 +61,8 @@ interface VariableTabProps {
   stocks?: StockRecord[];
   distributedStocks?: DistributedStockLocation[];
   otherEquipments?: OtherEquipment[];
-  achatsFournisseurs?: AchatsFournisseurs[];
-  fsmTours?: FsmTour[];
+  achatsFournisseurs?: AchatFournisseur[];
+  fsmTours?: any[];
 }
 
 // Visual presets of premium defibrillator photos to select instantly
@@ -132,8 +132,8 @@ export default function VariableTab({
     const inStocks = (stocks || []).some(s => 
       (s as any).denominationPieceId === id ||
       (s as any).variableId === id ||
-      (s.denom && s.denom.trim().toLowerCase() === nomLower) ||
-      (s.denom && identLower && s.denom.trim().toLowerCase() === identLower)
+      ((s as any).denom && (s as any).denom.trim().toLowerCase() === nomLower) ||
+      ((s as any).denom && identLower && (s as any).denom.trim().toLowerCase() === identLower)
     );
     if (inStocks) return true;
 
@@ -141,22 +141,22 @@ export default function VariableTab({
     const inDistrib = (distributedStocks || []).some(ds => 
       (ds as any).denominationPieceId === id ||
       (ds as any).variableId === id ||
-      (ds.denom && ds.denom.trim().toLowerCase() === nomLower) ||
-      (ds.denom && identLower && ds.denom.trim().toLowerCase() === identLower)
+      ((ds as any).denom && (ds as any).denom.trim().toLowerCase() === nomLower) ||
+      ((ds as any).denom && identLower && (ds as any).denom.trim().toLowerCase() === identLower)
     );
     if (inDistrib) return true;
 
     // 4. Other equipments
     const inOther = (otherEquipments || []).some(oe => 
       (oe as any).variableId === id ||
-      oe.modele === id ||
-      (oe.modele && oe.modele.trim().toLowerCase() === nomLower)
+      (oe as any).modele === id ||
+      ((oe as any).modele && (oe as any).modele.trim().toLowerCase() === nomLower)
     );
     if (inOther) return true;
 
     // 5. Achats fournisseurs
-    const inAchats = (achatsFournisseurs || []).some(af => 
-      (af as any).variableId === id ||
+    const inAchats = ((achatsFournisseurs as any) || []).some((af: any) => 
+      af.variableId === id ||
       (af.denom && af.denom.trim().toLowerCase() === nomLower)
     );
     if (inAchats) return true;

@@ -6,6 +6,7 @@ import { getRegionsForCountry } from '../utils/regions';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import MapModal from './MapModal';
 
 const CODE39_PATTERNS: Record<string, string> = {
   '0': '000110100', '1': '100100001', '2': '001100001', '3': '101100000',
@@ -253,6 +254,17 @@ export default function AutresMaterielsTab({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<OtherEquipment | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('Tous');
+  const [isMapOpen, setIsMapOpen] = useState(false);
+
+  const isAnySelectedInTour = useMemo(() => {
+    return selectedIds.some(id => {
+      const item = otherEquipments.find(e => e.id === id);
+      if (!item) return false;
+      return (fsmTours || []).some(t =>
+        (t.missions || []).some((m: any) => m.defibIdentifiant === item.identifiant)
+      );
+    });
+  }, [selectedIds, otherEquipments, fsmTours]);
 
   // Form Fields State
   const [clientId, setClientId] = useState('');
@@ -950,6 +962,13 @@ export default function AutresMaterielsTab({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => setIsMapOpen(true)}
+                    id="btn-open-map"
+                    style={customButtonStyle}
+                  >
+                    Plan
+                  </button>
                   <button
                     onClick={() => window.location.reload()}
                     id="btn-refresh-page"
@@ -2742,6 +2761,23 @@ export default function AutresMaterielsTab({
           </div>
         </div>
       )}
+
+      {/* Cartographie GIS Overlay */}
+      <MapModal
+        isOpen={isMapOpen}
+        onClose={() => setIsMapOpen(false)}
+        items={filteredList}
+        clients={clients}
+        selectedIds={selectedIds}
+        onToggleSelect={(id) => {
+          setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+        }}
+        fsmTours={fsmTours}
+        executeNouvelleTournee={executeNouvelleTournee}
+        executeAddToTrier={executeAddToTrier}
+        executeAddTournee={executeAddTournee}
+        isAnySelectedInTour={isAnySelectedInTour}
+      />
     </div>
   );
 }

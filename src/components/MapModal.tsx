@@ -7,9 +7,10 @@ import 'leaflet/dist/leaflet.css';
 interface MapModalProps {
   isOpen: boolean;
   onClose: () => void;
-  defibrillateurs: Defibrillateur[];
+  defibrillateurs?: any[];
+  items?: any[];
   clients: Client[];
-  variables: Variable[];
+  variables?: Variable[];
   selectedIds?: string[];
   onToggleSelect?: (id: string) => void;
   fsmTours?: any[];
@@ -59,25 +60,39 @@ function computeProchaineMaintenance(derniereM: string | undefined | null): stri
   return `${y}-${m}-${d}`;
 }
 
-function getSafetyStatusColor(df: Defibrillateur): string {
+function getSafetyStatusColor(item: any): string {
   const datesToCheck: Date[] = [];
   
-  // 1. Prochaine maintenance
-  const prochaineMaintStr = computeProchaineMaintenance(df.derniereMaintenance);
-  const mDate = parseDateHelper(prochaineMaintStr);
-  if (mDate) datesToCheck.push(mDate);
+  // 1. Prochaine maintenance or Derniere maintenance
+  if (item.prochaineMaintenance) {
+    const pmDate = parseDateHelper(item.prochaineMaintenance);
+    if (pmDate) datesToCheck.push(pmDate);
+  } else if (item.derniereMaintenance) {
+    const prochaineMaintStr = computeProchaineMaintenance(item.derniereMaintenance);
+    const mDate = parseDateHelper(prochaineMaintStr);
+    if (mDate) datesToCheck.push(mDate);
+  }
 
   // 2. Péremption Électrode A
-  const eADate = parseDateHelper(df.peremptionElectrodeA);
-  if (eADate) datesToCheck.push(eADate);
+  if (item.peremptionElectrodeA) {
+    const eADate = parseDateHelper(item.peremptionElectrodeA);
+    if (eADate) datesToCheck.push(eADate);
+  }
 
   // 3. Péremption Électrode P
-  const ePDate = parseDateHelper(df.peremptionElectrodeP);
-  if (ePDate) datesToCheck.push(ePDate);
+  if (item.peremptionElectrodeP) {
+    const ePDate = parseDateHelper(item.peremptionElectrodeP);
+    if (ePDate) datesToCheck.push(ePDate);
+  }
 
-  // 4. Péremption Batterie
-  const bDate = parseDateHelper(df.peremptionBatterie);
-  if (bDate) datesToCheck.push(bDate);
+  // 4. Péremption Batterie / Expiration garantie
+  if (item.peremptionBatterie) {
+    const bDate = parseDateHelper(item.peremptionBatterie);
+    if (bDate) datesToCheck.push(bDate);
+  } else if (item.expirationGarantie) {
+    const gDate = parseDateHelper(item.expirationGarantie);
+    if (gDate) datesToCheck.push(gDate);
+  }
 
   if (datesToCheck.length === 0) {
     return '#94a3b8'; // gray
@@ -118,35 +133,55 @@ function getSafetyStatusColor(df: Defibrillateur): string {
     return '#3b82f6'; // blue
   }
 
-  return '#94a3b8'; // gray fallback
+  return '#22c55e'; // green
 }
 
-// Custom Leaflet marker generator (no AED text, matches getSafetyStatus color, shows selection outline and checkmark if checked)
+// Custom Leaflet marker generator (round position point; when selected, shows stylized radio check with centered pink dot)
 const createCustomIcon = (colorHex: string, activeFocused: boolean, isChecked: boolean) => {
   const scaleStyle = activeFocused 
-    ? `transform: scale(1.5);` 
-    : isChecked ? `transform: scale(1.3);` : ``;
-
-  const borderStyle = isChecked
-    ? `border: 2px solid #fe4eba; box-shadow: 0 0 0 3px rgba(254, 78, 186, 0.4);`
-    : `border: 1.5px solid white;`;
-
-  const checkMarkSvg = isChecked
-    ? `<span style="position: absolute; top: -1px; left: 1.5px; font-size: 10px; color: white; font-weight: bold; line-height: 1;">✓</span>`
+    ? `transform: scale(1.3);` 
     : ``;
+
+  if (isChecked) {
+    return L.divIcon({
+      html: `
+        <div style="
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background-color: #ffffff;
+          border: 2.5px solid #fe4eba;
+          box-shadow: 0 2px 6px rgba(254, 78, 186, 0.4);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          ${scaleStyle}
+          transition: all 0.2s ease-in-out;
+          cursor: pointer;
+        ">
+          <div style="width: 9px; height: 9px; border-radius: 50%; background-color: #fe4eba;"></div>
+        </div>
+      `,
+      className: 'custom-leaflet-icon',
+      iconSize: [20, 20],
+      iconAnchor: [10, 10],
+      popupAnchor: [0, -10]
+    });
+  }
 
   return L.divIcon({
     html: `
       <div style="
-        position: relative;
-        width: 14px;
-        height: 14px;
+        width: 18px;
+        height: 18px;
         border-radius: 50%;
         background-color: ${colorHex};
-        ${borderStyle}
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
         ${scaleStyle}
         transition: all 0.2s ease-in-out;
-      ">${checkMarkSvg}</div>
+        cursor: pointer;
+      "></div>
     `,
     className: 'custom-leaflet-icon',
     iconSize: [20, 20],
@@ -155,57 +190,65 @@ const createCustomIcon = (colorHex: string, activeFocused: boolean, isChecked: b
   });
 };
 
-// Popup Content component using map trigger actions and selection checkbox
+// Popup Content component using map trigger actions
 function PopupContent({ 
-  df, 
-  clientDenomination,
-  isChecked,
-  onToggleSelect
+  item, 
+  clientDenomination
 }: { 
-  df: Defibrillateur; 
+  item: any; 
   clientDenomination: string;
-  isChecked: boolean;
-  onToggleSelect?: (id: string) => void;
 }) {
   const map = useMap();
+  const identifiant = item.identifiant || 'Équipement';
+  const numVoie = item.numVoie || item.numeroVoie || '';
+  const ville = item.ville || '';
+  const cp = item.cp || item.codePostal || '';
+  const categorie = item.categorie || item.typeMat || item.type || '';
+
   return (
     <div className="font-sans text-left" style={{ fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", fontSize: '18px', color: '#000000', padding: '0px', lineHeight: '1.4', cursor: 'default', userSelect: 'none' }}>
       <div style={{ fontWeight: 'bold', fontSize: '18px', marginBottom: '2px', color: '#000000', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default' }}>
-        {df.identifiant}
+        {identifiant}
       </div>
+
+      {categorie && (
+        <div style={{ marginTop: '2px', marginBottom: '6px' }}>
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              borderRadius: '1000px',
+              backgroundColor: '#ffffff',
+              border: '1px solid rgb(231, 231, 231)',
+              color: '#000000',
+              fontSize: '14px',
+              fontWeight: 100,
+              padding: '2px 10px',
+              lineHeight: '1.2',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span 
+              style={{ 
+                width: '6px', 
+                height: '6px', 
+                borderRadius: '50%', 
+                backgroundColor: '#fe4eba', 
+                marginRight: '6px',
+                display: 'inline-block',
+                flexShrink: 0
+              }} 
+            />
+            {categorie}
+          </span>
+        </div>
+      )}
+
       <div style={{ fontWeight: 'normal', fontSize: '18px', color: '#000000', marginBottom: '2px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default' }}>
         {clientDenomination}
       </div>
       <div style={{ fontWeight: 'normal', fontSize: '18px', color: '#000000', marginBottom: '6px', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif", cursor: 'default' }}>
-        {df.numVoie ? `${df.numVoie}, ` : ''}{df.ville} {df.cp ? `(${df.cp})` : ''}
-      </div>
-
-      {/* Radio Check / Checkbox Selection */}
-      <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <label 
-          style={{ 
-            display: 'inline-flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            cursor: 'pointer', 
-            fontSize: '16px', 
-            fontWeight: 'bold', 
-            color: '#000000',
-            userSelect: 'none'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input 
-            type="checkbox" 
-            checked={isChecked}
-            onChange={(e) => {
-              e.stopPropagation();
-              onToggleSelect?.(df.id);
-            }}
-            style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#fe4eba' }}
-          />
-          <span>Sélectionner pour tournée</span>
-        </label>
+        {numVoie ? `${numVoie}, ` : ''}{ville} {cp ? `(${cp})` : ''}
       </div>
 
       <button
@@ -221,13 +264,13 @@ function PopupContent({
           background: 'none',
           border: 'none',
           padding: 0,
-          margin: '8px 0 0 0',
+          margin: '4px 0 0 0',
           cursor: 'pointer',
           textDecoration: 'none',
           display: 'block'
         }}
       >
-        Fermer
+        Centrer sur la carte
       </button>
     </div>
   );
@@ -237,6 +280,7 @@ export default function MapModal({
   isOpen,
   onClose,
   defibrillateurs,
+  items,
   clients,
   variables,
   selectedIds = [],
@@ -247,7 +291,8 @@ export default function MapModal({
   executeAddTournee,
   isAnySelectedInTour = false
 }: MapModalProps) {
-  const [selectedDefibId, setSelectedDefibId] = useState<string | null>(null);
+  const activeList = useMemo(() => items || defibrillateurs || [], [items, defibrillateurs]);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isTourDropdownOpen, setIsTourDropdownOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null);
   
@@ -261,20 +306,21 @@ export default function MapModal({
 
   // Set initial selected item when opened
   useEffect(() => {
-    if (isOpen && defibrillateurs.length > 0 && selectedDefibId === null) {
-      setSelectedDefibId(defibrillateurs[0].id);
+    if (isOpen && activeList.length > 0 && selectedItemId === null) {
+      setSelectedItemId(activeList[0].id);
     }
-  }, [isOpen, defibrillateurs, selectedDefibId]);
+  }, [isOpen, activeList, selectedItemId]);
 
   // Background geocoding helper using OSM Nominatim
   useEffect(() => {
     if (!isOpen) return;
 
-    const toGeocode = defibrillateurs.filter(df => {
-      const lat = parseFloat(df.latitude);
-      const lng = parseFloat(df.longitude);
+    const toGeocode = activeList.filter(item => {
+      const lat = parseFloat(item.latitude);
+      const lng = parseFloat(item.longitude);
       const hasValidCo = !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && lat !== 48.8566; // ignore placeholder default
-      return !hasValidCo && !geocodedCoords[df.id] && (df.ville || df.numVoie);
+      const numVoie = item.numVoie || item.numeroVoie || '';
+      return !hasValidCo && !geocodedCoords[item.id] && (item.ville || numVoie);
     });
 
     if (toGeocode.length === 0) return;
@@ -282,9 +328,11 @@ export default function MapModal({
     let active = true;
 
     const geocodeAll = async () => {
-      for (const df of toGeocode) {
+      for (const item of toGeocode) {
         if (!active) break;
-        const addressQuery = `${df.numVoie ? df.numVoie + ', ' : ''}${df.cp ? df.cp + ' ' : ''}${df.ville}${df.pays ? ', ' : ''}${df.pays || 'France'}`;
+        const numVoie = item.numVoie || item.numeroVoie || '';
+        const cp = item.cp || item.codePostal || '';
+        const addressQuery = `${numVoie ? numVoie + ', ' : ''}${cp ? cp + ' ' : ''}${item.ville}${item.pays ? ', ' : ''}${item.pays || 'France'}`;
         try {
           const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressQuery)}`);
           const data = await response.json();
@@ -295,7 +343,7 @@ export default function MapModal({
             if (!isNaN(lat) && !isNaN(lon) && active) {
               setGeocodedCoords(prev => ({
                 ...prev,
-                [df.id]: [lat, lon]
+                [item.id]: [lat, lon]
               }));
             }
           }
@@ -312,31 +360,31 @@ export default function MapModal({
     return () => {
       active = false;
     };
-  }, [isOpen, defibrillateurs]);
+  }, [isOpen, activeList]);
 
   // Map active coordinates mapper
-  const getDeviceCoords = (df: Defibrillateur): [number, number] | null => {
-    const lat = parseFloat(df.latitude);
-    const lng = parseFloat(df.longitude);
+  const getDeviceCoords = (item: any): [number, number] | null => {
+    const lat = parseFloat(item.latitude);
+    const lng = parseFloat(item.longitude);
     if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
       return [lat, lng];
     }
-    return geocodedCoords[df.id] || null;
+    return geocodedCoords[item.id] || null;
   };
 
   // Center on selected device
   useEffect(() => {
-    if (selectedDefibId) {
-      const activeDf = defibrillateurs.find(df => df.id === selectedDefibId);
-      if (activeDf) {
-        const coords = getDeviceCoords(activeDf);
+    if (selectedItemId) {
+      const activeItem = activeList.find(item => item.id === selectedItemId);
+      if (activeItem) {
+        const coords = getDeviceCoords(activeItem);
         if (coords) {
           setMapCenter(coords);
           setMapZoom(13);
         }
       }
     }
-  }, [selectedDefibId, geocodedCoords]);
+  }, [selectedItemId, geocodedCoords, activeList]);
 
   if (!isOpen) return null;
 
@@ -362,47 +410,41 @@ export default function MapModal({
 
       <div className="relative w-full h-full flex-1">
         
-        {/* Top-Right Header Container: Tournée button (en haut à gauche de Fermer) + Fermer button */}
+        {/* Top-Right Header Container: Tournée button (visible only when selectedIds > 0) + Fermer button */}
         <div className="absolute top-4 right-4 z-[1000] flex items-center gap-3">
           {/* Tournée Dropdown Container */}
-          <div className="relative">
-            <button
-              type="button"
-              disabled={isAnySelectedInTour}
-              onClick={() => {
-                if (selectedIds.length === 0) {
-                  alert("Veuillez d'abord sélectionner au moins un défibrillateur sur la carte.");
-                  return;
+          {selectedIds && selectedIds.length > 0 && (
+            <div className="relative">
+              <button
+                type="button"
+                disabled={isAnySelectedInTour}
+                onClick={() => {
+                  if (!isAnySelectedInTour) {
+                    setIsTourDropdownOpen(!isTourDropdownOpen);
+                  }
+                }}
+                title={
+                  isAnySelectedInTour
+                    ? "Action impossible : l'un des défibrillateurs sélectionnés fait déjà partie d'une tournée."
+                    : "Associer à une tournée"
                 }
-                if (!isAnySelectedInTour) {
-                  setIsTourDropdownOpen(!isTourDropdownOpen);
-                }
-              }}
-              title={
-                selectedIds.length === 0
-                  ? "Sélectionnez au moins un défibrillateur"
-                  : isAnySelectedInTour
-                  ? "Action impossible : l'un des défibrillateurs sélectionnés fait déjà partie d'une tournée."
-                  : "Associer à une tournée"
-              }
-              style={{
-                backgroundColor: '#ffffff',
-                border: '1px solid rgb(218 218 218)',
-                borderRadius: '12px',
-                fontSize: '18px',
-                padding: '9px 19px',
-                fontWeight: 'normal',
-                color: '#000000',
-                cursor: isAnySelectedInTour ? 'not-allowed' : 'pointer',
-                opacity: isAnySelectedInTour ? 0.6 : 1,
-                fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.08)'
-              }}
-            >
-              {selectedIds.length > 0 && (
+                style={{
+                  backgroundColor: '#000000',
+                  borderRadius: '12px',
+                  fontSize: '18px',
+                  padding: '9px 19px',
+                  fontWeight: 'normal',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: isAnySelectedInTour ? 'not-allowed' : 'pointer',
+                  opacity: isAnySelectedInTour ? 0.6 : 1,
+                  fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+                }}
+              >
                 <span
                   style={{
                     backgroundColor: '#fe4eba',
@@ -415,82 +457,53 @@ export default function MapModal({
                 >
                   {selectedIds.length}
                 </span>
-              )}
-              <span>Tournée</span>
-            </button>
+                <span>Tournée</span>
+              </button>
 
-            {/* Dropdown Menu */}
-            {isTourDropdownOpen && !isAnySelectedInTour && (
-              <div 
-                className="absolute right-0 mt-1 w-72 bg-white rounded-lg z-[1050] py-2.5 font-sans animate-fadeIn"
-                style={{ 
-                  fontSize: '18px',
-                  border: '1px solid rgb(218 218 218)',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
-                }}
-              >
-                <div className="px-3 pb-2 bg-transparent flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeNouvelleTournee?.();
-                      setIsTourDropdownOpen(false);
-                      onClose();
-                    }}
-                    style={{
-                      backgroundColor: '#f3f4f6',
-                      borderRadius: '12px',
-                      fontSize: '18px',
-                      padding: '9px 19px',
-                      fontWeight: 'normal',
-                      color: '#000000',
-                      border: 'none',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
-                    }}
-                    className="w-full text-center transition-colors cursor-pointer hover:bg-slate-200"
-                  >
-                    Nouvelle Tournée
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      executeAddToTrier?.();
-                      setIsTourDropdownOpen(false);
-                      onClose();
-                    }}
-                    style={{
-                      backgroundColor: '#000000',
-                      borderRadius: '12px',
-                      fontSize: '18px',
-                      padding: '9px 19px',
-                      fontWeight: 'normal',
-                      color: '#ffffff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      width: '100%',
-                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
-                    }}
-                    className="w-full text-center transition-colors cursor-pointer hover:opacity-90"
-                  >
-                    À trier
-                  </button>
-                </div>
-
-                {selectedDraftId && (
-                  <div className="px-3 pb-2 bg-transparent">
+              {/* Dropdown Menu */}
+              {isTourDropdownOpen && !isAnySelectedInTour && (
+                <div 
+                  className="absolute right-0 mt-1 w-72 bg-white rounded-lg z-[1050] py-2.5 font-sans animate-fadeIn"
+                  style={{ 
+                    fontSize: '18px',
+                    border: '1px solid rgb(218 218 218)',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+                  }}
+                >
+                  <div className="px-3 pb-2 bg-transparent flex flex-col gap-2">
                     <button
                       type="button"
                       onClick={() => {
-                        executeAddTournee?.(selectedDraftId);
+                        executeNouvelleTournee?.();
                         setIsTourDropdownOpen(false);
-                        setSelectedDraftId(null);
                         onClose();
                       }}
                       style={{
-                        backgroundColor: 'rgb(53, 86, 236)',
+                        backgroundColor: '#f3f4f6',
+                        borderRadius: '12px',
+                        fontSize: '18px',
+                        padding: '9px 19px',
+                        fontWeight: 'normal',
+                        color: '#000000',
+                        border: 'none',
+                        cursor: 'pointer',
+                        width: '100%',
+                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                      }}
+                      className="w-full text-center transition-colors cursor-pointer hover:bg-slate-200"
+                    >
+                      Nouvelle Tournée
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        executeAddToTrier?.();
+                        setIsTourDropdownOpen(false);
+                        onClose();
+                      }}
+                      style={{
+                        backgroundColor: '#000000',
                         borderRadius: '12px',
                         fontSize: '18px',
                         padding: '9px 19px',
@@ -499,51 +512,80 @@ export default function MapModal({
                         border: 'none',
                         cursor: 'pointer',
                         width: '100%',
-                        boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px',
                         fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
                       }}
-                      className="w-full text-center transition-colors cursor-pointer hover:bg-blue-700"
+                      className="w-full text-center transition-colors cursor-pointer hover:opacity-90"
                     >
-                      Confirmer l'action
+                      À trier
                     </button>
                   </div>
-                )}
-                
-                {(() => {
-                  const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon' && t.id !== 'a-trier');
-                  if (drafts.length === 0) {
-                    return (
-                      <div className="px-4 py-2 text-black font-sans text-center" style={{ fontSize: '15px' }}>
-                        Aucune tournée en brouillon
-                      </div>
-                    );
-                  }
-                  return drafts.map(t => {
-                    const isSelected = selectedDraftId === t.id;
-                    const tourTitle = t.title || 'Nouvelle Tournée';
-                    const displayTitle = tourTitle.length > 25 ? tourTitle.substring(0, 25) + '(...)' : tourTitle;
-                    return (
+
+                  {selectedDraftId && (
+                    <div className="px-3 pb-2 bg-transparent">
                       <button
-                        key={t.id}
                         type="button"
                         onClick={() => {
-                          setSelectedDraftId(isSelected ? null : t.id);
+                          executeAddTournee?.(selectedDraftId);
+                          setIsTourDropdownOpen(false);
+                          setSelectedDraftId(null);
+                          onClose();
                         }}
-                        className="w-full text-left px-4 py-2 font-semibold truncate cursor-pointer border-0 bg-transparent hover:bg-slate-50 font-sans"
-                        style={{ 
-                          fontSize: '16px',
-                          color: isSelected ? 'rgb(254, 78, 186)' : '#000000',
-                          textDecoration: isSelected ? 'underline' : 'none'
+                        style={{
+                          backgroundColor: 'rgb(53, 86, 236)',
+                          borderRadius: '12px',
+                          fontSize: '18px',
+                          padding: '9px 19px',
+                          fontWeight: 'normal',
+                          color: '#ffffff',
+                          border: 'none',
+                          cursor: 'pointer',
+                          width: '100%',
+                          boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px',
+                          fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
                         }}
+                        className="w-full text-center transition-colors cursor-pointer hover:bg-blue-700"
                       >
-                        {displayTitle}
+                        Confirmer l'action
                       </button>
-                    );
-                  });
-                })()}
-              </div>
-            )}
-          </div>
+                    </div>
+                  )}
+                  
+                  {(() => {
+                    const drafts = (fsmTours || []).filter(t => (t.status || 'Brouillon') === 'Brouillon' && t.id !== 'a-trier');
+                    if (drafts.length === 0) {
+                      return (
+                        <div className="px-4 py-2 text-black font-sans text-center" style={{ fontSize: '15px' }}>
+                          Aucune tournée en brouillon
+                        </div>
+                      );
+                    }
+                    return drafts.map(t => {
+                      const isSelected = selectedDraftId === t.id;
+                      const tourTitle = t.title || 'Nouvelle Tournée';
+                      const displayTitle = tourTitle.length > 25 ? tourTitle.substring(0, 25) + '(...)' : tourTitle;
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedDraftId(isSelected ? null : t.id);
+                          }}
+                          className="w-full text-left px-4 py-2 font-semibold truncate cursor-pointer border-0 bg-transparent hover:bg-slate-50 font-sans"
+                          style={{ 
+                            fontSize: '16px',
+                            color: isSelected ? 'rgb(254, 78, 186)' : '#000000',
+                            textDecoration: isSelected ? 'underline' : 'none'
+                          }}
+                        >
+                          {displayTitle}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Floating Close Button in signature blue style */}
           <button
@@ -581,23 +623,24 @@ export default function MapModal({
           <ChangeMapView center={mapCenter} zoom={mapZoom} />
 
           {/* Plot Markers */}
-          {defibrillateurs.map(df => {
-            const coords = getDeviceCoords(df);
+          {activeList.map(item => {
+            const coords = getDeviceCoords(item);
             if (!coords) return null;
 
-            const isFocused = df.id === selectedDefibId;
-            const isChecked = selectedIds.includes(df.id);
-            const statusColor = getSafetyStatusColor(df);
-            const clientDenomination = clientMap.get(df.clientId)?.denomination || '';
+            const isFocused = item.id === selectedItemId;
+            const isChecked = selectedIds.includes(item.id);
+            const statusColor = getSafetyStatusColor(item);
+            const clientDenomination = clientMap.get(item.clientId)?.denomination || '';
 
             return (
               <Marker
-                key={df.id}
+                key={item.id}
                 position={coords}
                 icon={createCustomIcon(statusColor, isFocused, isChecked)}
                 eventHandlers={{
                   click: (e) => {
-                    setSelectedDefibId(df.id);
+                    setSelectedItemId(item.id);
+                    onToggleSelect?.(item.id);
                     e.target.openPopup();
                   },
                   mouseover: (e) => {
@@ -607,10 +650,8 @@ export default function MapModal({
               >
                 <Popup closeButton={false}>
                   <PopupContent 
-                    df={df} 
+                    item={item} 
                     clientDenomination={clientDenomination} 
-                    isChecked={isChecked}
-                    onToggleSelect={onToggleSelect}
                   />
                 </Popup>
               </Marker>

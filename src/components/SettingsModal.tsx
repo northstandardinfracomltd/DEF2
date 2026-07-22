@@ -2911,7 +2911,7 @@ export default function SettingsModal({
                                         <label className="block text-[9px] font-bold text-slate-400 uppercase">{t("Commentaire court")}</label>
                                         <input
                                           type="text"
-                                          placeholder={t("Ex: Horaires d'été, Astreinte, Équipe du matin...")}
+                                          placeholder={t("Ex: Temps de travail, Inventaire, ...")}
                                           value={sch.commentaire || ''}
                                           disabled={!canEditThisMember}
                                           onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'commentaire', e.target.value)}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { getRegionsForCountry } from './utils/regions';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
 const translate = t;
@@ -590,6 +591,9 @@ export default function App() {
   const [gmaoSearchQuery, setGmaoSearchQuery] = useState('');
   const [gmaoFilter, setGmaoFilter] = useState<'validated' | 'moderation'>('validated');
   const [fsmDateFilter, setFsmDateFilter] = useState<string>('Tous');
+  const [fsmRegionFilter, setFsmRegionFilter] = useState<string>('Tous');
+  const [fsmTechFilter, setFsmTechFilter] = useState<string>('Tous');
+  const [fsmPlannerFilter, setFsmPlannerFilter] = useState<string>('Tous');
   const [fsmTourDrafts, setFsmTourDrafts] = useState<Record<string, any>>({});
   const [savingTourIds, setSavingTourIds] = useState<Record<string, boolean>>({});
 
@@ -5194,17 +5198,43 @@ export default function App() {
             const filteredTours = fsmTours.filter((tour) => {
               if (activeDateFilter !== 'Tous') {
                 if (activeDateFilter === 'A trier') {
-                  return tour.id === 'a-trier' || tour.startDate === 'A trier';
-                }
-                if (tour.startDate !== activeDateFilter) {
+                  if (!(tour.id === 'a-trier' || tour.startDate === 'A trier')) {
+                    return false;
+                  }
+                } else if (tour.startDate !== activeDateFilter) {
                   return false;
                 }
               }
+
+              // Filter by Region
+              if (fsmRegionFilter !== 'Tous') {
+                if ((tour.region || '') !== fsmRegionFilter) {
+                  return false;
+                }
+              }
+
+              // Filter by Technicien
+              if (fsmTechFilter !== 'Tous') {
+                if ((tour.techName || '') !== fsmTechFilter) {
+                  return false;
+                }
+              }
+
+              // Filter by Employé (Planificateur)
+              if (fsmPlannerFilter !== 'Tous') {
+                const tourPlanner = tour.plannerName || tour.planner || '';
+                if (tourPlanner !== fsmPlannerFilter) {
+                  return false;
+                }
+              }
+
               const query = fsmSearchQuery.toLowerCase().trim();
               if (!query) return true;
               const titleMatch = (tour.title || '').toLowerCase().includes(query);
               const techMatch = (tour.techName || '').toLowerCase().includes(query);
-              return titleMatch || techMatch;
+              const plannerMatch = (tour.plannerName || tour.planner || '').toLowerCase().includes(query);
+              const regionMatch = (tour.region || '').toLowerCase().includes(query);
+              return titleMatch || techMatch || plannerMatch || regionMatch;
             });
 
             return (
@@ -5288,7 +5318,7 @@ export default function App() {
 
                     <div className="flex flex-wrap items-center gap-3">
                       {/* Field recherche (Search input) */}
-                      <div className="relative w-full sm:w-64">
+                      <div className="relative w-full sm:w-56">
                         <input
                           type="text"
                           id="search-fsm-input"
@@ -5308,8 +5338,95 @@ export default function App() {
                             outline: 'none',
                             transition: 'all 0s',
                           }}
-
                         />
+                      </div>
+
+                      {/* Filter: Région */}
+                      <div className="relative w-full sm:w-48">
+                        <select
+                          value={fsmRegionFilter}
+                          onChange={(e) => setFsmRegionFilter(e.target.value)}
+                          className="w-full text-black focus:outline-none cursor-pointer"
+                          style={{
+                            border: '1px solid #dedede',
+                            borderRadius: '13px',
+                            padding: '9px 14px',
+                            fontSize: '15px',
+                            fontWeight: '100',
+                            color: '#000000',
+                            backgroundColor: '#ffffff',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                          }}
+                        >
+                          <option value="Tous">Filtrer par région</option>
+                          {getRegionsForCountry('France').map(r => (
+                            <option key={r} value={r}>{r}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Filter: Technicien */}
+                      <div className="relative w-full sm:w-48">
+                        <select
+                          value={fsmTechFilter}
+                          onChange={(e) => setFsmTechFilter(e.target.value)}
+                          className="w-full text-black focus:outline-none cursor-pointer"
+                          style={{
+                            border: '1px solid #dedede',
+                            borderRadius: '13px',
+                            padding: '9px 14px',
+                            fontSize: '15px',
+                            fontWeight: '100',
+                            color: '#000000',
+                            backgroundColor: '#ffffff',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                          }}
+                        >
+                          <option value="Tous">Filtrer par technicien</option>
+                          {(() => {
+                            const techList = members.filter(m => {
+                              const roleLower = (m.role || '').toLowerCase();
+                              return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                            }).map(m => m.name);
+                            const tourTechs = fsmTours.map((t: any) => t.techName).filter(Boolean);
+                            const allTechs = Array.from(new Set([...techList, ...tourTechs])).filter(name => name.trim() !== '');
+                            return allTechs.map(tech => (
+                              <option key={tech} value={tech}>{tech}</option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
+
+                      {/* Filter: Employé */}
+                      <div className="relative w-full sm:w-48">
+                        <select
+                          value={fsmPlannerFilter}
+                          onChange={(e) => setFsmPlannerFilter(e.target.value)}
+                          className="w-full text-black focus:outline-none cursor-pointer"
+                          style={{
+                            border: '1px solid #dedede',
+                            borderRadius: '13px',
+                            padding: '9px 14px',
+                            fontSize: '15px',
+                            fontWeight: '100',
+                            color: '#000000',
+                            backgroundColor: '#ffffff',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                          }}
+                        >
+                          <option value="Tous">Filtrer par employé</option>
+                          {(() => {
+                            const nonTechList = members.filter(m => {
+                              const roleLower = (m.role || '').toLowerCase();
+                              return !(m.role === 'Technicien' || m.role === 'Maintenance Terrain' || roleLower.includes('tech'));
+                            }).map(m => m.name);
+                            const tourPlanners = fsmTours.map((t: any) => t.plannerName || t.planner).filter(Boolean);
+                            const allPlanners = Array.from(new Set([...nonTechList, ...tourPlanners])).filter(name => name.trim() !== '');
+                            return allPlanners.map(planner => (
+                              <option key={planner} value={planner}>{planner}</option>
+                            ));
+                          })()}
+                        </select>
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2">
@@ -5709,6 +5826,8 @@ export default function App() {
                       const tourStartDate = draft.startDate !== undefined ? draft.startDate : (t.startDate || '');
                       const tourStatus = draft.status !== undefined ? draft.status : (t.status || 'Brouillon');
                       const tourVehicule = draft.vehicule !== undefined ? draft.vehicule : (t.vehicule || 'Aucun');
+                      const tourRegion = draft.region !== undefined ? draft.region : (t.region || '');
+                      const tourPlannerName = draft.plannerName !== undefined ? draft.plannerName : (t.plannerName || '');
 
                       return (
                         <div key={t.id} className="bg-white relative space-y-6 animate-fadeIn" style={{ border: '1px solid rgb(218, 218, 218)', borderRadius: '18px', maxWidth: '98%', margin: '24px auto', backgroundColor: '#ffffff', overflow: 'hidden' }}>
@@ -5782,6 +5901,8 @@ export default function App() {
                                   const finalStartDate = draftVal.startDate !== undefined ? draftVal.startDate : (t.startDate || '');
                                   const finalStatus = draftVal.status !== undefined ? draftVal.status : (t.status || 'Brouillon');
                                   const finalVehicule = draftVal.vehicule !== undefined ? draftVal.vehicule : (t.vehicule || 'Aucun');
+                                  const finalRegion = draftVal.region !== undefined ? draftVal.region : (t.region || '');
+                                  const finalPlannerName = draftVal.plannerName !== undefined ? draftVal.plannerName : (t.plannerName || '');
 
                                   if (!finalTech || finalTech.trim() === '') {
                                     alert("Veuillez sélectionner un technicien avec une adresse de départ renseignée pour pouvoir calculer l'itinéraire.");
@@ -5803,7 +5924,9 @@ export default function App() {
                                     techName: finalTech,
                                     startDate: finalStartDate,
                                     status: finalStatus,
-                                    vehicule: finalVehicule
+                                    vehicule: finalVehicule,
+                                    region: finalRegion,
+                                    plannerName: finalPlannerName
                                   };
 
                                   const updatedToursList = fsmTours.map(tourItem => tourItem.id === t.id ? mergedTour : tourItem);
@@ -5945,8 +6068,8 @@ export default function App() {
                             );
                           })()}
 
-                          {/* Row 2: Technicien, Véhicule, Date, Situation */}
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full">
+                          {/* Row 2: Technicien, Véhicule, Date, Région, Planificateur, Situation */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 w-full">
                             {/* Technicien */}
                             <div className="w-full">
                               <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Technicien.</label>
@@ -6064,6 +6187,92 @@ export default function App() {
                                 }}
                                 className="font-sans cursor-pointer focus:outline-none"
                               />
+                            </div>
+
+                            {/* Région */}
+                            <div className="w-full">
+                              <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Région.</label>
+                              <select
+                                value={tourRegion}
+                                onChange={(e) => {
+                                  setFsmTourDrafts(prev => ({
+                                    ...prev,
+                                    [t.id]: {
+                                      ...(prev[t.id] || {}),
+                                      region: e.target.value
+                                    }
+                                  }));
+                                }}
+                                style={{
+                                  border: '1px solid #dedede',
+                                  borderRadius: '13px',
+                                  padding: '12px',
+                                  fontSize: '16px',
+                                  fontWeight: '100',
+                                  color: '#000000',
+                                  backgroundColor: '#ffffff',
+                                  width: '100%'
+                                }}
+                                className="font-sans cursor-pointer focus:outline-none"
+                              >
+                                <option value="">Sélectionnez une région.</option>
+                                {(() => {
+                                  const regionList = Array.from(new Set([
+                                    ...getRegionsForCountry('France'),
+                                    tourRegion
+                                  ].filter(Boolean).filter(r => r.trim() !== '')));
+                                  return regionList.map((r) => (
+                                    <option key={r} value={r}>
+                                      {r}
+                                    </option>
+                                  ));
+                                })()}
+                              </select>
+                            </div>
+
+                            {/* Planificateur */}
+                            <div className="w-full">
+                              <label className="block mb-1.5 fsm-label-style" style={{ fontSize: '15px', color: '#000000', fontWeight: 600 }}>Planificateur.</label>
+                              <select
+                                value={tourPlannerName}
+                                onChange={(e) => {
+                                  setFsmTourDrafts(prev => ({
+                                    ...prev,
+                                    [t.id]: {
+                                      ...(prev[t.id] || {}),
+                                      plannerName: e.target.value
+                                    }
+                                  }));
+                                }}
+                                style={{
+                                  border: '1px solid #dedede',
+                                  borderRadius: '13px',
+                                  padding: '12px',
+                                  fontSize: '16px',
+                                  fontWeight: '100',
+                                  color: '#000000',
+                                  backgroundColor: '#ffffff',
+                                  width: '100%'
+                                }}
+                                className="font-sans cursor-pointer focus:outline-none"
+                              >
+                                <option value="">Sélectionnez un planificateur.</option>
+                                {(() => {
+                                  const nonTechMembers = members.filter(m => {
+                                    const roleLower = (m.role || '').toLowerCase();
+                                    return !(m.role === 'Technicien' || m.role === 'Maintenance Terrain' || roleLower.includes('tech'));
+                                  }).map(m => m.name);
+                                  const plannerOptions = Array.from(new Set([
+                                    ...nonTechMembers,
+                                    tourPlannerName
+                                  ].filter(Boolean).filter(n => n.trim() !== '')));
+                                  return plannerOptions.map((name) => (
+                                    <option key={name} value={name}>
+                                      {name}
+                                    </option>
+                                  ));
+                                })()}
+                              </select>
                             </div>
 
                             {/* Situation. */}

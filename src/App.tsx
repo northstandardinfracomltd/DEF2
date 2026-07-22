@@ -6507,43 +6507,131 @@ export default function App() {
                                           )}
                                         </div>
 
-                                        {/* Date estimée. */}
-                                        <div className="space-y-0.5 bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Date estimée.</label>
-                                          <input
-                                            type="date"
-                                            value={estimatedDateValue}
-                                            onChange={(e) => updateFsmMission(t.id, m.id, { estimatedDate: e.target.value })}
-                                            className="w-full font-sans cursor-pointer focus:outline-none"
-                                            style={{
-                                              border: '1px solid #dedede',
-                                              borderRadius: '13px',
-                                              padding: '12px',
-                                              fontSize: '16px',
-                                              fontWeight: '100',
-                                              color: '#000000',
-                                              backgroundColor: '#ffffff'
-                                            }}
-                                          />
-                                        </div>
+                                        {/* Date estimée. & Créneau estimé. */}
+                                        {(() => {
+                                          const isMissionForced = !!(m.isForced || (m.isManualDate && m.isManualSlot));
+                                          const toggleForced = () => {
+                                            const nextVal = !isMissionForced;
+                                            updateFsmMission(t.id, m.id, {
+                                              isForced: nextVal,
+                                              isManualDate: nextVal,
+                                              isManualSlot: nextVal
+                                            });
+                                          };
 
-                                        {/* Créneau estimé. */}
-                                        <div className="space-y-0.5 bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Créneau estimé.</label>
-                                          <select
-                                            value={m.estimatedSlot || ''}
-                                            onChange={(e) => updateFsmMission(t.id, m.id, { estimatedSlot: e.target.value })}
-                                            className="w-full font-sans focus:outline-none cursor-pointer"
-                                            style={{
-                                              border: '1px solid #dedede',
-                                              borderRadius: '13px',
-                                              padding: '12px',
-                                              fontSize: '16px',
-                                              fontWeight: '100',
-                                              color: '#000000',
-                                              backgroundColor: '#ffffff'
-                                            }}
-                                          >
+                                          return (
+                                            <>
+                                              {/* Date estimée. */}
+                                              <div className="space-y-0.5 bg-transparent">
+                                                <div className="flex items-center justify-between mb-1">
+                                                  <label className="block fsm-label-style mb-0">Date estimée.</label>
+                                                  <button
+                                                    type="button"
+                                                    onClick={toggleForced}
+                                                    className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none select-none"
+                                                    title="Forcer la date et le créneau"
+                                                  >
+                                                    <span style={{ fontSize: '13px', fontWeight: 600, color: isMissionForced ? '#fe4eba' : '#64748b' }}>
+                                                      Forcer
+                                                    </span>
+                                                    <div
+                                                      style={{
+                                                        width: '34px',
+                                                        height: '18px',
+                                                        borderRadius: '9999px',
+                                                        backgroundColor: isMissionForced ? '#fe4eba' : '#cbd5e1',
+                                                        position: 'relative',
+                                                        transition: 'background-color 0.2s ease',
+                                                        padding: '2px'
+                                                      }}
+                                                    >
+                                                      <div
+                                                        style={{
+                                                          width: '14px',
+                                                          height: '14px',
+                                                          borderRadius: '50%',
+                                                          backgroundColor: '#ffffff',
+                                                          position: 'absolute',
+                                                          top: '2px',
+                                                          left: isMissionForced ? '18px' : '2px',
+                                                          transition: 'left 0.2s ease',
+                                                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                                        }}
+                                                      />
+                                                    </div>
+                                                  </button>
+                                                </div>
+                                                <input
+                                                  type="date"
+                                                  value={estimatedDateValue}
+                                                  onChange={(e) => updateFsmMission(t.id, m.id, { estimatedDate: e.target.value })}
+                                                  className="w-full font-sans cursor-pointer focus:outline-none"
+                                                  style={{
+                                                    border: '1px solid #dedede',
+                                                    borderRadius: '13px',
+                                                    padding: '12px',
+                                                    fontSize: '16px',
+                                                    fontWeight: '100',
+                                                    color: '#000000',
+                                                    backgroundColor: '#ffffff'
+                                                  }}
+                                                />
+                                              </div>
+
+                                              {/* Créneau estimé. */}
+                                              <div className="space-y-0.5 bg-transparent">
+                                                <div className="flex items-center justify-between mb-1">
+                                                  <label className="block fsm-label-style mb-0">Créneau estimé.</label>
+                                                  <button
+                                                    type="button"
+                                                    onClick={toggleForced}
+                                                    className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none select-none"
+                                                    title="Forcer la date et le créneau"
+                                                  >
+                                                    <span style={{ fontSize: '13px', fontWeight: 600, color: isMissionForced ? '#fe4eba' : '#64748b' }}>
+                                                      Forcer
+                                                    </span>
+                                                    <div
+                                                      style={{
+                                                        width: '34px',
+                                                        height: '18px',
+                                                        borderRadius: '9999px',
+                                                        backgroundColor: isMissionForced ? '#fe4eba' : '#cbd5e1',
+                                                        position: 'relative',
+                                                        transition: 'background-color 0.2s ease',
+                                                        padding: '2px'
+                                                      }}
+                                                    >
+                                                      <div
+                                                        style={{
+                                                          width: '14px',
+                                                          height: '14px',
+                                                          borderRadius: '50%',
+                                                          backgroundColor: '#ffffff',
+                                                          position: 'absolute',
+                                                          top: '2px',
+                                                          left: isMissionForced ? '18px' : '2px',
+                                                          transition: 'left 0.2s ease',
+                                                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                                                        }}
+                                                      />
+                                                    </div>
+                                                  </button>
+                                                </div>
+                                                <select
+                                                  value={m.estimatedSlot || ''}
+                                                  onChange={(e) => updateFsmMission(t.id, m.id, { estimatedSlot: e.target.value })}
+                                                  className="w-full font-sans focus:outline-none cursor-pointer"
+                                                  style={{
+                                                    border: '1px solid #dedede',
+                                                    borderRadius: '13px',
+                                                    padding: '12px',
+                                                    fontSize: '16px',
+                                                    fontWeight: '100',
+                                                    color: '#000000',
+                                                    backgroundColor: '#ffffff'
+                                                  }}
+                                                >
                                             <option value="">-- Non défini --</option>
                                             <option value="8:00am">8:00am</option>
                                             <option value="8:30am">8:30am</option>
@@ -6570,6 +6658,9 @@ export default function App() {
                                             <option value="19:00pm">19:00pm</option>
                                           </select>
                                         </div>
+                                      </>
+                                    );
+                                  })()}
 
                                         {/* Situation. */}
                                         <div className="space-y-0.5 font-sans relative bg-transparent">

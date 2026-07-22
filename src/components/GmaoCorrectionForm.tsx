@@ -3135,9 +3135,8 @@ export default function GmaoCorrectionForm({
                       value={serviceEmettreId}
                       onChange={(e) => setServiceEmettreId(e.target.value)}
                       className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 cursor-pointer"
-                      required={emettreFactureBrouillon === 'Oui'}
                     >
-                      <option value="">Sélectionner un service...</option>
+                      <option value="">Sélectionner un service (optionnel)...</option>
                        {(() => {
                         const serviceStocks = (stocks || []).filter(st => {
                           const variable = variables.find(v => v.id === st.denominationPieceId);

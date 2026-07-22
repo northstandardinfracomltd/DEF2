@@ -242,6 +242,7 @@ export interface MemberSchedule {
   closeAfternoon: string;
   openContinuous: string;
   closeContinuous: string;
+  commentaire?: string;
 }
 
 export interface MemberAbsence {

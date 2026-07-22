@@ -847,7 +847,8 @@ export default function SettingsModal({
         openAfternoon: '14:00',
         closeAfternoon: '18:00',
         openContinuous: '09:00',
-        closeContinuous: '17:00'
+        closeContinuous: '17:00',
+        commentaire: ''
       };
       updated[index] = { ...updated[index], semaineTypique: [...current, newSchedule] };
       return updated;
@@ -2903,6 +2904,19 @@ export default function SettingsModal({
                                             );
                                           })}
                                         </div>
+                                      </div>
+
+                                      {/* Commentaire court */}
+                                      <div>
+                                        <label className="block text-[9px] font-bold text-slate-400 uppercase">{t("Commentaire court")}</label>
+                                        <input
+                                          type="text"
+                                          placeholder={t("Ex: Horaires d'été, Astreinte, Équipe du matin...")}
+                                          value={sch.commentaire || ''}
+                                          disabled={!canEditThisMember}
+                                          onChange={(e) => handleUpdateMemberScheduleField(idx, schIdx, 'commentaire', e.target.value)}
+                                          className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"
+                                        />
                                       </div>
                                     </div>
                                   ))

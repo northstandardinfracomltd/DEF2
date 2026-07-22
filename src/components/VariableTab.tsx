@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Variable, VariableCategory } from '../types';
+import { Variable, VariableCategory, Defibrillateur, StockRecord, DistributedStockLocation, OtherEquipment, AchatsFournisseurs, FsmTour } from '../types';
 import { Plus, Search, Trash2, Edit2, X, Sliders, Box, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { t } from '../utils/translate';
 
@@ -57,6 +57,12 @@ interface VariableTabProps {
   onAddVariable: (variable: Omit<Variable, 'id'>) => void;
   onUpdateVariable: (variable: Variable) => void;
   onDeleteVariable: (id: string) => void;
+  defibrillateurs?: Defibrillateur[];
+  stocks?: StockRecord[];
+  distributedStocks?: DistributedStockLocation[];
+  otherEquipments?: OtherEquipment[];
+  achatsFournisseurs?: AchatsFournisseurs[];
+  fsmTours?: FsmTour[];
 }
 
 // Visual presets of premium defibrillator photos to select instantly
@@ -94,9 +100,86 @@ export default function VariableTab({
   onAddVariable,
   onUpdateVariable,
   onDeleteVariable,
+  defibrillateurs = [],
+  stocks = [],
+  distributedStocks = [],
+  otherEquipments = [],
+  achatsFournisseurs = [],
+  fsmTours = [],
 }: VariableTabProps) {
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState<string>('Tous');
+
+  const isVariableUsed = (v: Variable): boolean => {
+    const id = v.id;
+    const nomLower = (v.nom || '').trim().toLowerCase();
+    const identLower = (v.identifiant || '').trim().toLowerCase();
+
+    // 1. Defibrillateurs
+    const inDefibs = (defibrillateurs || []).some(d => 
+      d.modeleId === id ||
+      d.modeleCoffretId === id ||
+      d.modeleElectrodeAId === id ||
+      d.modeleElectrodeASecoursId === id ||
+      d.modeleElectrodePId === id ||
+      d.modeleElectrodePSecoursId === id ||
+      d.modeleBatterieId === id ||
+      d.modeleBatterieSecoursId === id
+    );
+    if (inDefibs) return true;
+
+    // 2. Stocks (Centrale)
+    const inStocks = (stocks || []).some(s => 
+      (s as any).denominationPieceId === id ||
+      (s as any).variableId === id ||
+      (s.denom && s.denom.trim().toLowerCase() === nomLower) ||
+      (s.denom && identLower && s.denom.trim().toLowerCase() === identLower)
+    );
+    if (inStocks) return true;
+
+    // 3. Distributed Stocks
+    const inDistrib = (distributedStocks || []).some(ds => 
+      (ds as any).denominationPieceId === id ||
+      (ds as any).variableId === id ||
+      (ds.denom && ds.denom.trim().toLowerCase() === nomLower) ||
+      (ds.denom && identLower && ds.denom.trim().toLowerCase() === identLower)
+    );
+    if (inDistrib) return true;
+
+    // 4. Other equipments
+    const inOther = (otherEquipments || []).some(oe => 
+      (oe as any).variableId === id ||
+      oe.modele === id ||
+      (oe.modele && oe.modele.trim().toLowerCase() === nomLower)
+    );
+    if (inOther) return true;
+
+    // 5. Achats fournisseurs
+    const inAchats = (achatsFournisseurs || []).some(af => 
+      (af as any).variableId === id ||
+      (af.denom && af.denom.trim().toLowerCase() === nomLower)
+    );
+    if (inAchats) return true;
+
+    // 6. FSM Tours
+    const inFsm = (fsmTours || []).some(t => {
+      if (Array.isArray((t as any).missions)) {
+        return (t as any).missions.some((m: any) => {
+          if (Array.isArray(m.requiredParts)) {
+            return m.requiredParts.some((p: any) => 
+              p === id || 
+              (typeof p === 'string' && (p.toLowerCase() === nomLower || (identLower && p.toLowerCase() === identLower)))
+            );
+          }
+          return false;
+        });
+      }
+      return false;
+    });
+    if (inFsm) return true;
+
+    return false;
+  };
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVariable, setEditingVariable] = useState<Variable | null>(null);
@@ -921,81 +1004,107 @@ export default function VariableTab({
                   <th className="px-4 py-3.5 text-left whitespace-nowrap" style={thStyle}>Identifiant.</th>
                   <th className="px-4 py-3.5 text-left" style={thStyle}>Titre de la variable.</th>
                   <th className="px-4 py-3.5 text-left" style={thStyle}>Catégorie.</th>
-                  <th className="px-4 py-3.5 text-left w-12" style={thStyle}>Action.</th>
+                  <th className="px-4 py-3.5 text-left w-12" style={thStyle}>Actions.</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs">
-                {filteredVariables.map((v) => (
-                  <tr
-                    key={v.id}
-                    id={`variable-row-${v.id}`}
-                    onClick={(e) => {
-                      if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
-                      openEditModal(v);
-                    }}
-                    className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
-                  >
-                    {/* Visual box column */}
-                    <td className="px-4 py-3.5">
-                      <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center p-1.5" style={{ backgroundColor: '#ffffff' }}>
-                        {v.category === 'Modèle Défibrillateur' && v.imageUrl ? (
-                          <img
-                            src={v.imageUrl}
-                            alt={v.nom}
-                            className="w-full h-full object-contain"
-                            referrerPolicy="no-referrer"
-                          />
-                        ) : null}
-                      </div>
-                    </td>
+                {filteredVariables.map((v) => {
+                  const used = isVariableUsed(v);
+                  return (
+                    <tr
+                      key={v.id}
+                      id={`variable-row-${v.id}`}
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('button, a, input, select, option')) return;
+                        openEditModal(v);
+                      }}
+                      className="group hover:bg-[#ffecf8] transition-all cursor-pointer"
+                    >
+                      {/* Visual box column */}
+                      <td className="px-4 py-3.5">
+                        <div className="w-14 h-14 rounded-md bg-white border border-slate-200 overflow-hidden relative flex items-center justify-center p-1.5" style={{ backgroundColor: '#ffffff' }}>
+                          {v.category === 'Modèle Défibrillateur' && v.imageUrl ? (
+                            <img
+                              src={v.imageUrl}
+                              alt={v.nom}
+                              className="w-full h-full object-contain"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : null}
+                        </div>
+                      </td>
 
-                    {/* Identifiant */}
-                    <td className="px-4 py-5 font-sans text-left whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                      {v.identifiant || ''}
-                    </td>
+                      {/* Identifiant */}
+                      <td className="px-4 py-5 font-sans text-left whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                        {v.identifiant || ''}
+                      </td>
 
-                    {/* Nom de l'équipement */}
-                    <td className="px-4 py-5 font-sans text-left" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                      <div className="font-semibold text-slate-950">
-                        {v.nom}
-                      </div>
-                    </td>
+                      {/* Nom de l'équipement */}
+                      <td className="px-4 py-5 font-sans text-left" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
+                        <div className="font-semibold text-slate-950">
+                          {v.nom}
+                        </div>
+                      </td>
 
-                    {/* Catégorie technique */}
-                    <td className="px-4 py-5 font-sans text-left">
-                      <span 
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'flex-start',
-                          borderRadius: '1000px',
-                          backgroundColor: '#ffffff',
-                          border: '1px solid rgb(231, 231, 231)',
-                          color: '#000000',
-                          fontSize: '16px',
-                          fontWeight: 100,
-                          padding: '4px 12px',
-                        }}
-                      >
-                        {v.category}
-                      </span>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-5 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <div className="inline-flex gap-2">
-                        <button
-                          onClick={() => openEditModal(v)}
-                          id={`btn-edit-variable-${v.id}`}
-                          style={rowActionButton18Style}
-                          className="cursor-pointer"
+                      {/* Catégorie technique */}
+                      <td className="px-4 py-5 font-sans text-left">
+                        <span 
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            borderRadius: '1000px',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid rgb(231, 231, 231)',
+                            color: '#000000',
+                            fontSize: '16px',
+                            fontWeight: 100,
+                            padding: '4px 12px',
+                          }}
                         >
-                          Modifier
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {v.category}
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-5 text-left whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                        <div className="inline-flex gap-2">
+                          <button
+                            onClick={() => openEditModal(v)}
+                            id={`btn-edit-variable-${v.id}`}
+                            style={rowActionButton18Style}
+                            className="cursor-pointer"
+                          >
+                            Modifier
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!used) {
+                                if (window.confirm(`Voulez-vous vraiment supprimer la variable "${v.nom}" ?`)) {
+                                  onDeleteVariable(v.id);
+                                }
+                              }
+                            }}
+                            disabled={used}
+                            title={used ? "Cette variable ne peut pas être supprimée car elle est utilisée au moins 1 fois dans un autre compartiment." : "Supprimer la variable"}
+                            id={`btn-delete-variable-${v.id}`}
+                            style={{
+                              ...rowActionButton18Style,
+                              opacity: used ? 0.4 : 1,
+                              cursor: used ? 'not-allowed' : 'pointer',
+                              backgroundColor: used ? '#f1f5f9' : '#ffffff',
+                              color: used ? '#94a3b8' : '#ef4444',
+                              borderColor: used ? '#cbd5e1' : '#fca5a5'
+                            }}
+                            className="transition-all"
+                          >
+                            Supprimer
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

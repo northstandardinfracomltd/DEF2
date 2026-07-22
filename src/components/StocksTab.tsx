@@ -507,10 +507,12 @@ export default function StocksTab({
   };
 
   React.useEffect(() => {
-    const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId));
-    const isCurrentValid = available.some(v => v.id === newDenomStr);
-    if (!isCurrentValid && available.length > 0) {
-      setNewDenomStr(available[0].id);
+    if (newDenomStr) {
+      const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId));
+      const isCurrentValid = available.some(v => v.id === newDenomStr);
+      if (!isCurrentValid) {
+        setNewDenomStr('');
+      }
     }
   }, [variables.length, stocks.length, editingStockId, newDenomStr]);
   
@@ -779,8 +781,7 @@ export default function StocksTab({
       setEditingStockId(null);
     } else {
       setEditingStockId(null);
-      const available = variables.filter(v => !stocks.some(s => s.denominationPieceId === v.id));
-      setNewDenomStr(available[0]?.id || '');
+      setNewDenomStr('');
       setNewQty(0);
       setNewQtyReservee(0);
       setNewLivDate('');
@@ -1308,14 +1309,14 @@ export default function StocksTab({
           {/* Info-entête banner with 30% image, 60% text, 10% button layout on desktop */}
           {showFormInfoBanner && (
             <div 
-              className="flex flex-col md:flex-row items-center gap-6 p-6 bg-white animate-fadeIn"
+              className="flex flex-col md:flex-row items-center gap-6 p-6 animate-fadeIn"
               style={{
                 border: '1px solid rgb(218, 218, 218)',
                 borderRadius: '18px',
                 width: '98%',
                 maxWidth: '98%',
                 margin: 'auto',
-                backgroundColor: '#f8fafc'
+                backgroundColor: '#FFF'
               }}
               id="stocks-form-info-banner"
             >
@@ -1324,14 +1325,19 @@ export default function StocksTab({
                 <img 
                   src="https://civilprom.s3.eu-north-1.amazonaws.com/automatismesflow.svg" 
                   alt="Automatismes Flow Guide" 
-                  className="w-full max-w-[180px] md:max-w-none h-auto max-h-[120px] object-contain" 
+                  className="w-full max-w-[180px] md:max-w-none h-auto object-contain" 
+                  style={{ maxHeight: '150px' }}
                   referrerPolicy="no-referrer"
                   id="stocks-form-info-image"
                 />
               </div>
 
               {/* Text (60%) */}
-              <div className="w-full md:w-[60%] text-[14px] text-slate-700 leading-relaxed font-sans" id="stocks-form-info-text">
+              <div 
+                className="w-full md:w-[60%] leading-relaxed font-sans" 
+                style={{ color: '#000', fontSize: '16px', cursor: 'default' }}
+                id="stocks-form-info-text"
+              >
                 La section « Propriétés » a pour rôle de définir les caractéristiques de votre pièce ou service. Quant à la section « Mouvements », elle concerne les flux tels que le réapprovisionnement fournisseur ou la distribution de stock à un employé. Enfin, l’inventaire de traçabilité, pouvant être activé ou non, permet de renseigner les numéros de lot et les dates de péremption des pièces, qu'elles soient situées dans votre stock central ou embarquées avec le technicien. L’objectif est quadruple : être en capacité d'étiqueter les produits à l'aide de codes-barres, pouvoir sélectionner une pièce lors d’une maintenance, suivre les péremptions, et effectuer un inventaire précis directement depuis la webapp.
               </div>
 
@@ -1344,11 +1350,12 @@ export default function StocksTab({
                     localStorage.setItem('defib_hide_stocks_form_info_banner', 'true');
                   }}
                   id="stocks-form-info-dismiss-btn"
-                  className="px-4 py-2 bg-[#3556ec] hover:bg-[#2b47cf] text-white font-semibold rounded-xl text-sm transition-all whitespace-nowrap shadow-sm hover:shadow active:scale-95 cursor-pointer"
+                  className="px-4 py-2 text-white font-semibold transition-all whitespace-nowrap cursor-pointer"
                   style={{
-                    backgroundColor: 'rgb(53, 86, 236)',
+                    backgroundColor: '#000',
                     color: '#ffffff',
-                    boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px',
+                    fontSize: '18px',
+                    boxShadow: 'none',
                     borderRadius: '12px'
                   }}
                 >
@@ -1413,7 +1420,7 @@ export default function StocksTab({
                   className="focus:outline-none w-full cursor-pointer font-sans"
                   required
                 >
-                  <option value="" disabled hidden>Sélectionnez une pièce ou service.</option>
+                  <option value="" disabled>Sélectionnez une pièce ou service.</option>
                   {variables.map(v => {
                     const isAlreadyUsed = stocks.some(s => s.denominationPieceId === v.id && s.id !== editingStockId);
                     if (isAlreadyUsed) return null;

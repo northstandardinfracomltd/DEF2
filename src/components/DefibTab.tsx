@@ -2743,15 +2743,18 @@ export default function DefibTab({
                 type="submit"
                 form="defibrillateur-core-form"
                 id="btn-submit-defib-form"
+                disabled={isSubmitChecking}
                 style={{
                   ...rowActionButton18Style,
                   backgroundColor: 'rgb(53, 86, 236)',
                   color: '#ffffff',
+                  opacity: isSubmitChecking ? 0.5 : 1,
+                  cursor: isSubmitChecking ? 'not-allowed' : 'pointer',
                   boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
                 }}
-                className="transition-all cursor-pointer"
+                className="transition-all"
               >
-                Enregistrer
+                {isSubmitChecking ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             </div>
           </div>
@@ -3128,91 +3131,27 @@ export default function DefibTab({
 
                     {/* Client Selector, Nom du site, and Catégorie d'établissement in an equal 3-column grid (33% / 33% / 33%) */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      {/* Client Selector with integrated search box, filtering, and 10 results limit */}
+                      {/* Native System Client Dropdown */}
                       <div className="space-y-1 relative">
-                        <label htmlFor="form-client-search" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                        <label htmlFor="form-client-select" className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                           Client.
                         </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            id="form-client-search"
-                            value={clientSearchQuery}
-                            onChange={(e) => {
-                              setClientSearchQuery(e.target.value);
-                              setIsClientSearchFocused(true);
-                              if (clientId) {
-                                setClientId('');
-                              }
-                            }}
-                            onFocus={() => setIsClientSearchFocused(true)}
-                            onBlur={() => {
-                              // Slight timeout so that clicks on dropdown item register before blur hide
-                              setTimeout(() => setIsClientSearchFocused(false), 250);
-                            }}
-                            placeholder="Recherchez un client."
-                            className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
-                          />
-                          {clientSearchQuery && !clientId && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setClientSearchQuery('');
-                                setClientId('');
-                                setIsClientSearchFocused(true);
-                              }}
-                              className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Dropdown list element representing select results with auto filtering (max 10 results) */}
-                        {isClientSearchFocused && (
-                          <div 
-                            className="absolute left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-slate-200 rounded-lg z-50 py-1 animate-fadeIn shadow-none text-slate-800"
-                            style={{ minWidth: '240px', fontSize: '16px' }}
-                          >
-                            {(() => {
-                              const searchLower = clientSearchQuery.toLowerCase();
-                              const hits = clients.filter(c => 
-                                c.denomination.toLowerCase().includes(searchLower) || 
-                                (c.siret && c.siret.includes(searchLower)) ||
-                                c.id.toLowerCase().includes(searchLower)
-                              ).slice(0, 10);
-
-                              if (hits.length === 0) {
-                                  return (
-                                    <div className="px-3 py-2 text-slate-400" style={{ fontSize: '16px' }}>
-                                      Aucun client trouvé pour "{clientSearchQuery}"
-                                    </div>
-                                  );
-                              }
-
-                              return hits.map(c => {
-                                const labelStr = `${c.denomination} (${c.siret || ''})`;
-                                return (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      handleClientChange(c.id);
-                                      setClientSearchQuery(labelStr);
-                                      setIsClientSearchFocused(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2 cursor-pointer text-slate-800 transition-colors ${
-                                      clientId === c.id ? 'bg-slate-50 font-semibold' : ''
-                                    }`}
-                                    style={{ fontSize: '16px' }}
-                                  >
-                                    {labelStr}
-                                  </button>
-                                );
-                              });
-                            })()}
-                          </div>
-                        )}
+                        <select
+                          id="form-client-select"
+                          value={clientId}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            handleClientChange(selectedId);
+                          }}
+                          className="w-full px-3 py-1.5 border border-slate-200 hover:border-slate-300 focus:border-slate-400 rounded-lg text-xs bg-white text-slate-800 font-semibold"
+                        >
+                          <option value="">Sélectionnez un client...</option>
+                          {clients.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.denomination} {c.siret ? `(${c.siret})` : ''}
+                            </option>
+                          ))}
+                        </select>
                       </div>
 
                       {/* Nom du site field */}

@@ -5122,6 +5122,12 @@ export default function App() {
               onAddVariable={handleAddVariable}
               onUpdateVariable={handleUpdateVariable}
               onDeleteVariable={handleDeleteVariable}
+              defibrillateurs={defibrillateurs}
+              stocks={stocks}
+              distributedStocks={distributedStocks}
+              otherEquipments={otherEquipments}
+              achatsFournisseurs={achatsFournisseurs}
+              fsmTours={fsmTours}
             />
           )}
 
@@ -6640,25 +6646,47 @@ export default function App() {
                                   {(() => {
                                     const currentMissionDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
 
-                                    const stockItems = (distributedStocks || [])
-                                      .filter(ds => {
-                                        const vObj = variables.find(v => v.id === ds.denominationPieceId);
-                                        return vObj ? vObj.category !== 'Modèle Service' : true;
-                                      })
-                                      .map(ds => {
-                                        const vObj = variables.find(v => v.id === ds.denominationPieceId);
-                                        const name = vObj ? vObj.nom : `Pièce indéfinie`;
-                                        const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
-                                        const ugs = matchedStock?.ugs || '';
-                                        const ugsString = ugs ? ` - UGS: ${ugs}` : '';
-                                        return {
-                                          id: ds.id,
-                                          name: name,
-                                          locationName: ds.locationName,
-                                          volumeDisponible: ds.volumeDisponible,
-                                          label: `${name} (${getLocationCustomName(ds.locationName)} - Qté dispo: ${ds.volumeDisponible}${ugsString})`,
-                                          matchedStock
-                                        };
+                                    // Build comprehensive items list from distributed stocks, central stocks, and variables
+                                    const stockItems: { id: string; name: string; label: string; matchedStock?: any }[] = [];
+                                    const addedLabels = new Set<string>();
+
+                                    // 1. Items from Distributed Stocks
+                                    (distributedStocks || []).forEach(ds => {
+                                      const vObj = variables.find(v => v.id === ds.denominationPieceId);
+                                      if (vObj && (vObj.category === 'Modèle Service' || vObj.category === 'Modèle Contrat' || vObj.category === 'Fournisseur')) return;
+                                      const name = vObj ? vObj.nom : (ds.denom || `Pièce indéfinie`);
+                                      const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+                                      const ugs = matchedStock?.ugs || '';
+                                      const ugsString = ugs ? ` - UGS: ${ugs}` : '';
+                                      const label = `${name} (${getLocationCustomName(ds.locationName)} - Dispo: ${ds.volumeDisponible}${ugsString})`;
+                                      if (!addedLabels.has(label)) {
+                                        stockItems.push({ id: `ds_${ds.id}`, name, label, matchedStock });
+                                        addedLabels.add(label);
+                                      }
+                                    });
+
+                                    // 2. Items from Central Stocks
+                                    (stocks || []).forEach(s => {
+                                      const vObj = variables.find(v => v.id === s.denominationPieceId);
+                                      if (vObj && (vObj.category === 'Modèle Service' || vObj.category === 'Modèle Contrat' || vObj.category === 'Fournisseur')) return;
+                                      const name = vObj ? vObj.nom : (s.denom || `Pièce indéfinie`);
+                                      const ugs = s.ugs ? ` - UGS: ${s.ugs}` : '';
+                                      const label = `${name} (Stock Central - Qté: ${s.quantite}${ugs})`;
+                                      if (!addedLabels.has(label)) {
+                                        stockItems.push({ id: `st_${s.id}`, name, label, matchedStock: s });
+                                        addedLabels.add(label);
+                                      }
+                                    });
+
+                                    // 3. Direct piece variables
+                                    (variables || [])
+                                      .filter(v => v.category !== 'Modèle Service' && v.category !== 'Modèle Contrat' && v.category !== 'Fournisseur')
+                                      .forEach(v => {
+                                        const label = `${v.nom} (${v.category}${v.identifiant ? ' - ' + v.identifiant : ''})`;
+                                        if (!addedLabels.has(label)) {
+                                          stockItems.push({ id: `var_${v.id}`, name: v.nom, label });
+                                          addedLabels.add(label);
+                                        }
                                       });
 
                                     const recommendedItems = currentMissionDefib && currentMissionDefib.modeleId

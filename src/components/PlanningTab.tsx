@@ -27,10 +27,26 @@ const getFormattedDateFR = (dateStr?: string) => {
   if (dateStr.includes('-')) {
     const parts = dateStr.split('-');
     if (parts.length === 3) {
-      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      if (parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      } else if (parts[2].length === 4) {
+        return `${parts[0]}/${parts[1]}/${parts[2]}`;
+      }
     }
   }
   return dateStr;
+};
+
+const toIsoDateStr = (rawDate?: string) => {
+  if (!rawDate || rawDate === 'A trier') return '';
+  if (rawDate.includes('-')) {
+    const parts = rawDate.split('-');
+    if (parts.length === 3) {
+      if (parts[0].length === 4) return rawDate;
+      if (parts[2].length === 4) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+  return rawDate;
 };
 
 export const PlanningTab: React.FC<PlanningTabProps> = ({
@@ -115,16 +131,20 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
         if (tourTech !== selTech) return;
       }
 
-      if (!tour.missions || !Array.isArray(tour.missions)) return;
+      const tourMissions = tour.missions || tour.passages || [];
+      if (!Array.isArray(tourMissions)) return;
 
-      tour.missions.forEach((m: any) => {
-        const missionDate = m.estimatedDate || (tour.startDate !== 'A trier' ? tour.startDate : null);
-        if (!missionDate) return;
+      tourMissions.forEach((m: any) => {
+        const rawDate = m.estimatedDate || m.date || (tour.startDate !== 'A trier' ? tour.startDate : null);
+        if (!rawDate) return;
 
-        if (!map[missionDate]) {
-          map[missionDate] = [];
+        const missionIso = toIsoDateStr(rawDate);
+        if (!missionIso) return;
+
+        if (!map[missionIso]) {
+          map[missionIso] = [];
         }
-        map[missionDate].push({ tour, mission: m });
+        map[missionIso].push({ tour, mission: m });
       });
     });
 
@@ -150,7 +170,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
   return (
     <div className="space-y-4 font-sans pb-12" id="planning-tab-wrapper">
-      {/* Field Technicien - Styled identical to Interventions dropdown */}
+      {/* Field Technicien */}
       <div className="px-1 select-none">
         <select
           value={selectedTech}
@@ -177,7 +197,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
         </select>
       </div>
 
-      {/* Field Mois - Styled identical to Interventions dropdown */}
+      {/* Field Mois */}
       <div className="px-1 select-none pb-2">
         <select
           value={selectedMonth}
@@ -243,19 +263,21 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
               key={isoDate}
               id={`calendar-day-${isoDate}`}
               className="bg-white p-4 sm:p-5 space-y-4"
-              style={{
-                border: "1px solid rgb(201, 190, 205)",
-                borderRadius: "14px",
-              }}
+              style={
+                isToday
+                  ? { border: "3px solid rgb(22, 93, 252)", borderRadius: "14px" }
+                  : { border: "1px solid rgb(201, 190, 205)", borderRadius: "14px" }
+              }
             >
               {/* Day Circle */}
               <div className="flex items-center">
                 <div
-                  className={`w-12 h-12 rounded-full font-bold text-[18px] flex items-center justify-center ${
+                  className="w-12 h-12 flex items-center justify-center font-bold text-[18px]"
+                  style={
                     isToday
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-900'
-                  }`}
+                      ? { borderRadius: "20px", background: "#115aff", color: "#fff" }
+                      : { borderRadius: "20px", background: "#e9efff", color: "#165dfc" }
+                  }
                 >
                   {dayNum}
                 </div>
@@ -265,7 +287,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
               {matchingAbsences.map(({ abs }, aIdx) => (
                 <div
                   key={`abs-${aIdx}`}
-                  className="bg-slate-50 p-3 space-y-2"
+                  className="bg-white p-3 space-y-2"
                   style={{
                     border: "1px solid rgb(201, 190, 205)",
                     borderRadius: "14px",
@@ -292,7 +314,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
                 return (
                   <div
                     key={`sch-${sIdx}`}
-                    className="bg-slate-50 p-3 space-y-2"
+                    className="bg-white p-3 space-y-2"
                     style={{
                       border: "1px solid rgb(201, 190, 205)",
                       borderRadius: "14px",
@@ -314,31 +336,89 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
               {/* Missions */}
               {dayMissions.map(({ tour, mission }, mIdx) => {
+                // Find associated equipment & client
+                const defib = defibrillateurs.find(
+                  (d: any) =>
+                    d.identifiant === mission.defibIdentifiant ||
+                    d.id === mission.defibIdentifiant ||
+                    (mission.identifiant && d.identifiant === mission.identifiant) ||
+                    (mission.defibId && d.id === mission.defibId)
+                );
+
+                const other = otherEquipments.find(
+                  (o: any) =>
+                    o.identifiant === mission.defibIdentifiant ||
+                    o.id === mission.defibIdentifiant ||
+                    (mission.identifiant && o.identifiant === mission.identifiant) ||
+                    (mission.defibId && o.id === mission.defibId)
+                );
+
                 const clientObj = clients.find(
-                  c => c.id === mission.clientId || c.denomination === mission.clientDenomination
+                  c =>
+                    c.id === mission.clientId ||
+                    c.id === defib?.clientId ||
+                    c.id === other?.clientId ||
+                    (c.denomination && mission.clientDenomination && c.denomination.toLowerCase() === mission.clientDenomination.toLowerCase())
                 );
 
-                const dateVal = getFormattedDateFR(
-                  mission.estimatedDate || (tour.startDate !== 'A trier' ? tour.startDate : '')
-                );
-                const creneauVal = mission.estimatedSlot || mission.creneau || mission.estimatedTime || '08:00';
+                const tourTitle = tour.title || tour.name || 'Tournée';
 
-                const clientName = mission.clientDenomination || mission.client || clientObj?.denomination || '';
-                const siteName = mission.site || mission.siteName || '';
+                const clientName =
+                  mission.clientDenomination ||
+                  mission.client ||
+                  clientObj?.denomination ||
+                  mission.clientName ||
+                  defib?.exploitant ||
+                  defib?.nomPrenomSite ||
+                  '';
 
-                const ville = mission.ville || clientObj?.ville || '';
-                const cp = mission.codePostal || clientObj?.codePostal || '';
-                const locationStr = ville
-                  ? `${ville}${cp ? ` (${cp})` : ''}`
-                  : (mission.address || clientObj?.adresse || '');
+                const siteName =
+                  mission.site ||
+                  mission.siteName ||
+                  defib?.nomSite ||
+                  other?.nomSite ||
+                  defib?.nomPrenomSite ||
+                  '';
 
-                const equipType = mission.equipmentType || 'Défibrillateur';
-                const identifiant = mission.defibIdentifiant || mission.identifiant || '';
+                const locationStr = (() => {
+                  if (mission.ville) {
+                    return `${mission.ville}${mission.codePostal ? ` (${mission.codePostal})` : ''}`;
+                  }
+                  if (defib) {
+                    const parts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
+                    if (parts.length > 0) return parts.join(', ');
+                  }
+                  if (other) {
+                    const parts = [other.numeroVoie, other.codePostal, other.ville].filter(Boolean);
+                    if (parts.length > 0) return parts.join(', ');
+                  }
+                  if (mission.address) return mission.address;
+                  if (clientObj) {
+                    const parts = [clientObj.adresse, clientObj.codePostal, clientObj.ville].filter(Boolean);
+                    if (parts.length > 0) return parts.join(', ');
+                  }
+                  return '';
+                })();
+
+                const equipType =
+                  mission.equipmentType ||
+                  (defib ? 'Défibrillateur' : (other ? other.categorie : 'Défibrillateur'));
+
+                const identifiant =
+                  mission.defibIdentifiant ||
+                  mission.identifiant ||
+                  defib?.identifiant ||
+                  other?.identifiant ||
+                  '';
+
+                const rawDateStr = mission.estimatedDate || mission.date || (tour.startDate !== 'A trier' ? tour.startDate : '');
+                const dateVal = getFormattedDateFR(rawDateStr);
+                const creneauVal = mission.estimatedSlot || mission.creneau || mission.estimatedTime || mission.time || '08:00';
 
                 return (
                   <div
                     key={`m-${mIdx}`}
-                    className="bg-slate-50 p-4 space-y-3"
+                    className="bg-white p-4 space-y-3"
                     style={{
                       border: "1px solid rgb(201, 190, 205)",
                       borderRadius: "14px",
@@ -356,6 +436,10 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
                     {/* Details */}
                     <div className="space-y-1.5 text-[16px] text-slate-800">
+                      <div>
+                        <span className="font-bold">Tournée : </span>
+                        <span>{tourTitle}</span>
+                      </div>
                       <div>
                         <span className="font-bold">Client : </span>
                         <span>{clientName}</span>

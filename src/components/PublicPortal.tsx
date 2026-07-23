@@ -9821,14 +9821,28 @@ export default function PublicPortal({
                   className="space-y-6 pb-16 animate-fadeIn"
                   id="tab-localisation-screen"
                 >
-                  {/* Nom du logiciel / Entreprise */}
+                  {/* Nom du logiciel / Entreprise - Banner Header */}
                   <div
-                    style={{ color: "rgb(0, 0, 0)", fontSize: "28px", marginTop: "55px" }}
-                    className="font-gochi text-left tracking-wide select-none"
+                    className="-mx-4 -mt-4 mb-6 py-10 px-4 flex items-center justify-center select-none"
+                    style={{
+                      background: "rgb(53, 86, 236)",
+                      boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                    }}
                   >
-                    {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
-                      ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
-                      : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
+                    <div
+                      style={{
+                        color: "rgb(255, 255, 255)",
+                        fontSize: "40px",
+                        textAlign: "center",
+                        fontFamily: 'var(--font-sans), "DefibeoMain", "Civilprom", sans-serif',
+                        fontWeight: "bold",
+                      }}
+                      className="tracking-wide w-full"
+                    >
+                      {((companyInfo.nomLogiciel || companyInfo.name || "Défibeo")).length > 25
+                        ? (companyInfo.nomLogiciel || companyInfo.name || "Défibeo").substring(0, 25) + "..."
+                        : (companyInfo.nomLogiciel || companyInfo.name || "Défibeo")}
+                    </div>
                   </div>
 
                   <style>{`

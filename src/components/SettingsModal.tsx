@@ -931,7 +931,11 @@ export default function SettingsModal({
       const current = updated[index].absences || [];
       const updatedAbsences = current.map((abs, i) => {
         if (i !== absIdx) return abs;
-        return { ...abs, [field]: val };
+        const newAbs = { ...abs, [field]: val };
+        if (field === 'startDate' && (!newAbs.endDate || newAbs.endDate < val)) {
+          newAbs.endDate = val;
+        }
+        return newAbs;
       });
       updated[index] = { ...updated[index], absences: updatedAbsences };
       return updated;
@@ -3004,6 +3008,7 @@ export default function SettingsModal({
                                           <input
                                             type="date"
                                             value={abs.endDate}
+                                            min={abs.startDate}
                                             disabled={!canEditThisMember}
                                             onChange={(e) => handleUpdateMemberAbsenceField(idx, absIdx, 'endDate', e.target.value)}
                                             className="w-full p-1 text-[11px] border border-slate-250 rounded focus:ring-indigo-500 bg-white"

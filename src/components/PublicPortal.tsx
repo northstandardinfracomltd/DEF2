@@ -9804,15 +9804,64 @@ export default function PublicPortal({
                   <div
                     className="mb-6 px-4 flex items-center justify-center select-none"
                     style={{
-                      background: "linear-gradient(24deg, #004ca0, #2467ff, #03bef6)",
-                      boxShadow: "none",
+                      background: "linear-gradient(24deg, rgb(0, 76, 160), rgb(36, 103, 255), rgb(3, 190, 246))",
+                      backgroundImage: "linear-gradient(120deg, rgb(62 47 47 / 0%) 25%, rgb(0 27 144) 47%, rgba(255, 255, 255, 0.05) 53%, rgb(55 47 47 / 0%) 75%), radial-gradient(circle at 15% 15%, #1d47ff 0%, #061977 55%, #0b28a3 100%)",
                       width: "98%",
                       margin: "auto",
-                      borderRadius: "14px",
                       paddingTop: "90px",
                       paddingBottom: "85px",
+                      borderRadius: "16px",
+                      position: "relative",
+                      overflow: "hidden",
+                      boxShadow: "none",
                     }}
                   >
+                    {/* Left border alcove notch */}
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: "-10px",
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: "20px",
+                        height: "26px",
+                        backgroundColor: "#f8fafc",
+                        borderRadius: "0 13px 13px 0",
+                        zIndex: 10,
+                      }}
+                    />
+
+                    {/* Logo Top Right */}
+                    <img
+                      src="https://datacenter64000pau.s3.eu-north-1.amazonaws.com/Defibeo_2026_Logo2.svg"
+                      alt="Logo"
+                      style={{
+                        position: "absolute",
+                        top: "18px",
+                        right: "20px",
+                        height: "28px",
+                        width: "auto",
+                        objectFit: "contain",
+                      }}
+                    />
+
+                    {/* Technicien Bottom Left */}
+                    {authenticatedUser?.name && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          bottom: "18px",
+                          left: "22px",
+                          color: "rgba(255, 255, 255, 0.95)",
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          fontFamily: 'var(--font-sans), "Civilprom", "DefibeoMain", sans-serif',
+                        }}
+                      >
+                        {authenticatedUser.name}
+                      </div>
+                    )}
+
                     <div
                       style={{
                         color: "rgb(255, 255, 255)",

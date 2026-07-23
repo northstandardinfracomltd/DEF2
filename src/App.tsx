@@ -6978,9 +6978,9 @@ export default function App() {
                                         <label className="block mb-1 fsm-label-style" style={{ fontSize: "15px", color: "#000000", fontWeight: 600 }}>
                                           Raison/Prestation.
                                         </label>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full items-center bg-transparent">
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 w-full items-center bg-transparent">
                                           {/* Dropdown Select on the left */}
-                                          <div className="w-full bg-transparent">
+                                          <div className="md:col-span-1 w-full bg-transparent">
                                             <select
                                               value=""
                                               onChange={(e) => {
@@ -7028,7 +7028,7 @@ export default function App() {
                                           </div>
 
                                           {/* Selected Reasons Capsules listed on the right */}
-                                          <div className="w-full bg-transparent">
+                                          <div className="md:col-span-3 w-full bg-transparent">
                                             {(() => {
                                               const currentReasons: string[] = Array.isArray(m.reasons)
                                                 ? m.reasons
@@ -7057,7 +7057,7 @@ export default function App() {
                                                       </span>
                                                     ))
                                                   ) : (
-                                                    <span className="text-xs text-slate-400 italic">Aucune raison / prestation sélectionnée</span>
+                                                    null
                                                   )}
                                                 </div>
                                               );

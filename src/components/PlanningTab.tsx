@@ -11,6 +11,7 @@ interface PlanningTabProps {
   variables?: any[];
   members?: Member[];
   t: (key: string) => string;
+  initialTech?: string;
 }
 
 const MONTH_NAMES_FR = [
@@ -58,12 +59,13 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   clients = [],
   variables = [],
   members = [],
-  t
+  t,
+  initialTech
 }) => {
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth());
-  const [selectedTech, setSelectedTech] = useState<string>('Tous');
+  const [selectedTech, setSelectedTech] = useState<string>(initialTech || 'Tous');
 
   // List of technician members only
   const techniciansList = useMemo(() => {
@@ -77,10 +79,12 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
   // Default selected technician
   useEffect(() => {
-    if (authenticatedUser?.name) {
+    if (initialTech) {
+      setSelectedTech(initialTech);
+    } else if (authenticatedUser?.name) {
       setSelectedTech(authenticatedUser.name);
     }
-  }, [authenticatedUser]);
+  }, [initialTech, authenticatedUser]);
 
   // Active member object
   const activeMember = useMemo(() => {

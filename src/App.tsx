@@ -60,6 +60,7 @@ import ImportExportTab from './components/ImportExportTab';
 import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from './utils/fsmOptimizer';
 import SatisfactionFormPage from './components/SatisfactionFormPage';
 import NotificationsTab from './components/NotificationsTab';
+import { PlanningTab } from './components/PlanningTab';
 
 import {
   Heart,
@@ -594,6 +595,7 @@ export default function App() {
   const [fsmRegionFilter, setFsmRegionFilter] = useState<string>('Tous');
   const [fsmTechFilter, setFsmTechFilter] = useState<string>('Tous');
   const [fsmPlannerFilter, setFsmPlannerFilter] = useState<string>('Tous');
+  const [fsmPlanningTechSidePane, setFsmPlanningTechSidePane] = useState<string>('');
   const [fsmTourDrafts, setFsmTourDrafts] = useState<Record<string, any>>({});
   const [savingTourIds, setSavingTourIds] = useState<Record<string, boolean>>({});
 
@@ -5441,6 +5443,90 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Dropdown system lookup pour consulter le planning d'un technicien */}
+                <div style={{ maxWidth: '98%', margin: '14px auto 0', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                  <div className="relative">
+                    <select
+                      value={fsmPlanningTechSidePane}
+                      onChange={(e) => setFsmPlanningTechSidePane(e.target.value)}
+                      className="bg-white text-black focus:outline-none cursor-pointer transition-all duration-150"
+                      style={{
+                        border: '1px solid #004ca0',
+                        borderRadius: '13px',
+                        padding: '9px 18px',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        color: '#004ca0',
+                        backgroundColor: '#ffffff',
+                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                        boxShadow: '0 2px 6px rgba(0, 76, 160, 0.08)',
+                      }}
+                    >
+                      <option value="">Consulter le planning de…</option>
+                      {(() => {
+                        const techList = members.filter(m => {
+                          const roleLower = (m.role || '').toLowerCase();
+                          return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
+                        }).map(m => m.name);
+                        const tourTechs = fsmTours.map((t: any) => t.techName).filter(Boolean);
+                        const allTechs = Array.from(new Set([...techList, ...tourTechs])).filter(name => name && name.trim() !== '');
+                        return allTechs.map(tech => (
+                          <option key={tech} value={tech}>
+                            Planning de {tech}
+                          </option>
+                        ));
+                      })()}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Side-pane popup pour le planning du technicien sélectionné */}
+                {fsmPlanningTechSidePane && (
+                  <div 
+                    className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-fadeIn"
+                    onClick={() => setFsmPlanningTechSidePane('')}
+                  >
+                    <div 
+                      className="relative w-full max-w-4xl h-full bg-white shadow-2xl flex flex-col z-50 overflow-hidden animate-slideLeft"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ borderLeft: '1px solid #e2e8f0' }}
+                    >
+                      {/* Header side-pane */}
+                      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-50">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+                          <h3 className="text-xl font-bold text-slate-800 font-sans">
+                            Planning de {fsmPlanningTechSidePane}
+                          </h3>
+                        </div>
+                        <button
+                          onClick={() => setFsmPlanningTechSidePane('')}
+                          className="p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-200 transition-colors cursor-pointer"
+                          title="Fermer"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      {/* Body side-pane : Vue Planning */}
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white">
+                        <PlanningTab
+                          companyInfo={companyInfo}
+                          fsmTours={fsmTours}
+                          authenticatedUser={authenticatedUser}
+                          defibrillateurs={defibrillateurs}
+                          otherEquipments={otherEquipments}
+                          clients={clients}
+                          variables={variables}
+                          members={members}
+                          t={translate}
+                          initialTech={fsmPlanningTechSidePane}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <HelpBubble 
                   cacheKey="help_dismissed_fsm" 

@@ -50,6 +50,14 @@ const toIsoDateStr = (rawDate?: string) => {
   return rawDate;
 };
 
+const getISOWeekNumber = (date: Date): number => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+};
+
 export const PlanningTab: React.FC<PlanningTabProps> = ({
   companyInfo,
   fsmTours = [],
@@ -113,18 +121,37 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
         dateObj.getFullYear() === today.getFullYear() &&
         dateObj.getMonth() === today.getMonth() &&
         dateObj.getDate() === today.getDate();
+      const weekNum = getISOWeekNumber(dateObj);
 
       daysArr.push({
         dayNum,
         dateObj,
         isoDate,
         dayName,
-        isToday
+        isToday,
+        weekNum
       });
     }
 
     return daysArr;
   }, [selectedYear, selectedMonth]);
+
+  // Group days into contiguous weeks
+  const weeksList = useMemo(() => {
+    const weeks: { weekNum: number; days: typeof daysInMonthList }[] = [];
+    daysInMonthList.forEach((day) => {
+      const lastWeek = weeks[weeks.length - 1];
+      if (lastWeek && lastWeek.weekNum === day.weekNum) {
+        lastWeek.days.push(day);
+      } else {
+        weeks.push({
+          weekNum: day.weekNum,
+          days: [day],
+        });
+      }
+    });
+    return weeks;
+  }, [daysInMonthList]);
 
   // Retrieve assigned missions
   const missionsByDate = useMemo(() => {
@@ -199,7 +226,6 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
           }}
         >
           <option value="">-- Sélectionner un technicien --</option>
-          <option value="Tous">{t("Tous les techniciens")}</option>
           {techniciansList.map((m) => (
             <option key={m.name} value={m.name}>
               {m.name}
@@ -234,251 +260,274 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
         </select>
       </div>
 
-      {/* Days List */}
+      {/* Days List grouped by week */}
       {selectedTech && selectedTech.trim() !== '' && (
-        <div className="space-y-4">
-          {daysInMonthList.map(({ dayNum, isoDate, dayName, isToday }) => {
-          // Absences
-          const matchingAbsences: { memberName: string; abs: MemberAbsence }[] = [];
-          const techsToCheck = selectedTech === 'Tous'
-            ? techniciansList
-            : (activeMember ? [activeMember] : []);
-
-          techsToCheck.forEach(m => {
-            if (m.absences && Array.isArray(m.absences)) {
-              m.absences.forEach(abs => {
-                if (abs.startDate && abs.endDate) {
-                  if (isoDate >= abs.startDate && isoDate <= abs.endDate) {
-                    matchingAbsences.push({ memberName: m.name, abs });
-                  }
-                }
-              });
-            }
-          });
-
-          // Semaine typique
-          const scheduleSlotsByTech: { memberName: string; schedule: MemberSchedule }[] = [];
-          techsToCheck.forEach(m => {
-            if (m.semaineTypique && Array.isArray(m.semaineTypique)) {
-              const sch = m.semaineTypique.find(s => s.days && s.days.includes(dayName));
-              if (sch) {
-                scheduleSlotsByTech.push({ memberName: m.name, schedule: sch });
-              }
-            }
-          });
-
-          // Missions
-          const dayMissions = missionsByDate[isoDate] || [];
-
-          return (
+        <div className="space-y-6">
+          {weeksList.map(({ weekNum, days }) => (
             <div
-              key={isoDate}
-              id={`calendar-day-${isoDate}`}
-              className="bg-white p-4 sm:p-5 space-y-4"
-              style={
-                isToday
-                  ? { border: "3px solid rgb(22, 93, 252)", borderRadius: "14px" }
-                  : { border: "1px solid rgb(201, 190, 205)", borderRadius: "14px" }
-              }
+              key={`week-${selectedYear}-${selectedMonth}-${weekNum}`}
+              className="p-3.5 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4"
             >
-              {/* Day Circle */}
-              <div className="flex items-center">
-                <div
-                  className="w-12 h-12 flex items-center justify-center font-bold text-[18px]"
-                  style={
-                    isToday
-                      ? { borderRadius: "25px", background: "#FD4EBB", color: "rgb(255, 255, 255)" }
-                      : { borderRadius: "25px", background: "rgb(255, 233, 247)", color: "rgb(253, 78, 187)" }
-                  }
+              {/* En-tête de la semaine avec gélule S1, S2... */}
+              <div className="flex items-center gap-2 px-1 pt-1">
+                <span
+                  className="inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-bold text-white shadow-xs"
+                  style={{ backgroundColor: '#000000', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}
                 >
-                  {dayNum}
-                </div>
+                  S{weekNum}
+                </span>
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Semaine {weekNum}
+                </span>
               </div>
 
-              {/* Schedules / Absences Plages */}
-              {matchingAbsences.map(({ abs }, aIdx) => (
-                <div
-                  key={`abs-${aIdx}`}
-                  className="bg-white p-3 space-y-2"
-                  style={{
-                    border: "1px solid rgb(201, 190, 205)",
-                    borderRadius: "14px",
-                  }}
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
-                      Indisponible
-                    </span>
-                  </div>
-                  {abs.commentaire && (
-                    <div className="text-[16px] text-slate-800">
-                      {abs.commentaire}
+              {/* Jours de la semaine */}
+              <div className="space-y-4">
+                {days.map(({ dayNum, isoDate, dayName, isToday }) => {
+                  // Absences
+                  const matchingAbsences: { memberName: string; abs: MemberAbsence }[] = [];
+                  const techsToCheck = selectedTech === 'Tous'
+                    ? techniciansList
+                    : (activeMember ? [activeMember] : []);
+
+                  techsToCheck.forEach(m => {
+                    if (m.absences && Array.isArray(m.absences)) {
+                      m.absences.forEach(abs => {
+                        if (abs.startDate && abs.endDate) {
+                          if (isoDate >= abs.startDate && isoDate <= abs.endDate) {
+                            matchingAbsences.push({ memberName: m.name, abs });
+                          }
+                        }
+                      });
+                    }
+                  });
+
+                  // Semaine typique
+                  const scheduleSlotsByTech: { memberName: string; schedule: MemberSchedule }[] = [];
+                  techsToCheck.forEach(m => {
+                    if (m.semaineTypique && Array.isArray(m.semaineTypique)) {
+                      const sch = m.semaineTypique.find(s => s.days && s.days.includes(dayName));
+                      if (sch) {
+                        scheduleSlotsByTech.push({ memberName: m.name, schedule: sch });
+                      }
+                    }
+                  });
+
+                  // Missions
+                  const dayMissions = missionsByDate[isoDate] || [];
+
+                  return (
+                    <div
+                      key={isoDate}
+                      id={`calendar-day-${isoDate}`}
+                      className="bg-white p-4 sm:p-5 space-y-4"
+                      style={
+                        isToday
+                          ? { border: "3px solid rgb(22, 93, 252)", borderRadius: "14px" }
+                          : { border: "1px solid rgb(201, 190, 205)", borderRadius: "14px" }
+                      }
+                    >
+                      {/* Day Circle */}
+                      <div className="flex items-center">
+                        <div
+                          className="w-12 h-12 flex items-center justify-center font-bold text-[18px]"
+                          style={
+                            isToday
+                              ? { borderRadius: "25px", background: "#FD4EBB", color: "rgb(255, 255, 255)" }
+                              : { borderRadius: "25px", background: "rgb(255, 233, 247)", color: "rgb(253, 78, 187)" }
+                          }
+                        >
+                          {dayNum}
+                        </div>
+                      </div>
+
+                      {/* Schedules / Absences Plages */}
+                      {matchingAbsences.map(({ abs }, aIdx) => (
+                        <div
+                          key={`abs-${aIdx}`}
+                          className="bg-white p-3 space-y-2"
+                          style={{
+                            border: "1px solid rgb(201, 190, 205)",
+                            borderRadius: "14px",
+                          }}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                              Indisponible
+                            </span>
+                          </div>
+                          {abs.commentaire && (
+                            <div className="text-[16px] text-slate-800">
+                              {abs.commentaire}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+
+                      {scheduleSlotsByTech.map(({ schedule }, sIdx) => {
+                        const slotText = schedule.fermetureMidi
+                          ? `${schedule.openMorning || '09:00'} - ${schedule.closeMorning || '12:00'} / ${schedule.openAfternoon || '14:00'} - ${schedule.closeAfternoon || '18:00'}`
+                          : `${schedule.openContinuous || '09:00'} - ${schedule.closeContinuous || '17:00'}`;
+
+                        return (
+                          <div
+                            key={`sch-${sIdx}`}
+                            className="bg-white p-3 space-y-2"
+                            style={{
+                              border: "1px solid rgb(201, 190, 205)",
+                              borderRadius: "14px",
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                                {slotText}
+                              </span>
+                            </div>
+                            {schedule.commentaire && (
+                              <div className="text-[16px] text-slate-800">
+                                {schedule.commentaire}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Missions */}
+                      {dayMissions.map(({ tour, mission }, mIdx) => {
+                        // Find associated equipment & client
+                        const defib = defibrillateurs.find(
+                          (d: any) =>
+                            d.identifiant === mission.defibIdentifiant ||
+                            d.id === mission.defibIdentifiant ||
+                            (mission.identifiant && d.identifiant === mission.identifiant) ||
+                            (mission.defibId && d.id === mission.defibId)
+                        );
+
+                        const other = otherEquipments.find(
+                          (o: any) =>
+                            o.identifiant === mission.defibIdentifiant ||
+                            o.id === mission.defibIdentifiant ||
+                            (mission.identifiant && o.identifiant === mission.identifiant) ||
+                            (mission.defibId && o.id === mission.defibId)
+                        );
+
+                        const clientObj = clients.find(
+                          c =>
+                            c.id === mission.clientId ||
+                            c.id === defib?.clientId ||
+                            c.id === other?.clientId ||
+                            (c.denomination && mission.clientDenomination && c.denomination.toLowerCase() === mission.clientDenomination.toLowerCase())
+                        );
+
+                        const tourTitle = tour.title || tour.name || 'Tournée';
+
+                        const clientName =
+                          mission.clientDenomination ||
+                          mission.client ||
+                          clientObj?.denomination ||
+                          mission.clientName ||
+                          defib?.exploitant ||
+                          defib?.nomPrenomSite ||
+                          '';
+
+                        const siteName =
+                          mission.site ||
+                          mission.siteName ||
+                          defib?.nomSite ||
+                          other?.nomSite ||
+                          defib?.nomPrenomSite ||
+                          '';
+
+                        const locationStr = (() => {
+                          if (mission.ville) {
+                            return `${mission.ville}${mission.codePostal ? ` (${mission.codePostal})` : ''}`;
+                          }
+                          if (defib) {
+                            const parts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
+                            if (parts.length > 0) return parts.join(', ');
+                          }
+                          if (other) {
+                            const parts = [other.numeroVoie, other.codePostal, other.ville].filter(Boolean);
+                            if (parts.length > 0) return parts.join(', ');
+                          }
+                          if (mission.address) return mission.address;
+                          if (clientObj) {
+                            const parts = [clientObj.adresse, clientObj.codePostal, clientObj.ville].filter(Boolean);
+                            if (parts.length > 0) return parts.join(', ');
+                          }
+                          return '';
+                        })();
+
+                        const equipType =
+                          mission.equipmentType ||
+                          (defib ? 'Défibrillateur' : (other ? other.categorie : 'Défibrillateur'));
+
+                        const identifiant =
+                          mission.defibIdentifiant ||
+                          mission.identifiant ||
+                          defib?.identifiant ||
+                          other?.identifiant ||
+                          '';
+
+                        const rawDateStr = mission.estimatedDate || mission.date || (tour.startDate !== 'A trier' ? tour.startDate : '');
+                        const dateVal = getFormattedDateFR(rawDateStr);
+                        const creneauVal = mission.estimatedSlot || mission.creneau || mission.estimatedTime || mission.time || '08:00';
+
+                        return (
+                          <div
+                            key={`m-${mIdx}`}
+                            className="bg-white p-4 space-y-3"
+                            style={{
+                              border: "1px solid rgb(201, 190, 205)",
+                              borderRadius: "14px",
+                            }}
+                          >
+                            {/* Gélules Date et Créneau */}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                                Date : {dateVal}
+                              </span>
+                              <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                                Créneau : {creneauVal}
+                              </span>
+                            </div>
+
+                            {/* Details */}
+                            <div className="space-y-1.5 text-[16px] text-slate-800">
+                              <div>
+                                <span className="font-bold">Tournée : </span>
+                                <span>{tourTitle}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold">Client : </span>
+                                <span>{clientName}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold">Site : </span>
+                                <span>{siteName}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold">Localisation : </span>
+                                <span>{locationStr}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold">Type de matériel : </span>
+                                <span>{equipType}</span>
+                              </div>
+                              <div>
+                                <span className="font-bold">Identifiant : </span>
+                                <span>{identifiant}</span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
-              ))}
-
-              {scheduleSlotsByTech.map(({ schedule }, sIdx) => {
-                const slotText = schedule.fermetureMidi
-                  ? `${schedule.openMorning || '09:00'} - ${schedule.closeMorning || '12:00'} / ${schedule.openAfternoon || '14:00'} - ${schedule.closeAfternoon || '18:00'}`
-                  : `${schedule.openContinuous || '09:00'} - ${schedule.closeContinuous || '17:00'}`;
-
-                return (
-                  <div
-                    key={`sch-${sIdx}`}
-                    className="bg-white p-3 space-y-2"
-                    style={{
-                      border: "1px solid rgb(201, 190, 205)",
-                      borderRadius: "14px",
-                    }}
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
-                        {slotText}
-                      </span>
-                    </div>
-                    {schedule.commentaire && (
-                      <div className="text-[16px] text-slate-800">
-                        {schedule.commentaire}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* Missions */}
-              {dayMissions.map(({ tour, mission }, mIdx) => {
-                // Find associated equipment & client
-                const defib = defibrillateurs.find(
-                  (d: any) =>
-                    d.identifiant === mission.defibIdentifiant ||
-                    d.id === mission.defibIdentifiant ||
-                    (mission.identifiant && d.identifiant === mission.identifiant) ||
-                    (mission.defibId && d.id === mission.defibId)
-                );
-
-                const other = otherEquipments.find(
-                  (o: any) =>
-                    o.identifiant === mission.defibIdentifiant ||
-                    o.id === mission.defibIdentifiant ||
-                    (mission.identifiant && o.identifiant === mission.identifiant) ||
-                    (mission.defibId && o.id === mission.defibId)
-                );
-
-                const clientObj = clients.find(
-                  c =>
-                    c.id === mission.clientId ||
-                    c.id === defib?.clientId ||
-                    c.id === other?.clientId ||
-                    (c.denomination && mission.clientDenomination && c.denomination.toLowerCase() === mission.clientDenomination.toLowerCase())
-                );
-
-                const tourTitle = tour.title || tour.name || 'Tournée';
-
-                const clientName =
-                  mission.clientDenomination ||
-                  mission.client ||
-                  clientObj?.denomination ||
-                  mission.clientName ||
-                  defib?.exploitant ||
-                  defib?.nomPrenomSite ||
-                  '';
-
-                const siteName =
-                  mission.site ||
-                  mission.siteName ||
-                  defib?.nomSite ||
-                  other?.nomSite ||
-                  defib?.nomPrenomSite ||
-                  '';
-
-                const locationStr = (() => {
-                  if (mission.ville) {
-                    return `${mission.ville}${mission.codePostal ? ` (${mission.codePostal})` : ''}`;
-                  }
-                  if (defib) {
-                    const parts = [defib.numVoie, defib.cp, defib.ville].filter(Boolean);
-                    if (parts.length > 0) return parts.join(', ');
-                  }
-                  if (other) {
-                    const parts = [other.numeroVoie, other.codePostal, other.ville].filter(Boolean);
-                    if (parts.length > 0) return parts.join(', ');
-                  }
-                  if (mission.address) return mission.address;
-                  if (clientObj) {
-                    const parts = [clientObj.adresse, clientObj.codePostal, clientObj.ville].filter(Boolean);
-                    if (parts.length > 0) return parts.join(', ');
-                  }
-                  return '';
-                })();
-
-                const equipType =
-                  mission.equipmentType ||
-                  (defib ? 'Défibrillateur' : (other ? other.categorie : 'Défibrillateur'));
-
-                const identifiant =
-                  mission.defibIdentifiant ||
-                  mission.identifiant ||
-                  defib?.identifiant ||
-                  other?.identifiant ||
-                  '';
-
-                const rawDateStr = mission.estimatedDate || mission.date || (tour.startDate !== 'A trier' ? tour.startDate : '');
-                const dateVal = getFormattedDateFR(rawDateStr);
-                const creneauVal = mission.estimatedSlot || mission.creneau || mission.estimatedTime || mission.time || '08:00';
-
-                return (
-                  <div
-                    key={`m-${mIdx}`}
-                    className="bg-white p-4 space-y-3"
-                    style={{
-                      border: "1px solid rgb(201, 190, 205)",
-                      borderRadius: "14px",
-                    }}
-                  >
-                    {/* Gélules Date et Créneau */}
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
-                        Date : {dateVal}
-                      </span>
-                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
-                        Créneau : {creneauVal}
-                      </span>
-                    </div>
-
-                    {/* Details */}
-                    <div className="space-y-1.5 text-[16px] text-slate-800">
-                      <div>
-                        <span className="font-bold">Tournée : </span>
-                        <span>{tourTitle}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold">Client : </span>
-                        <span>{clientName}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold">Site : </span>
-                        <span>{siteName}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold">Localisation : </span>
-                        <span>{locationStr}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold">Type de matériel : </span>
-                        <span>{equipType}</span>
-                      </div>
-                      <div>
-                        <span className="font-bold">Identifiant : </span>
-                        <span>{identifiant}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          );
-        })}
+          ))}
         </div>
       )}
     </div>

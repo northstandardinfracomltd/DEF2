@@ -49,13 +49,17 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth());
   const [selectedTech, setSelectedTech] = useState<string>('Tous');
 
-  // List of members / technicians
-  const membersList = useMemo(() => {
-    if (members && members.length > 0) return members;
-    return companyInfo?.members || [];
+  // List of technician members only
+  const techniciansList = useMemo(() => {
+    const all = members && members.length > 0 ? members : (companyInfo?.members || []);
+    const techOnly = all.filter(m => {
+      const r = (m.role || '').toLowerCase();
+      return r.includes('tech') || r.includes('technicien');
+    });
+    return techOnly.length > 0 ? techOnly : all;
   }, [members, companyInfo]);
 
-  // Set default technician if authenticatedUser matches
+  // Default selected technician
   useEffect(() => {
     if (authenticatedUser?.name) {
       setSelectedTech(authenticatedUser.name);
@@ -67,9 +71,9 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
     if (selectedTech === 'Tous') {
       return authenticatedUser || null;
     }
-    const found = membersList.find(m => m.name.trim().toLowerCase() === selectedTech.trim().toLowerCase());
+    const found = techniciansList.find(m => m.name.trim().toLowerCase() === selectedTech.trim().toLowerCase());
     return found || authenticatedUser || null;
-  }, [selectedTech, membersList, authenticatedUser]);
+  }, [selectedTech, techniciansList, authenticatedUser]);
 
   // Days list for selected month/year
   const daysInMonthList = useMemo(() => {
@@ -145,43 +149,58 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   }, [selectedMonth, selectedYear]);
 
   return (
-    <div className="space-y-6 pb-12 font-sans" id="planning-tab-wrapper">
-      {/* Top Header Div: 2 full-width select fields */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 border border-slate-200 space-y-4">
-        <div className="space-y-2 w-full">
-          <label className="block font-bold text-[18px] text-slate-800">
-            {t("Technicien")}
-          </label>
-          <select
-            value={selectedTech}
-            onChange={(e) => setSelectedTech(e.target.value)}
-            className="w-full p-3.5 text-[16px] font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-          >
-            <option value="Tous">{t("Tous les techniciens")}</option>
-            {membersList.map((m) => (
-              <option key={m.name} value={m.name}>
-                {m.name} {m.role ? `(${m.role})` : ''}
-              </option>
-            ))}
-          </select>
-        </div>
+    <div className="space-y-4 font-sans pb-12" id="planning-tab-wrapper">
+      {/* Field Technicien - Styled identical to Interventions dropdown */}
+      <div className="px-1 select-none">
+        <select
+          value={selectedTech}
+          onChange={(e) => setSelectedTech(e.target.value)}
+          className="w-full bg-white text-black appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center cursor-pointer"
+          style={{
+            border: "1px solid rgb(201, 190, 205)",
+            borderRadius: "14px",
+            padding: "14px 20px",
+            fontSize: "18px",
+            fontWeight: "bold",
+            boxShadow: "none",
+            outline: "none",
+            textAlign: "center",
+            textAlignLast: "center",
+          }}
+        >
+          <option value="Tous">{t("Tous les techniciens")}</option>
+          {techniciansList.map((m) => (
+            <option key={m.name} value={m.name}>
+              {m.name}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        <div className="space-y-2 w-full">
-          <label className="block font-bold text-[18px] text-slate-800">
-            {t("Mois")}
-          </label>
-          <select
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(Number(e.target.value))}
-            className="w-full p-3.5 text-[16px] font-medium bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden cursor-pointer"
-          >
-            {MONTH_NAMES_FR.map((monthName, idx) => (
-              <option key={monthName} value={idx}>
-                {monthName} {selectedYear}
-              </option>
-            ))}
-          </select>
-        </div>
+      {/* Field Mois - Styled identical to Interventions dropdown */}
+      <div className="px-1 select-none pb-2">
+        <select
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(Number(e.target.value))}
+          className="w-full bg-white text-black appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center cursor-pointer"
+          style={{
+            border: "1px solid rgb(201, 190, 205)",
+            borderRadius: "14px",
+            padding: "14px 20px",
+            fontSize: "18px",
+            fontWeight: "bold",
+            boxShadow: "none",
+            outline: "none",
+            textAlign: "center",
+            textAlignLast: "center",
+          }}
+        >
+          {MONTH_NAMES_FR.map((monthName, idx) => (
+            <option key={monthName} value={idx}>
+              {monthName} {selectedYear}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Days List */}
@@ -190,7 +209,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
           // Absences
           const matchingAbsences: { memberName: string; abs: MemberAbsence }[] = [];
           const techsToCheck = selectedTech === 'Tous'
-            ? membersList
+            ? techniciansList
             : (activeMember ? [activeMember] : []);
 
           techsToCheck.forEach(m => {
@@ -223,7 +242,11 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
             <div
               key={isoDate}
               id={`calendar-day-${isoDate}`}
-              className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 space-y-4"
+              className="bg-white p-4 sm:p-5 space-y-4"
+              style={{
+                border: "1px solid rgb(201, 190, 205)",
+                borderRadius: "14px",
+              }}
             >
               {/* Day Circle */}
               <div className="flex items-center">
@@ -238,90 +261,121 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
                 </div>
               </div>
 
-              {/* Schedules / Absences Comments */}
-              {matchingAbsences.map(({ abs }, aIdx) => {
-                const text = abs.commentaire || t("Période d'indisponibilité");
-                return (
-                  <div key={`abs-${aIdx}`} className="bg-slate-50 rounded-xl p-3 text-[16px] text-slate-800">
-                    {text}
+              {/* Schedules / Absences Plages */}
+              {matchingAbsences.map(({ abs }, aIdx) => (
+                <div
+                  key={`abs-${aIdx}`}
+                  className="bg-slate-50 p-3 space-y-2"
+                  style={{
+                    border: "1px solid rgb(201, 190, 205)",
+                    borderRadius: "14px",
+                  }}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                      Indisponible
+                    </span>
                   </div>
-                );
-              })}
+                  {abs.commentaire && (
+                    <div className="text-[16px] text-slate-800">
+                      {abs.commentaire}
+                    </div>
+                  )}
+                </div>
+              ))}
 
               {scheduleSlotsByTech.map(({ schedule }, sIdx) => {
-                const text = schedule.commentaire || (schedule.fermetureMidi ? `${schedule.openMorning || '09:00'} - ${schedule.closeMorning || '12:00'} / ${schedule.openAfternoon || '14:00'} - ${schedule.closeAfternoon || '18:00'}` : `${schedule.openContinuous || '09:00'} - ${schedule.closeContinuous || '17:00'}`);
+                const slotText = schedule.fermetureMidi
+                  ? `${schedule.openMorning || '09:00'} - ${schedule.closeMorning || '12:00'} / ${schedule.openAfternoon || '14:00'} - ${schedule.closeAfternoon || '18:00'}`
+                  : `${schedule.openContinuous || '09:00'} - ${schedule.closeContinuous || '17:00'}`;
+
                 return (
-                  <div key={`sch-${sIdx}`} className="bg-slate-50 rounded-xl p-3 text-[16px] text-slate-800">
-                    {text}
+                  <div
+                    key={`sch-${sIdx}`}
+                    className="bg-slate-50 p-3 space-y-2"
+                    style={{
+                      border: "1px solid rgb(201, 190, 205)",
+                      borderRadius: "14px",
+                    }}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                        {slotText}
+                      </span>
+                    </div>
+                    {schedule.commentaire && (
+                      <div className="text-[16px] text-slate-800">
+                        {schedule.commentaire}
+                      </div>
+                    )}
                   </div>
                 );
               })}
 
               {/* Missions */}
               {dayMissions.map(({ tour, mission }, mIdx) => {
-                const clientObj = clients.find(c => c.id === mission.clientId || c.denomination === mission.clientDenomination);
+                const clientObj = clients.find(
+                  c => c.id === mission.clientId || c.denomination === mission.clientDenomination
+                );
 
-                const dateEst = getFormattedDateFR(mission.estimatedDate || (tour.startDate !== 'A trier' ? tour.startDate : ''));
-                const creneauEst = mission.estimatedSlot || mission.creneau || '08:00';
+                const dateVal = getFormattedDateFR(
+                  mission.estimatedDate || (tour.startDate !== 'A trier' ? tour.startDate : '')
+                );
+                const creneauVal = mission.estimatedSlot || mission.creneau || mission.estimatedTime || '08:00';
 
                 const clientName = mission.clientDenomination || mission.client || clientObj?.denomination || '';
                 const siteName = mission.site || mission.siteName || '';
 
                 const ville = mission.ville || clientObj?.ville || '';
                 const cp = mission.codePostal || clientObj?.codePostal || '';
-                const locationStr = ville ? `${ville} (${cp})` : (mission.address || clientObj?.adresse || '');
+                const locationStr = ville
+                  ? `${ville}${cp ? ` (${cp})` : ''}`
+                  : (mission.address || clientObj?.adresse || '');
 
                 const equipType = mission.equipmentType || 'Défibrillateur';
                 const identifiant = mission.defibIdentifiant || mission.identifiant || '';
 
                 return (
-                  <div key={`m-${mIdx}`} className="bg-slate-50 rounded-xl p-4 space-y-3">
+                  <div
+                    key={`m-${mIdx}`}
+                    className="bg-slate-50 p-4 space-y-3"
+                    style={{
+                      border: "1px solid rgb(201, 190, 205)",
+                      borderRadius: "14px",
+                    }}
+                  >
                     {/* Gélules Date et Créneau */}
                     <div className="flex flex-wrap items-center gap-2">
-                      {dateEst && (
-                        <span className="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-800 font-medium text-[16px]">
-                          Date estimée : {dateEst}
-                        </span>
-                      )}
-                      {creneauEst && (
-                        <span className="px-3.5 py-1.5 rounded-full bg-white border border-slate-200 text-slate-800 font-medium text-[16px]">
-                          Créneau estimé : {creneauEst}
-                        </span>
-                      )}
+                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                        Date : {dateVal}
+                      </span>
+                      <span className="px-3.5 py-1.5 rounded-full bg-black text-white font-medium text-[16px]">
+                        Créneau : {creneauVal}
+                      </span>
                     </div>
 
-                    {/* Mission Details */}
+                    {/* Details */}
                     <div className="space-y-1.5 text-[16px] text-slate-800">
-                      {clientName && (
-                        <div>
-                          <span className="font-bold">Client : </span>
-                          <span>{clientName}</span>
-                        </div>
-                      )}
-                      {siteName && (
-                        <div>
-                          <span className="font-bold">Nom du site : </span>
-                          <span>{siteName}</span>
-                        </div>
-                      )}
-                      {locationStr && (
-                        <div>
-                          <span className="font-bold">Localisation : </span>
-                          <span>{locationStr}</span>
-                        </div>
-                      )}
-                      {equipType && (
-                        <div>
-                          <span className="font-bold">Type de matériel : </span>
-                          <span>{equipType}</span>
-                        </div>
-                      )}
-                      {identifiant && (
-                        <div>
-                          <span className="font-bold">Identifiant : </span>
-                          <span>{identifiant}</span>
-                        </div>
-                      )}
+                      <div>
+                        <span className="font-bold">Client : </span>
+                        <span>{clientName}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold">Site : </span>
+                        <span>{siteName}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold">Localisation : </span>
+                        <span>{locationStr}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold">Type de matériel : </span>
+                        <span>{equipType}</span>
+                      </div>
+                      <div>
+                        <span className="font-bold">Identifiant : </span>
+                        <span>{identifiant}</span>
+                      </div>
                     </div>
                   </div>
                 );

@@ -65,7 +65,9 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   const today = new Date();
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth());
-  const [selectedTech, setSelectedTech] = useState<string>(initialTech || 'Tous');
+  const [selectedTech, setSelectedTech] = useState<string>(
+    initialTech !== undefined ? initialTech : (authenticatedUser?.name || 'Tous')
+  );
 
   // List of technician members only
   const techniciansList = useMemo(() => {
@@ -79,7 +81,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
   // Default selected technician
   useEffect(() => {
-    if (initialTech) {
+    if (initialTech !== undefined) {
       setSelectedTech(initialTech);
     } else if (authenticatedUser?.name) {
       setSelectedTech(authenticatedUser.name);
@@ -127,6 +129,10 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   // Retrieve assigned missions
   const missionsByDate = useMemo(() => {
     const map: Record<string, { tour: any; mission: any }[]> = {};
+
+    if (!selectedTech || selectedTech.trim() === '') {
+      return map;
+    }
 
     fsmTours.forEach(tour => {
       if (selectedTech !== 'Tous') {
@@ -192,6 +198,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
             textAlignLast: "center",
           }}
         >
+          <option value="">-- Sélectionner un technicien --</option>
           <option value="Tous">{t("Tous les techniciens")}</option>
           {techniciansList.map((m) => (
             <option key={m.name} value={m.name}>

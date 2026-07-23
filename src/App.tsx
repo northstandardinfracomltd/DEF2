@@ -595,7 +595,7 @@ export default function App() {
   const [fsmRegionFilter, setFsmRegionFilter] = useState<string>('Tous');
   const [fsmTechFilter, setFsmTechFilter] = useState<string>('Tous');
   const [fsmPlannerFilter, setFsmPlannerFilter] = useState<string>('Tous');
-  const [fsmPlanningTechSidePane, setFsmPlanningTechSidePane] = useState<string>('');
+  const [fsmPlanningSidePaneOpen, setFsmPlanningSidePaneOpen] = useState<boolean>(false);
   const [fsmTourDrafts, setFsmTourDrafts] = useState<Record<string, any>>({});
   const [savingTourIds, setSavingTourIds] = useState<Record<string, boolean>>({});
 
@@ -5318,9 +5318,9 @@ export default function App() {
                       <h2 className="text-2xl font-bold tracking-tight font-gochi" style={{ color: '#000000', cursor: 'default' }} id="fsm-tab-title">FSM</h2>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {/* Field recherche (Search input) */}
-                      <div className="relative w-full sm:w-56">
+                      <div className="relative w-full sm:w-40">
                         <input
                           type="text"
                           id="search-fsm-input"
@@ -5331,8 +5331,8 @@ export default function App() {
                           style={{
                             border: '1px solid #dedede',
                             borderRadius: '13px',
-                            padding: '9px 19px',
-                            fontSize: '18px',
+                            padding: '9px 14px',
+                            fontSize: '15px',
                             fontWeight: '100',
                             color: '#000000',
                             backgroundColor: '#ffffff',
@@ -5344,7 +5344,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Région */}
-                      <div className="relative w-full sm:w-48">
+                      <div className="relative w-full sm:w-36">
                         <select
                           value={fsmRegionFilter}
                           onChange={(e) => setFsmRegionFilter(e.target.value)}
@@ -5352,8 +5352,8 @@ export default function App() {
                           style={{
                             border: '1px solid #dedede',
                             borderRadius: '13px',
-                            padding: '9px 14px',
-                            fontSize: '15px',
+                            padding: '9px 12px',
+                            fontSize: '14px',
                             fontWeight: '100',
                             color: '#000000',
                             backgroundColor: '#ffffff',
@@ -5368,7 +5368,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Technicien */}
-                      <div className="relative w-full sm:w-48">
+                      <div className="relative w-full sm:w-36">
                         <select
                           value={fsmTechFilter}
                           onChange={(e) => setFsmTechFilter(e.target.value)}
@@ -5376,8 +5376,8 @@ export default function App() {
                           style={{
                             border: '1px solid #dedede',
                             borderRadius: '13px',
-                            padding: '9px 14px',
-                            fontSize: '15px',
+                            padding: '9px 12px',
+                            fontSize: '14px',
                             fontWeight: '100',
                             color: '#000000',
                             backgroundColor: '#ffffff',
@@ -5400,7 +5400,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Employé */}
-                      <div className="relative w-full sm:w-48">
+                      <div className="relative w-full sm:w-36">
                         <select
                           value={fsmPlannerFilter}
                           onChange={(e) => setFsmPlannerFilter(e.target.value)}
@@ -5408,8 +5408,8 @@ export default function App() {
                           style={{
                             border: '1px solid #dedede',
                             borderRadius: '13px',
-                            padding: '9px 14px',
-                            fontSize: '15px',
+                            padding: '9px 12px',
+                            fontSize: '14px',
                             fontWeight: '100',
                             color: '#000000',
                             backgroundColor: '#ffffff',
@@ -5439,76 +5439,40 @@ export default function App() {
                         >
                           Nouvelle tournée
                         </button>
+                        <button
+                          onClick={() => setFsmPlanningSidePaneOpen(true)}
+                          id="btn-fsm-plannings"
+                          style={{
+                            backgroundColor: '#000000',
+                            color: '#ffffff',
+                            borderRadius: '13px',
+                            padding: '9px 18px',
+                            fontSize: '15px',
+                            fontWeight: '600',
+                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                            cursor: 'pointer',
+                            boxShadow: '0 2px 6px rgba(0, 0, 0, 0.12)',
+                          }}
+                          className="hover:bg-neutral-800 transition-colors"
+                        >
+                          Plannings
+                        </button>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Dropdown system lookup pour consulter le planning d'un technicien */}
-                <div style={{ maxWidth: '98%', margin: '14px auto 0', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                  <div className="relative">
-                    <select
-                      value={fsmPlanningTechSidePane}
-                      onChange={(e) => setFsmPlanningTechSidePane(e.target.value)}
-                      className="bg-white text-black focus:outline-none cursor-pointer transition-all duration-150"
-                      style={{
-                        border: '1px solid #004ca0',
-                        borderRadius: '13px',
-                        padding: '9px 18px',
-                        fontSize: '15px',
-                        fontWeight: '600',
-                        color: '#004ca0',
-                        backgroundColor: '#ffffff',
-                        fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                        boxShadow: '0 2px 6px rgba(0, 76, 160, 0.08)',
-                      }}
-                    >
-                      <option value="">Consulter le planning de…</option>
-                      {(() => {
-                        const techList = members.filter(m => {
-                          const roleLower = (m.role || '').toLowerCase();
-                          return roleLower.includes('tech') || roleLower.includes('maintenance') || roleLower.includes('terrain');
-                        }).map(m => m.name);
-                        const tourTechs = fsmTours.map((t: any) => t.techName).filter(Boolean);
-                        const allTechs = Array.from(new Set([...techList, ...tourTechs])).filter(name => name && name.trim() !== '');
-                        return allTechs.map(tech => (
-                          <option key={tech} value={tech}>
-                            Planning de {tech}
-                          </option>
-                        ));
-                      })()}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Side-pane popup pour le planning du technicien sélectionné */}
-                {fsmPlanningTechSidePane && (
+                {/* Side-pane popup pour le planning */}
+                {fsmPlanningSidePaneOpen && (
                   <div 
-                    className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs animate-fadeIn"
-                    onClick={() => setFsmPlanningTechSidePane('')}
+                    className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-xs animate-fadeIn"
+                    onClick={() => setFsmPlanningSidePaneOpen(false)}
                   >
                     <div 
-                      className="relative w-full max-w-4xl h-full bg-white shadow-2xl flex flex-col z-50 overflow-hidden animate-slideLeft"
+                      className="fixed top-0 bottom-0 right-0 z-[9999] w-full max-w-4xl h-full bg-white shadow-2xl flex flex-col overflow-hidden animate-slideLeft"
                       onClick={(e) => e.stopPropagation()}
                       style={{ borderLeft: '1px solid #e2e8f0' }}
                     >
-                      {/* Header side-pane */}
-                      <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-slate-50">
-                        <div className="flex items-center gap-3">
-                          <div className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
-                          <h3 className="text-xl font-bold text-slate-800 font-sans">
-                            Planning de {fsmPlanningTechSidePane}
-                          </h3>
-                        </div>
-                        <button
-                          onClick={() => setFsmPlanningTechSidePane('')}
-                          className="p-2 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-200 transition-colors cursor-pointer"
-                          title="Fermer"
-                        >
-                          <X className="w-6 h-6" />
-                        </button>
-                      </div>
-
                       {/* Body side-pane : Vue Planning */}
                       <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white">
                         <PlanningTab
@@ -5521,8 +5485,18 @@ export default function App() {
                           variables={variables}
                           members={members}
                           t={translate}
-                          initialTech={fsmPlanningTechSidePane}
+                          initialTech=""
                         />
+                      </div>
+
+                      {/* Bouton noir full width Fermer au bas de la side-pane */}
+                      <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
+                        <button
+                          onClick={() => setFsmPlanningSidePaneOpen(false)}
+                          className="w-full bg-black hover:bg-neutral-800 text-white font-semibold py-3.5 px-4 rounded-xl transition-colors cursor-pointer text-base shadow-sm"
+                        >
+                          Fermer
+                        </button>
                       </div>
                     </div>
                   </div>

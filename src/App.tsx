@@ -5320,19 +5320,19 @@ export default function App() {
 
                     <div className="flex flex-wrap items-center gap-2.5">
                       {/* Field recherche (Search input) */}
-                      <div className="relative w-full sm:w-40">
+                      <div className="relative w-full sm:w-48">
                         <input
                           type="text"
                           id="search-fsm-input"
                           value={fsmSearchQuery}
                           onChange={(e) => setFsmSearchQuery(e.target.value)}
                           placeholder="Recherche."
-                          className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none"
+                          className="w-full text-black placeholder-[#747474] placeholder:font-light outline-none placeholder:text-[18px]"
                           style={{
                             border: '1px solid #dedede',
                             borderRadius: '13px',
                             padding: '9px 14px',
-                            fontSize: '15px',
+                            fontSize: '18px',
                             fontWeight: '100',
                             color: '#000000',
                             backgroundColor: '#ffffff',
@@ -5344,7 +5344,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Région */}
-                      <div className="relative w-full sm:w-36">
+                      <div className="relative w-full sm:w-44">
                         <select
                           value={fsmRegionFilter}
                           onChange={(e) => setFsmRegionFilter(e.target.value)}
@@ -5368,7 +5368,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Technicien */}
-                      <div className="relative w-full sm:w-36">
+                      <div className="relative w-full sm:w-44">
                         <select
                           value={fsmTechFilter}
                           onChange={(e) => setFsmTechFilter(e.target.value)}
@@ -5400,7 +5400,7 @@ export default function App() {
                       </div>
 
                       {/* Filter: Employé */}
-                      <div className="relative w-full sm:w-36">
+                      <div className="relative w-full sm:w-44">
                         <select
                           value={fsmPlannerFilter}
                           onChange={(e) => setFsmPlannerFilter(e.target.value)}
@@ -5447,7 +5447,7 @@ export default function App() {
                             color: '#ffffff',
                             borderRadius: '13px',
                             padding: '9px 18px',
-                            fontSize: '15px',
+                            fontSize: '18px',
                             fontWeight: '600',
                             fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
                             cursor: 'pointer',
@@ -5469,12 +5469,17 @@ export default function App() {
                     onClick={() => setFsmPlanningSidePaneOpen(false)}
                   >
                     <div 
-                      className="fixed top-0 bottom-0 right-0 z-[9999] w-full max-w-4xl h-full bg-white shadow-2xl flex flex-col overflow-hidden animate-slideLeft"
+                      className="relative w-full max-w-4xl bg-white flex flex-col overflow-hidden animate-slideLeft"
                       onClick={(e) => e.stopPropagation()}
-                      style={{ borderLeft: '1px solid #e2e8f0' }}
+                      style={{
+                        height: '100vh',
+                        boxShadow: 'none',
+                        borderRadius: '16px 0px 0px 16px',
+                        borderLeft: '1px solid #e2e8f0',
+                      }}
                     >
                       {/* Body side-pane : Vue Planning */}
-                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white">
+                      <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white pb-28">
                         <PlanningTab
                           companyInfo={companyInfo}
                           fsmTours={fsmTours}
@@ -5489,15 +5494,30 @@ export default function App() {
                         />
                       </div>
 
-                      {/* Bouton noir full width Fermer au bas de la side-pane */}
-                      <div className="p-4 bg-white border-t border-gray-100 flex-shrink-0">
-                        <button
-                          onClick={() => setFsmPlanningSidePaneOpen(false)}
-                          className="w-full bg-black hover:bg-neutral-800 text-white font-semibold py-3.5 px-4 rounded-xl transition-colors cursor-pointer text-base shadow-sm"
-                        >
-                          Fermer
-                        </button>
-                      </div>
+                      {/* Bouton noir floating full width Fermer */}
+                      <button
+                        onClick={() => setFsmPlanningSidePaneOpen(false)}
+                        style={{
+                          position: 'absolute',
+                          bottom: '16px',
+                          left: '16px',
+                          right: '16px',
+                          width: 'calc(100% - 32px)',
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          fontSize: '18px',
+                          fontWeight: '600',
+                          padding: '14px 20px',
+                          borderRadius: '12px',
+                          cursor: 'pointer',
+                          zIndex: 50,
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.18)',
+                          border: 'none',
+                        }}
+                        className="hover:bg-neutral-800 transition-colors"
+                      >
+                        Fermer
+                      </button>
                     </div>
                   </div>
                 )}

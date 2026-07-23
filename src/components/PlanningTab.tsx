@@ -235,8 +235,9 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
       </div>
 
       {/* Days List */}
-      <div className="space-y-4">
-        {daysInMonthList.map(({ dayNum, isoDate, dayName, isToday }) => {
+      {selectedTech && selectedTech.trim() !== '' && (
+        <div className="space-y-4">
+          {daysInMonthList.map(({ dayNum, isoDate, dayName, isToday }) => {
           // Absences
           const matchingAbsences: { memberName: string; abs: MemberAbsence }[] = [];
           const techsToCheck = selectedTech === 'Tous'
@@ -478,7 +479,8 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
             </div>
           );
         })}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

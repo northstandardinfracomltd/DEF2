@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { t } from '../utils/translate';
-import { Variable, StockRecord, DistributedStockLocation } from '../types';
+import { Variable, StockRecord, DistributedStockLocation, Member } from '../types';
 import { getLocationCustomName } from '../utils';
 
 const CODE39_MAP: Record<string, string> = {
@@ -102,6 +102,7 @@ interface StocksDistribuesTabProps {
   stocks: StockRecord[];
   saveStocks?: (updated: StockRecord[]) => void;
   variables: Variable[];
+  members?: Member[];
   fsmTours?: any[];
   searchQuery?: string;
   setSearchQuery?: (q: string) => void;
@@ -114,6 +115,7 @@ export default function StocksDistribuesTab({
   stocks = [],
   saveStocks,
   variables = [],
+  members = [],
   fsmTours = [],
   searchQuery: externalSearchQuery,
   setSearchQuery: externalSetSearchQuery,
@@ -707,9 +709,14 @@ export default function StocksDistribuesTab({
                         style={{ minHeight: '36px' }}
                       >
                         <option value="" disabled hidden>Choisir l'emplacement</option>
-                        {ALL_LOCATIONS.map(loc => (
-                          <option key={loc} value={loc}>{getLocationCustomName(loc)}</option>
-                        ))}
+                        {ALL_LOCATIONS.map(loc => {
+                          const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
+                          const customName = getLocationCustomName(loc);
+                          const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                          return (
+                            <option key={loc} value={loc}>{label}</option>
+                          );
+                        })}
                       </select>
                     </div>
                   )}
@@ -754,7 +761,11 @@ export default function StocksDistribuesTab({
                   }}
                   className="transition-all"
                 >
-                  {loc === 'Tous' ? loc : getLocationCustomName(loc)} ({count})
+                  {loc === 'Tous' ? loc : (() => {
+                    const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
+                    const customName = getLocationCustomName(loc);
+                    return assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                  })()} ({count})
                 </button>
               );
             })}
@@ -861,7 +872,11 @@ export default function StocksDistribuesTab({
                                 fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
                               }}
                             >
-                              {getLocationCustomName(item.locationName)}
+                              {(() => {
+                                const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === item.locationName);
+                                const customName = getLocationCustomName(item.locationName);
+                                return assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                              })()}
                             </span>
                           </td>
                           {/* Qté disponible */}
@@ -1067,9 +1082,14 @@ export default function StocksDistribuesTab({
                     className="w-full bg-white text-black cursor-pointer"
                     required
                   >
-                    {ALL_LOCATIONS.map(loc => (
-                      <option key={loc} value={loc}>{getLocationCustomName(loc)}</option>
-                    ))}
+                    {ALL_LOCATIONS.map(loc => {
+                      const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
+                      const customName = getLocationCustomName(loc);
+                      const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                      return (
+                        <option key={loc} value={loc}>{label}</option>
+                      );
+                    })}
                   </select>
                 </div>
               </div>

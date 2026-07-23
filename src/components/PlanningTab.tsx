@@ -208,7 +208,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   return (
     <div className="space-y-4 font-sans pb-12" id="planning-tab-wrapper">
       {/* Field Technicien */}
-      <div className="px-1 select-none">
+      <div className="px-0 select-none">
         <select
           value={selectedTech}
           onChange={(e) => setSelectedTech(e.target.value)}
@@ -216,7 +216,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
           style={{
             border: "1px solid rgb(201, 190, 205)",
             borderRadius: "14px",
-            padding: "14px 20px",
+            padding: "14px 12px",
             fontSize: "18px",
             fontWeight: "bold",
             boxShadow: "none",
@@ -235,7 +235,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
       </div>
 
       {/* Field Mois */}
-      <div className="px-1 select-none pb-2">
+      <div className="px-0 select-none pb-2">
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(Number(e.target.value))}
@@ -243,7 +243,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
           style={{
             border: "1px solid rgb(201, 190, 205)",
             borderRadius: "14px",
-            padding: "14px 20px",
+            padding: "14px 12px",
             fontSize: "18px",
             fontWeight: "bold",
             boxShadow: "none",

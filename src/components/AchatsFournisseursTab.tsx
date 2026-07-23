@@ -591,7 +591,7 @@ export default function AchatsFournisseursTab({
                     <option value="">{t("Sélection d'un fournisseur.")}</option>
                     {supplierVariables.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.nom} {s.marque ? `(${s.marque})` : ''}
+                        {s.nom}
                       </option>
                     ))}
                   </select>

@@ -7684,7 +7684,7 @@ export default function PublicPortal({
               {/* ----------------- TAB: PLANNING ----------------- */}
               {activeTab === "planning" && (
                 <div
-                  className="space-y-4 pb-16 animate-fadeIn p-2 sm:p-4"
+                  className="space-y-4 pb-16 animate-fadeIn px-1 py-2 sm:px-2"
                   id="tab-planning-screen"
                 >
                   <PlanningTab

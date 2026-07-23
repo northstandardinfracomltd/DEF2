@@ -341,15 +341,53 @@ export default function StocksTab({
     return distributedStocks.filter(ds => ds.denominationPieceId === newDenomStr);
   }, [distributedStocks, newDenomStr]);
 
+  const availableLocationOptions = useMemo(() => {
+    const locSet = new Set<string>();
+
+    // Add all standard locations except 'Centrale des stocks'
+    ALL_LOCATIONS.filter(loc => loc !== 'Centrale des stocks').forEach(loc => locSet.add(loc));
+
+    // Add any locationLink from technician members
+    members.forEach(m => {
+      if (m.role === 'Technicien' && m.locationLink && m.locationLink !== 'Centrale des stocks') {
+        locSet.add(m.locationLink);
+      }
+    });
+
+    // Add any existing distributedStock locationName
+    filteredDistributedStocks.forEach(ds => {
+      if (ds.locationName && ds.locationName !== 'Centrale des stocks') {
+        locSet.add(ds.locationName);
+      }
+    });
+
+    const currentVar = variables.find(v => v.id === newDenomStr);
+    const itemName = currentVar ? currentVar.nom : 'Pièce';
+    const matchedStock = stocks.find(s => s.id === editingStockId || s.denominationPieceId === newDenomStr);
+    const ugsCode = newUgs || (matchedStock ? matchedStock.ugs : '0001');
+
+    return Array.from(locSet).map(locName => {
+      const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);
+      const customLocName = getLocationCustomName(locName);
+      const techPart = assignedTech ? ` — Technicien ${assignedTech.name}` : '';
+      const fullLabel = `${itemName}${techPart} — ${customLocName}`;
+
+      const valueStr = `${itemName} ${ugsCode} : ${locName}`;
+
+      return {
+        locName,
+        label: fullLabel,
+        value: valueStr
+      };
+    });
+  }, [members, filteredDistributedStocks, variables, newDenomStr, stocks, editingStockId, newUgs]);
+
   useEffect(() => {
     if (newMvType === 'Distribution' || newMvType === 'Rapatriement') {
-      if (filteredDistributedStocks.length > 0) {
-        const ds = filteredDistributedStocks[0];
-        const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
-        const itemName = matchedVar ? matchedVar.nom : 'Pièce';
-        const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
-        const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
-        setNewMvEmplacement(`${itemName} ${ugsCode} : ${ds.locationName}`);
+      if (availableLocationOptions.length > 0) {
+        if (!newMvEmplacement || !availableLocationOptions.some(opt => opt.value === newMvEmplacement)) {
+          setNewMvEmplacement(availableLocationOptions[0].value);
+        }
       } else {
         setNewMvEmplacement('');
       }
@@ -362,11 +400,15 @@ export default function StocksTab({
     } else {
       setNewMvEmplacement('');
     }
-  }, [newMvType, filteredDistributedStocks, variables, stocks, achatsFournisseurs]);
+  }, [newMvType, availableLocationOptions, achatsFournisseurs]);
 
   const handleAddMovementInline = () => {
     if (newMvVolume <= 0) {
       alert("Le volume doit être supérieur à 0");
+      return;
+    }
+    if (newMvType === 'Distribution' && newMvVolume > Number(newQty)) {
+      alert(`Le volume (${newMvVolume}) ne peut pas être supérieur à la quantité disponible (${newQty}).`);
       return;
     }
     if (!newMvDate) {
@@ -391,6 +433,42 @@ export default function StocksTab({
       trackingLink: newMvTrackingLink,
       emplacement: newMvEmplacement
     };
+
+    // If movement is Distribution, ensure a record exists in distributedStocks
+    if (newMvType === 'Distribution' && newMvEmplacement && saveDistributedStocks) {
+      const targetLoc = newMvEmplacement.includes(' : ') ? newMvEmplacement.split(' : ')[1] : newMvEmplacement;
+      if (targetLoc && targetLoc !== 'Centrale des stocks') {
+        let updatedDs = [...distributedStocks];
+        const existingIndex = updatedDs.findIndex(ds => ds.denominationPieceId === newDenomStr && ds.locationName === targetLoc);
+
+        const isTermine = newMvStatut === 'Terminé';
+        const isEnTransit = newMvStatut === 'Préparation' || newMvStatut === 'Expédié';
+        const volumeNum = Number(newMvVolume) || 1;
+
+        if (existingIndex >= 0) {
+          const existingDs = updatedDs[existingIndex];
+          updatedDs[existingIndex] = {
+            ...existingDs,
+            volumeDisponible: existingDs.volumeDisponible + (isTermine ? volumeNum : 0),
+            volumeEntrant: (existingDs.volumeEntrant || 0) + (isEnTransit ? volumeNum : 0)
+          };
+        } else {
+          const newDs: DistributedStockLocation = {
+            id: 'ds_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            denominationPieceId: newDenomStr,
+            stockId: editingStockId || undefined,
+            locationName: targetLoc as any,
+            volumeDisponible: isTermine ? volumeNum : 0,
+            volumeReserve: 0,
+            volumeEntrant: isEnTransit ? volumeNum : 0
+          };
+          updatedDs.unshift(newDs);
+        }
+
+        saveDistributedStocks(updatedDs);
+      }
+    }
+
     setMouvements([...mouvements, newMv]);
     setNewMvVolume(1);
     setNewMvBonCommande('');
@@ -732,6 +810,41 @@ export default function StocksTab({
         usageRecommandeIds: newUsageRecommandeIds
       };
       saveStocks([newItem, ...stocks]);
+    }
+
+    if (saveDistributedStocks && mouvements.length > 0) {
+      let updatedDs = [...distributedStocks];
+      let dsChanged = false;
+
+      mouvements.forEach(mv => {
+        if (mv.type === 'Distribution' && mv.emplacement) {
+          const targetLoc = mv.emplacement.includes(' : ') ? mv.emplacement.split(' : ')[1] : mv.emplacement;
+          if (targetLoc && targetLoc !== 'Centrale des stocks') {
+            const existingIndex = updatedDs.findIndex(ds => ds.denominationPieceId === newDenomStr && ds.locationName === targetLoc);
+            if (existingIndex < 0) {
+              const isTermine = mv.statut === 'Terminé';
+              const isEnTransit = mv.statut === 'Préparation' || mv.statut === 'Expédié';
+              const volumeNum = Number(mv.volume) || 1;
+
+              const newDs: DistributedStockLocation = {
+                id: 'ds_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+                denominationPieceId: newDenomStr,
+                stockId: editingStockId || undefined,
+                locationName: targetLoc as any,
+                volumeDisponible: isTermine ? volumeNum : 0,
+                volumeReserve: 0,
+                volumeEntrant: isEnTransit ? volumeNum : 0
+              };
+              updatedDs.unshift(newDs);
+              dsChanged = true;
+            }
+          }
+        }
+      });
+
+      if (dsChanged) {
+        saveDistributedStocks(updatedDs);
+      }
     }
     
     // Reset
@@ -1740,11 +1853,12 @@ export default function StocksTab({
                       type="submit"
                       form="equipement-stock-form"
                       style={{
-                        backgroundColor: '#000000',
+                        backgroundColor: 'rgb(53, 86, 236)',
                         color: '#ffffff',
                         padding: '10px 20px',
                         fontSize: '18px',
                         borderRadius: '13px',
+                        boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset'
                       }}
                       className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0 text-white"
                     >
@@ -1783,18 +1897,11 @@ export default function StocksTab({
                               required
                             >
                               <option value="" disabled hidden>Sélectionnez un emplacement</option>
-                              {filteredDistributedStocks.map(ds => {
-                                const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
-                                const itemName = matchedVar ? matchedVar.nom : 'Pièce';
-                                const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
-                                const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
-                                const labelVal = `${itemName} ${ugsCode} : ${ds.locationName}`;
-                                return (
-                                  <option key={ds.id} value={labelVal}>
-                                    {labelVal}
-                                  </option>
-                                );
-                              })}
+                              {availableLocationOptions.map(opt => (
+                                <option key={opt.locName} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
                             </select>
                           </>
                         ) : newMvType === 'Rapatriement' ? (
@@ -1803,23 +1910,16 @@ export default function StocksTab({
                             <select
                               value={newMvEmplacement}
                               onChange={(e) => setNewMvEmplacement(e.target.value)}
-                              className="w-full bg-slate-100 text-slate-600 p-2 rounded border border-slate-200 cursor-not-allowed"
+                              className="w-full bg-white text-black p-2 rounded border border-slate-200"
                               style={{ minHeight: '36px' }}
-                              disabled
+                              required
                             >
-                              <option value="" disabled hidden>Pas d'emplacement</option>
-                              {filteredDistributedStocks.map(ds => {
-                                const matchedVar = variables.find(v => v.id === ds.denominationPieceId);
-                                const itemName = matchedVar ? matchedVar.nom : 'Pièce';
-                                const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
-                                const ugsCode = matchedStock ? matchedStock.ugs : 'N/A';
-                                const labelVal = `${itemName} ${ugsCode} : ${ds.locationName}`;
-                                return (
-                                  <option key={ds.id} value={labelVal}>
-                                    {labelVal}
-                                  </option>
-                                );
-                              })}
+                              <option value="" disabled hidden>Sélectionnez un emplacement</option>
+                              {availableLocationOptions.map(opt => (
+                                <option key={opt.locName} value={opt.value}>
+                                  {opt.label}
+                                </option>
+                              ))}
                             </select>
                           </>
                         ) : newMvType === 'Réapprovisionnement fournisseur' ? (
@@ -1870,6 +1970,7 @@ export default function StocksTab({
                         <input
                           type="number"
                           min="1"
+                          max={newMvType === 'Distribution' ? Number(newQty) : undefined}
                           value={newMvVolume}
                           onChange={(e) => setNewMvVolume(Number(e.target.value))}
                           className="w-full bg-white p-2 border border-slate-200 rounded text-black font-semibold text-xs"
@@ -2290,11 +2391,16 @@ export default function StocksTab({
                                     required
                                   >
                                     <option value="" disabled hidden>Sélectionnez un emplacement</option>
-                                    {ALL_LOCATIONS.map(loc => (
-                                      <option key={loc} value={loc}>
-                                        {getLocationCustomName(loc)}
-                                      </option>
-                                    ))}
+                                    {ALL_LOCATIONS.map(loc => {
+                                      const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
+                                      const customName = getLocationCustomName(loc);
+                                      const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                                      return (
+                                        <option key={loc} value={loc}>
+                                          {label}
+                                        </option>
+                                      );
+                                    })}
                                   </select>
                                 </div>
 
@@ -2611,11 +2717,16 @@ export default function StocksTab({
                                               className="bg-white text-black p-1 border border-slate-300 rounded font-sans text-xs font-semibold"
                                               style={{ border: '1px solid #cbd5e1', minHeight: '30px', minWidth: '160px' }}
                                             >
-                                              {ALL_LOCATIONS.map(loc => (
-                                                <option key={loc} value={loc}>
-                                                  {getLocationCustomName(loc)}
-                                                </option>
-                                              ))}
+                                              {ALL_LOCATIONS.map(loc => {
+                                                const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
+                                                const customName = getLocationCustomName(loc);
+                                                const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                                                return (
+                                                  <option key={loc} value={loc}>
+                                                    {label}
+                                                  </option>
+                                                );
+                                              })}
                                             </select>
                                           </td>
 

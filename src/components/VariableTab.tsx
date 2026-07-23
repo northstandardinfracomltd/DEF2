@@ -1091,11 +1091,8 @@ export default function VariableTab({
                             id={`btn-delete-variable-${v.id}`}
                             style={{
                               ...rowActionButton18Style,
-                              opacity: used ? 0.4 : 1,
-                              cursor: used ? 'not-allowed' : 'pointer',
-                              backgroundColor: used ? '#f1f5f9' : '#ffffff',
-                              color: used ? '#94a3b8' : '#ef4444',
-                              borderColor: used ? '#cbd5e1' : '#fca5a5'
+                              opacity: used ? 0.35 : 1,
+                              cursor: used ? 'not-allowed' : 'pointer'
                             }}
                             className="transition-all"
                           >

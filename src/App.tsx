@@ -9457,6 +9457,7 @@ export default function App() {
               stocks={stocks}
               saveStocks={saveStocks}
               variables={variables}
+              members={members}
               fsmTours={fsmTours}
               searchQuery={distributedStocksSearchQuery}
               setSearchQuery={setDistributedStocksSearchQuery}

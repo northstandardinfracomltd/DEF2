@@ -9804,20 +9804,15 @@ export default function PublicPortal({
                   <div
                     className="px-4 flex items-center justify-center select-none"
                     style={{
-                      background: "linear-gradient(24deg, rgb(0, 76, 160), rgb(36, 103, 255), rgb(3, 190, 246))",
-                      backgroundImage: "linear-gradient(120deg, rgb(62 47 47 / 0%) 25%, rgb(0 27 144) 47%, rgba(255, 255, 255, 0.05) 53%, rgb(55 47 47 / 0%) 75%), radial-gradient(circle at 15% 15%, #1d47ff 0%, #061977 55%, #0b28a3 100%)",
+                      backgroundColor: "#FD4EBB",
                       width: "98%",
-                      margin: "auto",
-                      marginTop: "35px",
-                      marginBottom: "50px",
+                      margin: "35px auto 50px",
                       paddingTop: "90px",
                       paddingBottom: "85px",
                       borderRadius: "16px",
                       position: "relative",
                       overflow: "hidden",
                       boxShadow: "none",
-                      outline: "3.5px solid #1036df",
-                      outlineOffset: "3px",
                     }}
                   >
                     {/* Left border alcove notch */}
@@ -9829,7 +9824,7 @@ export default function PublicPortal({
                         transform: "translateY(-50%)",
                         width: "30px",
                         height: "40px",
-                        backgroundColor: "#BBFF2A",
+                        backgroundColor: "rgb(211, 47, 149)",
                         borderRadius: "0px 25px 25px 0px",
                         zIndex: 10,
                       }}

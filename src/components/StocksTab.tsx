@@ -1733,7 +1733,7 @@ export default function StocksTab({
                           onClick={() => {
                             setNewUsageRecommandeIds(prev => prev.filter(x => x !== id));
                           }}
-                          className="inline-flex items-center px-3 py-1 bg-[#3B5BEE] text-white border border-[#3B5BEE] rounded-full text-xs font-medium font-sans cursor-pointer hover:bg-[#F9383C] hover:border-[#F9383C] hover:text-white transition-colors"
+                          className="inline-flex items-center px-3 py-1 bg-[#1710a6] text-white border border-[#1710a6] rounded-full text-[16px] font-medium font-sans cursor-pointer hover:bg-[#8e1010] hover:border-[#8e1010] hover:text-white transition-colors"
                           title="Cliquez pour supprimer"
                         >
                           <span>{formattedName}</span>

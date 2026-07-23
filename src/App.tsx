@@ -6665,26 +6665,51 @@ export default function App() {
                                           />
                                         </div>
 
-                                        {/* Raison/Prestation. */}
-                                        <div className="space-y-0.5 bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Raison/Prestation.</label>
-                                          <select
-                                            value={m.reason || ''}
-                                            onChange={(e) => updateFsmMission(t.id, m.id, { reason: e.target.value })}
-                                            className="w-full font-sans focus:outline-none cursor-pointer"
-                                          >
-                                            <option value="">-- Sélectionner une raison / prestation --</option>
-                                            {variables
-                                              .filter((v: any) => v.category === 'Modèle Raison Prestation')
-                                              .map((v: any) => (
-                                                <option key={v.id} value={v.nom}>
-                                                  {v.nom}
-                                                </option>
-                                              ))}
-                                            {m.reason && !variables.some((v: any) => v.category === 'Modèle Raison Prestation' && v.nom === m.reason) && (
-                                              <option value={m.reason}>{m.reason}</option>
-                                            )}
-                                          </select>
+                                        {/* Situation. */}
+                                        <div className="space-y-0.5 font-sans relative bg-transparent">
+                                          <label className="block mb-1 fsm-label-style">Situation.</label>
+                                          <div className="relative flex items-center bg-transparent">
+                                            <div 
+                                              style={{
+                                                position: "absolute",
+                                                left: "14px",
+                                                top: "50%",
+                                                transform: "translateY(-50%)",
+                                                width: "10px",
+                                                height: "10px",
+                                                borderRadius: "50%",
+                                                backgroundColor: 
+                                                  (m.status || "À faire") === "Brouillon" ? "#94a3b8" : 
+                                                  (m.status || "À faire") === "À faire" ? "#3b82f6" :  
+                                                  (m.status || "À faire") === "En cours" ? "#ef4444" :  
+                                                  (m.status || "À faire") === "Effectué" ? "#22c55e" :  
+                                                  (m.status || "À faire") === "Attente" ? "#94a3b8" :  
+                                                  "#3b82f6",
+                                                zIndex: 10,
+                                                pointerEvents: "none"
+                                              }}
+                                            />
+                                            <select
+                                              value={m.status || "À faire"}
+                                              onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
+                                              style={{
+                                                paddingLeft: "34px",
+                                                paddingRight: "12px",
+                                                paddingTop: "12px",
+                                                paddingBottom: "12px",
+                                                width: "100%",
+                                                border: "1px solid #dedede",
+                                                borderRadius: "13px",
+                                                fontSize: "16px",
+                                                backgroundColor: "#ffffff"
+                                              }}
+                                              className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
+                                            >
+                                              <option value="À faire">À faire</option>
+                                              <option value="Attente">Attente</option>
+                                              <option value="Effectué">Effectué</option>
+                                            </select>
+                                          </div>
                                         </div>
 
                                         {/* Bon de commande. */}
@@ -6945,46 +6970,98 @@ export default function App() {
                                     );
                                   })()}
 
-                                        {/* Situation. */}
-                                        <div className="space-y-0.5 font-sans relative bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Situation.</label>
-                                          <div className="relative flex items-center bg-transparent">
-                                            <div 
-                                              style={{
-                                                position: 'absolute',
-                                                left: '14px',
-                                                top: '50%',
-                                                transform: 'translateY(-50%)',
-                                                width: '10px',
-                                                height: '10px',
-                                                borderRadius: '50%',
-                                                backgroundColor: 
-                                                  (m.status || 'À faire') === 'Brouillon' ? '#94a3b8' : 
-                                                  (m.status || 'À faire') === 'À faire' ? '#3b82f6' :  
-                                                  (m.status || 'À faire') === 'En cours' ? '#ef4444' :  
-                                                  (m.status || 'À faire') === 'Effectué' ? '#22c55e' :  
-                                                  (m.status || 'À faire') === 'Attente' ? '#94a3b8' :  
-                                                  '#3b82f6',
-                                                zIndex: 10,
-                                                pointerEvents: 'none'
-                                              }}
-                                            />
+                                        
+                                      </div>
+
+                                      {/* Raison/Prestation. (Stand-alone multi-selection with capsules on the right) */}
+                                      <div className="pt-2 space-y-1.5 relative font-sans w-full bg-transparent">
+                                        <label className="block mb-1 fsm-label-style" style={{ fontSize: "15px", color: "#000000", fontWeight: 600 }}>
+                                          Raison/Prestation.
+                                        </label>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full items-center bg-transparent">
+                                          {/* Dropdown Select on the left */}
+                                          <div className="w-full bg-transparent">
                                             <select
-                                              value={m.status || 'À faire'}
-                                              onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
-                                              style={{
-                                                paddingLeft: '34px',
-                                                paddingRight: '12px',
-                                                paddingTop: '12px',
-                                                paddingBottom: '12px',
-                                                width: '100%'
+                                              value=""
+                                              onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val) {
+                                                  const current: string[] = Array.isArray(m.reasons)
+                                                    ? m.reasons
+                                                    : (m.reason ? m.reason.split(", ").map((s: string) => s.trim()).filter(Boolean) : []);
+                                                  if (!current.includes(val)) {
+                                                    const nextReasons = [...current, val];
+                                                    updateFsmMission(t.id, m.id, {
+                                                      reasons: nextReasons,
+                                                      reason: nextReasons.join(", ")
+                                                    });
+                                                  }
+                                                  e.target.value = "";
+                                                }
                                               }}
-                                              className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
+                                              style={{
+                                                border: "1px solid #dedede",
+                                                borderRadius: "13px",
+                                                padding: "12px",
+                                                fontSize: "16px",
+                                                fontWeight: "100",
+                                                color: "#000000",
+                                                backgroundColor: "#ffffff"
+                                              }}
+                                              className="w-full font-sans focus:outline-none cursor-pointer"
                                             >
-                                              <option value="À faire">À faire</option>
-                                              <option value="Attente">Attente</option>
-                                              <option value="Effectué">Effectué</option>
+                                              <option value="">-- Sélectionner une raison / prestation --</option>
+                                              {variables
+                                                .filter((v: any) => v.category === "Modèle Raison Prestation")
+                                                .map((v: any) => {
+                                                  const current: string[] = Array.isArray(m.reasons)
+                                                    ? m.reasons
+                                                    : (m.reason ? m.reason.split(", ").map((s: string) => s.trim()).filter(Boolean) : []);
+                                                  const isSelected = current.includes(v.nom);
+                                                  return (
+                                                    <option key={v.id} value={v.nom} disabled={isSelected}>
+                                                      {v.nom} {isSelected ? "(Déjà ajoutée)" : ""}
+                                                    </option>
+                                                  );
+                                                })}
                                             </select>
+                                          </div>
+
+                                          {/* Selected Reasons Capsules listed on the right */}
+                                          <div className="w-full bg-transparent">
+                                            {(() => {
+                                              const currentReasons: string[] = Array.isArray(m.reasons)
+                                                ? m.reasons
+                                                : (m.reason ? m.reason.split(", ").map((s: string) => s.trim()).filter(Boolean) : []);
+
+                                              return (
+                                                <div className="flex flex-wrap gap-1.5 min-h-[42px] items-center bg-transparent">
+                                                  {currentReasons.length > 0 ? (
+                                                    currentReasons.map((reasonStr: string) => (
+                                                      <span
+                                                        key={reasonStr}
+                                                        onClick={() => {
+                                                          const nextReasons = currentReasons.filter(r => r !== reasonStr);
+                                                          updateFsmMission(t.id, m.id, {
+                                                            reasons: nextReasons,
+                                                            reason: nextReasons.join(", ")
+                                                          });
+                                                        }}
+                                                        style={{
+                                                          fontFamily: "DefibeoMain, Civilprom, sans-serif",
+                                                        }}
+                                                        className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-[#8e1010] hover:border-[#8e1010] hover:text-white transition-all duration-150 select-none"
+                                                        title="Cliquez pour supprimer"
+                                                      >
+                                                        {reasonStr}
+                                                      </span>
+                                                    ))
+                                                  ) : (
+                                                    <span className="text-xs text-slate-400 italic">Aucune raison / prestation sélectionnée</span>
+                                                  )}
+                                                </div>
+                                              );
+                                            })()}
                                           </div>
                                         </div>
                                       </div>

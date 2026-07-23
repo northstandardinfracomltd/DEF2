@@ -9802,18 +9802,22 @@ export default function PublicPortal({
                 >
                   {/* Nom du logiciel / Entreprise - Banner Header */}
                   <div
-                    className="mb-6 px-4 flex items-center justify-center select-none"
+                    className="px-4 flex items-center justify-center select-none"
                     style={{
                       background: "linear-gradient(24deg, rgb(0, 76, 160), rgb(36, 103, 255), rgb(3, 190, 246))",
                       backgroundImage: "linear-gradient(120deg, rgb(62 47 47 / 0%) 25%, rgb(0 27 144) 47%, rgba(255, 255, 255, 0.05) 53%, rgb(55 47 47 / 0%) 75%), radial-gradient(circle at 15% 15%, #1d47ff 0%, #061977 55%, #0b28a3 100%)",
                       width: "98%",
                       margin: "auto",
+                      marginTop: "35px",
+                      marginBottom: "50px",
                       paddingTop: "90px",
                       paddingBottom: "85px",
                       borderRadius: "16px",
                       position: "relative",
                       overflow: "hidden",
                       boxShadow: "none",
+                      outline: "3.5px solid #1036df",
+                      outlineOffset: "3px",
                     }}
                   >
                     {/* Left border alcove notch */}
@@ -9823,10 +9827,10 @@ export default function PublicPortal({
                         left: "-10px",
                         top: "50%",
                         transform: "translateY(-50%)",
-                        width: "20px",
-                        height: "26px",
-                        backgroundColor: "#f8fafc",
-                        borderRadius: "0 13px 13px 0",
+                        width: "30px",
+                        height: "40px",
+                        backgroundColor: "#BBFF2A",
+                        borderRadius: "0px 25px 25px 0px",
                         zIndex: 10,
                       }}
                     />
@@ -9837,9 +9841,9 @@ export default function PublicPortal({
                       alt="Logo"
                       style={{
                         position: "absolute",
-                        top: "18px",
+                        top: "0px",
                         right: "20px",
-                        height: "28px",
+                        height: "60px",
                         width: "auto",
                         objectFit: "contain",
                       }}
@@ -9853,7 +9857,7 @@ export default function PublicPortal({
                           bottom: "18px",
                           left: "22px",
                           color: "rgba(255, 255, 255, 0.95)",
-                          fontSize: "14px",
+                          fontSize: "18px",
                           fontWeight: "600",
                           fontFamily: 'var(--font-sans), "Civilprom", "DefibeoMain", sans-serif',
                         }}

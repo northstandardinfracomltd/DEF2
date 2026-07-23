@@ -6381,7 +6381,7 @@ export default function PublicPortal({
             )}
 
             {/* Top Bar Navigation and Tab Selector Wrapper with Linear Gradient */}
-            <div style={{ background: "linear-gradient(93deg, rgb(12 40 166), rgb(0 14 80))", padding: "2px 0px" }}>
+            <div style={{ background: "linear-gradient(93deg, rgb(12 40 166), rgb(0 14 80))", padding: "2px 0px", borderRadius: "0px 0px 14px 14px" }}>
               {/* TAB SELECTOR: Horizontal capsule switch toggle layout with dynamic fades */}
               <nav
                 className="py-0 px-0 relative shrink-0"
@@ -6637,9 +6637,8 @@ export default function PublicPortal({
                       <div className="px-1 select-none pb-4">
                         <select
                           value={selectedTourId}
-                          disabled={isTourOpen}
                           onChange={(e) => setSelectedTourId(e.target.value)}
-                          className={`w-full bg-white text-black ${isTourOpen ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'} appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center`}
+                          className="w-full bg-white text-black cursor-pointer appearance-none transition-all duration-150 focus:outline-none focus:ring-0 focus-visible:outline-none text-center"
                           style={{
                             border: "1px solid rgb(201, 190, 205)",
                             borderRadius: "14px",
@@ -6668,11 +6667,10 @@ export default function PublicPortal({
                       {selectedTourId && isTourActive && hasTodoMissions && (
                         <div className="px-1" id="pause-toggle-block">
                           <div
-                            className="bg-white border px-4 space-y-3 flex flex-col justify-center"
+                            className="bg-white border px-4 py-4 space-y-3 flex flex-col justify-center"
                             style={{
                               borderColor: "rgb(201, 190, 205)",
                               borderRadius: "14px",
-                              minHeight: "78px",
                             }}
                           >
                             <div className="flex items-center justify-between">
@@ -6700,7 +6698,7 @@ export default function PublicPortal({
                               </button>
                             </div>
                             {pauseEnabled && getNextPassageZone() && (
-                              <div className="text-[18px] font-semibold text-[#fe4eba] font-sans">
+                              <div className="text-[18px] font-semibold text-[#fe4eba] font-sans pt-1">
                                 {t("Zone recommandée pour votre pause :")}{" "}
                                 <span className="font-bold">
                                   {getNextPassageZone()}
@@ -6738,25 +6736,6 @@ export default function PublicPortal({
                                 {t("Re/Calculer")}
                               </button>
                             </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Info warning if work pointage is not in progress and a tour is selected */}
-                      {selectedTourId && isTourActive && !pointages.some((p) => p.isOngoing && p.techName === authenticatedUser?.name) && (
-                        <div className="px-1 animate-fadeIn">
-                          <div
-                            style={{
-                              backgroundColor: "rgb(238, 241, 255)",
-                              color: "rgb(49, 85, 255)",
-                              borderRadius: "13px",
-                              fontSize: "18px",
-                              border: "none",
-                              boxShadow: "none",
-                            }}
-                            className="p-4 font-bold text-center select-none"
-                          >
-                            Attention, vous n’avez pas démarré le pointage du temps de travail.
                           </div>
                         </div>
                       )}
@@ -7462,7 +7441,7 @@ export default function PublicPortal({
                             <span
                               style={{
                                 color: "#ffffff",
-                                backgroundColor: "#5d1f74",
+                                backgroundColor: "#FD4EBB",
                                 padding: "8px 16px",
                                 borderRadius: "9999px",
                                 fontWeight: "bold",
@@ -9823,10 +9802,15 @@ export default function PublicPortal({
                 >
                   {/* Nom du logiciel / Entreprise - Banner Header */}
                   <div
-                    className="-mx-4 -mt-4 mb-6 py-10 px-4 flex items-center justify-center select-none"
+                    className="mb-6 px-4 flex items-center justify-center select-none"
                     style={{
-                      background: "rgb(53, 86, 236)",
-                      boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                      background: "linear-gradient(24deg, #004ca0, #2467ff, #03bef6)",
+                      boxShadow: "none",
+                      width: "98%",
+                      margin: "auto",
+                      borderRadius: "14px",
+                      paddingTop: "90px",
+                      paddingBottom: "85px",
                     }}
                   >
                     <div

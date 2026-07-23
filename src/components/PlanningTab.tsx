@@ -275,8 +275,8 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
                   className="w-12 h-12 flex items-center justify-center font-bold text-[18px]"
                   style={
                     isToday
-                      ? { borderRadius: "20px", background: "#115aff", color: "#fff" }
-                      : { borderRadius: "20px", background: "#e9efff", color: "#165dfc" }
+                      ? { borderRadius: "25px", background: "#FD4EBB", color: "rgb(255, 255, 255)" }
+                      : { borderRadius: "25px", background: "rgb(255, 233, 247)", color: "rgb(253, 78, 187)" }
                   }
                 >
                   {dayNum}

@@ -5514,7 +5514,7 @@ export default function App() {
                         <PlanningTab
                           companyInfo={companyInfo}
                           fsmTours={fsmTours}
-                          authenticatedUser={authenticatedUser}
+                          authenticatedUser={loggedUser}
                           defibrillateurs={defibrillateurs}
                           otherEquipments={otherEquipments}
                           clients={clients}

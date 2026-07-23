@@ -828,14 +828,18 @@ export const INITIAL_MEMBERS: Member[] = [
   }
 ];
 
-export function getLocationCustomName(originalName: string): string {
+export function getLocationCustomName(originalName: string, customMap?: Record<string, string>): string {
+  if (!originalName) return originalName || '';
+  if (customMap && customMap[originalName]) return customMap[originalName];
   if (typeof window === 'undefined') return originalName;
   const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
   try {
-    const saved = localStorage.getItem(`defib_${tenantId}_location_names`);
+    const saved = localStorage.getItem(`defib_${tenantId}_custom_location_names`) || localStorage.getItem(`defib_${tenantId}_location_names`);
     if (saved) {
       const parsed = JSON.parse(saved);
-      return parsed[originalName] || originalName;
+      if (parsed && typeof parsed === 'object' && parsed[originalName]) {
+        return parsed[originalName];
+      }
     }
   } catch (e) {
     // Ignore

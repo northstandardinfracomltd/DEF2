@@ -712,7 +712,7 @@ export default function StocksDistribuesTab({
                         {ALL_LOCATIONS.map(loc => {
                           const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
                           const customName = getLocationCustomName(loc);
-                          const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                          const label = assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                           return (
                             <option key={loc} value={loc}>{label}</option>
                           );
@@ -764,7 +764,7 @@ export default function StocksDistribuesTab({
                   {loc === 'Tous' ? loc : (() => {
                     const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
                     const customName = getLocationCustomName(loc);
-                    return assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                    return assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                   })()} ({count})
                 </button>
               );
@@ -875,7 +875,7 @@ export default function StocksDistribuesTab({
                               {(() => {
                                 const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === item.locationName);
                                 const customName = getLocationCustomName(item.locationName);
-                                return assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                                return assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                               })()}
                             </span>
                           </td>
@@ -1085,7 +1085,7 @@ export default function StocksDistribuesTab({
                     {ALL_LOCATIONS.map(loc => {
                       const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
                       const customName = getLocationCustomName(loc);
-                      const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                      const label = assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                       return (
                         <option key={loc} value={loc}>{label}</option>
                       );

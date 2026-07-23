@@ -369,8 +369,8 @@ export default function StocksTab({
     return Array.from(locSet).map(locName => {
       const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);
       const customLocName = getLocationCustomName(locName);
-      const techPart = assignedTech ? ` — Technicien ${assignedTech.name}` : '';
-      const fullLabel = `${itemName}${techPart} — ${customLocName}`;
+      const techPart = assignedTech ? `${assignedTech.name} — ` : '';
+      const fullLabel = `${itemName} — ${techPart}${customLocName}`;
 
       const valueStr = `${itemName} ${ugsCode} : ${locName}`;
 
@@ -2394,7 +2394,7 @@ export default function StocksTab({
                                     {ALL_LOCATIONS.map(loc => {
                                       const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
                                       const customName = getLocationCustomName(loc);
-                                      const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                                      const label = assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                                       return (
                                         <option key={loc} value={loc}>
                                           {label}
@@ -2720,7 +2720,7 @@ export default function StocksTab({
                                               {ALL_LOCATIONS.map(loc => {
                                                 const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === loc);
                                                 const customName = getLocationCustomName(loc);
-                                                const label = assignedTech ? `Technicien ${assignedTech.name} — ${customName}` : customName;
+                                                const label = assignedTech ? `${assignedTech.name} — ${customName}` : customName;
                                                 return (
                                                   <option key={loc} value={loc}>
                                                     {label}

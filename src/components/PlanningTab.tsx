@@ -266,18 +266,25 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
           {weeksList.map(({ weekNum, days }) => (
             <div
               key={`week-${selectedYear}-${selectedMonth}-${weekNum}`}
-              className="p-3.5 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200/80 space-y-4"
+              className="space-y-4"
+              style={{
+                padding: '8px',
+                border: '3px solid #410eb3',
+                background: '#fff',
+                borderRadius: '14px',
+              }}
             >
               {/* En-tête de la semaine avec gélule S1, S2... */}
-              <div className="flex items-center gap-2 px-1 pt-1">
+              <div className="flex items-center gap-2">
                 <span
-                  className="inline-flex items-center justify-center px-3.5 py-1 rounded-full text-xs font-bold text-white shadow-xs"
-                  style={{ backgroundColor: '#000000', fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}
+                  className="inline-flex items-center justify-center px-4 py-1.5 rounded-full font-bold text-white shadow-xs"
+                  style={{
+                    backgroundColor: '#410eb3',
+                    fontSize: '18px',
+                    fontFamily: "'DefibeoMain', 'Civilprom', sans-serif"
+                  }}
                 >
                   S{weekNum}
-                </span>
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Semaine {weekNum}
                 </span>
               </div>
 

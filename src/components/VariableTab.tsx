@@ -93,6 +93,7 @@ const CATEGORIES: VariableCategory[] = [
   'Modèle Contrat',
   'Modèle Service',
   'Fournisseur',
+  'Modèle Raison Prestation',
 ];
 
 export default function VariableTab({
@@ -417,7 +418,7 @@ export default function VariableTab({
       return;
     }
 
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation';
 
     const payload: any = {
       category: category as VariableCategory,
@@ -478,7 +479,7 @@ export default function VariableTab({
   };
 
   if (isModalOpen) {
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation';
 
     return (
       <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="variable-form-overlay">

@@ -55,7 +55,7 @@ export interface Client {
   valeurContrat?: string;
 }
 
-export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur';
+export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur' | 'Modèle Raison Prestation';
 
 export interface Variable {
   id: string;

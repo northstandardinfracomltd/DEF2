@@ -6584,45 +6584,25 @@ export default function App() {
                                           />
                                         </div>
 
-                                        {/* Raison. */}
+                                        {/* Raison/Prestation. */}
                                         <div className="space-y-0.5 bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Raison.</label>
+                                          <label className="block mb-1 fsm-label-style">Raison/Prestation.</label>
                                           <select
-                                            value={m.reason}
+                                            value={m.reason || ''}
                                             onChange={(e) => updateFsmMission(t.id, m.id, { reason: e.target.value })}
                                             className="w-full font-sans focus:outline-none cursor-pointer"
                                           >
-                                            <option value="Maintenance 1h Monôme">Maintenance 1h Monôme</option>
-                                            <option value="Maintenance 30mins Monôme">Maintenance 30mins Monôme</option>
-                                            <option value="Maintenance 1h30 Monôme">Maintenance 1h30 Monôme</option>
-                                            <option value="Installation 1h Monôme">Installation 1h Monôme</option>
-                                            <option value="Installation 30mins Monôme">Installation 30mins Monôme</option>
-                                            <option value="Installation 1h30 Monôme">Installation 1h30 Monôme</option>
-                                            <option value="Installation et formation">Installation et formation</option>
-                                            <option value="Remplacement D 1h Monôme">Remplacement D 1h Monôme</option>
-                                            <option value="Remplacement D 30mins Monôme">Remplacement D 30mins Monôme</option>
-                                            <option value="Remplacement D 1h30 Monôme">Remplacement D 1h30 Monôme</option>
-                                            <option value="Remplacement A 1h Monôme">Remplacement A 1h Monôme</option>
-                                            <option value="Remplacement A 30mins Monôme">Remplacement A 30mins Monôme</option>
-                                            <option value="Remplacement A 1h30 Monôme">Remplacement A 1h30 Monôme</option>
-                                            <option value="Remplacement P 1h Monôme">Remplacement P 1h Monôme</option>
-                                            <option value="Remplacement P 30mins Monôme">Remplacement P 30mins Monôme</option>
-                                            <option value="Remplacement P 1h30 Monôme">Remplacement P 1h30 Monôme</option>
-                                            <option value="Remplacement B 1h Monôme">Remplacement B 1h Monôme</option>
-                                            <option value="Remplacement B 30mins Monôme">Remplacement B 30mins Monôme</option>
-                                            <option value="Remplacement B 1h30 Monôme">Remplacement B 1h30 Monôme</option>
-                                            <option value="Remplacement A + P 1h Monôme">Remplacement A + P 1h Monôme</option>
-                                            <option value="Remplacement A + P 30mins Monôme">Remplacement A + P 30mins Monôme</option>
-                                            <option value="Remplacement A + P 1h30 Monôme">Remplacement A + P 1h30 Monôme</option>
-                                            <option value="Remplacement A + B 1h Monôme">Remplacement A + B 1h Monôme</option>
-                                            <option value="Remplacement A + B 30mins Monôme">Remplacement A + B 30mins Monôme</option>
-                                            <option value="Remplacement A + B 1h30 Monôme">Remplacement A + B 1h30 Monôme</option>
-                                            <option value="Remplacement P + B 1h Monôme">Remplacement P + B 1h Monôme</option>
-                                            <option value="Remplacement P + B 30mins Monôme">Remplacement P + B 30mins Monôme</option>
-                                            <option value="Remplacement P + B 1h30 Monôme">Remplacement P + B 1h30 Monôme</option>
-                                            <option value="Remplacement A + P + B 1h Monôme">Remplacement A + P + B 1h Monôme</option>
-                                            <option value="Remplacement A + P + B 30mins Monôme">Remplacement A + P + B 30mins Monôme</option>
-                                            <option value="Remplacement A + P + B 1h30 Monôme">Remplacement A + P + B 1h30 Monôme</option>
+                                            <option value="">-- Sélectionner une raison / prestation --</option>
+                                            {variables
+                                              .filter((v: any) => v.category === 'Modèle Raison Prestation')
+                                              .map((v: any) => (
+                                                <option key={v.id} value={v.nom}>
+                                                  {v.nom}
+                                                </option>
+                                              ))}
+                                            {m.reason && !variables.some((v: any) => v.category === 'Modèle Raison Prestation' && v.nom === m.reason) && (
+                                              <option value={m.reason}>{m.reason}</option>
+                                            )}
                                           </select>
                                         </div>
 

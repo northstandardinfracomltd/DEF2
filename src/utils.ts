@@ -92,6 +92,27 @@ export const INITIAL_VARIABLES: Variable[] = [
     marque: 'Cardiac Science',
     description: 'Il s’agit d’un exemple.',
     imageUrl: 'https://civilprom.s3.eu-north-1.amazonaws.com/Cardiac+Science+Powerheart+G5.png'
+  },
+  {
+    id: 'MRP1',
+    category: 'Modèle Raison Prestation',
+    nom: 'Maintenance 1h Monôme',
+    marque: 'Standard',
+    description: 'Prestation de maintenance 1h monôme'
+  },
+  {
+    id: 'MRP2',
+    category: 'Modèle Raison Prestation',
+    nom: 'Installation et formation',
+    marque: 'Standard',
+    description: 'Prestation d’installation et formation'
+  },
+  {
+    id: 'MRP3',
+    category: 'Modèle Raison Prestation',
+    nom: 'Visite préventive annuelle',
+    marque: 'Standard',
+    description: 'Prestation de visite préventive annuelle'
   }
 ];
 

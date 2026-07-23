@@ -297,6 +297,10 @@ function getTechnicianIntervals(date: Date, tech: any): { start: number; end: nu
     return []; // Closed/Off on this day
   }
 
+  if (todaySchedule.openForMissions === false) {
+    return []; // Not open for missions on this schedule slot
+  }
+
   if (todaySchedule.fermetureMidi) {
     const intervals = [];
     const openMorning = parseTimeStringToMinutes(todaySchedule.openMorning || '08:00');

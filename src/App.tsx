@@ -60,6 +60,7 @@ import ImportExportTab from './components/ImportExportTab';
 import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from './utils/fsmOptimizer';
 import SatisfactionFormPage from './components/SatisfactionFormPage';
 import NotificationsTab from './components/NotificationsTab';
+import { PlanningTab } from './components/PlanningTab';
 
 import {
   Heart,
@@ -114,6 +115,7 @@ export type AppTab =
   | 'variables'
   | 'fsm'
   | 'gmao'
+  | 'planning'
   | 'crm'
   | 'devis'
   | 'stocks'
@@ -4941,6 +4943,7 @@ export default function App() {
             { id: 'clients', label: t('Clients'), icon: User },
             { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
             { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
+            { id: 'planning', label: t('Planning'), icon: Calendar },
             { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
             { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
             { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
@@ -4961,6 +4964,7 @@ export default function App() {
             const tabToLabelMap: Record<string, string> = {
               fsm: "FSM (Tournées)",
               gmao: "GMAO (Rapports)",
+              planning: "Planning",
               stocks: "Centrale des stocks",
               "stocks-distribues": "Stocks distribués",
               "achats-fournisseurs": "Achats fournisseurs",
@@ -6112,12 +6116,25 @@ export default function App() {
                                       if (!isTech && !hasAddress) return false;
 
                                       // Check unavailability for tourStartDate
-                                      if (tourStartDate && m.absences && m.absences.length > 0) {
-                                        const isUnavailable = m.absences.some(abs => {
-                                          if (!abs.startDate || !abs.endDate) return false;
-                                          return tourStartDate >= abs.startDate && tourStartDate <= abs.endDate;
-                                        });
-                                        if (isUnavailable) return false;
+                                      if (tourStartDate) {
+                                        if (m.absences && m.absences.length > 0) {
+                                          const isUnavailable = m.absences.some(abs => {
+                                            if (!abs.startDate || !abs.endDate) return false;
+                                            return tourStartDate >= abs.startDate && tourStartDate <= abs.endDate;
+                                          });
+                                          if (isUnavailable) return false;
+                                        }
+                                        if (m.semaineTypique && m.semaineTypique.length > 0) {
+                                          const dateObj = new Date(tourStartDate);
+                                          if (!isNaN(dateObj.getTime())) {
+                                            const FRENCH_DAYS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                                            const dayName = FRENCH_DAYS[dateObj.getDay()];
+                                            const todaySch = m.semaineTypique.find(s => s.days && s.days.includes(dayName));
+                                            if (todaySch && todaySch.openForMissions === false) {
+                                              return false;
+                                            }
+                                          }
+                                        }
                                       }
                                       return true;
                                     }).map(m => m.name),
@@ -9346,6 +9363,22 @@ export default function App() {
               </div>
             );
           })()}
+
+          {/* ======================================= */}
+          {/* PLANNING MODULE */}
+          {/* ======================================= */}
+          {activeTab === 'planning' && (
+            <PlanningTab
+              companyInfo={companyInfo}
+              fsmTours={fsmTours}
+              authenticatedUser={authenticatedUser}
+              defibrillateurs={defibrillateurs}
+              otherEquipments={otherEquipments}
+              clients={clients}
+              variables={variables}
+              t={t}
+            />
+          )}
 
           {/* ======================================= */}
           {/* STOCKS MODULE */}

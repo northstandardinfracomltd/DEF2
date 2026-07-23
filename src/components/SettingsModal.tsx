@@ -848,7 +848,8 @@ export default function SettingsModal({
         closeAfternoon: '18:00',
         openContinuous: '09:00',
         closeContinuous: '17:00',
-        commentaire: ''
+        commentaire: '',
+        openForMissions: true
       };
       updated[index] = { ...updated[index], semaineTypique: [...current, newSchedule] };
       return updated;
@@ -2777,8 +2778,8 @@ export default function SettingsModal({
                                         {t("Supprimer")}
                                       </button>
 
-                                      {/* Midi closing toggle - styled as radio pink */}
-                                      <div className="flex items-center gap-2 select-none pt-4">
+                                      {/* Toggles - Midi closing & Ouvert pour missions */}
+                                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 select-none pt-4">
                                         <button
                                           type="button"
                                           disabled={!canEditThisMember}
@@ -2790,6 +2791,20 @@ export default function SettingsModal({
                                           </span>
                                           <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
                                             {t("Fermeture le midi (4 plages)")}
+                                          </span>
+                                        </button>
+
+                                        <button
+                                          type="button"
+                                          disabled={!canEditThisMember}
+                                          onClick={() => handleUpdateMemberScheduleField(idx, schIdx, 'openForMissions', sch.openForMissions === undefined ? false : !sch.openForMissions)}
+                                          className="inline-flex items-center gap-2 cursor-pointer select-none disabled:opacity-50"
+                                        >
+                                          <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all bg-white ${(sch.openForMissions ?? true) ? 'border-[#3b82f6]' : 'border-slate-300'}`}>
+                                            {(sch.openForMissions ?? true) && <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />}
+                                          </span>
+                                          <span className="font-semibold text-black font-sans" style={{ fontSize: '16px' }}>
+                                            {t("Ouvert pour missions.")}
                                           </span>
                                         </button>
                                       </div>

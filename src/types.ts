@@ -243,6 +243,7 @@ export interface MemberSchedule {
   openContinuous: string;
   closeContinuous: string;
   commentaire?: string;
+  openForMissions?: boolean;
 }
 
 export interface MemberAbsence {

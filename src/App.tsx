@@ -60,7 +60,6 @@ import ImportExportTab from './components/ImportExportTab';
 import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from './utils/fsmOptimizer';
 import SatisfactionFormPage from './components/SatisfactionFormPage';
 import NotificationsTab from './components/NotificationsTab';
-import { PlanningTab } from './components/PlanningTab';
 
 import {
   Heart,
@@ -115,7 +114,6 @@ export type AppTab =
   | 'variables'
   | 'fsm'
   | 'gmao'
-  | 'planning'
   | 'crm'
   | 'devis'
   | 'stocks'
@@ -4943,7 +4941,6 @@ export default function App() {
             { id: 'clients', label: t('Clients'), icon: User },
             { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
             { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
-            { id: 'planning', label: t('Planning'), icon: Calendar },
             { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
             { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
             { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
@@ -4964,7 +4961,6 @@ export default function App() {
             const tabToLabelMap: Record<string, string> = {
               fsm: "FSM (Tournées)",
               gmao: "GMAO (Rapports)",
-              planning: "Planning",
               stocks: "Centrale des stocks",
               "stocks-distribues": "Stocks distribués",
               "achats-fournisseurs": "Achats fournisseurs",
@@ -9363,22 +9359,6 @@ export default function App() {
               </div>
             );
           })()}
-
-          {/* ======================================= */}
-          {/* PLANNING MODULE */}
-          {/* ======================================= */}
-          {activeTab === 'planning' && (
-            <PlanningTab
-              companyInfo={companyInfo}
-              fsmTours={fsmTours}
-              authenticatedUser={authenticatedUser}
-              defibrillateurs={defibrillateurs}
-              otherEquipments={otherEquipments}
-              clients={clients}
-              variables={variables}
-              t={t}
-            />
-          )}
 
           {/* ======================================= */}
           {/* STOCKS MODULE */}

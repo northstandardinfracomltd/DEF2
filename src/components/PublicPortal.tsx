@@ -68,6 +68,7 @@ import {
 import { auth } from "../firebase";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { geocodeAddress, sortMissionsByProximity, scheduleMissions } from "../utils/fsmOptimizer";
+import { PlanningTab } from "./PlanningTab";
 
 // Helper functions for French date <-> ISO date picker compatibility
 const getIsoDate = (dateStr: string) => {
@@ -415,6 +416,7 @@ export default function PublicPortal({
   type WebappTab =
     | "interventions"
     | "rapports"
+    | "planning"
     | "stocks"
     | "temps"
     | "frais"
@@ -6439,6 +6441,29 @@ export default function PublicPortal({
                   </button>
 
                   <button
+                    onClick={() => setActiveTab("planning")}
+                    style={
+                      activeTab === "planning"
+                        ? {
+                            background: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                            borderRadius: "12px",
+                            boxShadow: "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }
+                        : {
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            fontWeight: "bold",
+                          }
+                    }
+                    className="px-5 py-2.5 rounded-[12px] flex items-center justify-center transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <span>Planning</span>
+                  </button>
+
+                  <button
                     onClick={() => setActiveTab("stocks")}
                     style={
                       activeTab === "stocks"
@@ -7674,6 +7699,26 @@ export default function PublicPortal({
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* ----------------- TAB: PLANNING ----------------- */}
+              {activeTab === "planning" && (
+                <div
+                  className="space-y-4 pb-16 animate-fadeIn p-2 sm:p-4"
+                  id="tab-planning-screen"
+                >
+                  <PlanningTab
+                    companyInfo={companyInfo}
+                    fsmTours={fsmTours}
+                    authenticatedUser={authenticatedUser}
+                    defibrillateurs={defibrillateurs}
+                    otherEquipments={otherEquipments}
+                    clients={clients}
+                    variables={variables}
+                    members={members}
+                    t={t}
+                  />
                 </div>
               )}
 

@@ -28,6 +28,7 @@ interface PlanningTabProps {
   otherEquipments?: any[];
   clients?: any[];
   variables?: any[];
+  members?: Member[];
   t: (key: string) => string;
 }
 
@@ -53,6 +54,7 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
   otherEquipments = [],
   clients = [],
   variables = [],
+  members = [],
   t
 }) => {
   const today = new Date();
@@ -64,27 +66,25 @@ export const PlanningTab: React.FC<PlanningTabProps> = ({
 
   // List of members / technicians
   const membersList = useMemo(() => {
+    if (members && members.length > 0) return members;
     return companyInfo?.members || [];
-  }, [companyInfo]);
+  }, [members, companyInfo]);
 
   // Set default technician if authenticatedUser matches a member
   useEffect(() => {
-    if (authenticatedUser?.name && selectedTech === 'Tous') {
-      const match = membersList.find(
-        m => m.name.toLowerCase() === authenticatedUser.name.toLowerCase() ||
-             m.email?.toLowerCase() === authenticatedUser.email?.toLowerCase()
-      );
-      if (match) {
-        setSelectedTech(match.name);
-      }
+    if (authenticatedUser?.name) {
+      setSelectedTech(authenticatedUser.name);
     }
-  }, [authenticatedUser, membersList]);
+  }, [authenticatedUser]);
 
   // Get active selected member object
   const activeMember = useMemo(() => {
-    if (selectedTech === 'Tous') return null;
-    return membersList.find(m => m.name === selectedTech) || null;
-  }, [selectedTech, membersList]);
+    if (selectedTech === 'Tous') {
+      return authenticatedUser || null;
+    }
+    const found = membersList.find(m => m.name.trim().toLowerCase() === selectedTech.trim().toLowerCase());
+    return found || authenticatedUser || null;
+  }, [selectedTech, membersList, authenticatedUser]);
 
   // Generate days for the selected month and year
   const daysInMonthList = useMemo(() => {

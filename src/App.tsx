@@ -3,7 +3,7 @@ import { getRegionsForCountry } from './utils/regions';
 import { fetchCollectionFromFirestore, saveCollectionToFirestore, setTenantId as setFirebaseTenantId, getRegisteredTenants } from './firebase';
 import { t, getLanguage, setLanguage, startDOMTranslation } from './utils/translate';
 const translate = t;
-import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification, VeilleRecord } from './types';
+import { Client, Variable, Defibrillateur, SupportTicket, Member, CompanyInfo, PointageLog, StockRecord, CommercialDoc, CommercialDocItem, GedDocument, Memo, OtherEquipment, PointageAutoVigilance, DistributedStockLocation, AchatFournisseur, AppNotification, VeilleRecord, LogisticsNotification } from './types';
 import {
   INITIAL_CLIENTS,
   INITIAL_VARIABLES,
@@ -864,6 +864,15 @@ export default function App() {
   const [customerReviews, setCustomerReviews] = useState<any[]>([]);
 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [logisticsNotifications, setLogisticsNotifications] = useState<LogisticsNotification[]>([]);
+
+  const saveLogisticsNotifications = (updated: LogisticsNotification[]) => {
+    setLogisticsNotifications(updated);
+    localStorage.setItem(`defib_${tenantId}_logistics_notifications`, JSON.stringify(updated));
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('logistics_notifications', updated);
+    }
+  };
 
   const saveNotifications = (updated: AppNotification[]) => {
     const cleaned = updated.filter(n => !isNotificationOlderThan3Months(n.timestamp));
@@ -3078,6 +3087,7 @@ export default function App() {
         syncBackground<OtherEquipment[]>('otherEquipments', 'other_equipments', setOtherEquipments);
         syncBackground<PointageAutoVigilance[]>('pointagesAutoVigilance', 'pointages_auto_vigilance', setPointagesAutoVigilance);
         syncBackground<AchatFournisseur[]>('achats_fournisseurs', 'achats_fournisseurs', setAchatsFournisseurs);
+        syncBackground<LogisticsNotification[]>('logistics_notifications', 'logistics_notifications', setLogisticsNotifications);
 
         syncBackground<AppNotification[]>('notifications', 'notifications', (notifs) => {
           const cleaned = notifs.filter(n => !isNotificationOlderThan3Months(n.timestamp));
@@ -4985,7 +4995,9 @@ export default function App() {
               return !label || !companyInfo.hiddenTabs.includes(label);
             });
 
+            const equipGroupIds = ['defibrillateurs', 'autres-materiels', 'clients'];
             const stockGroupIds = ['stocks', 'stocks-distribues', 'achats-fournisseurs'];
+            const devisCrmGroupIds = ['devis', 'crm'];
 
             const renderButton = (tab: { id: string; label: string }) => (
               <button
@@ -5020,7 +5032,22 @@ export default function App() {
             let i = 0;
             while (i < filteredTabs.length) {
               const tab = filteredTabs[i];
-              if (stockGroupIds.includes(tab.id)) {
+              if (equipGroupIds.includes(tab.id)) {
+                const equipGroup: typeof rawTabs = [];
+                while (i < filteredTabs.length && equipGroupIds.includes(filteredTabs[i].id)) {
+                  equipGroup.push(filteredTabs[i]);
+                  i++;
+                }
+                elements.push(
+                  <div
+                    key="equip-group-container"
+                    className="p-1.5 space-y-1 rounded-2xl"
+                    style={{ border: '1px solid #ffffff1a' }}
+                  >
+                    {equipGroup.map(gt => renderButton(gt))}
+                  </div>
+                );
+              } else if (stockGroupIds.includes(tab.id)) {
                 const stockGroup: typeof rawTabs = [];
                 while (i < filteredTabs.length && stockGroupIds.includes(filteredTabs[i].id)) {
                   stockGroup.push(filteredTabs[i]);
@@ -5033,6 +5060,21 @@ export default function App() {
                     style={{ border: '1px solid #ffffff1a' }}
                   >
                     {stockGroup.map(gt => renderButton(gt))}
+                  </div>
+                );
+              } else if (devisCrmGroupIds.includes(tab.id)) {
+                const devisCrmGroup: typeof rawTabs = [];
+                while (i < filteredTabs.length && devisCrmGroupIds.includes(filteredTabs[i].id)) {
+                  devisCrmGroup.push(filteredTabs[i]);
+                  i++;
+                }
+                elements.push(
+                  <div
+                    key="devis-crm-group-container"
+                    className="p-1.5 space-y-1 rounded-2xl"
+                    style={{ border: '1px solid #ffffff1a' }}
+                  >
+                    {devisCrmGroup.map(gt => renderButton(gt))}
                   </div>
                 );
               } else {
@@ -9554,6 +9596,8 @@ export default function App() {
               setActiveTab={setActiveTab}
               members={members}
               saveDistributedStocks={saveDistributedStocks}
+              logisticsNotifications={logisticsNotifications}
+              saveLogisticsNotifications={saveLogisticsNotifications}
             />
           )}
 

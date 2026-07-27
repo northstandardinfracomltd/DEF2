@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { t } from '../utils/translate';
-import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability, Member } from '../types';
+import { Variable, StockRecord, Defibrillateur, StockMovement, DistributedStockLocation, CommercialDoc, AchatFournisseur, StockTraceability, Member, LogisticsNotification } from '../types';
 import { getLocationCustomName } from '../utils';
 import HelpBubble from './HelpBubble';
 
@@ -115,6 +115,8 @@ interface StocksTabProps {
   setActiveTab?: (tab: any, bypassBlock?: boolean) => void;
   members?: Member[];
   saveDistributedStocks?: (updated: DistributedStockLocation[]) => void;
+  logisticsNotifications?: LogisticsNotification[];
+  saveLogisticsNotifications?: (updated: LogisticsNotification[]) => void;
 }
 
 export default function StocksTab({
@@ -133,7 +135,10 @@ export default function StocksTab({
   setActiveTab,
   members = [],
   saveDistributedStocks,
+  logisticsNotifications = [],
+  saveLogisticsNotifications,
 }: StocksTabProps) {
+  const [isNotifDrawerOpen, setIsNotifDrawerOpen] = useState<boolean>(false);
   const [editingStockId, setEditingStockId] = useState<string | null>(null);
   const [showFormInfoBanner, setShowFormInfoBanner] = useState<boolean>(() => {
     return localStorage.getItem('defib_hide_stocks_form_info_banner') !== 'true';
@@ -1103,6 +1108,28 @@ export default function StocksTab({
       
       {!showStockForm ? (
         <>
+          {/* Top Sticky Bar for Logistics Notifications */}
+          <div 
+            className="sticky top-0 z-30 mb-3 cursor-pointer select-none"
+            style={{ maxWidth: '98%', margin: '0 auto 12px auto' }}
+            onClick={() => setIsNotifDrawerOpen(true)}
+          >
+            <div 
+              className="w-full text-white text-center font-medium px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-95"
+              style={{
+                backgroundColor: '#000000',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                border: '1px solid #ffffff1a',
+                fontSize: '16px',
+                fontFamily: "DefibeoMain, Civilprom, sans-serif"
+              }}
+            >
+              <span>
+                Vous avez {logisticsNotifications.length} notification{logisticsNotifications.length > 1 ? 's' : ''} concernant l’activité logistique. Cliquez pour consulter.
+              </span>
+            </div>
+          </div>
+
           {/* Header Section */}
           <div 
             className="bg-white space-y-4"
@@ -2817,6 +2844,108 @@ export default function StocksTab({
 
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Side-bar popup for logistics notifications */}
+      {isNotifDrawerOpen && (
+        <div 
+          className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-xs animate-fadeIn"
+          style={{ top: 0, left: 0, right: 0, bottom: 0, height: '100vh', width: '100vw' }}
+          onClick={() => setIsNotifDrawerOpen(false)}
+        >
+          <div 
+            className="relative w-full max-w-xl bg-white flex flex-col overflow-hidden animate-slideLeft h-full"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              boxShadow: '-4px 0 24px rgba(0,0,0,0.18)',
+              borderLeft: '1px solid #e2e8f0',
+            }}
+          >
+            {/* Side-pane Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <h3 className="text-xl font-bold text-slate-900 font-sans">
+                Notifications Logistique ({logisticsNotifications.length})
+              </h3>
+              <button
+                onClick={() => setIsNotifDrawerOpen(false)}
+                className="text-slate-500 hover:text-black text-2xl font-bold leading-none cursor-pointer px-2"
+                aria-label="Fermer"
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Notifications List */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-4 pb-28 bg-slate-50/50">
+              {logisticsNotifications.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 bg-white rounded-xl border border-slate-200 font-sans">
+                  Aucune notification d’activité logistique pour le moment.
+                </div>
+              ) : (
+                logisticsNotifications.map((alert) => (
+                  <div 
+                    key={alert.id} 
+                    className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2.5 font-sans"
+                  >
+                    <div className="text-sm text-slate-700 font-medium">
+                      Horodatage : <span className="font-semibold text-slate-900">{alert.horodatage}</span>
+                    </div>
+                    <div className="text-sm text-slate-700 font-medium">
+                      UGS : <span className="font-semibold text-slate-900">{alert.ugs}</span>
+                    </div>
+                    <div className="text-base text-slate-800 font-normal leading-relaxed">
+                      Description : {alert.description}
+                    </div>
+                    <div className="pt-2 flex justify-end">
+                      <button
+                        onClick={() => {
+                          setIsNotifDrawerOpen(false);
+                          if (onNavigateToDistributedStocks) {
+                            onNavigateToDistributedStocks(alert.ugs);
+                          }
+                        }}
+                        style={{
+                          backgroundColor: '#000000',
+                          color: '#ffffff',
+                          borderRadius: '10px',
+                          padding: '9px 18px',
+                          fontSize: '15px',
+                          fontWeight: '600',
+                          border: 'none',
+                          cursor: 'pointer'
+                        }}
+                        className="hover:bg-neutral-800 transition-colors"
+                      >
+                        Consulter
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Floating Bottom Fermer Button */}
+            <div className="p-4 border-t border-slate-200 bg-white">
+              <button
+                onClick={() => setIsNotifDrawerOpen(false)}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#000000',
+                  color: '#ffffff',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  padding: '13px 20px',
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  border: 'none',
+                }}
+                className="hover:bg-neutral-800 transition-colors"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

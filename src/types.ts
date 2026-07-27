@@ -511,6 +511,13 @@ export interface VeilleRecord {
   createdAt?: string; // YYYY-MM-DD HH:mm:ss
 }
 
+export interface LogisticsNotification {
+  id: string;
+  horodatage: string;
+  description: string;
+  ugs: string;
+}
+
 
 
 

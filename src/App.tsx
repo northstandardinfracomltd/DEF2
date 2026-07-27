@@ -1570,11 +1570,11 @@ export default function App() {
       mission.requiredParts.forEach((partName: string) => {
         const idx = updatedStocks.findIndex(st => {
           const vObj = variables.find(v => v.id === st.denominationPieceId);
-          return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+          return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantiteReservee > 0;
         });
         const idxToUse = idx !== -1 ? idx : updatedStocks.findIndex(st => {
           const vObj = variables.find(v => v.id === st.denominationPieceId);
-          return vObj && vObj.nom === partName;
+          return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom));
         });
         if (idxToUse !== -1) {
           const item = updatedStocks[idxToUse];
@@ -1614,12 +1614,12 @@ export default function App() {
     added.forEach(partName => {
       const stockIdx = updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
-        return vObj && vObj.nom === partName && st.quantite > 0;
+        return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantite > 0;
       });
 
       const idxToUse = stockIdx !== -1 ? stockIdx : updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
-        return vObj && vObj.nom === partName;
+        return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom));
       });
 
       if (idxToUse !== -1) {
@@ -1636,12 +1636,12 @@ export default function App() {
     removed.forEach(partName => {
       const stockIdx = updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
-        return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+        return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantiteReservee > 0;
       });
 
       const idxToUse = stockIdx !== -1 ? stockIdx : updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
-        return vObj && vObj.nom === partName;
+        return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom));
       });
 
       if (idxToUse !== -1) {
@@ -7283,22 +7283,26 @@ export default function App() {
                                         {/* SELECTED PIECES BADGES */}
                                         {m.requiredParts.length > 0 && (
                                           <div className="flex flex-wrap gap-1.5 min-h-[24px] items-center bg-transparent">
-                                            {m.requiredParts.map((part: string) => (
-                                              <span
-                                                key={part}
-                                                onClick={() => {
-                                                  const updatedParts = m.requiredParts.filter((p: string) => p !== part);
-                                                  changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts);
-                                                }}
-                                                style={{
-                                                  fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                                                }}
-                                                className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-800 hover:text-white transition-all duration-150 select-none"
-                                                title="Cliquez pour supprimer"
-                                              >
-                                                {part} (x1)
-                                              </span>
-                                            ))}
+                                            {m.requiredParts.map((part: string) => {
+                                              const matchedStockItem = stockItems.find(si => si.label === part || si.name === part);
+                                              const displayLabel = matchedStockItem ? matchedStockItem.label : part;
+                                              return (
+                                                <span
+                                                  key={part}
+                                                  onClick={() => {
+                                                    const updatedParts = m.requiredParts.filter((p: string) => p !== part);
+                                                    changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts);
+                                                  }}
+                                                  style={{
+                                                    fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                                  }}
+                                                  className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-800 hover:text-white transition-all duration-150 select-none"
+                                                  title="Cliquez pour supprimer"
+                                                >
+                                                  {displayLabel} (x1)
+                                                </span>
+                                              );
+                                            })}
                                           </div>
                                         )}
 
@@ -7333,14 +7337,14 @@ export default function App() {
                                               <>
                                                 <optgroup label="Pièces recommandées">
                                                   {recommendedItems.map(item => (
-                                                    <option key={item.id} value={item.name}>
+                                                    <option key={item.id} value={item.label}>
                                                       {item.label}
                                                     </option>
                                                   ))}
                                                 </optgroup>
                                                 <optgroup label="Autres pièces">
                                                   {otherItems.map(item => (
-                                                    <option key={item.id} value={item.name}>
+                                                    <option key={item.id} value={item.label}>
                                                       {item.label}
                                                     </option>
                                                   ))}
@@ -7348,7 +7352,7 @@ export default function App() {
                                               </>
                                             ) : (
                                               stockItems.map(item => (
-                                                <option key={item.id} value={item.name}>
+                                                <option key={item.id} value={item.label}>
                                                   {item.label}
                                                 </option>
                                               ))

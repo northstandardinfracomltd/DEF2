@@ -2948,8 +2948,8 @@ export default function StocksTab({
               ))}
             </div>
 
-            {/* Floating Bottom Fermer Button */}
-            <div className="p-4 border-t border-slate-200 bg-white">
+            {/* Floating Bottom Fermer Button (hors de div) */}
+            <div className="absolute bottom-5 left-5 right-5 z-20">
               <button
                 onClick={() => setIsNotifDrawerOpen(false)}
                 style={{
@@ -2962,6 +2962,7 @@ export default function StocksTab({
                   borderRadius: '12px',
                   cursor: 'pointer',
                   border: 'none',
+                  boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
                 }}
                 className="hover:bg-neutral-800 transition-colors"
               >

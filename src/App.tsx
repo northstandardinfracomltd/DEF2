@@ -726,6 +726,35 @@ export default function App() {
   }, [activeTab, tenantId]);
 
   const saveStocks = (updated: StockRecord[]) => {
+    // Check for stock transition: from >= 1 to 0 or 1
+    const newNotifs: LogisticsNotification[] = [];
+    const nowStr = new Date().toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    updated.forEach(item => {
+      const oldItem = stocks.find(s => s.id === item.id);
+      if (oldItem && oldItem.quantite >= 1 && item.quantite <= 1 && item.quantite < oldItem.quantite) {
+        const variableMatch = variables.find(v => v.id === item.denominationPieceId);
+        const refName = item.ugs || (variableMatch ? variableMatch.nom : item.denominationPieceId);
+        newNotifs.push({
+          id: 'lognotif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+          horodatage: nowStr,
+          description: `Niveau de stock disponible pour "${refName}" passé de ${oldItem.quantite} à ${item.quantite}.`,
+          ugs: item.ugs || refName || item.id,
+          commentaire: ''
+        });
+      }
+    });
+
+    if (newNotifs.length > 0) {
+      saveLogisticsNotifications([...newNotifs, ...logisticsNotifications]);
+    }
+
     setStocks(updated);
     localStorage.setItem(`defib_${tenantId}_stocks`, JSON.stringify(updated));
     if (isFirebaseLoaded && tenantId) {
@@ -734,6 +763,36 @@ export default function App() {
   };
 
   const saveDistributedStocks = (updated: DistributedStockLocation[]) => {
+    // Check for distributed stock transition: from >= 1 to 0 or 1
+    const newNotifs: LogisticsNotification[] = [];
+    const nowStr = new Date().toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    updated.forEach(item => {
+      const oldItem = distributedStocks.find(ds => ds.id === item.id);
+      if (oldItem && oldItem.volumeDisponible >= 1 && item.volumeDisponible <= 1 && item.volumeDisponible < oldItem.volumeDisponible) {
+        const variableMatch = variables.find(v => v.id === item.denominationPieceId);
+        const refName = item.ugs || (variableMatch ? variableMatch.nom : item.denominationPieceId);
+        const locName = item.locationName ? ` (${item.locationName})` : '';
+        newNotifs.push({
+          id: 'lognotif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+          horodatage: nowStr,
+          description: `Niveau de stock distribué disponible pour "${refName}"${locName} passé de ${oldItem.volumeDisponible} à ${item.volumeDisponible}.`,
+          ugs: item.ugs || refName || item.id,
+          commentaire: ''
+        });
+      }
+    });
+
+    if (newNotifs.length > 0) {
+      saveLogisticsNotifications([...newNotifs, ...logisticsNotifications]);
+    }
+
     setDistributedStocks(updated);
     localStorage.setItem(`defib_${tenantId}_distributed_stocks`, JSON.stringify(updated));
     if (isFirebaseLoaded && tenantId) {

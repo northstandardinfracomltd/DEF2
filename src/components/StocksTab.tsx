@@ -2716,7 +2716,7 @@ export default function StocksTab({
                                               value={getReservationInfoText(trace)}
                                               disabled
                                               className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
-                                              style={{ minHeight: '30px', minWidth: '220px' }}
+                                              style={{ minHeight: '30px', minWidth: '400px' }}
                                             />
                                           </td>
 

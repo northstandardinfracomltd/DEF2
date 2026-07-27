@@ -1604,6 +1604,50 @@ export default function App() {
     const added = newParts.filter(p => !oldParts.includes(p));
     const removed = oldParts.filter(p => !newParts.includes(p));
 
+    const tour = fsmTours.find(t => t.id === tourId);
+    const mission = tour?.missions?.find((m: any) => m.id === missionId);
+
+    const bcId = extraFieldsToUpdate?.bonCommandeId !== undefined 
+      ? extraFieldsToUpdate.bonCommandeId 
+      : (mission?.bonCommandeId || '');
+
+    let bcStr = '—';
+    if (bcId) {
+      const doc = (commercialDocs || []).find((d: any) => d.id === bcId || d.bonCommandeReference === bcId || d.ref === bcId);
+      if (doc) {
+        bcStr = doc.bonCommandeReference || doc.ref || bcId;
+      } else {
+        bcStr = bcId;
+      }
+    }
+
+    let clStr = '—';
+    if (mission) {
+      if (mission.clientId) {
+        const found = clients.find(c => c.id === mission.clientId);
+        if (found?.denomination) clStr = found.denomination;
+      }
+      if (clStr === '—' && mission.defibIdentifiant) {
+        const matchedDefib = defibrillateurs.find(df => df.identifiant === mission.defibIdentifiant);
+        if (matchedDefib) {
+          const found = clients.find(c => c.id === matchedDefib.clientId);
+          if (found?.denomination) clStr = found.denomination;
+        }
+      }
+      if (clStr === '—' && mission.clientName) {
+        clStr = mission.clientName;
+      }
+    }
+
+    let dtStr = '—';
+    if (mission) {
+      dtStr = mission.scheduledDate || mission.date || mission.plannedDate || tour?.startDate || tour?.date || '—';
+    } else if (tour) {
+      dtStr = tour.startDate || tour.date || '—';
+    }
+
+    const reservationText = `${bcStr} — ${clStr} — ${dtStr}`;
+
     let updatedStocks = stocks.map(st => ({
       ...st,
       quantite: Number(st.quantite) || 0,
@@ -1611,7 +1655,11 @@ export default function App() {
     }));
     let stocksMutated = false;
 
-    added.forEach(partName => {
+    // Process added items or items to update reservation info for
+    newParts.forEach(partName => {
+      const partsArr = partName.split(',');
+      const lotCandidate = partsArr.length >= 2 ? partsArr[1].trim() : '';
+
       const stockIdx = updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
         return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantite > 0;
@@ -1624,16 +1672,53 @@ export default function App() {
 
       if (idxToUse !== -1) {
         const item = updatedStocks[idxToUse];
+        let isNewlyAdded = added.includes(partName);
+        let newQty = item.quantite;
+        let newQtyRes = item.quantiteReservee;
+
+        if (isNewlyAdded) {
+          newQty = Math.max(0, item.quantite - 1);
+          newQtyRes = item.quantiteReservee + 1;
+        }
+
+        let updatedTraces = Array.isArray(item.traceabilities) ? [...item.traceabilities] : [];
+        if (updatedTraces.length > 0) {
+          let foundTraceIdx = -1;
+          if (lotCandidate) {
+            foundTraceIdx = updatedTraces.findIndex(tr => tr.lotOrSerial === lotCandidate);
+          }
+          if (foundTraceIdx === -1) {
+            foundTraceIdx = updatedTraces.findIndex(tr => tr.situation === 'Disponible' && !tr.reservationInfo);
+          }
+          if (foundTraceIdx === -1) {
+            foundTraceIdx = updatedTraces.findIndex(tr => tr.situation === 'Disponible');
+          }
+
+          if (foundTraceIdx !== -1) {
+            updatedTraces[foundTraceIdx] = {
+              ...updatedTraces[foundTraceIdx],
+              reservationInfo: reservationText,
+              bonCommande: bcStr !== '—' ? bcStr : undefined,
+              client: clStr !== '—' ? clStr : undefined,
+              dateEstimee: dtStr !== '—' ? dtStr : undefined
+            };
+          }
+        }
+
         updatedStocks[idxToUse] = {
           ...item,
-          quantite: Math.max(0, item.quantite - 1),
-          quantiteReservee: item.quantiteReservee + 1
+          quantite: newQty,
+          quantiteReservee: newQtyRes,
+          traceabilities: updatedTraces
         };
         stocksMutated = true;
       }
     });
 
     removed.forEach(partName => {
+      const partsArr = partName.split(',');
+      const lotCandidate = partsArr.length >= 2 ? partsArr[1].trim() : '';
+
       const stockIdx = updatedStocks.findIndex(st => {
         const vObj = variables.find(v => v.id === st.denominationPieceId);
         return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantiteReservee > 0;
@@ -1646,10 +1731,31 @@ export default function App() {
 
       if (idxToUse !== -1) {
         const item = updatedStocks[idxToUse];
+        let updatedTraces = Array.isArray(item.traceabilities) ? [...item.traceabilities] : [];
+        if (updatedTraces.length > 0) {
+          let traceToClearIdx = -1;
+          if (lotCandidate) {
+            traceToClearIdx = updatedTraces.findIndex(tr => tr.lotOrSerial === lotCandidate);
+          }
+          if (traceToClearIdx === -1) {
+            traceToClearIdx = updatedTraces.findIndex(tr => tr.reservationInfo === reservationText || (bcStr !== '—' && tr.bonCommande === bcStr));
+          }
+          if (traceToClearIdx !== -1) {
+            updatedTraces[traceToClearIdx] = {
+              ...updatedTraces[traceToClearIdx],
+              reservationInfo: undefined,
+              bonCommande: undefined,
+              client: undefined,
+              dateEstimee: undefined
+            };
+          }
+        }
+
         updatedStocks[idxToUse] = {
           ...item,
           quantite: item.quantite + 1,
-          quantiteReservee: Math.max(0, item.quantiteReservee - 1)
+          quantiteReservee: Math.max(0, item.quantiteReservee - 1),
+          traceabilities: updatedTraces
         };
         stocksMutated = true;
       }

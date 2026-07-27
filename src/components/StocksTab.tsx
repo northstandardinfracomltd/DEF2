@@ -1110,16 +1110,16 @@ export default function StocksTab({
         <>
           {/* Top Sticky Bar for Logistics Notifications */}
           <div 
-            className="sticky top-0 z-30 mb-3 cursor-pointer select-none"
-            style={{ maxWidth: '98%', margin: '0 auto 12px auto' }}
+            className="sticky top-0 z-30 cursor-pointer select-none"
+            style={{ maxWidth: '100%', margin: '0px auto 0px', borderRadius: '0px' }}
             onClick={() => setIsNotifDrawerOpen(true)}
           >
             <div 
-              className="w-full text-white text-center font-medium px-4 py-3 rounded-xl flex items-center justify-center gap-2 transition-opacity hover:opacity-95"
+              className="w-full text-white text-center font-medium px-4 py-3 flex items-center justify-center gap-2 transition-opacity hover:opacity-95"
               style={{
                 backgroundColor: '#000000',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                border: '1px solid #ffffff1a',
+                borderRadius: '0px',
                 fontSize: '16px',
                 fontFamily: "DefibeoMain, Civilprom, sans-serif"
               }}
@@ -2862,67 +2862,90 @@ export default function StocksTab({
               borderLeft: '1px solid #e2e8f0',
             }}
           >
-            {/* Side-pane Header */}
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-              <h3 className="text-xl font-bold text-slate-900 font-sans">
-                Notifications Logistique ({logisticsNotifications.length})
-              </h3>
-              <button
-                onClick={() => setIsNotifDrawerOpen(false)}
-                className="text-slate-500 hover:text-black text-2xl font-bold leading-none cursor-pointer px-2"
-                aria-label="Fermer"
-              >
-                ×
-              </button>
-            </div>
-
             {/* Notifications List */}
             <div className="flex-1 overflow-y-auto p-5 space-y-4 pb-28 bg-slate-50/50">
-              {logisticsNotifications.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 bg-white rounded-xl border border-slate-200 font-sans">
-                  Aucune notification d’activité logistique pour le moment.
-                </div>
-              ) : (
-                logisticsNotifications.map((alert) => (
-                  <div 
-                    key={alert.id} 
-                    className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2.5 font-sans"
-                  >
-                    <div className="text-sm text-slate-700 font-medium">
-                      Horodatage : <span className="font-semibold text-slate-900">{alert.horodatage}</span>
-                    </div>
-                    <div className="text-sm text-slate-700 font-medium">
-                      UGS : <span className="font-semibold text-slate-900">{alert.ugs}</span>
-                    </div>
-                    <div className="text-base text-slate-800 font-normal leading-relaxed">
-                      Description : {alert.description}
-                    </div>
-                    <div className="pt-2 flex justify-end">
-                      <button
-                        onClick={() => {
-                          setIsNotifDrawerOpen(false);
-                          if (onNavigateToDistributedStocks) {
-                            onNavigateToDistributedStocks(alert.ugs);
-                          }
-                        }}
-                        style={{
-                          backgroundColor: '#000000',
-                          color: '#ffffff',
-                          borderRadius: '10px',
-                          padding: '9px 18px',
-                          fontSize: '15px',
-                          fontWeight: '600',
-                          border: 'none',
-                          cursor: 'pointer'
-                        }}
-                        className="hover:bg-neutral-800 transition-colors"
-                      >
-                        Consulter
-                      </button>
-                    </div>
+              {logisticsNotifications.map((alert) => (
+                <div 
+                  key={alert.id} 
+                  className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3 font-sans"
+                >
+                  <div className="text-sm text-slate-700 font-medium">
+                    Horodatage : <span className="font-semibold text-slate-900">{alert.horodatage}</span>
                   </div>
-                ))
-              )}
+                  <div className="text-sm text-slate-700 font-medium">
+                    UGS : <span className="font-semibold text-slate-900">{alert.ugs}</span>
+                  </div>
+                  <div className="text-base text-slate-800 font-normal leading-relaxed">
+                    Description : {alert.description}
+                  </div>
+
+                  <div className="space-y-1 pt-1">
+                    <label className="block text-sm font-medium text-slate-700">Commentaire</label>
+                    <textarea
+                      value={alert.commentaire || ''}
+                      onChange={(e) => {
+                        if (saveLogisticsNotifications) {
+                          const updated = logisticsNotifications.map(n => n.id === alert.id ? { ...n, commentaire: e.target.value } : n);
+                          saveLogisticsNotifications(updated);
+                        }
+                      }}
+                      placeholder="Entrez un commentaire."
+                      className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-black bg-slate-50/50 resize-y min-h-[60px]"
+                    />
+                  </div>
+
+                  <div className="pt-2 flex gap-2.5 w-full">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (saveLogisticsNotifications) {
+                          const updated = logisticsNotifications.filter(n => n.id !== alert.id);
+                          saveLogisticsNotifications(updated);
+                        }
+                      }}
+                      style={{
+                        width: '50%',
+                        backgroundColor: '#334155',
+                        color: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 0',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                      className="hover:bg-slate-800 transition-colors flex-1"
+                    >
+                      Terminer
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsNotifDrawerOpen(false);
+                        if (onNavigateToDistributedStocks) {
+                          onNavigateToDistributedStocks(alert.ugs);
+                        }
+                      }}
+                      style={{
+                        width: '50%',
+                        backgroundColor: '#000000',
+                        color: '#ffffff',
+                        borderRadius: '10px',
+                        padding: '10px 0',
+                        fontSize: '15px',
+                        fontWeight: '600',
+                        border: 'none',
+                        cursor: 'pointer',
+                        textAlign: 'center'
+                      }}
+                      className="hover:bg-neutral-800 transition-colors flex-1"
+                    >
+                      Consulter
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Floating Bottom Fermer Button */}

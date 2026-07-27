@@ -516,6 +516,7 @@ export interface LogisticsNotification {
   horodatage: string;
   description: string;
   ugs: string;
+  commentaire?: string;
 }
 
 

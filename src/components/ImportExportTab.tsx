@@ -359,21 +359,40 @@ const validateAndParseDefibs = (
   ];
 
   if (rows.length < 1) {
-    return { success: false, data: [], errors: ["Erreur P"] };
+    return { success: false, data: [], errors: ["Fichier vide ou sans données."] };
   }
 
+  const normalizeStr = (s: string) => (s || '').replace(/^\uFEFF/, '').replace(/\s+/g, ' ').trim();
+
   if (headers.length !== expected.length) {
-    errorsSet.add("Erreur P");
+    return { success: false, data: [], errors: ["Nombre de colonnes incorrect dans l'en-tête du fichier."] };
   } else {
-    const hMatch = headers.every((h, i) => h.replace(/^\uFEFF/, '').trim() === expected[i]);
+    const hMatch = headers.every((h, i) => normalizeStr(h) === normalizeStr(expected[i]));
     if (!hMatch) {
-      errorsSet.add("Erreur P");
+      return { success: false, data: [], errors: ["Les entêtes du fichier CSV ne correspondent pas au format attendu."] };
     }
   }
 
-  if (errorsSet.has("Erreur P")) {
-    return { success: false, data: [], errors: Array.from(errorsSet) };
-  }
+  const findVar = (val: string, categoryFilter?: string): Variable | undefined => {
+    if (!val) return undefined;
+    const cleanVal = val.trim();
+    if (!cleanVal) return undefined;
+    const norm = cleanVal.toLowerCase().replace(/\s+/g, ' ');
+
+    // 1. Direct ID match (exact or normalized)
+    let found = (currentVars || []).find(v => v.id === cleanVal || (v.id && v.id.trim().toLowerCase() === norm));
+    if (found) return found;
+
+    // 2. Name match with category filter
+    if (categoryFilter) {
+      found = (currentVars || []).find(v => v.category === categoryFilter && v.nom && v.nom.trim().toLowerCase().replace(/\s+/g, ' ') === norm);
+      if (found) return found;
+    }
+
+    // 3. Name match across all categories
+    found = (currentVars || []).find(v => v.nom && v.nom.trim().toLowerCase().replace(/\s+/g, ' ') === norm);
+    return found;
+  };
 
   const parsedItems: Defibrillateur[] = [];
   const existingIds = [...existingDefibs.map(df => df.identifiant)];
@@ -394,7 +413,6 @@ const validateAndParseDefibs = (
   for (let idx = 0; idx < rows.length; idx++) {
     const row = rows[idx];
     if (row.length !== expected.length) {
-      errorsSet.add("Erreur P");
       continue;
     }
 
@@ -485,82 +503,94 @@ const validateAndParseDefibs = (
       errorsSet.add("Erreur B");
     }
 
-    // Erreur C : Modèle. (Identifiant unique) starts with "v_" (if provided)
-    if (modelVal !== "" && !modelVal.startsWith("v_")) {
-      errorsSet.add("Erreur C");
+    // Resolve Defibrillator Model
+    let matchingVar = findVar(modelVal, 'Modèle Défibrillateur');
+    if (modelVal !== "") {
+      if (!matchingVar) {
+        errorsSet.add("Erreur P");
+        if (!modelVal.startsWith("v_")) {
+          errorsSet.add("Erreur C");
+        }
+      }
+    } else {
+      matchingVar = (currentVars || []).find(v => v.category === 'Modèle Défibrillateur');
+      if (!matchingVar) {
+        errorsSet.add("Erreur P");
+      }
     }
 
-    // Erreur D : Client. (Identifiant unique) starts with "c_" (if provided)
+    // Client. (Identifiant unique) starts with "c_" (if provided)
     if (clientVal !== "" && !clientVal.startsWith("c_")) {
       errorsSet.add("Erreur D");
     }
 
-    // Erreur E : Section 3 — Boîtier : Modèle starts with "v_" (if provided)
-    if (modeleCoffretId !== "" && !modeleCoffretId.startsWith("v_")) {
+    // Resolve Coffret
+    const coffretVar = findVar(modeleCoffretId, 'Modèle Coffret');
+    const finalCoffretId = coffretVar ? coffretVar.id : modeleCoffretId;
+    if (modeleCoffretId !== "" && !coffretVar && !modeleCoffretId.startsWith("v_")) {
       errorsSet.add("Erreur E");
     }
 
-    // Erreur F : Section 6 — Électrode Adulte ou Mixte : Modèle starts with "v_" (if provided)
-    if (modeleElectrodeAId !== "" && !modeleElectrodeAId.startsWith("v_")) {
+    // Resolve Electrode Adulte
+    const elecAVar = findVar(modeleElectrodeAId, 'Modèle Électrode');
+    const finalElectrodeAId = elecAVar ? elecAVar.id : modeleElectrodeAId;
+    if (modeleElectrodeAId !== "" && !elecAVar && !modeleElectrodeAId.startsWith("v_")) {
       errorsSet.add("Erreur F");
     }
 
-    // Erreur G : Section 6 — Électrode Adulte ou Mixte : Modèle d’électrode de secours starts with "v_" (if provided)
-    if (modeleElectrodeASecoursId !== "" && !modeleElectrodeASecoursId.startsWith("v_")) {
+    // Resolve Electrode Adulte Secours
+    const elecASecVar = findVar(modeleElectrodeASecoursId, 'Modèle Électrode');
+    const finalElectrodeASecoursId = elecASecVar ? elecASecVar.id : modeleElectrodeASecoursId;
+    if (modeleElectrodeASecoursId !== "" && !elecASecVar && !modeleElectrodeASecoursId.startsWith("v_")) {
       errorsSet.add("Erreur G");
     }
 
-    // Erreur H : Section 6 — Électrode Adulte ou Mixte : Statut must be empty, Conforme, Attention, or Alerte
+    // Erreur H : Section 6 — Électrode Adulte ou Mixte : Statut
     if (situationElectrodeAVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationElectrodeAVal)) {
       errorsSet.add("Erreur H");
     }
 
-    // Erreur I : Section 7 — Électrode Pédiatrique : Modèle starts with "v_" (if provided)
-    if (modeleElectrodePId !== "" && !modeleElectrodePId.startsWith("v_")) {
+    // Resolve Electrode Pédiatrique
+    const elecPVar = findVar(modeleElectrodePId, 'Modèle Électrode');
+    const finalElectrodePId = elecPVar ? elecPVar.id : modeleElectrodePId;
+    if (modeleElectrodePId !== "" && !elecPVar && !modeleElectrodePId.startsWith("v_")) {
       errorsSet.add("Erreur I");
     }
 
-    // Erreur J : Section 7 — Électrode Pédiatrique : Modèle d’électrode de secours starts with "v_" (if provided)
-    if (modeleElectrodePSecoursId !== "" && !modeleElectrodePSecoursId.startsWith("v_")) {
+    // Resolve Electrode Pédiatrique Secours
+    const elecPSecVar = findVar(modeleElectrodePSecoursId, 'Modèle Électrode');
+    const finalElectrodePSecoursId = elecPSecVar ? elecPSecVar.id : modeleElectrodePSecoursId;
+    if (modeleElectrodePSecoursId !== "" && !elecPSecVar && !modeleElectrodePSecoursId.startsWith("v_")) {
       errorsSet.add("Erreur J");
     }
 
-    // Erreur K : Section 7 — Électrode Pédiatrique : Statut must be empty, Conforme, Attention, or Alerte
+    // Erreur K : Section 7 — Électrode Pédiatrique : Statut
     if (situationElectrodePVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationElectrodePVal)) {
       errorsSet.add("Erreur K");
     }
 
-    // Erreur L : Section 8 — Batterie : Modèle starts with "v_" (if provided)
-    if (modeleBatterieId !== "" && !modeleBatterieId.startsWith("v_")) {
+    // Resolve Batterie
+    const batVar = findVar(modeleBatterieId, 'Modèle Batterie');
+    const finalBatterieId = batVar ? batVar.id : modeleBatterieId;
+    if (modeleBatterieId !== "" && !batVar && !modeleBatterieId.startsWith("v_")) {
       errorsSet.add("Erreur L");
     }
 
-    // Erreur M : Section 8 — Batterie : Statut must be empty, Conforme, Attention, or Alerte
+    // Erreur M : Section 8 — Batterie : Statut
     if (situationBatterieVal !== "" && !["Conforme", "Attention", "Alerte"].includes(situationBatterieVal)) {
       errorsSet.add("Erreur M");
     }
 
-    // Erreur N : Section 8 — Batterie : Pourcentage constaté must be a numeric integer or empty
+    // Erreur N : Section 8 — Batterie : Pourcentage constaté
     if (pourcentageBatterie !== "" && isNaN(Number(pourcentageBatterie))) {
       errorsSet.add("Erreur N");
     }
 
-    // Erreur O : Section 9 categories must be empty, Oui, or Non
+    // Erreur O : Section 9 categories
     const catVals = [loue, prete, stocke, archive, conforme, sousTraitance, fsmAutorise];
     const invalidCat = catVals.some(v => v !== "" && v !== "Oui" && v !== "Non");
     if (invalidCat) {
       errorsSet.add("Erreur O");
-    }
-
-    let matchingVar: Variable | undefined = undefined;
-    if (modelVal !== "") {
-      matchingVar = currentVars.find(v => v.id === modelVal || v.nom === modelVal);
-      if (!matchingVar) {
-        errorsSet.add("Erreur P");
-      }
-    } else {
-      const firstModelVar = currentVars.find(v => v.category === 'Modèle Défibrillateur');
-      matchingVar = firstModelVar;
     }
 
     if (errorsSet.size > 0) {
@@ -590,7 +620,7 @@ const validateAndParseDefibs = (
       finContrat: finContrat,
       payeurId: payeurId,
       clientIdField: clientIdField,
-      modeleCoffretId: modeleCoffretId,
+      modeleCoffretId: finalCoffretId,
       numeroLotCoffret: numeroLotCoffret,
       commentaireCoffret: commentaireCoffret,
       numVoie: numVoie,
@@ -610,7 +640,7 @@ const validateAndParseDefibs = (
       miseEnService: miseEnService,
       derniereMaintenance: derniereMaintenance,
       sortieFabricant: sortieFabricant,
-       modeleElectrodeAId: modeleElectrodeAId,
+      modeleElectrodeAId: finalElectrodeAId,
       lotElectrodeA: lotElectrodeA,
       insertionElectrodeA: insertionElectrodeA,
       peremptionElectrodeA: peremptionElectrodeA,
@@ -618,11 +648,11 @@ const validateAndParseDefibs = (
       situationElectrodeA: mapStatusToDb(situationElectrodeAVal),
       commentaireElectrodeA: commentaireElectrodeA,
       peremptionSecoursElectrodeA: peremptionSecoursElectrodeA,
-      modeleElectrodeASecoursId: modeleElectrodeASecoursId,
+      modeleElectrodeASecoursId: finalElectrodeASecoursId,
       lotElectrodeASecours: lotElectrodeASecours,
       lotPadpakA: lotPadpakA,
       peremptionPadpakA: peremptionPadpakA,
-      modeleElectrodePId: modeleElectrodePId,
+      modeleElectrodePId: finalElectrodePId,
       lotElectrodeP: lotElectrodeP,
       insertionElectrodeP: insertionElectrodeP,
       peremptionElectrodeP: peremptionElectrodeP,
@@ -630,11 +660,11 @@ const validateAndParseDefibs = (
       situationElectrodeP: mapStatusToDb(situationElectrodePVal),
       commentaireElectrodeP: commentaireElectrodeP,
       peremptionSecoursElectrodeP: peremptionSecoursElectrodeP,
-      modeleElectrodePSecoursId: modeleElectrodePSecoursId,
+      modeleElectrodePSecoursId: finalElectrodePSecoursId,
       lotElectrodePSecours: lotElectrodePSecours,
       lotPadpakP: lotPadpakP,
       peremptionPadpakP: peremptionPadpakP,
-      modeleBatterieId: modeleBatterieId,
+      modeleBatterieId: finalBatterieId,
       lotBatterie: lotBatterie,
       insertionBatterie: insertionBatterie,
       peremptionBatterie: peremptionBatterie,
@@ -746,7 +776,13 @@ const validateAndParseStocks = (csvText: string, currentVars: Variable[]): Stock
     const marginStr = row[6];
     const priceStr = row[7];
 
-    const matchingVar = currentVars.find(v => v.nom === pieceNom);
+    const normPiece = (pieceNom || '').trim().toLowerCase();
+    const matchingVar = (currentVars || []).find(v => 
+      v.id === pieceNom || 
+      (v.id && v.id.trim().toLowerCase() === normPiece) || 
+      v.nom === pieceNom || 
+      (v.nom && v.nom.trim().toLowerCase().replace(/\s+/g, ' ') === normPiece.replace(/\s+/g, ' '))
+    );
     if (!matchingVar) return null;
 
     if (!validStockages.includes(stockage)) return null;

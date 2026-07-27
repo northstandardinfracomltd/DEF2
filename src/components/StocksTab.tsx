@@ -170,6 +170,7 @@ export default function StocksTab({
   // Traçabilité States
   const [traceabilityEnabled, setTraceabilityEnabled] = useState<boolean>(false);
   const [traceabilities, setTraceabilities] = useState<StockTraceability[]>([]);
+  const [selectedSituationFilter, setSelectedSituationFilter] = useState<string>('Toutes situations');
   
   // Nouveau Inventaire Form States
   const [showTraceabilityForm, setShowTraceabilityForm] = useState<boolean>(false);
@@ -2259,7 +2260,30 @@ export default function StocksTab({
                       >
                         {t("Inventaire de traçabilité")}
                       </span>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 items-center">
+                        <select
+                          value={selectedSituationFilter}
+                          onChange={(e) => setSelectedSituationFilter(e.target.value)}
+                          style={{
+                            backgroundColor: '#000000',
+                            color: '#ffffff',
+                            padding: '10px 20px',
+                            fontSize: '18px',
+                            borderRadius: '13px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontWeight: 'bold'
+                          }}
+                          className="font-sans font-bold active:scale-95 transition-all cursor-pointer border-0 text-white"
+                          title="Filtrer par situation"
+                        >
+                          <option value="Toutes situations" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Toutes situations</option>
+                          <option value="Disponible" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Disponible</option>
+                          <option value="Utilisé" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Utilisé</option>
+                          <option value="Indisponible" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Indisponible</option>
+                          <option value="Signalé manquant" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Signalé manquant</option>
+                          <option value="Prêté" style={{ backgroundColor: '#000000', color: '#ffffff' }}>Prêté</option>
+                        </select>
                         <button
                           type="button"
                           onClick={() => setShowTraceabilityForm(!showTraceabilityForm)}
@@ -2403,9 +2427,17 @@ export default function StocksTab({
                         'Véhicule F', 'Véhicule G', 'Véhicule H', 'Véhicule I', 'Véhicule J'
                       ];
 
+                      // Filter traceabilities by situation filter
+                      const filteredTraceabilities = selectedSituationFilter === 'Toutes situations'
+                        ? traceabilities
+                        : traceabilities.filter(t => t.situation === selectedSituationFilter);
+
                       // Group traceabilities
                       const groups: Record<string, { idx: number; trace: StockTraceability }[]> = {};
                       traceabilities.forEach((trace, idx) => {
+                        if (selectedSituationFilter !== 'Toutes situations' && trace.situation !== selectedSituationFilter) {
+                          return;
+                        }
                         const loc = getTraceLocation(trace);
                         if (!groups[loc]) {
                           groups[loc] = [];
@@ -2542,23 +2574,23 @@ export default function StocksTab({
                                     <button
                                       type="button"
                                       onClick={() => {
-                                        const allIds = traceabilities.map(t => t.id);
-                                        const isAllSelected = allIds.length > 0 && allIds.every(id => selectedTraceIds.includes(id));
+                                        const visibleIds = filteredTraceabilities.map(t => t.id);
+                                        const isAllSelected = visibleIds.length > 0 && visibleIds.every(id => selectedTraceIds.includes(id));
                                         if (isAllSelected) {
-                                          setSelectedTraceIds([]);
+                                          setSelectedTraceIds(prev => prev.filter(id => !visibleIds.includes(id)));
                                         } else {
-                                          setSelectedTraceIds(allIds);
+                                          setSelectedTraceIds(prev => Array.from(new Set([...prev, ...visibleIds])));
                                         }
                                       }}
                                       className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-[#fe4eba]/20 cursor-pointer mx-auto ${
-                                        traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id))
+                                        filteredTraceabilities.length > 0 && filteredTraceabilities.every(t => selectedTraceIds.includes(t.id))
                                           ? 'border-[#fe4eba] bg-transparent'
                                           : 'border-slate-400 bg-white hover:border-[#fe4eba]'
                                       }`}
                                       style={{ borderWidth: '2.5px' }}
                                       title="Tout sélectionner / désélectionner"
                                     >
-                                      {traceabilities.length > 0 && traceabilities.every(t => selectedTraceIds.includes(t.id)) && (
+                                      {filteredTraceabilities.length > 0 && filteredTraceabilities.every(t => selectedTraceIds.includes(t.id)) && (
                                         <span className="w-2.5 h-2.5 rounded-full bg-[#fe4eba] transition-all scale-100" />
                                       )}
                                     </button>
@@ -2576,6 +2608,13 @@ export default function StocksTab({
                                 </tr>
                               </thead>
                               <tbody className="bg-white">
+                                {Object.keys(groups).length === 0 && (
+                                  <tr>
+                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-500 font-sans text-sm bg-white">
+                                      Aucune pièce ne correspond au filtre de situation ({selectedSituationFilter}).
+                                    </td>
+                                  </tr>
+                                )}
                                 {Object.entries(groups).map(([locName, items]) => {
                                   // Find technician associated with this location
                                   const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);

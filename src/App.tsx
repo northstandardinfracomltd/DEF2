@@ -4937,51 +4937,57 @@ export default function App() {
 
         {/* Scrollable Navigation Items */}
         <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
-          {[
-            { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
-            ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
-            { id: 'clients', label: t('Clients'), icon: User },
-            { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
-            { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
-            { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
-            { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
-            { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
-            { id: 'devis', label: t('Devis & Factures'), icon: FileSpreadsheet },
-            { id: 'crm', label: t('CRM'), icon: FolderSync },
-            { id: 'ged', label: t('GED'), icon: ClipboardList },
-            { id: 'temps', label: t('Temps'), icon: Clock },
-            { id: 'localisations', label: t('Localisations'), icon: MapPin },
-            { id: 'tickets', label: t('Tickets Caisse'), icon: Ticket },
-            { id: 'variables', label: t('Variables'), icon: Layers },
-            { id: 'import-export', label: t('Importer Exporter'), icon: Download },
-            { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
-            { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
-            { id: 'notifications', label: 'Notifications', icon: Bell },
-            { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
-          ].filter(tab => {
-            if (!companyInfo?.hiddenTabs) return true;
-            const tabToLabelMap: Record<string, string> = {
-              fsm: "FSM (Tournées)",
-              gmao: "GMAO (Rapports)",
-              stocks: "Centrale des stocks",
-              "stocks-distribues": "Stocks distribués",
-              "achats-fournisseurs": "Achats fournisseurs",
-              devis: "Devis & Factures",
-              crm: "CRM",
-              ged: "GED",
-              temps: "Temps",
-              localisations: "Localisations",
-              tickets: "Tickets Caisse",
-              variables: "Variables",
-              "import-export": "Importer Exporter",
-              satisfaction: "Satisfaction",
-              notifications: "Notifications",
-              veilles: "Relevé Concurrentiel"
-            };
-            const label = tabToLabelMap[tab.id];
-            return !label || !companyInfo.hiddenTabs.includes(label);
-          }).map((tab) => {
-            return (
+          {(() => {
+            const rawTabs = [
+              { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
+              ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
+              { id: 'clients', label: t('Clients'), icon: User },
+              { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
+              { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
+              { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
+              { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
+              { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
+              { id: 'devis', label: t('Devis & Factures'), icon: FileSpreadsheet },
+              { id: 'crm', label: t('CRM'), icon: FolderSync },
+              { id: 'ged', label: t('GED'), icon: ClipboardList },
+              { id: 'temps', label: t('Temps'), icon: Clock },
+              { id: 'localisations', label: t('Localisations'), icon: MapPin },
+              { id: 'tickets', label: t('Tickets Caisse'), icon: Ticket },
+              { id: 'variables', label: t('Variables'), icon: Layers },
+              { id: 'import-export', label: t('Importer Exporter'), icon: Download },
+              { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
+              { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
+              { id: 'notifications', label: 'Notifications', icon: Bell },
+              { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
+            ];
+
+            const filteredTabs = rawTabs.filter(tab => {
+              if (!companyInfo?.hiddenTabs) return true;
+              const tabToLabelMap: Record<string, string> = {
+                fsm: "FSM (Tournées)",
+                gmao: "GMAO (Rapports)",
+                stocks: "Centrale des stocks",
+                "stocks-distribues": "Stocks distribués",
+                "achats-fournisseurs": "Achats fournisseurs",
+                devis: "Devis & Factures",
+                crm: "CRM",
+                ged: "GED",
+                temps: "Temps",
+                localisations: "Localisations",
+                tickets: "Tickets Caisse",
+                variables: "Variables",
+                "import-export": "Importer Exporter",
+                satisfaction: "Satisfaction",
+                notifications: "Notifications",
+                veilles: "Relevé Concurrentiel"
+              };
+              const label = tabToLabelMap[tab.id];
+              return !label || !companyInfo.hiddenTabs.includes(label);
+            });
+
+            const stockGroupIds = ['stocks', 'stocks-distribues', 'achats-fournisseurs'];
+
+            const renderButton = (tab: { id: string; label: string }) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as AppTab)}
@@ -5009,7 +5015,34 @@ export default function App() {
                 <span className="truncate">{tab.label}</span>
               </button>
             );
-          })}
+
+            const elements: React.ReactNode[] = [];
+            let i = 0;
+            while (i < filteredTabs.length) {
+              const tab = filteredTabs[i];
+              if (stockGroupIds.includes(tab.id)) {
+                const stockGroup: typeof rawTabs = [];
+                while (i < filteredTabs.length && stockGroupIds.includes(filteredTabs[i].id)) {
+                  stockGroup.push(filteredTabs[i]);
+                  i++;
+                }
+                elements.push(
+                  <div
+                    key="stock-group-container"
+                    className="p-1.5 space-y-1 rounded-2xl"
+                    style={{ border: '1px solid #ffffff1a' }}
+                  >
+                    {stockGroup.map(gt => renderButton(gt))}
+                  </div>
+                );
+              } else {
+                elements.push(renderButton(tab));
+                i++;
+              }
+            }
+
+            return elements;
+          })()}
         </div>
 
         {/* Sticky bottom Parametres button inside pane (full-width) */}

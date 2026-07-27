@@ -2867,20 +2867,29 @@ export default function StocksTab({
               {logisticsNotifications.map((alert) => (
                 <div 
                   key={alert.id} 
-                  className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-3 font-sans"
+                  className="p-4 rounded-xl bg-white space-y-3 font-sans"
+                  style={{
+                    border: '1px solid #a6a6a6',
+                    boxShadow: 'none',
+                  }}
                 >
-                  <div className="text-sm text-slate-700 font-medium">
-                    Horodatage : <span className="font-semibold text-slate-900">{alert.horodatage}</span>
+                  <div>
+                    <span 
+                      className="inline-block px-3 py-1 rounded-full text-white font-medium text-sm"
+                      style={{ backgroundColor: '#7C2882', color: '#ffffff' }}
+                    >
+                      {alert.horodatage}
+                    </span>
                   </div>
-                  <div className="text-sm text-slate-700 font-medium">
-                    UGS : <span className="font-semibold text-slate-900">{alert.ugs}</span>
+                  <div className="text-[16px] text-[#000] font-normal">
+                    UGS : <span className="font-semibold text-[#000]">{alert.ugs}</span>
                   </div>
-                  <div className="text-base text-slate-800 font-normal leading-relaxed">
+                  <div className="text-[16px] text-[#000] font-normal leading-relaxed">
                     Description : {alert.description}
                   </div>
 
                   <div className="space-y-1 pt-1">
-                    <label className="block text-sm font-medium text-slate-700">Commentaire</label>
+                    <label className="block text-[16px] font-medium text-[#000]">Commentaire</label>
                     <textarea
                       value={alert.commentaire || ''}
                       onChange={(e) => {
@@ -2890,7 +2899,7 @@ export default function StocksTab({
                         }
                       }}
                       placeholder="Entrez un commentaire."
-                      className="w-full p-2.5 text-sm border border-slate-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-black bg-slate-50/50 resize-y min-h-[60px]"
+                      className="w-full p-2.5 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-slate-50/50 resize-y min-h-[60px] focus:outline-none focus:ring-0 focus:border-slate-300"
                     />
                   </div>
 
@@ -2905,17 +2914,17 @@ export default function StocksTab({
                       }}
                       style={{
                         width: '50%',
-                        backgroundColor: '#334155',
+                        backgroundColor: '#2563eb',
                         color: '#ffffff',
                         borderRadius: '10px',
                         padding: '10px 0',
-                        fontSize: '15px',
+                        fontSize: '18px',
                         fontWeight: '600',
                         border: 'none',
                         cursor: 'pointer',
                         textAlign: 'center'
                       }}
-                      className="hover:bg-slate-800 transition-colors flex-1"
+                      className="hover:bg-blue-700 transition-colors flex-1"
                     >
                       Terminer
                     </button>
@@ -2933,7 +2942,7 @@ export default function StocksTab({
                         color: '#ffffff',
                         borderRadius: '10px',
                         padding: '10px 0',
-                        fontSize: '15px',
+                        fontSize: '18px',
                         fontWeight: '600',
                         border: 'none',
                         cursor: 'pointer',
@@ -2956,7 +2965,7 @@ export default function StocksTab({
                   width: '100%',
                   backgroundColor: '#000000',
                   color: '#ffffff',
-                  fontSize: '16px',
+                  fontSize: '18px',
                   fontWeight: '600',
                   padding: '13px 20px',
                   borderRadius: '12px',

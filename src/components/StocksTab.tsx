@@ -210,6 +210,31 @@ export default function StocksTab({
     return 'Centrale des stocks';
   };
 
+  const getReservationInfoText = (trace: StockTraceability) => {
+    if (trace.reservationInfo) {
+      return trace.reservationInfo;
+    }
+    if (trace.bonCommande || trace.client || trace.dateEstimee) {
+      const bc = trace.bonCommande || '—';
+      const cl = trace.client || '—';
+      const dt = trace.dateEstimee || '—';
+      return `${bc} — ${cl} — ${dt}`;
+    }
+    const matchedDoc = (commercialDocs || []).find(doc => 
+      doc.hasBonCommande && 
+      doc.bonCommandeReference &&
+      doc.items && 
+      doc.items.some(it => it.variableId === newDenomStr || (newUgs && it.ugs === newUgs))
+    );
+    if (matchedDoc) {
+      const bc = matchedDoc.bonCommandeReference || matchedDoc.ref || '—';
+      const cl = matchedDoc.clientDenomination || '—';
+      const dt = matchedDoc.dateStr || '—';
+      return `${bc} — ${cl} — ${dt}`;
+    }
+    return '—';
+  };
+
   const handleSelectedDistributionSubmit = () => {
     if (selectedTraceIds.length === 0) return;
     if (!distribEmplacement) {
@@ -2542,6 +2567,7 @@ export default function StocksTab({
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Numéro de lot ou série.</th>
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Date de péremption.</th>
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Situation.</th>
+                                  <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Infos réservation.</th>
                                   <th className="px-3 py-3 text-center font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Volume.</th>
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Commentaire.</th>
                                   <th className="px-3 py-3 font-semibold text-black font-sans" style={{ fontSize: '16px', color: '#000000', whiteSpace: 'nowrap' }}>Mouvement.</th>
@@ -2558,7 +2584,7 @@ export default function StocksTab({
                                     <React.Fragment key={locName}>
                                       {/* Intercalaire (Divider Row) */}
                                       <tr className="bg-black select-none" style={{ borderBottom: '1px solid #000000', borderTop: '1px solid #000000' }}>
-                                        <td colSpan={10} className="px-4 py-3 bg-black">
+                                        <td colSpan={11} className="px-4 py-3 bg-black">
                                           <div className="flex items-center gap-6 font-sans text-[15px] font-bold text-white bg-transparent">
                                             <span className="bg-transparent">
                                               Emplacement : {getLocationCustomName(locName)}
@@ -2681,6 +2707,17 @@ export default function StocksTab({
                                               <option value="Signalé manquant">Signalé manquant</option>
                                               <option value="Prêté">Prêté</option>
                                             </select>
+                                          </td>
+
+                                          {/* Infos réservation */}
+                                          <td className="px-3 py-3 bg-white">
+                                            <input
+                                              type="text"
+                                              value={getReservationInfoText(trace)}
+                                              disabled
+                                              className="w-full bg-slate-100 text-slate-500 p-1 border border-slate-300 rounded font-sans text-xs cursor-not-allowed"
+                                              style={{ minHeight: '30px', minWidth: '220px' }}
+                                            />
                                           </td>
 
                                           {/* Volume */}

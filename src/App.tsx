@@ -1403,11 +1403,11 @@ export default function App() {
           mission.requiredParts.forEach((partName: string) => {
             const idx = updatedStocks.findIndex(st => {
               const vObj = variables.find(v => v.id === st.denominationPieceId);
-              return vObj && vObj.nom === partName && st.quantiteReservee > 0;
+              return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom)) && st.quantiteReservee > 0;
             });
             const idxToUse = idx !== -1 ? idx : updatedStocks.findIndex(st => {
               const vObj = variables.find(v => v.id === st.denominationPieceId);
-              return vObj && vObj.nom === partName;
+              return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom));
             });
             if (idxToUse !== -1) {
               const item = updatedStocks[idxToUse];
@@ -7231,22 +7231,96 @@ export default function App() {
                                   {(() => {
                                     const currentMissionDefib = defibrillateurs.find((d: any) => d.identifiant === m.defibIdentifiant);
 
-                                    // Build comprehensive items list from distributed stocks, central stocks, and variables
+                                    // Selected technician on tour t
+                                    const tourTechName = t.techName || '';
+                                    const tourTechMember = members.find((mem: any) => mem.name && mem.name.trim().toLowerCase() === tourTechName.trim().toLowerCase());
+                                    const techLocation = tourTechMember?.locationLink || '';
+
+                                    const isLocationMatchingTechOrCentral = (loc?: string) => {
+                                      if (!loc || loc === 'Centrale des stocks' || loc === 'Stock Central' || loc === 'defaut' || loc === 'Central') {
+                                        return true;
+                                      }
+                                      if (techLocation) {
+                                        if (loc === techLocation || getLocationCustomName(loc) === getLocationCustomName(techLocation)) {
+                                          return true;
+                                        }
+                                      }
+                                      return false;
+                                    };
+
+                                    const getTraceabilityLocation = (trace: any, stockRecord: any) => {
+                                      if (trace.emplacement) return trace.emplacement;
+                                      if (trace.movementId && Array.isArray(stockRecord.mouvements)) {
+                                        const mv = stockRecord.mouvements.find((mvItem: any) => mvItem.id === trace.movementId);
+                                        if (mv) {
+                                          if (mv.type === 'Réapprovisionnement fournisseur') {
+                                            return 'Centrale des stocks';
+                                          }
+                                          if (mv.emplacement) {
+                                            return mv.emplacement.includes(' : ') ? mv.emplacement.split(' : ')[1] : mv.emplacement;
+                                          }
+                                        }
+                                      }
+                                      return 'Centrale des stocks';
+                                    };
+
+                                    // Build comprehensive items list filtered by tour technician location or central stock
                                     const stockItems: { id: string; name: string; label: string; matchedStock?: any }[] = [];
                                     const addedLabels = new Set<string>();
 
-                                    // 1. Items from Distributed Stocks
+                                    // 1. Traceable items and central items from stocks
+                                    (stocks || []).forEach(s => {
+                                      const vObj = variables.find(v => v.id === s.denominationPieceId);
+                                      if (vObj && (vObj.category === 'Modèle Service' || vObj.category === 'Modèle Contrat' || vObj.category === 'Fournisseur')) return;
+                                      const name = vObj ? vObj.nom : (s.denom || `Pièce indéfinie`);
+
+                                      if (s.traceabilityEnabled && Array.isArray(s.traceabilities) && s.traceabilities.length > 0) {
+                                        s.traceabilities.forEach((trace: any) => {
+                                          if (trace.situation === 'Disponible' && Number(trace.volume) === 1) {
+                                            const traceLoc = getTraceabilityLocation(trace, s);
+                                            if (isLocationMatchingTechOrCentral(traceLoc)) {
+                                              const numLot = trace.lotOrSerial || '-';
+                                              const datePer = trace.expirationDate || '-';
+                                              const vol = trace.volume;
+                                              const label = `${name}, ${numLot}, ${datePer}, ${vol}`;
+                                              if (!addedLabels.has(label)) {
+                                                stockItems.push({ id: `tr_${trace.id}`, name, label, matchedStock: s });
+                                                addedLabels.add(label);
+                                              }
+                                            }
+                                          }
+                                        });
+                                      } else {
+                                        // Non-traceable items in central stock
+                                        if (Number(s.quantite) > 0) {
+                                          const ugs = s.ugs ? ` - UGS: ${s.ugs}` : '';
+                                          const label = `${name} (Stock Central - Qté: ${s.quantite}${ugs})`;
+                                          if (!addedLabels.has(label)) {
+                                            stockItems.push({ id: `st_${s.id}`, name, label, matchedStock: s });
+                                            addedLabels.add(label);
+                                          }
+                                        }
+                                      }
+                                    });
+
+                                    // 2. Non-traceable items from Distributed Stocks for the tech location or central stock
                                     (distributedStocks || []).forEach(ds => {
                                       const vObj = variables.find(v => v.id === ds.denominationPieceId);
                                       if (vObj && (vObj.category === 'Modèle Service' || vObj.category === 'Modèle Contrat' || vObj.category === 'Fournisseur')) return;
-                                      const name = vObj ? vObj.nom : (ds.denom || `Pièce indéfinie`);
-                                      const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
-                                      const ugs = matchedStock?.ugs || '';
-                                      const ugsString = ugs ? ` - UGS: ${ugs}` : '';
-                                      const label = `${name} (${getLocationCustomName(ds.locationName)} - Dispo: ${ds.volumeDisponible}${ugsString})`;
-                                      if (!addedLabels.has(label)) {
-                                        stockItems.push({ id: `ds_${ds.id}`, name, label, matchedStock });
-                                        addedLabels.add(label);
+                                      if (Number(ds.volumeDisponible) <= 0) return;
+
+                                      if (isLocationMatchingTechOrCentral(ds.locationName)) {
+                                        const name = vObj ? vObj.nom : (ds.denom || `Pièce indéfinie`);
+                                        const matchedStock = stocks.find(s => s.id === ds.stockId || s.denominationPieceId === ds.denominationPieceId);
+                                        if (!matchedStock?.traceabilityEnabled) {
+                                          const ugs = matchedStock?.ugs || '';
+                                          const ugsString = ugs ? ` - UGS: ${ugs}` : '';
+                                          const label = `${name} (${getLocationCustomName(ds.locationName)} - Dispo: ${ds.volumeDisponible}${ugsString})`;
+                                          if (!addedLabels.has(label)) {
+                                            stockItems.push({ id: `ds_${ds.id}`, name, label, matchedStock });
+                                            addedLabels.add(label);
+                                          }
+                                        }
                                       }
                                     });
 

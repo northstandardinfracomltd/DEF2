@@ -349,6 +349,10 @@ export interface StockTraceability {
   situation: 'Disponible' | 'Utilisé' | 'Indisponible' | 'Signalé manquant' | 'Prêté';
   emplacement?: string;
   comment?: string;
+  bonCommande?: string;
+  client?: string;
+  dateEstimee?: string;
+  reservationInfo?: string;
 }
 
 export interface StockRecord {

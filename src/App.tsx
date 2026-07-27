@@ -5111,7 +5111,7 @@ export default function App() {
         </div>
 
         {/* Scrollable Navigation Items */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1 scrollbar-none">
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5 scrollbar-none">
           {(() => {
             const rawTabs = [
               { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
@@ -5169,7 +5169,7 @@ export default function App() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as AppTab)}
                 id={`tab-selector-${tab.id}`}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition-all focus:outline-hidden cursor-pointer text-left border-0 ${
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all focus:outline-hidden cursor-pointer text-left border-0 ${
                   activeTab === tab.id
                     ? 'text-white'
                     : 'text-white hover:bg-white/8 hover:text-white'
@@ -5206,7 +5206,7 @@ export default function App() {
                 elements.push(
                   <div
                     key="equip-group-container"
-                    className="p-1.5 space-y-1 rounded-2xl"
+                    className="p-2 space-y-2 rounded-2xl"
                     style={{ border: '1px solid #ffffff1a' }}
                   >
                     {equipGroup.map(gt => renderButton(gt))}
@@ -5221,7 +5221,7 @@ export default function App() {
                 elements.push(
                   <div
                     key="stock-group-container"
-                    className="p-1.5 space-y-1 rounded-2xl"
+                    className="p-2 space-y-2 rounded-2xl"
                     style={{ border: '1px solid #ffffff1a' }}
                   >
                     {stockGroup.map(gt => renderButton(gt))}
@@ -5236,7 +5236,7 @@ export default function App() {
                 elements.push(
                   <div
                     key="devis-crm-group-container"
-                    className="p-1.5 space-y-1 rounded-2xl"
+                    className="p-2 space-y-2 rounded-2xl"
                     style={{ border: '1px solid #ffffff1a' }}
                   >
                     {devisCrmGroup.map(gt => renderButton(gt))}
@@ -5254,7 +5254,7 @@ export default function App() {
 
         {/* Sticky bottom Parametres button inside pane (full-width) */}
         <div 
-          className="p-3" 
+          className="p-3.5" 
           style={{ 
             background: 'rgb(255 255 255 / 5%)', 
             borderTop: '1px solid rgba(255, 255, 255, 0.15)' 
@@ -5263,7 +5263,7 @@ export default function App() {
           <button
             onClick={() => setActiveTab('parametres')}
             id="sidebar-btn-settings"
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl transition-all border-0 cursor-pointer text-white hover:brightness-110 active:scale-[0.98]"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all border-0 cursor-pointer text-white hover:brightness-110 active:scale-[0.98]"
             style={{
               boxShadow: 'inset 0 1px 1px #fff3, 0 1px 2px #08080833, 0 4px 4px #08080814, 0 7px 0 -12px #3556ec, inset 0 6px 12px #ffffff1f',
               background: '#3556ec',

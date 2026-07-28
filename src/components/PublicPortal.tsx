@@ -7793,33 +7793,35 @@ export default function PublicPortal({
                   </select>
 
                   {/* Button: Nouveau stock distribué */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowNewDistribStockForm(!showNewDistribStockForm);
-                      setSelectedTechDistributedStockId("");
-                      setShowRapatriementForm(false);
-                    }}
-                    style={{
-                      backgroundColor: "rgb(53, 86, 236)",
-                      color: "#ffffff",
-                      fontSize: "18px",
-                      fontWeight: "bold",
-                      borderRadius: "12px",
-                      padding: "14px 20px",
-                      border: "none",
-                      boxShadow:
-                        "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
-                      cursor: "pointer",
-                      width: "100%",
-                    }}
-                    className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 font-bold mb-4"
-                  >
-                    Nouveau stock distribué
-                  </button>
+                  {!selectedTechStock && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowNewDistribStockForm(!showNewDistribStockForm);
+                        setSelectedTechDistributedStockId("");
+                        setShowRapatriementForm(false);
+                      }}
+                      style={{
+                        backgroundColor: "rgb(53, 86, 236)",
+                        color: "#ffffff",
+                        fontSize: "18px",
+                        fontWeight: "bold",
+                        borderRadius: "12px",
+                        padding: "14px 20px",
+                        border: "none",
+                        boxShadow:
+                          "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                        cursor: "pointer",
+                        width: "100%",
+                      }}
+                      className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 font-bold mb-4"
+                    >
+                      Nouveau stock distribué
+                    </button>
+                  )}
 
                   {/* Form for Nouveau stock distribué */}
-                  {showNewDistribStockForm && (
+                  {showNewDistribStockForm && !selectedTechStock && (
                     <div
                       className="bg-white p-5 space-y-4 my-4 animate-fadeIn"
                       style={{
@@ -7829,29 +7831,9 @@ export default function PublicPortal({
                         boxSizing: "border-box",
                       }}
                     >
-                      <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid #eee" }}>
-                        <span
-                          className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans text-white"
-                          style={{
-                            backgroundColor: "#5f1f66",
-                            fontSize: "16px",
-                          }}
-                        >
-                          Nouveau stock distribué
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setShowNewDistribStockForm(false)}
-                          className="text-slate-400 hover:text-slate-600 p-1 text-xl font-bold cursor-pointer"
-                          title="Fermer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
                       {/* 1. Équipement de la centrale des stocks */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                           Équipement de la centrale des stocks *
                         </label>
                         <select
@@ -7863,34 +7845,50 @@ export default function PublicPortal({
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
-                            borderRadius: "10px",
+                            borderRadius: "13px",
                             padding: "10px 12px",
                             backgroundColor: "#ffffff",
                             width: "100%",
                             boxSizing: "border-box",
                             outline: "none",
+                            textAlign: "center",
+                            textAlignLast: "center",
+                            appearance: "none",
+                            WebkitAppearance: "none",
+                            MozAppearance: "none",
                           }}
                           className="font-sans font-medium cursor-pointer"
                           required
                         >
                           <option value="">Sélectionnez un item de la centrale des stocks</option>
-                          {stocks.map((st) => {
-                            const vObj = variables.find((v) => v.id === st.denominationPieceId);
-                            const pieceName = vObj ? vObj.nom : "Dénomination inconnue";
-                            const pieceCat = vObj ? vObj.category : "";
-                            const ugsLabel = st.ugs ? ` [UGS: ${st.ugs}]` : "";
-                            return (
-                              <option key={st.id} value={st.id}>
-                                {pieceName} ({pieceCat}){ugsLabel}
-                              </option>
-                            );
-                          })}
+                          {stocks
+                            .filter((st) => {
+                              if (!techLocationLink) return true;
+                              const exists = distributedStocks.some(
+                                (ds) =>
+                                  (ds.stockId === st.id || ds.denominationPieceId === st.denominationPieceId) &&
+                                  ds.locationName &&
+                                  ds.locationName.toLowerCase().trim() === techLocationLink.toLowerCase().trim()
+                              );
+                              return !exists;
+                            })
+                            .map((st) => {
+                              const vObj = variables.find((v) => v.id === st.denominationPieceId);
+                              const pieceName = vObj ? vObj.nom : "Dénomination inconnue";
+                              const pieceCat = vObj ? vObj.category : "";
+                              const ugsLabel = st.ugs ? ` [UGS: ${st.ugs}]` : "";
+                              return (
+                                <option key={st.id} value={st.id}>
+                                  {pieceName} ({pieceCat}){ugsLabel}
+                                </option>
+                              );
+                            })}
                         </select>
                       </div>
 
                       {/* 2. Emplacement (auto-selected & disabled) */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                           Emplacement *
                         </label>
                         <input
@@ -7903,13 +7901,14 @@ export default function PublicPortal({
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
-                            borderRadius: "10px",
+                            borderRadius: "13px",
                             padding: "10px 12px",
                             backgroundColor: "#f1f5f9",
                             width: "100%",
                             boxSizing: "border-box",
                             opacity: 1,
                             WebkitTextFillColor: "#000000",
+                            textAlign: "center",
                           }}
                           className="font-sans cursor-not-allowed"
                         />
@@ -7917,7 +7916,7 @@ export default function PublicPortal({
 
                       {/* 3. Volume disponible */}
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                           Volume disponible *
                         </label>
                         <input
@@ -7931,24 +7930,34 @@ export default function PublicPortal({
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
-                            borderRadius: "10px",
+                            borderRadius: "13px",
                             padding: "10px 12px",
                             backgroundColor: "#ffffff",
                             width: "100%",
                             boxSizing: "border-box",
                             outline: "none",
+                            textAlign: "center",
                           }}
                           className="font-sans font-medium"
                           required
                         />
                       </div>
 
-                      {/* Buttons: Annuler / Enregistrer */}
-                      <div className="flex items-center justify-end gap-3 pt-3" style={{ borderTop: "1px solid #eee" }}>
+                      {/* Buttons: Annuler / Enregistrer (50% / 50%) */}
+                      <div className="flex items-center gap-3 pt-2 w-full">
                         <button
                           type="button"
                           onClick={() => setShowNewDistribStockForm(false)}
-                          className="px-4 py-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 font-bold transition-all cursor-pointer border-0"
+                          style={{
+                            backgroundColor: "#000000",
+                            color: "#ffffff",
+                            fontSize: "18px",
+                            borderRadius: "13px",
+                            padding: "12px 16px",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
+                          className="flex-1 font-sans font-bold transition-all hover:opacity-90 active:scale-[0.98] text-center"
                         >
                           Annuler
                         </button>
@@ -8009,10 +8018,15 @@ export default function PublicPortal({
                           style={{
                             backgroundColor: "rgb(53, 86, 236)",
                             color: "#ffffff",
+                            fontSize: "18px",
+                            borderRadius: "13px",
+                            padding: "12px 16px",
+                            border: "none",
                             boxShadow:
                               "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                            cursor: "pointer",
                           }}
-                          className="px-5 py-2 rounded-xl font-bold transition-all cursor-pointer border-0 hover:opacity-90 active:scale-[0.98]"
+                          className="flex-1 font-sans font-bold transition-all hover:opacity-90 active:scale-[0.98] text-center"
                         >
                           Enregistrer
                         </button>
@@ -8611,31 +8625,11 @@ export default function PublicPortal({
                                 boxSizing: "border-box",
                               }}
                             >
-                              <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid #eee" }}>
-                                <span
-                                  className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans text-white"
-                                  style={{
-                                    backgroundColor: "#5f1f66",
-                                    fontSize: "16px",
-                                  }}
-                                >
-                                  Nouveau inventaire de traçabilité
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setShowNewWebappTraceForm(false)}
-                                  className="text-slate-400 hover:text-slate-600 p-1 text-xl font-bold cursor-pointer"
-                                  title="Fermer"
-                                >
-                                  ✕
-                                </button>
-                              </div>
-
                               {/* Forms stacked vertically (one above another) for responsive layout */}
                               <div className="flex flex-col gap-3.5 w-full">
                                 {/* 1. Sélection du mouvement */}
                                 <div className="flex flex-col gap-1 w-full">
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                  <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                                     Sélection du mouvement *
                                   </label>
                                   <select
@@ -8647,12 +8641,17 @@ export default function PublicPortal({
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
-                                      borderRadius: "10px",
+                                      borderRadius: "13px",
                                       padding: "10px 12px",
                                       backgroundColor: "#ffffff",
                                       width: "100%",
                                       boxSizing: "border-box",
                                       outline: "none",
+                                      textAlign: "center",
+                                      textAlignLast: "center",
+                                      appearance: "none",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "none",
                                     }}
                                     className="font-sans font-medium cursor-pointer"
                                     required
@@ -8670,7 +8669,7 @@ export default function PublicPortal({
 
                                 {/* 2. Numéro de lot ou série */}
                                 <div className="flex flex-col gap-1 w-full">
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                  <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                                     Numéro de lot ou série *
                                   </label>
                                   <input
@@ -8684,12 +8683,13 @@ export default function PublicPortal({
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
-                                      borderRadius: "10px",
+                                      borderRadius: "13px",
                                       padding: "10px 12px",
                                       backgroundColor: "#ffffff",
                                       width: "100%",
                                       boxSizing: "border-box",
                                       outline: "none",
+                                      textAlign: "center",
                                     }}
                                     className="font-sans font-semibold"
                                     required
@@ -8698,7 +8698,7 @@ export default function PublicPortal({
 
                                 {/* 3. Date de péremption */}
                                 <div className="flex flex-col gap-1 w-full">
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                  <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                                     Date de péremption
                                   </label>
                                   <input
@@ -8711,12 +8711,13 @@ export default function PublicPortal({
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
-                                      borderRadius: "10px",
+                                      borderRadius: "13px",
                                       padding: "10px 12px",
                                       backgroundColor: "#ffffff",
                                       width: "100%",
                                       boxSizing: "border-box",
                                       outline: "none",
+                                      textAlign: "center",
                                     }}
                                     className="font-sans font-medium"
                                   />
@@ -8724,7 +8725,7 @@ export default function PublicPortal({
 
                                 {/* 4. Volume (disabled) */}
                                 <div className="flex flex-col gap-1 w-full">
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                  <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                                     Volume *
                                   </label>
                                   <input
@@ -8733,17 +8734,19 @@ export default function PublicPortal({
                                     disabled
                                     readOnly
                                     style={{
-                                      color: "#64748b",
+                                      color: "#000000",
                                       fontSize: "16px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
-                                      borderRadius: "10px",
+                                      borderRadius: "13px",
                                       padding: "10px 12px",
                                       backgroundColor: "#f1f5f9",
                                       width: "100%",
                                       boxSizing: "border-box",
                                       opacity: 1,
+                                      WebkitTextFillColor: "#000000",
+                                      textAlign: "center",
                                     }}
                                     className="font-sans font-semibold cursor-not-allowed"
                                   />
@@ -8751,7 +8754,7 @@ export default function PublicPortal({
 
                                 {/* 5. Situation */}
                                 <div className="flex flex-col gap-1 w-full">
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                  <label className="font-bold font-sans" style={{ color: "#000000", fontSize: "16px" }}>
                                     Situation *
                                   </label>
                                   <select
@@ -8772,12 +8775,17 @@ export default function PublicPortal({
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
-                                      borderRadius: "10px",
+                                      borderRadius: "13px",
                                       padding: "10px 12px",
                                       backgroundColor: "#ffffff",
                                       width: "100%",
                                       boxSizing: "border-box",
                                       outline: "none",
+                                      textAlign: "center",
+                                      textAlignLast: "center",
+                                      appearance: "none",
+                                      WebkitAppearance: "none",
+                                      MozAppearance: "none",
                                     }}
                                     className="font-sans font-medium cursor-pointer"
                                     required
@@ -8792,11 +8800,20 @@ export default function PublicPortal({
                               </div>
 
                               {/* Actions */}
-                              <div className="flex items-center justify-end gap-3 pt-3" style={{ borderTop: "1px solid #eee" }}>
+                              <div className="flex items-center gap-3 pt-2 w-full">
                                 <button
                                   type="button"
                                   onClick={() => setShowNewWebappTraceForm(false)}
-                                  className="px-4 py-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 font-bold transition-all cursor-pointer border-0"
+                                  style={{
+                                    backgroundColor: "#000000",
+                                    color: "#ffffff",
+                                    fontSize: "18px",
+                                    borderRadius: "13px",
+                                    padding: "12px 16px",
+                                    border: "none",
+                                    cursor: "pointer",
+                                  }}
+                                  className="flex-1 font-sans font-bold transition-all hover:opacity-90 active:scale-[0.98] text-center"
                                 >
                                   Annuler
                                 </button>
@@ -8807,6 +8824,18 @@ export default function PublicPortal({
                                       alert("Le numéro de lot ou série est requis.");
                                       return;
                                     }
+
+                                    const cleanLot = newWebappLotOrSerial.trim().toLowerCase();
+                                    const isDuplicateLot = stocks.some((st) =>
+                                      (st.traceabilities || []).some(
+                                        (t) => t.lotOrSerial && t.lotOrSerial.trim().toLowerCase() === cleanLot
+                                      )
+                                    );
+                                    if (isDuplicateLot) {
+                                      alert("Ce numéro de lot ou de série existe déjà dans l'inventaire de traçabilité.");
+                                      return;
+                                    }
+
                                     if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
 
                                     const newTrace: StockTraceability = {

@@ -111,6 +111,7 @@ export interface Defibrillateur {
   identifiant: string; // Unique short code, format format AAA-111
   numeroSerie: string;
   commentaire: string;
+  commentaireInterne?: string;
   modeleId: string; // Lookup Variable category 'Modèle Défibrillateur'
   numeroAtlasante?: string;
   versionLogiciel?: string;

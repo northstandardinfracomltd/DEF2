@@ -1914,20 +1914,20 @@ export default function SettingsModal({
                 "Centrale des stocks",
                 "Stocks distribués",
                 "Achats fournisseurs",
+                "Variables",
+                "CRM",
                 "GED",
                 "Satisfaction",
-                "CRM",
+                "Notifications",
                 "Temps",
                 "Temps (Webapp)",
                 "Localisations",
                 "Localisation (Webapp)",
                 "Tickets Caisse",
-                "Frais (Webapp)",
-                "Variables",
-                "Importer Exporter",
-                "Notifications",
                 "Relevé Concurrentiel",
-                "Relevé Concurrentiel (Webapp)"
+                "Relevé Concurrentiel (Webapp)",
+                "Frais (Webapp)",
+                "Importer Exporter"
               ].map((pillLabel) => {
                 const isHidden = localCompany?.hiddenTabs?.includes(pillLabel);
                 return (

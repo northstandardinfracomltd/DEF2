@@ -2997,6 +2997,19 @@ export default function ClientPortal({
                             />
                           </div>
 
+                          {/* Commentaire interne. */}
+                          <div className="space-y-1">
+                            <label className="block text-[18px] font-bold text-black font-sans select-none">
+                              {t("Commentaire interne.")}
+                            </label>
+                            <input
+                              type="text"
+                              value={snap.commentaireInterne || ''}
+                              disabled
+                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                            />
+                          </div>
+
                           {/* Facture émise. (Émettre une facture brouillon.) */}
                           <div className="space-y-1">
                             <label className="block text-[18px] font-bold text-black font-sans select-none">

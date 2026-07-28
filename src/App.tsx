@@ -5320,16 +5320,16 @@ export default function App() {
               { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
               { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
               { id: 'variables', label: t('Variables'), icon: Layers },
+              { id: 'crm', label: t('CRM'), icon: FolderSync },
               { id: 'ged', label: t('GED'), icon: ClipboardList },
               { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
-              { id: 'crm', label: t('CRM'), icon: FolderSync },
+              { id: 'notifications', label: 'Notifications', icon: Bell },
               { id: 'temps', label: t('Temps'), icon: Clock },
               { id: 'localisations', label: t('Localisations'), icon: MapPin },
               { id: 'tickets', label: t('Tickets Caisse'), icon: Ticket },
+              { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
               { id: 'import-export', label: t('Importer Exporter'), icon: Download },
               { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
-              { id: 'notifications', label: 'Notifications', icon: Bell },
-              { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
             ];
 
             const filteredTabs = rawTabs.filter(tab => {
@@ -5361,7 +5361,8 @@ export default function App() {
 
             const equipGroupIds = ['defibrillateurs', 'autres-materiels', 'clients'];
             const stockGroupIds = ['stocks', 'stocks-distribues', 'achats-fournisseurs'];
-            const crmGroupIds = ['ged', 'satisfaction', 'crm'];
+            const crmGroupIds = ['crm', 'ged', 'satisfaction'];
+            const newGroupIds = ['temps', 'localisations', 'tickets', 'veilles'];
 
             const renderButton = (tab: { id: string; label: string }) => (
               <button
@@ -5439,6 +5440,21 @@ export default function App() {
                     style={{ border: '1px solid #ffffff1a' }}
                   >
                     {crmGroup.map(gt => renderButton(gt))}
+                  </div>
+                );
+              } else if (newGroupIds.includes(tab.id)) {
+                const newGroup: typeof rawTabs = [];
+                while (i < filteredTabs.length && newGroupIds.includes(filteredTabs[i].id)) {
+                  newGroup.push(filteredTabs[i]);
+                  i++;
+                }
+                elements.push(
+                  <div
+                    key="new-group-container"
+                    className="p-2 space-y-2 rounded-2xl"
+                    style={{ border: '1px solid #ffffff1a' }}
+                  >
+                    {newGroup.map(gt => renderButton(gt))}
                   </div>
                 );
               } else {
@@ -8469,20 +8485,22 @@ export default function App() {
                                           }
 
                                           // Trigger Email 6: RAPPORT DE MAINTENANCE AU CLIENT
-                                          try {
-                                            const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
-                                            const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
-                                            if (clientEmail && clientEmail.trim()) {
-                                              triggerEmail6RapportIntervention(
-                                                clientEmail.trim(),
-                                                snap.identifiant || rep.defibIdentifiant || '',
-                                                rep.date || new Date().toLocaleString('fr-FR'),
-                                                companyInfo.name || 'Défibeo Suite',
-                                                companyInfo.email || ''
-                                              ).catch(e => console.error("Error triggering Email 6 during GMAO validation:", e));
+                                          if (!rep.disableClientEmail) {
+                                            try {
+                                              const matchingClient = clients?.find((c: any) => c.id === snap.clientId);
+                                              const clientEmail = snap.emailSite || matchingClient?.email || matchingClient?.emailSite;
+                                              if (clientEmail && clientEmail.trim()) {
+                                                triggerEmail6RapportIntervention(
+                                                  clientEmail.trim(),
+                                                  snap.identifiant || rep.defibIdentifiant || '',
+                                                  rep.date || new Date().toLocaleString('fr-FR'),
+                                                  companyInfo.name || 'Défibeo Suite',
+                                                  companyInfo.email || ''
+                                                ).catch(e => console.error("Error triggering Email 6 during GMAO validation:", e));
+                                              }
+                                            } catch (err6) {
+                                              console.error("Error sending validation email during GMAO validation:", err6);
                                             }
-                                          } catch (err6) {
-                                            console.error("Error sending validation email during GMAO validation:", err6);
                                           }
                                         }
 
@@ -8510,7 +8528,11 @@ export default function App() {
                                           })();
                                         }
 
-                                        alert("Le rapport d'intervention a été validé avec succès ! L'état de l'équipement a été mis à jour et un e-mail avec le rapport a été envoyé au client.");
+                                        if (rep.disableClientEmail) {
+                                          alert("Le rapport d'intervention a été validé avec succès ! L'état de l'équipement a été mis à jour.");
+                                        } else {
+                                          alert("Le rapport d'intervention a été validé avec succès ! L'état de l'équipement a été mis à jour et un e-mail avec le rapport a été envoyé au client.");
+                                        }
                                       }}
                                       style={{
                                         ...rowActionButtonStyle,
@@ -8568,6 +8590,20 @@ export default function App() {
                       >
                         {/* Drawer Body without inner padding/border div */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white font-sans">
+                          {/* Field: Commentaire du technicien. (Disabled textarea showing section 11 Commentaire interne) */}
+                          <div className="space-y-2">
+                            <label className="block text-[18px] font-medium text-[#000]">
+                              Commentaire du technicien.
+                            </label>
+                            <textarea
+                              disabled
+                              rows={3}
+                              value={managingReport.defibSnapshot?.commentaireInterne || managingReport.commentaireInterne || ''}
+                              placeholder="Aucun commentaire interne renseigné par le technicien."
+                              className="w-full p-3 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-slate-100 resize-y min-h-[90px] focus:outline-none cursor-not-allowed opacity-90"
+                            />
+                          </div>
+
                           {/* Field A: Drapeau(x) */}
                           <div className="space-y-2">
                             <label className="block text-[16px] font-medium text-[#000]">
@@ -8663,6 +8699,36 @@ export default function App() {
                             />
                           </div>
 
+                          {/* Toggle: Désactiver l'email au client. */}
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="block text-[16px] font-medium text-[#000]">
+                              Désactiver l’email au client.
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const updatedValue = !managingReport.disableClientEmail;
+                                const updatedReports = generatedReports.map(r => 
+                                  r.id === managingReport.id ? { ...r, disableClientEmail: updatedValue } : r
+                                );
+                                saveReports(updatedReports);
+                              }}
+                              className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none shrink-0"
+                              style={{
+                                backgroundColor: managingReport.disableClientEmail ? '#fe4eba' : '#cbd5e1',
+                                cursor: 'pointer',
+                                border: 'none',
+                              }}
+                            >
+                              <span
+                                className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 shadow-sm"
+                                style={{
+                                  transform: managingReport.disableClientEmail ? 'translateX(24px)' : 'translateX(4px)',
+                                }}
+                              />
+                            </button>
+                          </div>
+
                           {/* Enregistrer Button */}
                           <div className="pt-2">
                             <button
@@ -8679,7 +8745,7 @@ export default function App() {
                         </div>
 
                         {/* Sticky Bottom Footer - Fermer Button */}
-                        <div className="p-5 border-t border-slate-200 bg-white shrink-0 sticky bottom-0">
+                        <div className="p-5 bg-white shrink-0 sticky bottom-0">
                           <button
                             type="button"
                             onClick={() => setManagingReportId(null)}

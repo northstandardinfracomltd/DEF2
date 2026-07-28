@@ -33,6 +33,7 @@ const DEFAULT_DEFIB: Defibrillateur = {
   identifiant: '',
   numeroSerie: '',
   commentaire: '',
+  commentaireInterne: '',
   modeleId: '',
   clientId: '',
   nomPrenomSite: '',
@@ -5015,6 +5016,20 @@ export default function GmaoCorrectionForm({
                 rows={4}
                 value={snapshot.commentaire || ''}
                 onChange={(e) => handleSnapshotChange('commentaire', e.target.value)}
+                className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 text-xs rounded-lg leading-relaxed focus:ring-1 focus:ring-indigo-500"
+                placeholder="Entrez un commentaire."
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label htmlFor="snap-commentaire-interne" className="block text-[11px] font-bold text-black uppercase">
+                Commentaire interne.
+              </label>
+              <textarea
+                id="snap-commentaire-interne"
+                rows={4}
+                value={snapshot.commentaireInterne || ''}
+                onChange={(e) => handleSnapshotChange('commentaireInterne', e.target.value)}
                 className="w-full px-3 py-1.5 bg-white border border-slate-200 text-slate-800 text-xs rounded-lg leading-relaxed focus:ring-1 focus:ring-indigo-500"
                 placeholder="Entrez un commentaire."
               />

@@ -707,22 +707,14 @@ export default function VariableTab({
                     <label htmlFor="input-variable-couleur-hex" className="block text-[11px] font-bold text-slate-500 uppercase">
                       Couleur hexadécimale (ex: #FF0000).
                     </label>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="text"
-                        id="input-variable-couleur-hex"
-                        value={couleurHex}
-                        onChange={(e) => setCouleurHex(e.target.value)}
-                        placeholder="#3556EC"
-                      />
-                      {couleurHex && /^#[0-9A-Fa-f]{3,8}$/.test(couleurHex.trim()) && (
-                        <div
-                          className="w-10 h-10 min-w-[40px] rounded-lg border border-slate-300 shadow-sm flex-shrink-0"
-                          style={{ backgroundColor: couleurHex.trim() }}
-                          title={couleurHex.trim()}
-                        />
-                      )}
-                    </div>
+                    <input
+                      type="text"
+                      id="input-variable-couleur-hex"
+                      value={couleurHex}
+                      onChange={(e) => setCouleurHex(e.target.value)}
+                      placeholder="#3556EC"
+                      className="w-full"
+                    />
                   </div>
                 )}
 
@@ -1068,12 +1060,6 @@ export default function VariableTab({
                               className="w-full h-full object-contain"
                               referrerPolicy="no-referrer"
                             />
-                          ) : v.category === 'Drapeau post-intervention' && v.couleurHex ? (
-                            <div
-                              className="w-8 h-8 rounded-full border border-slate-300 shadow-sm"
-                              style={{ backgroundColor: v.couleurHex }}
-                              title={v.couleurHex}
-                            />
                           ) : null}
                         </div>
                       </td>
@@ -1085,20 +1071,8 @@ export default function VariableTab({
 
                       {/* Nom de l'équipement */}
                       <td className="px-4 py-5 font-sans text-left" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                        <div className="font-semibold text-slate-950 flex items-center gap-2">
-                          <span>{v.nom}</span>
-                          {v.category === 'Drapeau post-intervention' && v.couleurHex && (
-                            <span
-                              className="px-2 py-0.5 text-xs rounded-md font-mono border"
-                              style={{
-                                backgroundColor: '#f8fafc',
-                                borderColor: '#cbd5e1',
-                                color: '#334155'
-                              }}
-                            >
-                              {v.couleurHex}
-                            </span>
-                          )}
+                        <div className="font-semibold text-slate-950">
+                          {v.nom}
                         </div>
                       </td>
 

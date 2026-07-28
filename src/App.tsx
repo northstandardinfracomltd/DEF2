@@ -1735,13 +1735,21 @@ export default function App() {
           }
 
           if (foundTraceIdx !== -1) {
+            const isSent = Array.isArray(mission?.sentToClientParts) && mission.sentToClientParts.includes(partName);
+            const currComment = updatedTraces[foundTraceIdx].comment || '';
+            let newComment = currComment;
+            if (isSent && !currComment.includes('Envoyée au client.')) {
+              newComment = currComment ? `${currComment.trim()} Envoyée au client.` : 'Envoyée au client.';
+            }
+
             updatedTraces[foundTraceIdx] = {
               ...updatedTraces[foundTraceIdx],
               situation: 'Indisponible',
               reservationInfo: reservationText,
               bonCommande: bcStr !== '—' ? bcStr : undefined,
               client: clStr !== '—' ? clStr : undefined,
-              dateEstimee: dtStr !== '—' ? dtStr : undefined
+              dateEstimee: dtStr !== '—' ? dtStr : undefined,
+              comment: newComment || undefined
             };
           }
         }
@@ -1782,13 +1790,20 @@ export default function App() {
             traceToClearIdx = updatedTraces.findIndex(tr => tr.reservationInfo === reservationText || (bcStr !== '—' && tr.bonCommande === bcStr));
           }
           if (traceToClearIdx !== -1) {
+            const currComment = updatedTraces[traceToClearIdx].comment || '';
+            const cleanedComment = currComment
+              .replace('Envoyée au client.', '')
+              .replace('Envoyée au client', '')
+              .trim();
+
             updatedTraces[traceToClearIdx] = {
               ...updatedTraces[traceToClearIdx],
               situation: 'Disponible',
               reservationInfo: undefined,
               bonCommande: undefined,
               client: undefined,
-              dateEstimee: undefined
+              dateEstimee: undefined,
+              comment: cleanedComment || undefined
             };
           }
         }
@@ -1807,6 +1822,123 @@ export default function App() {
       saveStocks(updatedStocks);
     }
     updateFsmMission(tourId, missionId, { requiredParts: newParts, ...extraFieldsToUpdate });
+  };
+
+  const togglePartSentToClient = (tourId: string, missionId: string, partName: string) => {
+    const tour = fsmTours.find(t => t.id === tourId);
+    const mission = tour?.missions?.find((m: any) => m.id === missionId);
+    if (!mission) return;
+
+    const sentParts: string[] = Array.isArray(mission.sentToClientParts) ? mission.sentToClientParts : [];
+    const isSent = sentParts.includes(partName);
+    const newSentParts = isSent
+      ? sentParts.filter((p: string) => p !== partName)
+      : [...sentParts, partName];
+
+    // Compute formatted reservation info
+    const bcId = mission.bonCommandeId || '';
+    let bcStr = '—';
+    if (bcId) {
+      const doc = (commercialDocs || []).find((d: any) => d.id === bcId || d.bonCommandeReference === bcId || d.ref === bcId);
+      if (doc) {
+        bcStr = doc.bonCommandeReference || doc.ref || bcId;
+      } else {
+        bcStr = bcId;
+      }
+    }
+
+    let clStr = '—';
+    if (mission.clientId) {
+      const found = clients.find(c => c.id === mission.clientId);
+      if (found?.denomination) clStr = found.denomination;
+    }
+    if (clStr === '—' && mission.defibIdentifiant) {
+      const matchedDefib = defibrillateurs.find(df => df.identifiant === mission.defibIdentifiant);
+      if (matchedDefib) {
+        const found = clients.find(c => c.id === matchedDefib.clientId);
+        if (found?.denomination) clStr = found.denomination;
+      }
+    }
+    if (clStr === '—' && mission.clientName) {
+      clStr = mission.clientName;
+    }
+
+    let dtStr = mission.scheduledDate || mission.date || mission.plannedDate || tour?.startDate || tour?.date || '—';
+    const reservationText = `${bcStr} — ${clStr} — ${dtStr}`;
+
+    // Update stocks traceabilities
+    let updatedStocks = stocks.map(st => ({ ...st }));
+    let stocksMutated = false;
+
+    const partsArr = partName.split(',');
+    const lotCandidate = partsArr.length >= 2 ? partsArr[1].trim() : '';
+
+    const stockIdx = updatedStocks.findIndex(st => {
+      const vObj = variables.find(v => v.id === st.denominationPieceId);
+      return vObj && (vObj.nom === partName || partName.startsWith(vObj.nom));
+    });
+
+    if (stockIdx !== -1) {
+      const item = updatedStocks[stockIdx];
+      let updatedTraces = Array.isArray(item.traceabilities) ? [...item.traceabilities] : [];
+
+      if (updatedTraces.length > 0) {
+        let foundTraceIdx = -1;
+        if (lotCandidate) {
+          foundTraceIdx = updatedTraces.findIndex(tr => tr.lotOrSerial === lotCandidate);
+        }
+        if (foundTraceIdx === -1) {
+          foundTraceIdx = updatedTraces.findIndex(tr => tr.reservationInfo === reservationText);
+        }
+        if (foundTraceIdx === -1 && bcStr !== '—') {
+          foundTraceIdx = updatedTraces.findIndex(tr => tr.bonCommande === bcStr);
+        }
+        if (foundTraceIdx === -1) {
+          foundTraceIdx = updatedTraces.findIndex(tr => tr.situation === 'Indisponible' || tr.situation === 'Disponible');
+        }
+
+        if (foundTraceIdx !== -1) {
+          const targetTrace = updatedTraces[foundTraceIdx];
+          const currComment = targetTrace.comment || '';
+
+          let newComment = currComment;
+          if (!isSent) {
+            // Toggling to ON (sent to client)
+            if (!currComment.includes('Envoyée au client.')) {
+              newComment = currComment ? `${currComment.trim()} Envoyée au client.` : 'Envoyée au client.';
+            }
+          } else {
+            // Toggling to OFF
+            newComment = currComment
+              .replace('Envoyée au client.', '')
+              .replace('Envoyée au client', '')
+              .trim();
+          }
+
+          updatedTraces[foundTraceIdx] = {
+            ...targetTrace,
+            situation: 'Indisponible',
+            reservationInfo: reservationText,
+            bonCommande: bcStr !== '—' ? bcStr : undefined,
+            client: clStr !== '—' ? clStr : undefined,
+            dateEstimee: dtStr !== '—' ? dtStr : undefined,
+            comment: newComment || undefined
+          };
+
+          updatedStocks[stockIdx] = {
+            ...item,
+            traceabilities: updatedTraces
+          };
+          stocksMutated = true;
+        }
+      }
+    }
+
+    if (stocksMutated) {
+      saveStocks(updatedStocks);
+    }
+
+    updateFsmMission(tourId, missionId, { sentToClientParts: newSentParts });
   };
 
   const updateFsmMission = (tourId: string, missionId: string, fields: any) => {
@@ -7525,12 +7657,7 @@ export default function App() {
                                                   {/* Toggle ON/OFF Envoyée au client */}
                                                   <button
                                                     type="button"
-                                                    onClick={() => {
-                                                      const updatedSent = isSent
-                                                        ? sentParts.filter((p: string) => p !== part)
-                                                        : [...sentParts, part];
-                                                      updateFsmMission(t.id, m.id, { sentToClientParts: updatedSent });
-                                                    }}
+                                                    onClick={() => togglePartSentToClient(t.id, m.id, part)}
                                                     className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none select-none shrink-0"
                                                     title="Envoyée au client"
                                                   >

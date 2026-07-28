@@ -5880,7 +5880,7 @@ export default function App() {
                         }}
                         className="transition-all"
                       >
-                        Tournées à trier
+                        {t("Missions à trier")}
                       </button>
 
                       {uniqueDates.map(dateStr => (

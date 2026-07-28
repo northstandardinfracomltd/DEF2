@@ -1291,6 +1291,7 @@ export default function ClientTab({
                           <option value="Commercial">Commercial</option>
                           <option value="Technique">Technique</option>
                           <option value="Acheteur">Acheteur</option>
+                          <option value="Planification">Planification</option>
                           <option value="Autre">Autre</option>
                         </select>
                       </div>
@@ -1364,6 +1365,7 @@ export default function ClientTab({
                               <option value="Commercial">Commercial</option>
                               <option value="Technique">Technique</option>
                               <option value="Acheteur">Acheteur</option>
+                              <option value="Planification">Planification</option>
                               <option value="Autre">Autre</option>
                             </select>
                           </div>
@@ -1443,6 +1445,7 @@ export default function ClientTab({
                               <option value="Commercial">Commercial</option>
                               <option value="Technique">Technique</option>
                               <option value="Acheteur">Acheteur</option>
+                              <option value="Planification">Planification</option>
                               <option value="Autre">Autre</option>
                             </select>
                           </div>
@@ -1526,6 +1529,7 @@ export default function ClientTab({
                               <option value="Commercial">Commercial</option>
                               <option value="Technique">Technique</option>
                               <option value="Acheteur">Acheteur</option>
+                              <option value="Planification">Planification</option>
                               <option value="Autre">Autre</option>
                             </select>
                           </div>
@@ -1613,6 +1617,7 @@ export default function ClientTab({
                               <option value="Commercial">Commercial</option>
                               <option value="Technique">Technique</option>
                               <option value="Acheteur">Acheteur</option>
+                              <option value="Planification">Planification</option>
                               <option value="Autre">Autre</option>
                             </select>
                           </div>

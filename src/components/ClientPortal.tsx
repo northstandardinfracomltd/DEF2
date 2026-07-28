@@ -3600,7 +3600,7 @@ export default function ClientPortal({
                       Contact 1
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      {renderEditSelectField(t('Type'), c1Type, setC1Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditSelectField(t('Type'), c1Type, setC1Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Planification', 'Autre'])}
                       {renderEditField(t('Nom & Prénom'), c1Nom, setC1Nom)}
                       {renderEditField(t('Téléphone'), c1Tel, setC1Tel)}
                       {renderEditField(t('Email'), c1Email, setC1Email)}
@@ -3613,7 +3613,7 @@ export default function ClientPortal({
                       Contact 2
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      {renderEditSelectField(t('Type'), c2Type, setC2Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditSelectField(t('Type'), c2Type, setC2Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Planification', 'Autre'])}
                       {renderEditField(t('Nom & Prénom'), c2Nom, setC2Nom)}
                       {renderEditField(t('Téléphone'), c2Tel, setC2Tel)}
                       {renderEditField(t('Email'), c2Email, setC2Email)}
@@ -3626,7 +3626,7 @@ export default function ClientPortal({
                       Contact 3
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      {renderEditSelectField(t('Type'), c3Type, setC3Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditSelectField(t('Type'), c3Type, setC3Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Planification', 'Autre'])}
                       {renderEditField(t('Nom & Prénom'), c3Nom, setC3Nom)}
                       {renderEditField(t('Téléphone'), c3Tel, setC3Tel)}
                       {renderEditField(t('Email'), c3Email, setC3Email)}
@@ -3639,7 +3639,7 @@ export default function ClientPortal({
                       Contact 4
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      {renderEditSelectField(t('Type'), c4Type, setC4Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditSelectField(t('Type'), c4Type, setC4Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Planification', 'Autre'])}
                       {renderEditField(t('Nom & Prénom'), c4Nom, setC4Nom)}
                       {renderEditField(t('Téléphone'), c4Tel, setC4Tel)}
                       {renderEditField(t('Email'), c4Email, setC4Email)}
@@ -3652,7 +3652,7 @@ export default function ClientPortal({
                       Contact 5
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                      {renderEditSelectField(t('Type'), c5Type, setC5Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Autre'])}
+                      {renderEditSelectField(t('Type'), c5Type, setC5Type, ['Direction', 'Responsable', 'Commercial', 'Technique', 'Acheteur', 'Planification', 'Autre'])}
                       {renderEditField(t('Nom & Prénom'), c5Nom, setC5Nom)}
                       {renderEditField(t('Téléphone'), c5Tel, setC5Tel)}
                       {renderEditField(t('Email'), c5Email, setC5Email)}

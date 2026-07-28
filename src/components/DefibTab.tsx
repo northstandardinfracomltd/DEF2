@@ -851,7 +851,7 @@ export default function DefibTab({
     } else {
       const newTrierTour = {
         id: 'a-trier',
-        title: 'Tournées à trier',
+        title: 'Missions à trier',
         techName: '',
         startDate: 'A trier',
         status: 'Brouillon',

@@ -1578,10 +1578,25 @@ export default function App() {
         });
         if (idxToUse !== -1) {
           const item = updatedStocks[idxToUse];
+          let updatedTraces = Array.isArray(item.traceabilities) ? [...item.traceabilities] : [];
+          if (updatedTraces.length > 0) {
+            const traceToClearIdx = updatedTraces.findIndex(tr => tr.situation === 'Indisponible' || tr.reservationInfo);
+            if (traceToClearIdx !== -1) {
+              updatedTraces[traceToClearIdx] = {
+                ...updatedTraces[traceToClearIdx],
+                situation: 'Disponible',
+                reservationInfo: undefined,
+                bonCommande: undefined,
+                client: undefined,
+                dateEstimee: undefined
+              };
+            }
+          }
           updatedStocks[idxToUse] = {
             ...item,
             quantite: item.quantite + 1,
-            quantiteReservee: Math.max(0, item.quantiteReservee - 1)
+            quantiteReservee: Math.max(0, item.quantiteReservee - 1),
+            traceabilities: updatedTraces
           };
           mutated = true;
         }
@@ -1697,6 +1712,7 @@ export default function App() {
           if (foundTraceIdx !== -1) {
             updatedTraces[foundTraceIdx] = {
               ...updatedTraces[foundTraceIdx],
+              situation: 'Indisponible',
               reservationInfo: reservationText,
               bonCommande: bcStr !== '—' ? bcStr : undefined,
               client: clStr !== '—' ? clStr : undefined,
@@ -1743,6 +1759,7 @@ export default function App() {
           if (traceToClearIdx !== -1) {
             updatedTraces[traceToClearIdx] = {
               ...updatedTraces[traceToClearIdx],
+              situation: 'Disponible',
               reservationInfo: undefined,
               bonCommande: undefined,
               client: undefined,

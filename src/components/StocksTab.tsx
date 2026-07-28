@@ -2608,13 +2608,6 @@ export default function StocksTab({
                                 </tr>
                               </thead>
                               <tbody className="bg-white">
-                                {Object.keys(groups).length === 0 && (
-                                  <tr>
-                                    <td colSpan={11} className="px-4 py-8 text-center text-slate-500 font-sans text-sm bg-white">
-                                      Aucune pièce ne correspond au filtre de situation ({selectedSituationFilter}).
-                                    </td>
-                                  </tr>
-                                )}
                                 {Object.entries(groups).map(([locName, items]) => {
                                   // Find technician associated with this location
                                   const assignedTech = members.find(m => m.role === 'Technicien' && m.locationLink === locName);

@@ -729,6 +729,20 @@ export default function PublicPortal({
   const [isInventoryMode, setIsInventoryMode] = useState<boolean>(false);
   const [checkedTraceabilityIds, setCheckedTraceabilityIds] = useState<Record<string, boolean>>({});
 
+  // New Distributed Stock Form states
+  const [showNewDistribStockForm, setShowNewDistribStockForm] = useState<boolean>(false);
+  const [newDistribStockId, setNewDistribStockId] = useState<string>("");
+  const [newDistribVolumeDisponible, setNewDistribVolumeDisponible] = useState<number>(1);
+
+  // New Webapp Traceability Form states
+  const [showNewWebappTraceForm, setShowNewWebappTraceForm] = useState<boolean>(false);
+  const [newWebappMovementId, setNewWebappMovementId] = useState<string>("Autre (Aucun mouvement)");
+  const [newWebappLotOrSerial, setNewWebappLotOrSerial] = useState<string>("");
+  const [newWebappExpirationDate, setNewWebappExpirationDate] = useState<string>("");
+  const [newWebappSituation, setNewWebappSituation] = useState<
+    "Disponible" | "Utilisé" | "Indisponible" | "Signalé manquant" | "Prêté"
+  >("Disponible");
+
   // helper for technician stocks tab lookup & changes
   const techActiveStocks = useMemo(() => {
     if (!techLocationLink) return [];
@@ -7736,6 +7750,7 @@ export default function PublicPortal({
                     onChange={(e) => {
                       setSelectedTechDistributedStockId(e.target.value);
                       setShowRapatriementForm(false);
+                      setShowNewDistribStockForm(false);
                     }}
                     style={{
                       color: "#000000",
@@ -7776,6 +7791,234 @@ export default function PublicPortal({
                       );
                     })}
                   </select>
+
+                  {/* Button: Nouveau stock distribué */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNewDistribStockForm(!showNewDistribStockForm);
+                      setSelectedTechDistributedStockId("");
+                      setShowRapatriementForm(false);
+                    }}
+                    style={{
+                      backgroundColor: "rgb(53, 86, 236)",
+                      color: "#ffffff",
+                      fontSize: "18px",
+                      fontWeight: "bold",
+                      borderRadius: "12px",
+                      padding: "14px 20px",
+                      border: "none",
+                      boxShadow:
+                        "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                    className="hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 font-bold mb-4"
+                  >
+                    Nouveau stock distribué
+                  </button>
+
+                  {/* Form for Nouveau stock distribué */}
+                  {showNewDistribStockForm && (
+                    <div
+                      className="bg-white p-5 space-y-4 my-4 animate-fadeIn"
+                      style={{
+                        border: "1px solid rgb(218, 218, 218)",
+                        borderRadius: "18px",
+                        width: "100%",
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid #eee" }}>
+                        <span
+                          className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans text-white"
+                          style={{
+                            backgroundColor: "#5f1f66",
+                            fontSize: "16px",
+                          }}
+                        >
+                          Nouveau stock distribué
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewDistribStockForm(false)}
+                          className="text-slate-400 hover:text-slate-600 p-1 text-xl font-bold cursor-pointer"
+                          title="Fermer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* 1. Équipement de la centrale des stocks */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Équipement de la centrale des stocks *
+                        </label>
+                        <select
+                          value={newDistribStockId}
+                          onChange={(e) => setNewDistribStockId(e.target.value)}
+                          style={{
+                            color: "#000000",
+                            fontSize: "16px",
+                            borderColor: "#D5D5D5",
+                            borderWidth: "1px",
+                            borderStyle: "solid",
+                            borderRadius: "10px",
+                            padding: "10px 12px",
+                            backgroundColor: "#ffffff",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            outline: "none",
+                          }}
+                          className="font-sans font-medium cursor-pointer"
+                          required
+                        >
+                          <option value="">Sélectionnez un item de la centrale des stocks</option>
+                          {stocks.map((st) => {
+                            const vObj = variables.find((v) => v.id === st.denominationPieceId);
+                            const pieceName = vObj ? vObj.nom : "Dénomination inconnue";
+                            const pieceCat = vObj ? vObj.category : "";
+                            const ugsLabel = st.ugs ? ` [UGS: ${st.ugs}]` : "";
+                            return (
+                              <option key={st.id} value={st.id}>
+                                {pieceName} ({pieceCat}){ugsLabel}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </div>
+
+                      {/* 2. Emplacement (auto-selected & disabled) */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Emplacement *
+                        </label>
+                        <input
+                          type="text"
+                          value={techLocationLink || "Aucun emplacement spécifié"}
+                          disabled
+                          style={{
+                            color: "#000000",
+                            fontSize: "16px",
+                            borderColor: "#D5D5D5",
+                            borderWidth: "1px",
+                            borderStyle: "solid",
+                            borderRadius: "10px",
+                            padding: "10px 12px",
+                            backgroundColor: "#f1f5f9",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            opacity: 1,
+                            WebkitTextFillColor: "#000000",
+                          }}
+                          className="font-sans cursor-not-allowed"
+                        />
+                      </div>
+
+                      {/* 3. Volume disponible */}
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                          Volume disponible *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={newDistribVolumeDisponible}
+                          onChange={(e) => setNewDistribVolumeDisponible(Math.max(0, Number(e.target.value)))}
+                          style={{
+                            color: "#000000",
+                            fontSize: "16px",
+                            borderColor: "#D5D5D5",
+                            borderWidth: "1px",
+                            borderStyle: "solid",
+                            borderRadius: "10px",
+                            padding: "10px 12px",
+                            backgroundColor: "#ffffff",
+                            width: "100%",
+                            boxSizing: "border-box",
+                            outline: "none",
+                          }}
+                          className="font-sans font-medium"
+                          required
+                        />
+                      </div>
+
+                      {/* Buttons: Annuler / Enregistrer */}
+                      <div className="flex items-center justify-end gap-3 pt-3" style={{ borderTop: "1px solid #eee" }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowNewDistribStockForm(false)}
+                          className="px-4 py-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 font-bold transition-all cursor-pointer border-0"
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newDistribStockId) {
+                              alert("Veuillez sélectionner un équipement de la centrale des stocks.");
+                              return;
+                            }
+                            if (!techLocationLink) {
+                              alert("Aucun emplacement technicien défini.");
+                              return;
+                            }
+                            const selectedStock = stocks.find((s) => s.id === newDistribStockId);
+                            if (!selectedStock) return;
+
+                            let targetId = "";
+                            let updatedDs = [...distributedStocks];
+
+                            const existingIndex = updatedDs.findIndex(
+                              (ds) =>
+                                (ds.stockId === selectedStock.id || ds.denominationPieceId === selectedStock.denominationPieceId) &&
+                                ds.locationName &&
+                                ds.locationName.toLowerCase().trim() === techLocationLink.toLowerCase().trim()
+                            );
+
+                            if (existingIndex !== -1) {
+                              targetId = updatedDs[existingIndex].id;
+                              updatedDs[existingIndex] = {
+                                ...updatedDs[existingIndex],
+                                volumeDisponible: updatedDs[existingIndex].volumeDisponible + Number(newDistribVolumeDisponible),
+                              };
+                            } else {
+                              targetId = `dist_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+                              const newItem: DistributedStockLocation = {
+                                id: targetId,
+                                denominationPieceId: selectedStock.denominationPieceId,
+                                stockId: selectedStock.id,
+                                ugs: selectedStock.ugs,
+                                locationName: techLocationLink as any,
+                                volumeDisponible: Number(newDistribVolumeDisponible),
+                                volumeReserve: 0,
+                                volumeEntrant: 0,
+                              };
+                              updatedDs = [newItem, ...updatedDs];
+                            }
+
+                            if (onUpdateDistributedStocks) {
+                              onUpdateDistributedStocks(updatedDs);
+                            }
+
+                            setSelectedTechDistributedStockId(targetId);
+                            setShowNewDistribStockForm(false);
+                            setNewDistribStockId("");
+                            setNewDistribVolumeDisponible(1);
+                          }}
+                          style={{
+                            backgroundColor: "rgb(53, 86, 236)",
+                            color: "#ffffff",
+                            boxShadow:
+                              "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                          }}
+                          className="px-5 py-2 rounded-xl font-bold transition-all cursor-pointer border-0 hover:opacity-90 active:scale-[0.98]"
+                        >
+                          Enregistrer
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Details shown ONLY when a stock is selected */}
                   {selectedTechStock ? (
@@ -8256,81 +8499,362 @@ export default function PublicPortal({
                             </span>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (isInventoryMode) {
-                                // CONFIRM
-                                if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
-                                let hasPassedToMissing = false;
-                                const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
-                                  if (t.situation === "Disponible" || t.situation === "Signalé manquant") {
-                                    const isChecked = checkedTraceabilityIds[t.id];
-                                    let newSituation = t.situation;
-                                    if (isChecked) {
-                                      if (t.situation === "Disponible") {
-                                        // do nothing
-                                      } else if (t.situation === "Signalé manquant") {
-                                        newSituation = "Disponible";
+                          <div className="flex items-center gap-3 w-full">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowNewWebappTraceForm(false);
+                                if (isInventoryMode) {
+                                  // CONFIRM
+                                  if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
+                                  let hasPassedToMissing = false;
+                                  const updatedTraceabilities = (matchedStockRecord.traceabilities || []).map((t) => {
+                                    if (t.situation === "Disponible" || t.situation === "Signalé manquant") {
+                                      const isChecked = checkedTraceabilityIds[t.id];
+                                      let newSituation = t.situation;
+                                      if (isChecked) {
+                                        if (t.situation === "Disponible") {
+                                          // do nothing
+                                        } else if (t.situation === "Signalé manquant") {
+                                          newSituation = "Disponible";
+                                        }
+                                      } else {
+                                        if (t.situation === "Disponible") {
+                                          newSituation = "Signalé manquant";
+                                          hasPassedToMissing = true;
+                                        } else if (t.situation === "Signalé manquant") {
+                                          newSituation = "Signalé manquant";
+                                        }
                                       }
-                                    } else {
-                                      if (t.situation === "Disponible") {
-                                        newSituation = "Signalé manquant";
-                                        hasPassedToMissing = true;
-                                      } else if (t.situation === "Signalé manquant") {
-                                        newSituation = "Signalé manquant";
-                                      }
+                                      return { ...t, situation: newSituation };
                                     }
-                                    return { ...t, situation: newSituation };
-                                  }
-                                  return t;
-                                });
+                                    return t;
+                                  });
 
-                                if (hasPassedToMissing && onAddNotification) {
-                                  const name_technician = authenticatedUser?.name || "Un technicien";
-                                  const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
-                                  const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
-                                  const part_name_and_UGS = `${pieceName}${ugs}`;
-                                  const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
-                                  onAddNotification(
-                                    'Stocks',
-                                    `Le technicien ${name_technician} signale que la pièce ${part_name_and_UGS} est manquante dans l’inventaire ${emplacement_name} attribué.`
-                                  );
+                                  if (hasPassedToMissing && onAddNotification) {
+                                    const name_technician = authenticatedUser?.name || "Un technicien";
+                                    const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+                                    const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+                                    const part_name_and_UGS = `${pieceName}${ugs}`;
+                                    const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
+                                    onAddNotification(
+                                      'Stocks',
+                                      `Le technicien ${name_technician} signale que la pièce ${part_name_and_UGS} est manquante dans l’inventaire ${emplacement_name} attribué.`
+                                    );
+                                  }
+
+                                  const updatedStocks = stocks.map((st) => {
+                                    if (st.id === matchedStockRecord.id) {
+                                      return { ...st, traceabilities: updatedTraceabilities };
+                                    }
+                                    return st;
+                                  });
+                                  onUpdateStocks(updatedStocks);
+                                  setIsInventoryMode(false);
+                                } else {
+                                  // PROCEED
+                                  const initialChecked: Record<string, boolean> = {};
+                                  filteredTraceabilities.forEach((t) => {
+                                    initialChecked[t.id] = false;
+                                  });
+                                  setCheckedTraceabilityIds(initialChecked);
+                                  setIsInventoryMode(true);
                                 }
+                              }}
+                              style={{
+                                backgroundColor: isInventoryMode ? "#2563eb" : "#000000",
+                                color: "#ffffff",
+                                borderRadius: "13px",
+                                fontSize: "18px",
+                                fontWeight: "bold",
+                                padding: "12px 16px",
+                                border: "none",
+                                cursor: "pointer",
+                              }}
+                              className="flex-1 font-sans active:scale-[0.98] transition-all text-center"
+                            >
+                              {isInventoryMode ? "Confirmer l’inventaire" : "Inventaire"}
+                            </button>
 
-                                const updatedStocks = stocks.map((st) => {
-                                  if (st.id === matchedStockRecord.id) {
-                                    return { ...st, traceabilities: updatedTraceabilities };
-                                  }
-                                  return st;
-                                });
-                                onUpdateStocks(updatedStocks);
+                            <button
+                              type="button"
+                              onClick={() => {
                                 setIsInventoryMode(false);
-                              } else {
-                                // PROCEED
-                                const initialChecked: Record<string, boolean> = {};
-                                filteredTraceabilities.forEach((t) => {
-                                  initialChecked[t.id] = false;
-                                });
-                                setCheckedTraceabilityIds(initialChecked);
-                                setIsInventoryMode(true);
-                              }
-                            }}
-                            style={{
-                              width: "100%",
-                              backgroundColor: isInventoryMode ? "#2563eb" : "#000000",
-                              color: "#ffffff",
-                              borderRadius: "13px",
-                              fontSize: "18px",
-                              fontWeight: "bold",
-                              padding: "12px 16px",
-                              border: "none",
-                              cursor: "pointer",
-                            }}
-                            className="font-sans active:scale-[0.98] transition-all block"
-                          >
-                            {isInventoryMode ? "Confirmer l’inventaire" : "Procéder à l’inventaire"}
-                          </button>
+                                setShowNewWebappTraceForm(!showNewWebappTraceForm);
+                              }}
+                              style={{
+                                backgroundColor: "rgb(53, 86, 236)",
+                                color: "#ffffff",
+                                borderRadius: "13px",
+                                fontSize: "18px",
+                                fontWeight: "bold",
+                                padding: "12px 16px",
+                                border: "none",
+                                boxShadow:
+                                  "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                                cursor: "pointer",
+                              }}
+                              className="flex-1 font-sans active:scale-[0.98] transition-all hover:opacity-90 text-center"
+                            >
+                              Nouveau
+                            </button>
+                          </div>
+
+                          {/* Form Nouveau inventaire de traçabilité */}
+                          {showNewWebappTraceForm && (
+                            <div
+                              className="bg-white p-4 my-3 flex flex-col gap-4 font-sans text-xs border rounded-xl animate-fadeIn"
+                              style={{
+                                borderColor: "#cbd5e1",
+                                borderRadius: "16px",
+                                width: "100%",
+                                boxSizing: "border-box",
+                              }}
+                            >
+                              <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid #eee" }}>
+                                <span
+                                  className="inline-flex items-center px-4 py-1.5 rounded-full font-semibold font-sans text-white"
+                                  style={{
+                                    backgroundColor: "#5f1f66",
+                                    fontSize: "16px",
+                                  }}
+                                >
+                                  Nouveau inventaire de traçabilité
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowNewWebappTraceForm(false)}
+                                  className="text-slate-400 hover:text-slate-600 p-1 text-xl font-bold cursor-pointer"
+                                  title="Fermer"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+
+                              {/* Forms stacked vertically (one above another) for responsive layout */}
+                              <div className="flex flex-col gap-3.5 w-full">
+                                {/* 1. Sélection du mouvement */}
+                                <div className="flex flex-col gap-1 w-full">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Sélection du mouvement *
+                                  </label>
+                                  <select
+                                    value={newWebappMovementId}
+                                    onChange={(e) => setNewWebappMovementId(e.target.value)}
+                                    style={{
+                                      color: "#000000",
+                                      fontSize: "16px",
+                                      borderColor: "#cbd5e1",
+                                      borderWidth: "1px",
+                                      borderStyle: "solid",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      backgroundColor: "#ffffff",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                      outline: "none",
+                                    }}
+                                    className="font-sans font-medium cursor-pointer"
+                                    required
+                                  >
+                                    <option value="Autre (Aucun mouvement)">Autre (Aucun mouvement)</option>
+                                    {(matchedStockRecord?.mouvements || [])
+                                      .filter((mv) => mv.type !== "Annulation")
+                                      .map((mv) => (
+                                        <option key={mv.id} value={mv.id}>
+                                          {mv.date} - {mv.type} (Vol: {mv.volume})
+                                        </option>
+                                      ))}
+                                  </select>
+                                </div>
+
+                                {/* 2. Numéro de lot ou série */}
+                                <div className="flex flex-col gap-1 w-full">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Numéro de lot ou série *
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={newWebappLotOrSerial}
+                                    onChange={(e) => setNewWebappLotOrSerial(e.target.value)}
+                                    placeholder="Numéro de lot ou série"
+                                    style={{
+                                      color: "#000000",
+                                      fontSize: "16px",
+                                      borderColor: "#cbd5e1",
+                                      borderWidth: "1px",
+                                      borderStyle: "solid",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      backgroundColor: "#ffffff",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                      outline: "none",
+                                    }}
+                                    className="font-sans font-semibold"
+                                    required
+                                  />
+                                </div>
+
+                                {/* 3. Date de péremption */}
+                                <div className="flex flex-col gap-1 w-full">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Date de péremption
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={newWebappExpirationDate}
+                                    onChange={(e) => setNewWebappExpirationDate(e.target.value)}
+                                    style={{
+                                      color: "#000000",
+                                      fontSize: "16px",
+                                      borderColor: "#cbd5e1",
+                                      borderWidth: "1px",
+                                      borderStyle: "solid",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      backgroundColor: "#ffffff",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                      outline: "none",
+                                    }}
+                                    className="font-sans font-medium"
+                                  />
+                                </div>
+
+                                {/* 4. Volume (disabled) */}
+                                <div className="flex flex-col gap-1 w-full">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Volume *
+                                  </label>
+                                  <input
+                                    type="number"
+                                    value={1}
+                                    disabled
+                                    readOnly
+                                    style={{
+                                      color: "#64748b",
+                                      fontSize: "16px",
+                                      borderColor: "#cbd5e1",
+                                      borderWidth: "1px",
+                                      borderStyle: "solid",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      backgroundColor: "#f1f5f9",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                      opacity: 1,
+                                    }}
+                                    className="font-sans font-semibold cursor-not-allowed"
+                                  />
+                                </div>
+
+                                {/* 5. Situation */}
+                                <div className="flex flex-col gap-1 w-full">
+                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                    Situation *
+                                  </label>
+                                  <select
+                                    value={newWebappSituation}
+                                    onChange={(e) =>
+                                      setNewWebappSituation(
+                                        e.target.value as
+                                          | "Disponible"
+                                          | "Utilisé"
+                                          | "Indisponible"
+                                          | "Signalé manquant"
+                                          | "Prêté"
+                                      )
+                                    }
+                                    style={{
+                                      color: "#000000",
+                                      fontSize: "16px",
+                                      borderColor: "#cbd5e1",
+                                      borderWidth: "1px",
+                                      borderStyle: "solid",
+                                      borderRadius: "10px",
+                                      padding: "10px 12px",
+                                      backgroundColor: "#ffffff",
+                                      width: "100%",
+                                      boxSizing: "border-box",
+                                      outline: "none",
+                                    }}
+                                    className="font-sans font-medium cursor-pointer"
+                                    required
+                                  >
+                                    <option value="Disponible">Disponible</option>
+                                    <option value="Utilisé">Utilisé</option>
+                                    <option value="Indisponible">Indisponible</option>
+                                    <option value="Signalé manquant">Signalé manquant</option>
+                                    <option value="Prêté">Prêté</option>
+                                  </select>
+                                </div>
+                              </div>
+
+                              {/* Actions */}
+                              <div className="flex items-center justify-end gap-3 pt-3" style={{ borderTop: "1px solid #eee" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowNewWebappTraceForm(false)}
+                                  className="px-4 py-2 rounded-xl text-slate-700 bg-slate-100 hover:bg-slate-200 font-bold transition-all cursor-pointer border-0"
+                                >
+                                  Annuler
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (!newWebappLotOrSerial.trim()) {
+                                      alert("Le numéro de lot ou série est requis.");
+                                      return;
+                                    }
+                                    if (!matchedStockRecord || !stocks || !onUpdateStocks) return;
+
+                                    const newTrace: StockTraceability = {
+                                      id: "tr_" + Date.now() + "_" + Math.random().toString(36).substr(2, 5),
+                                      movementId: newWebappMovementId || "Autre (Aucun mouvement)",
+                                      lotOrSerial: newWebappLotOrSerial.trim(),
+                                      expirationDate: newWebappExpirationDate || undefined,
+                                      volume: 1,
+                                      situation: newWebappSituation || "Disponible",
+                                      emplacement: selectedTechStock?.locationName || techLocationLink || "Centrale des stocks",
+                                    };
+
+                                    const currentTraces = matchedStockRecord.traceabilities || [];
+                                    const updatedTraceabilities = [...currentTraces, newTrace];
+
+                                    const updatedStocks = stocks.map((st) => {
+                                      if (st.id === matchedStockRecord.id) {
+                                        return {
+                                          ...st,
+                                          traceabilityEnabled: true,
+                                          traceabilities: updatedTraceabilities,
+                                        };
+                                      }
+                                      return st;
+                                    });
+
+                                    onUpdateStocks(updatedStocks);
+
+                                    // Reset form
+                                    setShowNewWebappTraceForm(false);
+                                    setNewWebappLotOrSerial("");
+                                    setNewWebappExpirationDate("");
+                                    setNewWebappSituation("Disponible");
+                                    setNewWebappMovementId("Autre (Aucun mouvement)");
+                                  }}
+                                  style={{
+                                    backgroundColor: "rgb(53, 86, 236)",
+                                    color: "#ffffff",
+                                    boxShadow:
+                                      "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                                  }}
+                                  className="px-5 py-2 rounded-xl font-bold transition-all cursor-pointer border-0 hover:opacity-90 active:scale-[0.98]"
+                                >
+                                  Enregistrer
+                                </button>
+                              </div>
+                            </div>
+                          )}
 
                           {isInventoryMode && (
                             <p className="font-sans font-medium" style={{ color: "#000000", fontSize: "18px" }}>

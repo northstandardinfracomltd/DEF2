@@ -1908,14 +1908,15 @@ export default function SettingsModal({
             </label>
             <div className="flex flex-wrap gap-2 pt-1">
               {[
+                "Commandes",
                 "Tournées & Missions",
                 "Rapports PDF",
                 "Centrale des stocks",
                 "Stocks distribués",
                 "Achats fournisseurs",
-                "Commandes",
-                "CRM",
                 "GED",
+                "Satisfaction",
+                "CRM",
                 "Temps",
                 "Temps (Webapp)",
                 "Localisations",
@@ -1924,7 +1925,6 @@ export default function SettingsModal({
                 "Frais (Webapp)",
                 "Variables",
                 "Importer Exporter",
-                "Satisfaction",
                 "Notifications",
                 "Relevé Concurrentiel",
                 "Relevé Concurrentiel (Webapp)"

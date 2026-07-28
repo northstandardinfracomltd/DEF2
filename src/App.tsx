@@ -5313,20 +5313,20 @@ export default function App() {
               { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
               ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
               { id: 'clients', label: t('Clients'), icon: User },
+              { id: 'devis', label: t('Commandes'), icon: FileSpreadsheet },
               { id: 'fsm', label: t('Tournées & Missions'), icon: Flame },
               { id: 'gmao', label: t('Rapports PDF'), icon: Wrench },
               { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
               { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
               { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
               { id: 'variables', label: t('Variables'), icon: Layers },
-              { id: 'devis', label: t('Commandes'), icon: FileSpreadsheet },
-              { id: 'crm', label: t('CRM'), icon: FolderSync },
               { id: 'ged', label: t('GED'), icon: ClipboardList },
+              { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
+              { id: 'crm', label: t('CRM'), icon: FolderSync },
               { id: 'temps', label: t('Temps'), icon: Clock },
               { id: 'localisations', label: t('Localisations'), icon: MapPin },
               { id: 'tickets', label: t('Tickets Caisse'), icon: Ticket },
               { id: 'import-export', label: t('Importer Exporter'), icon: Download },
-              { id: 'satisfaction', label: t('Satisfaction'), icon: ThumbsUp },
               { id: 'statistiques', label: t('Statistiques'), icon: TrendingUp },
               { id: 'notifications', label: 'Notifications', icon: Bell },
               { id: 'veilles', label: t('Relevé Concurrentiel'), icon: ClipboardList },
@@ -5361,7 +5361,7 @@ export default function App() {
 
             const equipGroupIds = ['defibrillateurs', 'autres-materiels', 'clients'];
             const stockGroupIds = ['stocks', 'stocks-distribues', 'achats-fournisseurs'];
-            const devisCrmGroupIds = ['devis', 'crm'];
+            const crmGroupIds = ['ged', 'satisfaction', 'crm'];
 
             const renderButton = (tab: { id: string; label: string }) => (
               <button
@@ -5426,19 +5426,19 @@ export default function App() {
                     {stockGroup.map(gt => renderButton(gt))}
                   </div>
                 );
-              } else if (devisCrmGroupIds.includes(tab.id)) {
-                const devisCrmGroup: typeof rawTabs = [];
-                while (i < filteredTabs.length && devisCrmGroupIds.includes(filteredTabs[i].id)) {
-                  devisCrmGroup.push(filteredTabs[i]);
+              } else if (crmGroupIds.includes(tab.id)) {
+                const crmGroup: typeof rawTabs = [];
+                while (i < filteredTabs.length && crmGroupIds.includes(filteredTabs[i].id)) {
+                  crmGroup.push(filteredTabs[i]);
                   i++;
                 }
                 elements.push(
                   <div
-                    key="devis-crm-group-container"
+                    key="crm-group-container"
                     className="p-2 space-y-2 rounded-2xl"
                     style={{ border: '1px solid #ffffff1a' }}
                   >
-                    {devisCrmGroup.map(gt => renderButton(gt))}
+                    {crmGroup.map(gt => renderButton(gt))}
                   </div>
                 );
               } else {
@@ -8241,22 +8241,22 @@ export default function App() {
                                             <div
                                               key={flag.id || fIdx}
                                               className="relative inline-flex items-center justify-center shrink-0"
-                                              style={{ width: '18px', height: '18px' }}
+                                              style={{ width: '20px', height: '20px' }}
                                               title={flag.nom}
                                             >
                                               <div
                                                 className="absolute inset-0"
                                                 style={{
-                                                  border: `3.5px solid ${borderColor}`,
+                                                  border: `3px solid ${borderColor}`,
                                                   backgroundColor: 'transparent',
                                                   transform: 'rotate(45deg)',
-                                                  borderRadius: '1px',
+                                                  borderRadius: '6px',
                                                 }}
                                               />
                                               <span
                                                 className="relative z-10 font-bold leading-none select-none"
                                                 style={{
-                                                  fontSize: '14px',
+                                                  fontSize: '16px',
                                                   color: '#000000',
                                                   fontFamily: 'sans-serif',
                                                 }}
@@ -8566,140 +8566,127 @@ export default function App() {
                           borderLeft: '1px solid #e2e8f0',
                         }}
                       >
-                        {/* Drawer Header */}
-                        <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
-                          <div>
-                            <h3 className="text-xl font-bold text-slate-900 font-sans">
-                              Gestion du rapport
-                            </h3>
-                            <p className="text-sm text-slate-500 font-sans mt-0.5">
-                              {managingReport.defibIdentifiant ? `Identifiant : ${managingReport.defibIdentifiant}` : (managingReport.title || 'Rapport d\'intervention')}
-                            </p>
+                        {/* Drawer Body without inner padding/border div */}
+                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white font-sans">
+                          {/* Field A: Drapeau(x) */}
+                          <div className="space-y-2">
+                            <label className="block text-[16px] font-medium text-[#000]">
+                              Drapeau(x)
+                            </label>
+
+                            {/* Select Lookup Dropdown */}
+                            <select
+                              value=""
+                              onChange={(e) => {
+                                const valId = e.target.value;
+                                if (!valId) return;
+                                const foundVar = variables.find(v => v.id === valId && v.category === 'Drapeau post-intervention');
+                                if (foundVar) {
+                                  const currentFlags = managingReport.drapeaux || [];
+                                  if (!currentFlags.some((f: any) => f.id === foundVar.id || f.nom === foundVar.nom)) {
+                                    const newFlag = {
+                                      id: foundVar.id,
+                                      nom: foundVar.nom,
+                                      couleurHex: foundVar.couleurHex || ''
+                                    };
+                                    const updatedReports = generatedReports.map(r => 
+                                      r.id === managingReport.id ? { ...r, drapeaux: [...currentFlags, newFlag] } : r
+                                    );
+                                    saveReports(updatedReports);
+                                  }
+                                }
+                              }}
+                              className="w-full p-2.5 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-slate-300 cursor-pointer"
+                            >
+                              <option value="">-- Sélectionner un drapeau post-intervention --</option>
+                              {variables
+                                .filter(v => v.category === 'Drapeau post-intervention')
+                                .map(v => (
+                                  <option key={v.id} value={v.id}>
+                                    {v.nom} {v.couleurHex ? `(${v.couleurHex})` : ''}
+                                  </option>
+                                ))}
+                            </select>
+
+                            {/* Selected Flags as Pills / Gélules */}
+                            {managingReport.drapeaux && managingReport.drapeaux.length > 0 ? (
+                              <div className="flex flex-wrap gap-2.5 pt-1">
+                                {managingReport.drapeaux.map((flag: any, idx: number) => {
+                                  const hex = flag.couleurHex?.trim();
+                                  const txtColor = hex ? getContrastingTextColor(hex) : '#0f172a';
+                                  return (
+                                    <span
+                                      key={flag.id || idx}
+                                      onClick={() => {
+                                        const updatedFlags = (managingReport.drapeaux || []).filter((_: any, i: number) => i !== idx);
+                                        const updatedReports = generatedReports.map(r => 
+                                          r.id === managingReport.id ? { ...r, drapeaux: updatedFlags } : r
+                                        );
+                                        saveReports(updatedReports);
+                                      }}
+                                      className="inline-flex items-center px-4 py-2 rounded-full text-[18px] font-medium cursor-pointer transition-colors select-none hover:!bg-[#851010] hover:!text-white"
+                                      style={{
+                                        backgroundColor: hex || '#f1f5f9',
+                                        color: txtColor,
+                                        border: 'none',
+                                      }}
+                                      title="Cliquer pour supprimer"
+                                    >
+                                      {flag.nom}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-sm text-slate-400 italic pt-1">
+                                Aucun drapeau sélectionné.
+                              </div>
+                            )}
                           </div>
+
+                          {/* Field B: Commentaire */}
+                          <div className="space-y-1.5 pt-1">
+                            <label className="block text-[16px] font-medium text-[#000]">
+                              Commentaire
+                            </label>
+                            <textarea
+                              value={managingReport.commentaire || ''}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const updatedReports = generatedReports.map(r => 
+                                  r.id === managingReport.id ? { ...r, commentaire: val } : r
+                                );
+                                saveReports(updatedReports);
+                              }}
+                              placeholder="Entrez un commentaire."
+                              className="w-full p-3 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-slate-50/50 resize-y min-h-[120px] focus:outline-none focus:ring-0 focus:border-slate-300"
+                            />
+                          </div>
+
+                          {/* Enregistrer Button */}
+                          <div className="pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                saveReports(generatedReports);
+                                setManagingReportId(null);
+                              }}
+                              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[18px] font-medium transition-colors cursor-pointer border-none shadow-sm"
+                            >
+                              Enregistrer
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Sticky Bottom Footer - Fermer Button */}
+                        <div className="p-5 border-t border-slate-200 bg-white shrink-0 sticky bottom-0">
                           <button
                             type="button"
                             onClick={() => setManagingReportId(null)}
-                            className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer border-none bg-transparent"
+                            className="w-full py-3.5 bg-black text-white rounded-xl text-[18px] font-medium hover:bg-slate-800 transition-colors cursor-pointer border-none"
                           >
-                            <X className="w-5 h-5" />
+                            Fermer
                           </button>
-                        </div>
-
-                        {/* Drawer Body */}
-                        <div className="flex-1 overflow-y-auto p-5 space-y-4 pb-28 bg-slate-50/50">
-                          <div 
-                            className="p-5 rounded-xl bg-white space-y-4 font-sans"
-                            style={{
-                              border: '1px solid #a6a6a6',
-                              boxShadow: 'none',
-                            }}
-                          >
-                            {/* Field A: Drapeau(x) */}
-                            <div className="space-y-2">
-                              <label className="block text-[16px] font-medium text-[#000]">
-                                Drapeau(x)
-                              </label>
-
-                              {/* Select Lookup Dropdown */}
-                              <select
-                                value=""
-                                onChange={(e) => {
-                                  const valId = e.target.value;
-                                  if (!valId) return;
-                                  const foundVar = variables.find(v => v.id === valId && v.category === 'Drapeau post-intervention');
-                                  if (foundVar) {
-                                    const currentFlags = managingReport.drapeaux || [];
-                                    if (!currentFlags.some((f: any) => f.id === foundVar.id || f.nom === foundVar.nom)) {
-                                      const newFlag = {
-                                        id: foundVar.id,
-                                        nom: foundVar.nom,
-                                        couleurHex: foundVar.couleurHex || ''
-                                      };
-                                      const updatedReports = generatedReports.map(r => 
-                                        r.id === managingReport.id ? { ...r, drapeaux: [...currentFlags, newFlag] } : r
-                                      );
-                                      saveReports(updatedReports);
-                                    }
-                                  }
-                                }}
-                                className="w-full p-2.5 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-slate-300 cursor-pointer"
-                              >
-                                <option value="">-- Sélectionner un drapeau post-intervention --</option>
-                                {variables
-                                  .filter(v => v.category === 'Drapeau post-intervention')
-                                  .map(v => (
-                                    <option key={v.id} value={v.id}>
-                                      {v.nom} {v.couleurHex ? `(${v.couleurHex})` : ''}
-                                    </option>
-                                  ))}
-                              </select>
-
-                              {/* Selected Flags as Pills / Gélules */}
-                              {managingReport.drapeaux && managingReport.drapeaux.length > 0 ? (
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  {managingReport.drapeaux.map((flag: any, idx: number) => {
-                                    const hex = flag.couleurHex?.trim();
-                                    const txtColor = hex ? getContrastingTextColor(hex) : '#0f172a';
-                                    return (
-                                      <span
-                                        key={flag.id || idx}
-                                        onClick={() => {
-                                          const updatedFlags = (managingReport.drapeaux || []).filter((_: any, i: number) => i !== idx);
-                                          const updatedReports = generatedReports.map(r => 
-                                            r.id === managingReport.id ? { ...r, drapeaux: updatedFlags } : r
-                                          );
-                                          saveReports(updatedReports);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border cursor-pointer hover:opacity-80 transition-all select-none shadow-2xs"
-                                        style={{
-                                          backgroundColor: hex || '#f1f5f9',
-                                          color: txtColor,
-                                          borderColor: hex ? 'rgba(0,0,0,0.15)' : '#cbd5e1'
-                                        }}
-                                        title="Cliquer pour supprimer"
-                                      >
-                                        <span>{flag.nom}</span>
-                                        <X className="w-3.5 h-3.5 opacity-70 hover:opacity-100 shrink-0" />
-                                      </span>
-                                    );
-                                  })}
-                                </div>
-                              ) : (
-                                <div className="text-xs text-slate-400 italic pt-1">
-                                  Aucun drapeau sélectionné.
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Field B: Commentaire */}
-                            <div className="space-y-1 pt-1">
-                              <label className="block text-[16px] font-medium text-[#000]">
-                                Commentaire
-                              </label>
-                              <textarea
-                                value={managingReport.commentaire || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const updatedReports = generatedReports.map(r => 
-                                    r.id === managingReport.id ? { ...r, commentaire: val } : r
-                                  );
-                                  saveReports(updatedReports);
-                                }}
-                                placeholder="Entrez un commentaire."
-                                className="w-full p-2.5 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-slate-50/50 resize-y min-h-[100px] focus:outline-none focus:ring-0 focus:border-slate-300"
-                              />
-                            </div>
-
-                            <div className="pt-2 flex gap-2.5 w-full justify-end">
-                              <button
-                                type="button"
-                                onClick={() => setManagingReportId(null)}
-                                className="px-6 py-2.5 bg-black text-white rounded-xl text-[16px] font-medium hover:bg-slate-800 transition-colors cursor-pointer border-none"
-                              >
-                                Fermer
-                              </button>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </div>

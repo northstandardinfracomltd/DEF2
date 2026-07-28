@@ -913,11 +913,11 @@ export default function PublicPortal({
           const name_technician = authenticatedUser?.name || "Un technicien";
           const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
           const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
-          const part_name_and_UGS = `${pieceName}${ugs}`;
-          const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
+          const ugsRef = `${pieceName}${ugs}`;
+          const emplacement_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
           onAddNotification(
             'Stocks',
-            `Le technicien ${name_technician} signale une anomalie de stock critique pour la pièce ${part_name_and_UGS} dans l’inventaire ${emplacement_name} attribué.`
+            `Le technicien ${name_technician} (${emplacement_name}) alerte concernant la situation du stock ${ugsRef}.`
           );
         }
         alert(
@@ -1030,6 +1030,35 @@ export default function PublicPortal({
         return st;
       });
       onUpdateStocks(updatedStocks);
+    }
+
+    if (onAddNotification) {
+      const name_technician = authenticatedUser?.name || "Un technicien";
+      const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
+      const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+      const ugsStr = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+      const ugsRef = `${pieceName}${ugsStr}`;
+
+      const returnedLots = (matchedStockRecord?.traceabilities || [])
+        .filter((t) => {
+          let currentLoc = t.emplacement;
+          if (!currentLoc) {
+            const matchedMv = (matchedStockRecord?.mouvements || []).find(mv => mv.id === t.movementId);
+            if (matchedMv && matchedMv.emplacement) {
+              currentLoc = matchedMv.emplacement.includes(" : ") ? matchedMv.emplacement.split(" : ")[1] : matchedMv.emplacement;
+            }
+          }
+          return currentLoc === selectedTechStock?.locationName;
+        })
+        .map((t) => t.lotOrSerial)
+        .filter(Boolean);
+
+      const lotsList = returnedLots.length > 0 ? returnedLots.join(", ") : "aucun lot";
+
+      onAddNotification(
+        'Stocks',
+        `Le technicien ${name_technician} (${location_name}) retourne toutes ses références du stock distribué ${ugsRef}, pièce(s) : ${lotsList}.`
+      );
     }
 
     alert("Retour (Rapatriement) enregistré avec succès !");
@@ -7841,7 +7870,7 @@ export default function PublicPortal({
                           onChange={(e) => setNewDistribStockId(e.target.value)}
                           style={{
                             color: "#000000",
-                            fontSize: "16px",
+                            fontSize: "18px",
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
@@ -7860,7 +7889,7 @@ export default function PublicPortal({
                           className="font-sans font-medium cursor-pointer"
                           required
                         >
-                          <option value="">Sélectionnez un item de la centrale des stocks</option>
+                          <option value="">Sélection d'une pièce.</option>
                           {stocks
                             .filter((st) => {
                               if (!techLocationLink) return true;
@@ -7897,7 +7926,7 @@ export default function PublicPortal({
                           disabled
                           style={{
                             color: "#000000",
-                            fontSize: "16px",
+                            fontSize: "18px",
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
@@ -7926,7 +7955,7 @@ export default function PublicPortal({
                           onChange={(e) => setNewDistribVolumeDisponible(Math.max(0, Number(e.target.value)))}
                           style={{
                             color: "#000000",
-                            fontSize: "16px",
+                            fontSize: "18px",
                             borderColor: "#D5D5D5",
                             borderWidth: "1px",
                             borderStyle: "solid",
@@ -8008,6 +8037,20 @@ export default function PublicPortal({
 
                             if (onUpdateDistributedStocks) {
                               onUpdateDistributedStocks(updatedDs);
+                            }
+
+                            if (onAddNotification) {
+                              const name_technician = authenticatedUser?.name || "Un technicien";
+                              const location_name = techLocationLink || "Emplacement";
+                              const vObj = variables.find((v) => v.id === selectedStock.denominationPieceId);
+                              const pieceName = vObj?.nom || "Pièce inconnue";
+                              const ugsStr = selectedStock.ugs ? ` (${selectedStock.ugs})` : "";
+                              const ugsRef = `${pieceName}${ugsStr}`;
+
+                              onAddNotification(
+                                'Stocks',
+                                `Le technicien ${name_technician} (${location_name}) a créé un nouveau stock distribué ${ugsRef}.`
+                              );
                             }
 
                             setSelectedTechDistributedStockId(targetId);
@@ -8545,15 +8588,15 @@ export default function PublicPortal({
                                     return t;
                                   });
 
-                                  if (hasPassedToMissing && onAddNotification) {
+                                  if (onAddNotification) {
                                     const name_technician = authenticatedUser?.name || "Un technicien";
+                                    const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
                                     const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
                                     const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
-                                    const part_name_and_UGS = `${pieceName}${ugs}`;
-                                    const emplacement_name = selectedTechStock?.locationName || techLocationLink || "emplacement attribué";
+                                    const ugsRef = `${pieceName}${ugs}`;
                                     onAddNotification(
                                       'Stocks',
-                                      `Le technicien ${name_technician} signale que la pièce ${part_name_and_UGS} est manquante dans l’inventaire ${emplacement_name} attribué.`
+                                      `Le technicien ${name_technician} (${location_name}) a effectué l’inventaire pour la pièce ${ugsRef}.`
                                     );
                                   }
 
@@ -8637,7 +8680,7 @@ export default function PublicPortal({
                                     onChange={(e) => setNewWebappMovementId(e.target.value)}
                                     style={{
                                       color: "#000000",
-                                      fontSize: "16px",
+                                      fontSize: "18px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
@@ -8679,7 +8722,7 @@ export default function PublicPortal({
                                     placeholder="Numéro de lot ou série"
                                     style={{
                                       color: "#000000",
-                                      fontSize: "16px",
+                                      fontSize: "18px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
@@ -8707,7 +8750,7 @@ export default function PublicPortal({
                                     onChange={(e) => setNewWebappExpirationDate(e.target.value)}
                                     style={{
                                       color: "#000000",
-                                      fontSize: "16px",
+                                      fontSize: "18px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
@@ -8735,7 +8778,7 @@ export default function PublicPortal({
                                     readOnly
                                     style={{
                                       color: "#000000",
-                                      fontSize: "16px",
+                                      fontSize: "18px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
@@ -8771,7 +8814,7 @@ export default function PublicPortal({
                                     }
                                     style={{
                                       color: "#000000",
-                                      fontSize: "16px",
+                                      fontSize: "18px",
                                       borderColor: "#cbd5e1",
                                       borderWidth: "1px",
                                       borderStyle: "solid",
@@ -8866,6 +8909,19 @@ export default function PublicPortal({
 
                                     // Reset form
                                     setShowNewWebappTraceForm(false);
+                                    if (onAddNotification) {
+                                      const name_technician = authenticatedUser?.name || "Un technicien";
+                                      const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
+                                      const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+                                      const ugsStr = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+                                      const ugsRef = `${pieceName}${ugsStr}`;
+                                      const lotStr = newWebappLotOrSerial.trim();
+
+                                      onAddNotification(
+                                        'Stocks',
+                                        `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`
+                                      );
+                                    }
                                     setNewWebappLotOrSerial("");
                                     setNewWebappExpirationDate("");
                                     setNewWebappSituation("Disponible");
@@ -8874,10 +8930,13 @@ export default function PublicPortal({
                                   style={{
                                     backgroundColor: "rgb(53, 86, 236)",
                                     color: "#ffffff",
-                                    boxShadow:
-                                      "rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset",
+                                    fontSize: "18px",
+                                    borderRadius: "13px",
+                                    padding: "12px 16px",
+                                    border: "none",
+                                    cursor: "pointer",
                                   }}
-                                  className="px-5 py-2 rounded-xl font-bold transition-all cursor-pointer border-0 hover:opacity-90 active:scale-[0.98]"
+                                  className="flex-1 font-sans font-bold transition-all hover:opacity-90 active:scale-[0.98] text-center"
                                 >
                                   Enregistrer
                                 </button>
@@ -9044,6 +9103,20 @@ export default function PublicPortal({
                                             disabled={!isInventoryMode}
                                             onChange={(e) => {
                                               handleUpdateTraceability(trace.id, { lotOrSerial: e.target.value });
+                                            }}
+                                            onBlur={() => {
+                                              if (isInventoryMode && onAddNotification) {
+                                                const name_technician = authenticatedUser?.name || "Un technicien";
+                                                const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
+                                                const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
+                                                const ugsStr = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
+                                                const ugsRef = `${pieceName}${ugsStr}`;
+                                                const lotStr = trace.lotOrSerial || "non spécifié";
+                                                onAddNotification(
+                                                  'Stocks',
+                                                  `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`
+                                                );
+                                              }
                                             }}
                                             className={`w-full font-semibold font-sans ${!isInventoryMode ? "cursor-not-allowed text-slate-700" : "bg-white text-black"}`}
                                             style={{

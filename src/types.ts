@@ -55,7 +55,7 @@ export interface Client {
   valeurContrat?: string;
 }
 
-export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur' | 'Modèle Raison Prestation';
+export type VariableCategory = 'Modèle Défibrillateur' | 'Modèle Coffret' | 'Modèle Électrode' | 'Modèle Batterie' | 'Modèle Contrat' | 'Modèle Service' | 'Fournisseur' | 'Modèle Raison Prestation' | 'Drapeau post-intervention';
 
 export interface Variable {
   id: string;
@@ -64,6 +64,7 @@ export interface Variable {
   description: string;
   category: VariableCategory;
   imageUrl?: string; // Appliqué si category === 'Modèle Défibrillateur'
+  couleurHex?: string; // Appliqué si category === 'Drapeau post-intervention'
   identifiant?: string;
   rappelAlerteOption?: string;
   rappelDateDebut?: string;

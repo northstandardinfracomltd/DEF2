@@ -1846,7 +1846,7 @@ export default function SettingsModal({
           {/* DEVIS & FACTURES OPTION */}
           <div className="space-y-2 mt-4">
             <label className="block text-[16px] font-bold text-black font-sans leading-tight">
-              {t("Utiliser Devis & Factures sur Defibeo.")}
+              {t("Utiliser Commandes sur Defibeo.")}
             </label>
             <div className="flex items-center space-x-6 py-1 font-sans">
               <button
@@ -1913,7 +1913,7 @@ export default function SettingsModal({
                 "Centrale des stocks",
                 "Stocks distribués",
                 "Achats fournisseurs",
-                "Devis & Factures",
+                "Commandes",
                 "CRM",
                 "GED",
                 "Temps",

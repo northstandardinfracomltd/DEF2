@@ -5303,7 +5303,7 @@ export default function App() {
               { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
               { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
               { id: 'variables', label: t('Variables'), icon: Layers },
-              { id: 'devis', label: t('Devis & Factures'), icon: FileSpreadsheet },
+              { id: 'devis', label: t('Commandes'), icon: FileSpreadsheet },
               { id: 'crm', label: t('CRM'), icon: FolderSync },
               { id: 'ged', label: t('GED'), icon: ClipboardList },
               { id: 'temps', label: t('Temps'), icon: Clock },
@@ -5324,7 +5324,7 @@ export default function App() {
                 stocks: "Centrale des stocks",
                 "stocks-distribues": "Stocks distribués",
                 "achats-fournisseurs": "Achats fournisseurs",
-                devis: "Devis & Factures",
+                devis: "Commandes",
                 crm: "CRM",
                 ged: "GED",
                 temps: "Temps",
@@ -9214,7 +9214,7 @@ export default function App() {
                     >
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 flex-wrap bg-white">
                         <div>
-                          <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="devis-tab-title">Devis & Factures</h2>
+                          <h2 className="text-2xl font-bold tracking-tight font-gochi bg-white" style={{ color: '#000000', cursor: 'default' }} id="devis-tab-title">{t("Commandes")}</h2>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-3 bg-white">

@@ -94,6 +94,7 @@ const CATEGORIES: VariableCategory[] = [
   'Modèle Service',
   'Fournisseur',
   'Modèle Raison Prestation',
+  'Drapeau post-intervention',
 ];
 
 export default function VariableTab({
@@ -257,6 +258,7 @@ export default function VariableTab({
   const [marque, setMarque] = useState('');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [couleurHex, setCouleurHex] = useState('');
   const [identifiant, setIdentifiant] = useState('');
   const [error, setError] = useState('');
 
@@ -320,6 +322,7 @@ export default function VariableTab({
     setMarque('Standard');
     setDescription('');
     setImageUrl('');
+    setCouleurHex('');
     setIdentifiant('');
     setRappelAlerteOption('');
     setRappelDateDebut('');
@@ -366,6 +369,7 @@ export default function VariableTab({
     setMarque(v.marque || 'Standard');
     setDescription(v.description);
     setImageUrl(v.imageUrl || '');
+    setCouleurHex(v.couleurHex || '');
     setIdentifiant(v.identifiant || '');
     setRappelAlerteOption(v.rappelAlerteOption || '');
     setRappelDateDebut(v.rappelDateDebut || '');
@@ -418,7 +422,14 @@ export default function VariableTab({
       return;
     }
 
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention';
+
+    let formattedHex = couleurHex.trim();
+    if (category === 'Drapeau post-intervention' && formattedHex) {
+      if (!formattedHex.startsWith('#')) {
+        formattedHex = '#' + formattedHex;
+      }
+    }
 
     const payload: any = {
       category: category as VariableCategory,
@@ -426,6 +437,7 @@ export default function VariableTab({
       marque: marque.trim() || 'Standard',
       description: description.trim(),
       imageUrl: category === 'Modèle Défibrillateur' ? imageUrl.trim() : undefined,
+      couleurHex: category === 'Drapeau post-intervention' ? (formattedHex || undefined) : undefined,
       identifiant: identifiant.trim() || undefined,
       rappelAlerteOption: hideRappelAlerte ? undefined : (rappelAlerteOption || undefined),
       rappelDateDebut: hideRappelAlerte ? undefined : (rappelDateDebut || undefined),
@@ -479,7 +491,7 @@ export default function VariableTab({
   };
 
   if (isModalOpen) {
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention';
 
     return (
       <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="variable-form-overlay">
@@ -686,6 +698,31 @@ export default function VariableTab({
                       onChange={(e) => setImageUrl(e.target.value)}
                       placeholder="https://"
                     />
+                  </div>
+                )}
+
+                {/* Couleur hexadécimale (spécifique à Drapeau post-intervention) */}
+                {category === 'Drapeau post-intervention' && (
+                  <div className="space-y-1">
+                    <label htmlFor="input-variable-couleur-hex" className="block text-[11px] font-bold text-slate-500 uppercase">
+                      Couleur hexadécimale (ex: #FF0000).
+                    </label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="text"
+                        id="input-variable-couleur-hex"
+                        value={couleurHex}
+                        onChange={(e) => setCouleurHex(e.target.value)}
+                        placeholder="#3556EC"
+                      />
+                      {couleurHex && /^#[0-9A-Fa-f]{3,8}$/.test(couleurHex.trim()) && (
+                        <div
+                          className="w-10 h-10 min-w-[40px] rounded-lg border border-slate-300 shadow-sm flex-shrink-0"
+                          style={{ backgroundColor: couleurHex.trim() }}
+                          title={couleurHex.trim()}
+                        />
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -1031,6 +1068,12 @@ export default function VariableTab({
                               className="w-full h-full object-contain"
                               referrerPolicy="no-referrer"
                             />
+                          ) : v.category === 'Drapeau post-intervention' && v.couleurHex ? (
+                            <div
+                              className="w-8 h-8 rounded-full border border-slate-300 shadow-sm"
+                              style={{ backgroundColor: v.couleurHex }}
+                              title={v.couleurHex}
+                            />
                           ) : null}
                         </div>
                       </td>
@@ -1042,8 +1085,20 @@ export default function VariableTab({
 
                       {/* Nom de l'équipement */}
                       <td className="px-4 py-5 font-sans text-left" style={{ fontSize: '16px', color: '#000000', fontWeight: 100 }}>
-                        <div className="font-semibold text-slate-950">
-                          {v.nom}
+                        <div className="font-semibold text-slate-950 flex items-center gap-2">
+                          <span>{v.nom}</span>
+                          {v.category === 'Drapeau post-intervention' && v.couleurHex && (
+                            <span
+                              className="px-2 py-0.5 text-xs rounded-md font-mono border"
+                              style={{
+                                backgroundColor: '#f8fafc',
+                                borderColor: '#cbd5e1',
+                                color: '#334155'
+                              }}
+                            >
+                              {v.couleurHex}
+                            </span>
+                          )}
                         </div>
                       </td>
 

@@ -8,6 +8,23 @@ interface HelpBubbleProps {
 }
 
 export default function HelpBubble({ cacheKey, text, style }: HelpBubbleProps) {
+  const tenantId = typeof window !== 'undefined' ? localStorage.getItem('defib_tenant_id') || 'demo' : 'demo';
+  const localCompanyInfo = typeof window !== 'undefined' ? localStorage.getItem(`defib_${tenantId}_company_info`) : null;
+  let isHelpsDisabled = false;
+  if (localCompanyInfo) {
+    try {
+      const parsed = JSON.parse(localCompanyInfo);
+      if (parsed.disableHelpsAndTutorials === 'Oui') {
+        isHelpsDisabled = true;
+      }
+    } catch (e) {}
+  }
+  if (!isHelpsDisabled && typeof window !== 'undefined') {
+    if (localStorage.getItem(`defib_${tenantId}_disable_helps_tutorials`) === 'Oui') {
+      isHelpsDisabled = true;
+    }
+  }
+
   const [isVisible, setIsVisible] = useState<boolean>(() => {
     return !sessionStorage.getItem(cacheKey);
   });
@@ -17,7 +34,7 @@ export default function HelpBubble({ cacheKey, text, style }: HelpBubbleProps) {
     setIsVisible(false);
   };
 
-  if (!isVisible) return null;
+  if (isHelpsDisabled || !isVisible) return null;
 
   return (
     <div 

@@ -295,6 +295,7 @@ export interface CompanyInfo {
   enableSatisfactionAvis?: 'Oui' | 'Non';
   enableDevisFactures?: 'Oui' | 'Non';
   gmailPartageLocalisation?: string;
+  disableHelpsAndTutorials?: 'Oui' | 'Non';
   hiddenTabs?: string[];
   communicationPortailClient?: string;
   pdfHeaderImg?: string;

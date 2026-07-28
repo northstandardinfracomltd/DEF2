@@ -3410,6 +3410,7 @@ export default function App() {
                 enableAutoEmails: firestoreData.enableAutoEmails !== undefined ? firestoreData.enableAutoEmails : localData.enableAutoEmails,
                 enableSatisfactionAvis: firestoreData.enableSatisfactionAvis !== undefined ? firestoreData.enableSatisfactionAvis : localData.enableSatisfactionAvis,
                 enableDevisFactures: firestoreData.enableDevisFactures !== undefined ? firestoreData.enableDevisFactures : localData.enableDevisFactures,
+                disableHelpsAndTutorials: firestoreData.disableHelpsAndTutorials !== undefined ? firestoreData.disableHelpsAndTutorials : localData.disableHelpsAndTutorials,
                 communicationPortailClient: firestoreData.communicationPortailClient !== undefined ? firestoreData.communicationPortailClient : localData.communicationPortailClient,
                 pdfHeaderBgColor: firestoreData.pdfHeaderBgColor !== undefined ? firestoreData.pdfHeaderBgColor : localData.pdfHeaderBgColor,
                 pdfCardBorderColor: firestoreData.pdfCardBorderColor !== undefined ? firestoreData.pdfCardBorderColor : localData.pdfCardBorderColor,
@@ -3475,6 +3476,7 @@ export default function App() {
                 enableAutoEmails: data.enableAutoEmails !== undefined ? data.enableAutoEmails : prev?.enableAutoEmails,
                 enableSatisfactionAvis: data.enableSatisfactionAvis !== undefined ? data.enableSatisfactionAvis : prev?.enableSatisfactionAvis,
                 enableDevisFactures: data.enableDevisFactures !== undefined ? data.enableDevisFactures : prev?.enableDevisFactures,
+                disableHelpsAndTutorials: data.disableHelpsAndTutorials !== undefined ? data.disableHelpsAndTutorials : prev?.disableHelpsAndTutorials,
                 communicationPortailClient: data.communicationPortailClient !== undefined ? data.communicationPortailClient : prev?.communicationPortailClient,
                 pdfHeaderBgColor: data.pdfHeaderBgColor !== undefined ? data.pdfHeaderBgColor : prev?.pdfHeaderBgColor,
                 pdfCardBorderColor: data.pdfCardBorderColor !== undefined ? data.pdfCardBorderColor : prev?.pdfCardBorderColor,
@@ -4916,6 +4918,9 @@ export default function App() {
     localStorage.setItem('defib_company_info', infoStr);
     localStorage.setItem(`defib_${tenantId}_company_info`, infoStr);
     loadedDataRef.current.companyInfo = infoStr;
+    if (isFirebaseLoaded && tenantId) {
+      saveCollectionToFirestore('companyInfo', info).catch(console.error);
+    }
   };
 
   const handleUpdateMembers = (updatedMembers: Member[]) => {
@@ -8599,7 +8604,6 @@ export default function App() {
                               disabled
                               rows={3}
                               value={managingReport.defibSnapshot?.commentaireInterne || managingReport.commentaireInterne || ''}
-                              placeholder="Aucun commentaire interne renseigné par le technicien."
                               className="w-full p-3 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-slate-100 resize-y min-h-[90px] focus:outline-none cursor-not-allowed opacity-90"
                             />
                           </div>
@@ -8729,8 +8733,8 @@ export default function App() {
                             </button>
                           </div>
 
-                          {/* Enregistrer Button */}
-                          <div className="pt-2">
+                          {/* Enregistrer & Fermer Buttons */}
+                          <div className="pt-2 space-y-3">
                             <button
                               type="button"
                               onClick={() => {
@@ -8741,18 +8745,14 @@ export default function App() {
                             >
                               Enregistrer
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => setManagingReportId(null)}
+                              className="w-full py-3.5 bg-black text-white rounded-xl text-[18px] font-medium hover:bg-slate-800 transition-colors cursor-pointer border-none"
+                            >
+                              Fermer
+                            </button>
                           </div>
-                        </div>
-
-                        {/* Sticky Bottom Footer - Fermer Button */}
-                        <div className="p-5 bg-white shrink-0 sticky bottom-0">
-                          <button
-                            type="button"
-                            onClick={() => setManagingReportId(null)}
-                            className="w-full py-3.5 bg-black text-white rounded-xl text-[18px] font-medium hover:bg-slate-800 transition-colors cursor-pointer border-none"
-                          >
-                            Fermer
-                          </button>
                         </div>
                       </div>
                     </div>

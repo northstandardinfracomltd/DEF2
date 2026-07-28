@@ -144,6 +144,13 @@ export default function SettingsModal({
     const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
     return (localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui';
   });
+  const [disableHelpsAndTutorials, setDisableHelpsAndTutorials] = React.useState<'Oui' | 'Non'>(() => {
+    if (companyInfo && companyInfo.disableHelpsAndTutorials) {
+      return companyInfo.disableHelpsAndTutorials;
+    }
+    const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+    return (localStorage.getItem(`defib_${tenantId}_disable_helps_tutorials`) as 'Oui' | 'Non') || 'Non';
+  });
   const [communicationPortailClient, setCommunicationPortailClient] = React.useState<string>(() => {
     if (companyInfo && companyInfo.communicationPortailClient !== undefined) {
       return companyInfo.communicationPortailClient;
@@ -258,6 +265,13 @@ export default function SettingsModal({
       } else {
         const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
         setEnableDevisFactures((localStorage.getItem(`defib_${tenantId}_enable_devis_factures`) as 'Oui' | 'Non') || 'Oui');
+      }
+
+      if (companyInfo && companyInfo.disableHelpsAndTutorials) {
+        setDisableHelpsAndTutorials(companyInfo.disableHelpsAndTutorials);
+      } else {
+        const tenantId = localStorage.getItem('defib_tenant_id') || 'demo';
+        setDisableHelpsAndTutorials((localStorage.getItem(`defib_${tenantId}_disable_helps_tutorials`) as 'Oui' | 'Non') || 'Non');
       }
 
       if (companyInfo && companyInfo.communicationPortailClient !== undefined) {
@@ -1151,6 +1165,7 @@ export default function SettingsModal({
       enableAutoEmails: enableAutoEmails,
       enableSatisfactionAvis: enableSatisfactionAvis,
       enableDevisFactures: enableDevisFactures,
+      disableHelpsAndTutorials: disableHelpsAndTutorials,
       communicationPortailClient: communicationPortailClient
     };
     onUpdateCompanyInfo(companyToSave);
@@ -1201,6 +1216,7 @@ export default function SettingsModal({
     localStorage.setItem(`defib_${myTenantId}_enable_auto_emails`, enableAutoEmails);
     localStorage.setItem(`defib_${myTenantId}_enable_satisfaction_avis`, enableSatisfactionAvis);
     localStorage.setItem(`defib_${myTenantId}_enable_devis_factures`, enableDevisFactures);
+    localStorage.setItem(`defib_${myTenantId}_disable_helps_tutorials`, disableHelpsAndTutorials);
     localStorage.setItem(`defib_${myTenantId}_communication_portail_client`, communicationPortailClient);
     if (onUpdateLocationNames) {
       onUpdateLocationNames(localLocationNames);
@@ -1404,7 +1420,7 @@ export default function SettingsModal({
           id="settings-tab-container-harmonized"
           style={isPage ? { maxWidth: '98%', margin: '0 auto', width: '100%' } : {}}
         >
-          {showEpsonBanner && (
+          {showEpsonBanner && disableHelpsAndTutorials !== 'Oui' && (
             <div 
               className="p-4 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-4 animate-fadeIn transition-all"
               style={{
@@ -1893,6 +1909,64 @@ export default function SettingsModal({
                   }}
                 >
                   {enableDevisFactures === "Non" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">{t("Non")}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* DESACTIVER AIDES ET TUTORIELS OPTION */}
+          <div className="space-y-2 mt-4">
+            <label className="block text-[16px] font-bold text-black font-sans leading-tight">
+              {t("Désactiver les aides et tutoriels.")}
+            </label>
+            <div className="flex items-center space-x-6 py-1 font-sans">
+              <button
+                type="button"
+                onClick={() => {
+                  setDisableHelpsAndTutorials("Oui");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: disableHelpsAndTutorials === "Oui" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {disableHelpsAndTutorials === "Oui" && (
+                    <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
+                  )}
+                </span>
+                <span className="text-[15px] font-semibold text-black">{t("Oui")}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDisableHelpsAndTutorials("Non");
+                }}
+                className="inline-flex items-center cursor-pointer gap-2 select-none justify-start text-left"
+              >
+                <span 
+                  className="rounded-full flex items-center justify-center transition-all bg-white"
+                  style={{
+                    border: disableHelpsAndTutorials === "Non" ? '2.5px solid #fe4eba' : '2.5px solid #cbd5e1',
+                    width: '20px',
+                    height: '20px',
+                    minWidth: '20px',
+                    minHeight: '20px',
+                    backgroundColor: '#ffffff'
+                  }}
+                >
+                  {disableHelpsAndTutorials === "Non" && (
                     <span className="rounded-full bg-[#fe4eba]" style={{ width: '9px', height: '9px' }} />
                   )}
                 </span>

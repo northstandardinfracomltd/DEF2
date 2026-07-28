@@ -4461,7 +4461,7 @@ export default function PublicPortal({
     >
       {/* Main Responsive Portal Container (Standalone App Layout) */}
       <div
-        className="w-full max-w-[480px] min-h-screen bg-white relative flex flex-col"
+        className="w-full max-w-full sm:max-w-xl md:max-w-4xl lg:max-w-6xl xl:max-w-7xl min-h-screen bg-white relative flex flex-col md:shadow-xl transition-all duration-200"
         id="smartphone-shell"
       >
         {/* ----------------- IF TECHNICIAN IS LOGGED IN STATE ----------------- */}
@@ -4473,14 +4473,14 @@ export default function PublicPortal({
             {/* FULL WIDTH SPECIAL REPORT FORM OVERLAY */}
             {isReportOverlayOpen && (
               <div
-                className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-0 pt-0 pb-2 sm:pt-0 sm:pb-4 sm:px-4 animate-slideUp text-black force-smartphone-layout"
+                className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-0 pt-0 pb-2 sm:pt-0 sm:pb-4 sm:px-4 animate-slideUp text-black max-sm:force-smartphone-layout"
                 id="report-form-overlay"
               >
                 {selectedOtherEquipmentUnique ? (
                   <GmaoOtherEquipmentCorrectionForm
                     otherEquipment={selectedOtherEquipmentUnique}
                     clients={clients}
-                    forceSmartphoneLayout={true}
+                    forceSmartphoneLayout={false}
                     isNew={true}
                     otherEquipments={otherEquipments}
                     defibrillateurs={defibrillateurs}
@@ -4563,7 +4563,7 @@ export default function PublicPortal({
                     }}
                     initialDefibId={selectedDefibId}
                     stocks={stocks}
-                    forceSmartphoneLayout={true}
+                    forceSmartphoneLayout={false}
                     isWebapp={true}
                     onCancel={() => {
                       setIsReportOverlayOpen(false);
@@ -6798,7 +6798,7 @@ export default function PublicPortal({
                             <div key={t.id} className="space-y-3">
                               {/* Stacked Passage records list */}
                               <div
-                                className="space-y-3"
+                                className="grid grid-cols-1 md:grid-cols-2 gap-3 space-y-0"
                                 id={`tour-passages-${t.id}`}
                               >
                                 {t.passages.filter((p: any) => p.status !== "Attente").map((p) => {
@@ -7455,7 +7455,7 @@ export default function PublicPortal({
                     Nouveau rapport spontané
                   </button>
 
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 space-y-0">
                     {sortedAndLimitedReports.map((rep) => {
                       const snapshot =
                         rep.defibSnapshot ||

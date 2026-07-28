@@ -10,6 +10,7 @@ interface GmaoOtherEquipmentCorrectionFormProps {
   onSave: (payload: any) => void;
   forceSmartphoneLayout?: boolean;
   isNew?: boolean;
+  isWebapp?: boolean;
   otherEquipments?: any[];
   defibrillateurs?: any[];
   onSelectDefibrillator?: (defibId: string) => void;
@@ -233,6 +234,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   onSave,
   forceSmartphoneLayout = false,
   isNew = false,
+  isWebapp = false,
   otherEquipments = [],
   defibrillateurs = [],
   onSelectDefibrillator,
@@ -578,7 +580,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   };
 
   return (
-    <div className="w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-3xl lg:max-w-5xl mx-auto text-black pb-12 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl" id="gmao-other-eq-correction-layout">
+    <div className={isWebapp ? "w-full space-y-6 font-sans animate-fadeIn max-w-full text-black pb-12 px-2 sm:px-4 bg-white" : "w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-3xl lg:max-w-5xl mx-auto text-black pb-12 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl"} id="gmao-other-eq-correction-layout">
       {/* Header */}
       <div 
         className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white"

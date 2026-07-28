@@ -477,6 +477,16 @@ export default function PublicPortal({
     }
   });
 
+  const [windowWidth, setWindowWidth] = useState<number>(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1000
+  );
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem("defib_selected_tour_id", selectedTourId || "");
@@ -4454,6 +4464,25 @@ export default function PublicPortal({
     return cleanZone;
   };
 
+  if (windowWidth > 1100) {
+    return (
+      <div 
+        className="fixed inset-0 z-[99999] flex flex-col items-center justify-center text-center font-sans p-6 select-none" 
+        style={{ 
+          background: 'radial-gradient(#7e2e86, #36093a)',
+          color: '#ffffff'
+        }}
+        id="resolution-warning-overlay-webapp"
+      >
+        <div className="flex flex-col items-center gap-4 max-w-lg">
+          <span className="text-white text-[18px] font-sans font-medium leading-relaxed">
+            {t("La Webapp Technicien doit-être utilisée depuis un smartphone ou une tablette d'au maximum 1100 pixels de large.")}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-screen bg-slate-50 flex flex-col items-center p-0 text-slate-800 selection:bg-indigo-600/30 font-sans"
@@ -4461,7 +4490,7 @@ export default function PublicPortal({
     >
       {/* Main Responsive Portal Container (Standalone App Layout) */}
       <div
-        className="w-full max-w-full sm:max-w-xl md:max-w-4xl lg:max-w-6xl xl:max-w-7xl min-h-screen bg-white relative flex flex-col md:shadow-xl transition-all duration-200"
+        className="w-full max-w-[1100px] min-h-screen bg-white relative flex flex-col md:shadow-xl transition-all duration-200"
         id="smartphone-shell"
       >
         {/* ----------------- IF TECHNICIAN IS LOGGED IN STATE ----------------- */}
@@ -4473,7 +4502,7 @@ export default function PublicPortal({
             {/* FULL WIDTH SPECIAL REPORT FORM OVERLAY */}
             {isReportOverlayOpen && (
               <div
-                className="fixed inset-0 bg-slate-50 z-50 flex flex-col overflow-y-auto px-0 pt-0 pb-2 sm:pt-0 sm:pb-4 sm:px-4 animate-slideUp text-black max-sm:force-smartphone-layout"
+                className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto p-0 animate-slideUp text-black"
                 id="report-form-overlay"
               >
                 {selectedOtherEquipmentUnique ? (
@@ -4482,6 +4511,7 @@ export default function PublicPortal({
                     clients={clients}
                     forceSmartphoneLayout={false}
                     isNew={true}
+                    isWebapp={true}
                     otherEquipments={otherEquipments}
                     defibrillateurs={defibrillateurs}
                     onSelectDefibrillator={(defibId) => {

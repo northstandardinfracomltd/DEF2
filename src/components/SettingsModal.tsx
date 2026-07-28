@@ -1908,8 +1908,8 @@ export default function SettingsModal({
             </label>
             <div className="flex flex-wrap gap-2 pt-1">
               {[
-                "FSM (Tournées)",
-                "GMAO (Rapports)",
+                "Tournées & Missions",
+                "Rapports PDF",
                 "Centrale des stocks",
                 "Stocks distribués",
                 "Achats fournisseurs",

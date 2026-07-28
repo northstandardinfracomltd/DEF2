@@ -54,6 +54,7 @@ import {
   StockMovement,
   VeilleRecord,
   StockTraceability,
+  LogisticsNotification,
 } from "../types";
 import { REGIONS_FRANCAISES } from "../utils";
 import { getRegionsForCountry } from "../utils/regions";
@@ -226,6 +227,9 @@ interface PublicPortalProps {
   onUpdateExpenses?: (updated: Expense[]) => void;
   veilles?: VeilleRecord[];
   onUpdateVeilles?: (updated: VeilleRecord[]) => void;
+  logisticsNotifications?: LogisticsNotification[];
+  saveLogisticsNotifications?: (updated: LogisticsNotification[]) => void;
+  onAddLogisticsNotification?: (description: string, ugs: string) => void;
   onAddNotification?: (category: 'Stocks' | 'Défibrillateurs' | 'Interventions' | 'Factures & Devis' | 'Système', title: string) => void;
 }
 
@@ -284,6 +288,9 @@ export default function PublicPortal({
   onUpdateExpenses,
   veilles: propVeilles,
   onUpdateVeilles,
+  logisticsNotifications = [],
+  saveLogisticsNotifications,
+  onAddLogisticsNotification,
   onAddNotification,
 }: PublicPortalProps) {
   const getNextDocRef = (
@@ -909,15 +916,15 @@ export default function PublicPortal({
         replyTo: authenticatedUser?.email || "noreply@defibeo.com",
       });
       if (sent) {
-        if (onAddNotification) {
+        if (onAddLogisticsNotification) {
           const name_technician = authenticatedUser?.name || "Un technicien";
           const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
           const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
           const ugsRef = `${pieceName}${ugs}`;
           const emplacement_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
-          onAddNotification(
-            'Stocks',
-            `Le technicien ${name_technician} (${emplacement_name}) alerte concernant la situation du stock ${ugsRef}.`
+          onAddLogisticsNotification(
+            `Le technicien ${name_technician} (${emplacement_name}) alerte concernant la situation du stock ${ugsRef}.`,
+            matchedStockRecord?.ugs || pieceName
           );
         }
         alert(
@@ -1032,7 +1039,7 @@ export default function PublicPortal({
       onUpdateStocks(updatedStocks);
     }
 
-    if (onAddNotification) {
+    if (onAddLogisticsNotification) {
       const name_technician = authenticatedUser?.name || "Un technicien";
       const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
       const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
@@ -1055,9 +1062,9 @@ export default function PublicPortal({
 
       const lotsList = returnedLots.length > 0 ? returnedLots.join(", ") : "aucun lot";
 
-      onAddNotification(
-        'Stocks',
-        `Le technicien ${name_technician} (${location_name}) retourne toutes ses références du stock distribué ${ugsRef}, pièce(s) : ${lotsList}.`
+      onAddLogisticsNotification(
+        `Le technicien ${name_technician} (${location_name}) retourne toutes ses références du stock distribué ${ugsRef}, pièce(s) : ${lotsList}.`,
+        matchedStockRecord?.ugs || pieceName
       );
     }
 
@@ -8039,7 +8046,7 @@ export default function PublicPortal({
                               onUpdateDistributedStocks(updatedDs);
                             }
 
-                            if (onAddNotification) {
+                            if (onAddLogisticsNotification) {
                               const name_technician = authenticatedUser?.name || "Un technicien";
                               const location_name = techLocationLink || "Emplacement";
                               const vObj = variables.find((v) => v.id === selectedStock.denominationPieceId);
@@ -8047,9 +8054,9 @@ export default function PublicPortal({
                               const ugsStr = selectedStock.ugs ? ` (${selectedStock.ugs})` : "";
                               const ugsRef = `${pieceName}${ugsStr}`;
 
-                              onAddNotification(
-                                'Stocks',
-                                `Le technicien ${name_technician} (${location_name}) a créé un nouveau stock distribué ${ugsRef}.`
+                              onAddLogisticsNotification(
+                                `Le technicien ${name_technician} (${location_name}) a créé un nouveau stock distribué ${ugsRef}.`,
+                                selectedStock.ugs || pieceName
                               );
                             }
 
@@ -8588,15 +8595,15 @@ export default function PublicPortal({
                                     return t;
                                   });
 
-                                  if (onAddNotification) {
+                                  if (onAddLogisticsNotification) {
                                     const name_technician = authenticatedUser?.name || "Un technicien";
                                     const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
                                     const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
                                     const ugs = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
                                     const ugsRef = `${pieceName}${ugs}`;
-                                    onAddNotification(
-                                      'Stocks',
-                                      `Le technicien ${name_technician} (${location_name}) a effectué l’inventaire pour la pièce ${ugsRef}.`
+                                    onAddLogisticsNotification(
+                                      `Le technicien ${name_technician} (${location_name}) a effectué l’inventaire pour la pièce ${ugsRef}.`,
+                                      matchedStockRecord?.ugs || pieceName
                                     );
                                   }
 
@@ -8909,7 +8916,7 @@ export default function PublicPortal({
 
                                     // Reset form
                                     setShowNewWebappTraceForm(false);
-                                    if (onAddNotification) {
+                                    if (onAddLogisticsNotification) {
                                       const name_technician = authenticatedUser?.name || "Un technicien";
                                       const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
                                       const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
@@ -8917,9 +8924,9 @@ export default function PublicPortal({
                                       const ugsRef = `${pieceName}${ugsStr}`;
                                       const lotStr = newWebappLotOrSerial.trim();
 
-                                      onAddNotification(
-                                        'Stocks',
-                                        `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`
+                                      onAddLogisticsNotification(
+                                        `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`,
+                                        matchedStockRecord?.ugs || pieceName
                                       );
                                     }
                                     setNewWebappLotOrSerial("");
@@ -9105,16 +9112,16 @@ export default function PublicPortal({
                                               handleUpdateTraceability(trace.id, { lotOrSerial: e.target.value });
                                             }}
                                             onBlur={() => {
-                                              if (isInventoryMode && onAddNotification) {
+                                              if (isInventoryMode && onAddLogisticsNotification) {
                                                 const name_technician = authenticatedUser?.name || "Un technicien";
                                                 const location_name = selectedTechStock?.locationName || techLocationLink || "Emplacement";
                                                 const pieceName = selectedStockVariable?.nom || "Pièce inconnue";
                                                 const ugsStr = matchedStockRecord?.ugs ? ` (${matchedStockRecord.ugs})` : "";
                                                 const ugsRef = `${pieceName}${ugsStr}`;
                                                 const lotStr = trace.lotOrSerial || "non spécifié";
-                                                onAddNotification(
-                                                  'Stocks',
-                                                  `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`
+                                                onAddLogisticsNotification(
+                                                  `Le technicien ${name_technician} (${location_name}) a modifié la pièce ${ugsRef}, pièce(s) : ${lotStr}.`,
+                                                  matchedStockRecord?.ugs || pieceName
                                                 );
                                               }
                                             }}

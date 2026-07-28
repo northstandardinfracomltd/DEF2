@@ -933,6 +933,31 @@ export default function App() {
     }
   };
 
+  const addLogisticsNotification = (description: string, ugs: string) => {
+    const nowStr = new Date().toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    const newNotif: LogisticsNotification = {
+      id: 'lognotif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      horodatage: nowStr,
+      description,
+      ugs: ugs || 'GÉNÉRAL',
+      commentaire: ''
+    };
+    setLogisticsNotifications((prev) => {
+      const updated = [newNotif, ...prev];
+      localStorage.setItem(`defib_${tenantId}_logistics_notifications`, JSON.stringify(updated));
+      if (isFirebaseLoaded && tenantId) {
+        saveCollectionToFirestore('logistics_notifications', updated);
+      }
+      return updated;
+    });
+  };
+
   const saveNotifications = (updated: AppNotification[]) => {
     const cleaned = updated.filter(n => !isNotificationOlderThan3Months(n.timestamp));
     setNotifications(cleaned);
@@ -4908,6 +4933,9 @@ export default function App() {
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
         onAddNotification={addNotification}
+        logisticsNotifications={logisticsNotifications}
+        saveLogisticsNotifications={saveLogisticsNotifications}
+        onAddLogisticsNotification={addLogisticsNotification}
         onClose={handleLogout}
         onOpenClientPortal={(client) => {
           setActivePortalClient(client);
@@ -5006,6 +5034,9 @@ export default function App() {
         onUpdateCommercialDocs={saveCommercialDocs}
         onAddTicket={handleAddTicket}
         onAddNotification={addNotification}
+        logisticsNotifications={logisticsNotifications}
+        saveLogisticsNotifications={saveLogisticsNotifications}
+        onAddLogisticsNotification={addLogisticsNotification}
         onClose={() => {
           const role = localStorage.getItem('defib_logged_user_role');
           if (role === 'technicien' || role === 'client') {
@@ -5134,8 +5165,8 @@ export default function App() {
               { id: 'defibrillateurs', label: t('Défibrillateurs'), icon: Heart },
               ...(enableOtherEquipments === "Oui" ? [{ id: 'autres-materiels', label: t('Autres matériels'), icon: Layers }] : []),
               { id: 'clients', label: t('Clients'), icon: User },
-              { id: 'fsm', label: t('FSM (Tournées)'), icon: Flame },
-              { id: 'gmao', label: t('GMAO (Rapports)'), icon: Wrench },
+              { id: 'fsm', label: t('Tournées & Missions'), icon: Flame },
+              { id: 'gmao', label: t('Rapports PDF'), icon: Wrench },
               { id: 'stocks', label: t('Centrale des stocks'), icon: Inbox },
               { id: 'stocks-distribues', label: t('Stocks distribués'), icon: Layers },
               { id: 'achats-fournisseurs', label: t('Achats fournisseurs'), icon: ShoppingBag },
@@ -5156,8 +5187,8 @@ export default function App() {
             const filteredTabs = rawTabs.filter(tab => {
               if (!companyInfo?.hiddenTabs) return true;
               const tabToLabelMap: Record<string, string> = {
-                fsm: "FSM (Tournées)",
-                gmao: "GMAO (Rapports)",
+                fsm: "Tournées & Missions",
+                gmao: "Rapports PDF",
                 stocks: "Centrale des stocks",
                 "stocks-distribues": "Stocks distribués",
                 "achats-fournisseurs": "Achats fournisseurs",
@@ -5174,7 +5205,10 @@ export default function App() {
                 veilles: "Relevé Concurrentiel"
               };
               const label = tabToLabelMap[tab.id];
-              return !label || !companyInfo.hiddenTabs.includes(label);
+              const isHiddenByNewName = label ? companyInfo.hiddenTabs.includes(label) : false;
+              const isHiddenByOldName = (tab.id === 'fsm' && companyInfo.hiddenTabs.includes("FSM (Tournées)")) ||
+                                        (tab.id === 'gmao' && companyInfo.hiddenTabs.includes("GMAO (Rapports)"));
+              return !isHiddenByNewName && !isHiddenByOldName;
             });
 
             const equipGroupIds = ['defibrillateurs', 'autres-materiels', 'clients'];
@@ -7479,25 +7513,72 @@ export default function App() {
 
                                         {/* SELECTED PIECES BADGES */}
                                         {m.requiredParts.length > 0 && (
-                                          <div className="flex flex-wrap gap-1.5 min-h-[24px] items-center bg-transparent">
+                                          <div className="flex flex-col gap-2.5 bg-transparent">
                                             {m.requiredParts.map((part: string) => {
                                               const matchedStockItem = stockItems.find(si => si.label === part || si.name === part);
                                               const displayLabel = matchedStockItem ? matchedStockItem.label : part;
+                                              const sentParts: string[] = Array.isArray(m.sentToClientParts) ? m.sentToClientParts : [];
+                                              const isSent = sentParts.includes(part);
+
                                               return (
-                                                <span
-                                                  key={part}
-                                                  onClick={() => {
-                                                    const updatedParts = m.requiredParts.filter((p: string) => p !== part);
-                                                    changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts);
-                                                  }}
-                                                  style={{
-                                                    fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                                                  }}
-                                                  className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-800 hover:text-white transition-all duration-150 select-none"
-                                                  title="Cliquez pour supprimer"
-                                                >
-                                                  {displayLabel} (x1)
-                                                </span>
+                                                <div key={part} className="flex flex-wrap items-center gap-3 bg-transparent py-0.5">
+                                                  {/* Toggle ON/OFF Envoyée au client */}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const updatedSent = isSent
+                                                        ? sentParts.filter((p: string) => p !== part)
+                                                        : [...sentParts, part];
+                                                      updateFsmMission(t.id, m.id, { sentToClientParts: updatedSent });
+                                                    }}
+                                                    className="inline-flex items-center gap-1.5 cursor-pointer focus:outline-none select-none shrink-0"
+                                                    title="Envoyée au client"
+                                                  >
+                                                    <span style={{ fontSize: '13px', fontWeight: 600, color: isSent ? '#fe4eba' : '#64748b' }}>
+                                                      Envoyée au client
+                                                    </span>
+                                                    <div
+                                                      style={{
+                                                        width: '34px',
+                                                        height: '18px',
+                                                        borderRadius: '9999px',
+                                                        backgroundColor: isSent ? '#fe4eba' : '#cbd5e1',
+                                                        position: 'relative',
+                                                        transition: 'background-color 0.2s ease',
+                                                        padding: '2px'
+                                                      }}
+                                                    >
+                                                      <div
+                                                        style={{
+                                                          width: '14px',
+                                                          height: '14px',
+                                                          borderRadius: '50%',
+                                                          backgroundColor: '#ffffff',
+                                                          position: 'absolute',
+                                                          top: '2px',
+                                                          left: isSent ? '18px' : '2px',
+                                                          transition: 'left 0.2s ease'
+                                                        }}
+                                                      />
+                                                    </div>
+                                                  </button>
+
+                                                  {/* Gélule de la pièce requise */}
+                                                  <span
+                                                    onClick={() => {
+                                                      const updatedParts = m.requiredParts.filter((p: string) => p !== part);
+                                                      const updatedSentParts = sentParts.filter((p: string) => p !== part);
+                                                      changeFsmMissionParts(t.id, m.id, m.requiredParts, updatedParts, { sentToClientParts: updatedSentParts });
+                                                    }}
+                                                    style={{
+                                                      fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                                                    }}
+                                                    className="cursor-pointer inline-flex items-center rounded-full bg-white border border-slate-200 text-slate-800 text-[15px] px-3.5 py-1.5 font-medium hover:bg-red-800 hover:border-red-800 hover:text-white transition-all duration-150 select-none max-w-full truncate"
+                                                    title="Cliquez pour supprimer"
+                                                  >
+                                                    {displayLabel} (x1)
+                                                  </span>
+                                                </div>
                                               );
                                             })}
                                           </div>

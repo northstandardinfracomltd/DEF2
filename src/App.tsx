@@ -8554,18 +8554,18 @@ export default function App() {
                                     {!rep.validated && (
                                       <button
                                         type="button"
-                                        disabled={!isGmaoController || isUpcoming}
-                                        onClick={() => !isUpcoming && setManagingReportId(rep.id)}
+                                        disabled={!isGmaoController}
+                                        onClick={() => setManagingReportId(rep.id)}
                                         style={{
                                           ...rowActionButtonStyle,
-                                          opacity: (!isGmaoController || isUpcoming) ? 0.35 : 1,
-                                          cursor: (!isGmaoController || isUpcoming) ? 'not-allowed' : 'pointer',
-                                          backgroundColor: (!isGmaoController || isUpcoming) ? '#cbd5e1' : '#000000',
-                                          color: (!isGmaoController || isUpcoming) ? '#64748b' : '#ffffff',
-                                          boxShadow: (!isGmaoController || isUpcoming) ? 'none' : rowActionButtonStyle.boxShadow,
+                                          opacity: !isGmaoController ? 0.35 : 1,
+                                          cursor: !isGmaoController ? 'not-allowed' : 'pointer',
+                                          backgroundColor: !isGmaoController ? '#cbd5e1' : '#000000',
+                                          color: !isGmaoController ? '#64748b' : '#ffffff',
+                                          boxShadow: !isGmaoController ? 'none' : rowActionButtonStyle.boxShadow,
                                           border: 'none',
                                         }}
-                                        className={`${(!isGmaoController || isUpcoming) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                        className={`${!isGmaoController ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                       >
                                         Gérer
                                       </button>

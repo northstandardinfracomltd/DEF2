@@ -14,6 +14,9 @@ interface ClientPortalProps {
   initialClient?: Client | null;
   companyInfo: CompanyInfo;
   generatedReports?: any[];
+  onUpdateGeneratedReports?: (reports: any[]) => void;
+  fsmTours?: any[];
+  onUpdateFsmTours?: (tours: any[]) => void;
   onUpdateClient?: (client: Client) => void;
   stocks?: any[];
   pointagesAutoVigilance?: PointageAutoVigilance[];
@@ -189,6 +192,9 @@ export default function ClientPortal({
   initialClient = null,
   companyInfo,
   generatedReports = [],
+  onUpdateGeneratedReports,
+  fsmTours = [],
+  onUpdateFsmTours,
   onUpdateClient,
   stocks = [],
   pointagesAutoVigilance = [],
@@ -2872,6 +2878,51 @@ export default function ClientPortal({
           {/* Section 4: Interventions */}
           {activePortalTab === 'reports' && (
             (() => {
+              const handleUpdateSituation = (targetRep: any, newStatus: 'Accepté Client' | 'Refusé Client') => {
+                const updatedReports = generatedReports.map(r => {
+                  if (
+                    r.id === targetRep.id || 
+                    (r.missionId && r.missionId === targetRep.missionId) ||
+                    (r.interventionReference && targetRep.interventionReference && r.interventionReference === targetRep.interventionReference)
+                  ) {
+                    return {
+                      ...r,
+                      missionStatus: newStatus,
+                      status: newStatus
+                    };
+                  }
+                  return r;
+                });
+
+                if (onUpdateGeneratedReports) {
+                  onUpdateGeneratedReports(updatedReports);
+                }
+
+                if (fsmTours && onUpdateFsmTours) {
+                  const updatedTours = fsmTours.map(tour => {
+                    let tourChanged = false;
+                    const updatedMissions = (tour.missions || []).map((m: any) => {
+                      if (
+                        (targetRep.missionId && m.id === targetRep.missionId) ||
+                        (targetRep.interventionReference && m.interventionReference && m.interventionReference === targetRep.interventionReference) ||
+                        (targetRep.defibIdentifiant && m.defibIdentifiant === targetRep.defibIdentifiant)
+                      ) {
+                        tourChanged = true;
+                        return { ...m, status: newStatus };
+                      }
+                      return m;
+                    });
+
+                    if (tourChanged) {
+                      return { ...tour, missions: updatedMissions };
+                    }
+                    return tour;
+                  });
+
+                  onUpdateFsmTours(updatedTours);
+                }
+              };
+
               const clientDefibIds = new Set(clientDefibs.map(df => df.id));
               const clientDefibIdents = new Set(clientDefibs.map(df => df.identifiant));
               const clientOtherIds = new Set(clientOthers.map(o => o.id));
@@ -2951,6 +3002,9 @@ export default function ClientPortal({
                     <div className="space-y-6">
                       {clientReports.map((rep) => {
                         const snap = rep.defibSnapshot || {};
+                        const isUpcoming = rep.isUpcoming || rep.status === 'À venir' || rep.status === 'upcoming' || rep.upcoming || rep.isFuture;
+                        const currentSituation = rep.missionStatus || (isUpcoming ? 'Brouillon' : 'Effectué');
+
                         return (
                           <div
                             key={rep.id}
@@ -3090,7 +3144,40 @@ export default function ClientPortal({
                                   className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
                                 />
                               </div>
+
+                              {/* Situation. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Situation.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={currentSituation}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
                             </div>
+
+                            {/* Buttons Autoriser & Refuser if Situation is 'Attente Client' */}
+                            {currentSituation === 'Attente Client' && (
+                              <div className="flex items-center gap-4 pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateSituation(rep, 'Accepté Client')}
+                                  className="flex-1 py-3 bg-[#16a34a] hover:bg-[#15803d] text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer shadow-md text-center"
+                                >
+                                  {t("Autoriser")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdateSituation(rep, 'Refusé Client')}
+                                  className="flex-1 py-3 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer shadow-md text-center shadow-red-200"
+                                >
+                                  {t("Refuser")}
+                                </button>
+                              </div>
+                            )}
 
                             {/* Télécharger Button */}
                             <div className="mt-6">

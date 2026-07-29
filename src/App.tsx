@@ -5241,6 +5241,9 @@ export default function App() {
         initialClient={activePortalClient || clients.find(c => c.id === 'c1')}
         companyInfo={companyInfo}
         generatedReports={generatedReports}
+        onUpdateGeneratedReports={saveReports}
+        fsmTours={fsmTours}
+        onUpdateFsmTours={saveFsmTours}
         onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
         stocks={stocks}
         pointagesAutoVigilance={pointagesAutoVigilance}
@@ -5276,6 +5279,9 @@ export default function App() {
         initialClient={activePortalClient}
         companyInfo={companyInfo}
         generatedReports={generatedReports}
+        onUpdateGeneratedReports={saveReports}
+        fsmTours={fsmTours}
+        onUpdateFsmTours={saveFsmTours}
         onUpdateClient={(updated) => saveClients(clients.map(c => c.id === updated.id ? updated : c))}
         stocks={stocks}
         pointagesAutoVigilance={pointagesAutoVigilance}
@@ -7924,6 +7930,7 @@ export default function App() {
                                             borderRadius: "50%",
                                             backgroundColor: 
                                               (m.status || "Brouillon") === "Brouillon" ? "#94a3b8" : 
+                                              (m.status || "Brouillon") === "Attente Client" ? "#f59e0b" : 
                                               (m.status || "Brouillon") === "Accepté Client" ? "#16a34a" : 
                                               (m.status || "Brouillon") === "Refusé Client" ? "#dc2626" : 
                                               (m.status || "Brouillon") === "À faire" ? "#3b82f6" :  
@@ -7952,6 +7959,7 @@ export default function App() {
                                           className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
                                         >
                                           <option value="Brouillon">Brouillon</option>
+                                          <option value="Attente Client">Attente Client</option>
                                           <option value="Accepté Client">Accepté Client</option>
                                           <option value="Refusé Client">Refusé Client</option>
                                           <option value="À faire">À faire</option>
@@ -8527,6 +8535,9 @@ export default function App() {
                                     const sit = rep.missionStatus || (isUpcoming ? 'Brouillon' : 'Effectué');
                                     const dotColor = 
                                       sit === 'Brouillon' ? '#94a3b8' :
+                                      sit === 'Attente Client' ? '#f59e0b' :
+                                      sit === 'Accepté Client' ? '#16a34a' :
+                                      sit === 'Refusé Client' ? '#dc2626' :
                                       sit === 'À faire' ? '#3b82f6' :
                                       sit === 'En cours' ? '#ef4444' :
                                       sit === 'Effectué' ? '#22c55e' :

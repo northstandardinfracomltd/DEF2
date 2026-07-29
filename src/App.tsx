@@ -1311,6 +1311,133 @@ export default function App() {
     }
   };
 
+  // Synchronize tour missions with pending report lines in GMAO "Rapports PDF"
+  useEffect(() => {
+    if (!fsmTours || fsmTours.length === 0) return;
+
+    // 1. Ensure all missions have a unique interventionReference
+    let toursUpdated = false;
+    const verifiedTours = fsmTours.map((tour) => {
+      let tourMissionsUpdated = false;
+      const verifiedMissions = (tour.missions || []).map((m: any) => {
+        if (!m.interventionReference) {
+          tourMissionsUpdated = true;
+          const cleanId = String(m.id || Date.now()).replace('fsm-m-', '');
+          const ref = `INT-2026-${cleanId.slice(-5)}`;
+          return { ...m, status: m.status || 'Brouillon', interventionReference: ref };
+        }
+        return { ...m, status: m.status || 'Brouillon' };
+      });
+
+      if (tourMissionsUpdated) {
+        toursUpdated = true;
+        return { ...tour, missions: verifiedMissions };
+      }
+      return tour;
+    });
+
+    if (toursUpdated) {
+      saveFsmTours(verifiedTours);
+      return;
+    }
+
+    // 2. Map active missions across all tours
+    const activeMissionsMap = new Map<string, { mission: any; tour: any }>();
+    verifiedTours.forEach((tour) => {
+      (tour.missions || []).forEach((m: any) => {
+        if (m.id) {
+          activeMissionsMap.set(m.id, { mission: m, tour });
+        }
+        if (m.interventionReference) {
+          activeMissionsMap.set(m.interventionReference, { mission: m, tour });
+        }
+      });
+    });
+
+    // 3. Synchronize generatedReports array
+    let reportsChanged = false;
+    
+    // Filter out orphaned pending upcoming reports whose mission no longer exists in any tour
+    let updatedReports = generatedReports.filter((rep) => {
+      const isUpcoming = rep.isUpcoming || rep.status === 'À venir';
+      if (isUpcoming) {
+        const existsInTours = 
+          (rep.missionId && activeMissionsMap.has(rep.missionId)) || 
+          (rep.interventionReference && activeMissionsMap.has(rep.interventionReference));
+        if (!existsInTours) {
+          reportsChanged = true;
+          return false; // Remove pending report since mission was deleted
+        }
+      }
+      return true;
+    });
+
+    // Ensure each active mission has an associated report (either real or pending)
+    verifiedTours.forEach((tour) => {
+      (tour.missions || []).forEach((m: any) => {
+        const existingReportIndex = updatedReports.findIndex(r => 
+          (m.id && r.missionId === m.id) || 
+          (m.interventionReference && r.interventionReference === m.interventionReference)
+        );
+
+        const tourOrigin = `${tour.startDate || tour.date || ''} ${tour.title || tour.name || ''}`.trim();
+
+        if (existingReportIndex === -1) {
+          // Pre-create pending report line in Rapports PDF
+          reportsChanged = true;
+          const upcomingRep = {
+            id: `REP-UPCOMING-${m.id || Date.now()}`,
+            missionId: m.id,
+            defibIdentifiant: m.defibIdentifiant,
+            interventionReference: m.interventionReference,
+            isUpcoming: true,
+            status: 'À venir',
+            validated: false,
+            techName: tour.techName || 'Non assigné',
+            date: tour.startDate || tour.date || 'À venir',
+            tourName: tour.title || tour.name || `Tournée ${tour.id}`,
+            tourDate: tour.startDate || tour.date || '',
+            origin: tourOrigin,
+            missionStatus: m.status || 'Brouillon',
+            defibSnapshot: { 
+              identifiant: m.defibIdentifiant, 
+              categorie: m.equipmentType || 'Défibrillateur' 
+            },
+            siteMission: m.clientName || 'Site'
+          };
+          updatedReports.push(upcomingRep);
+        } else {
+          const existing = updatedReports[existingReportIndex];
+          if (existing.isUpcoming) {
+            // Keep pending report details synchronized with tour mission changes
+            if (
+              existing.missionStatus !== (m.status || 'Brouillon') ||
+              existing.techName !== (tour.techName || 'Non assigné') ||
+              existing.origin !== tourOrigin ||
+              existing.defibIdentifiant !== m.defibIdentifiant
+            ) {
+              reportsChanged = true;
+              updatedReports[existingReportIndex] = {
+                ...existing,
+                missionStatus: m.status || 'Brouillon',
+                techName: tour.techName || 'Non assigné',
+                tourName: tour.title || tour.name || `Tournée ${tour.id}`,
+                tourDate: tour.startDate || tour.date || '',
+                origin: tourOrigin,
+                defibIdentifiant: m.defibIdentifiant,
+                defibSnapshot: { ...existing.defibSnapshot, identifiant: m.defibIdentifiant }
+              };
+            }
+          }
+        }
+      });
+    });
+
+    if (reportsChanged) {
+      saveReports(updatedReports);
+    }
+  }, [fsmTours, generatedReports]);
+
   const optimizeFsmTour = async (
     tourId: string,
     currentToursList: any[] = fsmTours,
@@ -1579,15 +1706,17 @@ export default function App() {
   };
 
   const addFsmMission = (tourId: string) => {
+    const newMissionId = 'fsm-m-' + Date.now();
     const newMission = {
-      id: 'fsm-m-' + Date.now(),
+      id: newMissionId,
       clientName: 'Nouveau Site Client',
       defibIdentifiant: 'PAR-101',
       reason: 'Maintenance',
       requiredParts: [],
-      status: 'À faire',
+      status: 'Brouillon',
       priority: 'Normale',
-      time: '14:00'
+      time: '14:00',
+      interventionReference: `INT-2026-${String(Date.now()).slice(-5)}`
     };
     const updatedTours = fsmTours.map(t => {
       if (t.id === tourId) {
@@ -7794,18 +7923,18 @@ export default function App() {
                                             height: "10px",
                                             borderRadius: "50%",
                                             backgroundColor: 
-                                              (m.status || "À faire") === "Brouillon" ? "#94a3b8" : 
-                                              (m.status || "À faire") === "À faire" ? "#3b82f6" :  
-                                              (m.status || "À faire") === "En cours" ? "#ef4444" :  
-                                              (m.status || "À faire") === "Effectué" ? "#22c55e" :  
-                                              (m.status || "À faire") === "Attente" ? "#94a3b8" :  
+                                              (m.status || "Brouillon") === "Brouillon" ? "#94a3b8" : 
+                                              (m.status || "Brouillon") === "À faire" ? "#3b82f6" :  
+                                              (m.status || "Brouillon") === "En cours" ? "#ef4444" :  
+                                              (m.status || "Brouillon") === "Effectué" ? "#22c55e" :  
+                                              (m.status || "Brouillon") === "Attente" ? "#94a3b8" :  
                                               "#3b82f6",
                                             zIndex: 10,
                                             pointerEvents: "none"
                                           }}
                                         />
                                         <select
-                                          value={m.status || "À faire"}
+                                          value={m.status || "Brouillon"}
                                           onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
                                           style={{
                                             paddingLeft: "34px",
@@ -7820,6 +7949,7 @@ export default function App() {
                                           }}
                                           className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
                                         >
+                                          <option value="Brouillon">Brouillon</option>
                                           <option value="À faire">À faire</option>
                                           <option value="Attente">Attente</option>
                                           <option value="Effectué">Effectué</option>
@@ -8051,14 +8181,28 @@ export default function App() {
                       </div>
 
                       {/* 3-item Segmented Toggle for 'À venir' / 'Modération' / 'Validés' */}
-                      <div className="flex items-center p-1 bg-slate-100 rounded-xl select-none border border-slate-200" style={{ fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
+                      <div 
+                        className="flex items-center p-1 bg-slate-100 select-none" 
+                        style={{ 
+                          fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                          borderRadius: '15px',
+                          border: '1px solid #dadada',
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => setGmaoFilter('upcoming')}
-                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
-                            gmaoFilter === 'upcoming'
-                              ? 'bg-[#fe4eba] text-white shadow-sm'
-                              : 'text-slate-700 hover:text-black bg-transparent'
+                          style={{
+                            fontSize: '18px',
+                            borderRadius: '13px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: gmaoFilter === 'upcoming' ? '#fe4eba' : 'transparent',
+                            color: gmaoFilter === 'upcoming' ? '#ffffff' : '#000000',
+                            transition: 'none',
+                          }}
+                          className={`px-4 py-1.5 font-bold ${
+                            gmaoFilter === 'upcoming' ? 'shadow-sm' : ''
                           }`}
                         >
                           {t("À venir")}
@@ -8066,10 +8210,17 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setGmaoFilter('moderation')}
-                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
-                            gmaoFilter === 'moderation'
-                              ? 'bg-[#fe4eba] text-white shadow-sm'
-                              : 'text-slate-700 hover:text-black bg-transparent'
+                          style={{
+                            fontSize: '18px',
+                            borderRadius: '13px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: gmaoFilter === 'moderation' ? '#fe4eba' : 'transparent',
+                            color: gmaoFilter === 'moderation' ? '#ffffff' : '#000000',
+                            transition: 'none',
+                          }}
+                          className={`px-4 py-1.5 font-bold ${
+                            gmaoFilter === 'moderation' ? 'shadow-sm' : ''
                           }`}
                         >
                           {t("Modération")}
@@ -8077,10 +8228,17 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => setGmaoFilter('validated')}
-                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
-                            gmaoFilter === 'validated'
-                              ? 'bg-[#fe4eba] text-white shadow-sm'
-                              : 'text-slate-700 hover:text-black bg-transparent'
+                          style={{
+                            fontSize: '18px',
+                            borderRadius: '13px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: gmaoFilter === 'validated' ? '#fe4eba' : 'transparent',
+                            color: gmaoFilter === 'validated' ? '#ffffff' : '#000000',
+                            transition: 'none',
+                          }}
+                          className={`px-4 py-1.5 font-bold ${
+                            gmaoFilter === 'validated' ? 'shadow-sm' : ''
                           }`}
                         >
                           {t("Validés")}
@@ -8184,12 +8342,15 @@ export default function App() {
                             <th className="px-4 py-3.5" style={thStyle}>Identifiant.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Technicien.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Réf. Intervention.</th>
+                            <th className="px-4 py-3.5" style={thStyle}>Origine.</th>
+                            <th className="px-4 py-3.5" style={thStyle}>Situation.</th>
                             <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions</th>
                           </tr>
                         </thead>
                         <tbody className="text-slate-700 text-xs">
                           {filteredReports.map((rep) => {
                             const isConforme = (rep.defibSnapshot?.conforme || 'Oui') === 'Oui';
+                            const isUpcoming = rep.isUpcoming || rep.status === 'À venir' || rep.status === 'upcoming';
                             
                             // Retrieve category name elegantly
                             const getCategoryName = (r: any) => {
@@ -8346,41 +8507,82 @@ export default function App() {
                                   ) : null}
                                 </td>
 
+                                {/* Origine. */}
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  {(() => {
+                                    const raw = (rep.origin || `${rep.tourDate || ''} ${rep.tourName || ''}`).trim();
+                                    if (!raw) return '—';
+                                    return raw.length > 20 ? raw.substring(0, 20) + '...' : raw;
+                                  })()}
+                                </td>
+
+                                {/* Situation. */}
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  {(() => {
+                                    const sit = rep.missionStatus || (isUpcoming ? 'Brouillon' : 'Effectué');
+                                    const dotColor = 
+                                      sit === 'Brouillon' ? '#94a3b8' :
+                                      sit === 'À faire' ? '#3b82f6' :
+                                      sit === 'En cours' ? '#ef4444' :
+                                      sit === 'Effectué' ? '#22c55e' :
+                                      sit === 'Attente' ? '#94a3b8' : '#3b82f6';
+
+                                    return (
+                                      <div 
+                                        style={{ 
+                                          display: 'inline-flex', 
+                                          alignItems: 'center', 
+                                          gap: '8px',
+                                          border: '1px solid rgb(231, 231, 231)',
+                                          borderRadius: '1000px',
+                                          padding: '4px 12px',
+                                          backgroundColor: '#ffffff',
+                                          fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                        }} 
+                                        className="whitespace-nowrap font-medium"
+                                      >
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: dotColor, display: 'inline-block' }} />
+                                        <span>{sit}</span>
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+
                                 {/* Actions */}
                                 <td className="px-4 py-5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                                   <div className="inline-flex gap-2">
                                     {!rep.validated && (
                                       <button
                                         type="button"
-                                        disabled={!isGmaoController}
-                                        onClick={() => setManagingReportId(rep.id)}
+                                        disabled={!isGmaoController || isUpcoming}
+                                        onClick={() => !isUpcoming && setManagingReportId(rep.id)}
                                         style={{
                                           ...rowActionButtonStyle,
-                                          opacity: !isGmaoController ? 0.35 : 1,
-                                          cursor: !isGmaoController ? 'not-allowed' : 'pointer',
-                                          backgroundColor: !isGmaoController ? '#cbd5e1' : '#000000',
-                                          color: !isGmaoController ? '#64748b' : '#ffffff',
-                                          boxShadow: !isGmaoController ? 'none' : rowActionButtonStyle.boxShadow,
+                                          opacity: (!isGmaoController || isUpcoming) ? 0.35 : 1,
+                                          cursor: (!isGmaoController || isUpcoming) ? 'not-allowed' : 'pointer',
+                                          backgroundColor: (!isGmaoController || isUpcoming) ? '#cbd5e1' : '#000000',
+                                          color: (!isGmaoController || isUpcoming) ? '#64748b' : '#ffffff',
+                                          boxShadow: (!isGmaoController || isUpcoming) ? 'none' : rowActionButtonStyle.boxShadow,
                                           border: 'none',
                                         }}
-                                        className={`${!isGmaoController ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                        className={`${(!isGmaoController || isUpcoming) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                       >
                                         Gérer
                                       </button>
                                     )}
                                     <button
                                       type="button"
-                                      disabled={rep.validated || !isGmaoController}
-                                      onClick={() => setEditingReportId(rep.id)}
+                                      disabled={rep.validated || !isGmaoController || isUpcoming}
+                                      onClick={() => !isUpcoming && setEditingReportId(rep.id)}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        opacity: (rep.validated || !isGmaoController) ? 0.35 : 1,
-                                        cursor: (rep.validated || !isGmaoController) ? 'not-allowed' : 'pointer',
-                                        backgroundColor: (rep.validated || !isGmaoController) ? '#cbd5e1' : '#000000',
-                                        color: (rep.validated || !isGmaoController) ? '#64748b' : '#ffffff',
-                                        boxShadow: (rep.validated || !isGmaoController) ? 'none' : rowActionButtonStyle.boxShadow,
+                                        opacity: (rep.validated || !isGmaoController || isUpcoming) ? 0.35 : 1,
+                                        cursor: (rep.validated || !isGmaoController || isUpcoming) ? 'not-allowed' : 'pointer',
+                                        backgroundColor: (rep.validated || !isGmaoController || isUpcoming) ? '#cbd5e1' : '#000000',
+                                        color: (rep.validated || !isGmaoController || isUpcoming) ? '#64748b' : '#ffffff',
+                                        boxShadow: (rep.validated || !isGmaoController || isUpcoming) ? 'none' : rowActionButtonStyle.boxShadow,
                                       }}
-                                      className={`${(rep.validated || !isGmaoController) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                      className={`${(rep.validated || !isGmaoController || isUpcoming) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
                                       Corriger
                                     </button>
@@ -8516,25 +8718,30 @@ export default function App() {
                                       }}
                                       style={{
                                         ...rowActionButtonStyle,
-                                        backgroundColor: (rep.validated || !isGmaoController) ? '#cbd5e1' : '#000000',
-                                        color: (rep.validated || !isGmaoController) ? '#64748b' : '#ffffff',
-                                        opacity: (rep.validated || !isGmaoController) ? 0.35 : 1,
-                                        boxShadow: (rep.validated || !isGmaoController) ? 'none' : rowActionButtonStyle.boxShadow,
-                                        cursor: (rep.validated || !isGmaoController) ? 'not-allowed' : 'pointer',
+                                        backgroundColor: (rep.validated || !isGmaoController || isUpcoming) ? '#cbd5e1' : '#000000',
+                                        color: (rep.validated || !isGmaoController || isUpcoming) ? '#64748b' : '#ffffff',
+                                        opacity: (rep.validated || !isGmaoController || isUpcoming) ? 0.35 : 1,
+                                        boxShadow: (rep.validated || !isGmaoController || isUpcoming) ? 'none' : rowActionButtonStyle.boxShadow,
+                                        cursor: (rep.validated || !isGmaoController || isUpcoming) ? 'not-allowed' : 'pointer',
                                         border: 'none',
                                       }}
-                                      className={`${(rep.validated || !isGmaoController) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
+                                      className={`${(rep.validated || !isGmaoController || isUpcoming) ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}`}
                                     >
                                       {rep.validated ? 'Validé' : 'Valider'}
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={() => handleDownloadReport(rep)}
+                                      disabled={isUpcoming}
+                                      onClick={() => !isUpcoming && handleDownloadReport(rep)}
                                       style={{
                                         ...rowActionButtonStyle,
                                         border: 'none',
+                                        opacity: isUpcoming ? 0.35 : 1,
+                                        cursor: isUpcoming ? 'not-allowed' : 'pointer',
+                                        backgroundColor: isUpcoming ? '#cbd5e1' : rowActionButtonStyle.backgroundColor,
+                                        color: isUpcoming ? '#64748b' : rowActionButtonStyle.color,
                                       }}
-                                      className="cursor-pointer"
+                                      className={isUpcoming ? 'cursor-not-allowed opacity-35' : 'cursor-pointer'}
                                     >
                                       Télécharger
                                     </button>

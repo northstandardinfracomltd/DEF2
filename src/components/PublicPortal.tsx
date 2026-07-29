@@ -1278,6 +1278,7 @@ export default function PublicPortal({
                     estimatedSlot: m.estimatedSlot || "",
                     rejectionReason: m.rejectionReason || "",
                     rejectedAt: m.rejectedAt || "",
+                    interventionReference: m.interventionReference || "",
                   };
                 }),
               };
@@ -1653,6 +1654,7 @@ export default function PublicPortal({
                 estimatedSlot: m.estimatedSlot || "",
                 rejectionReason: m.rejectionReason || "",
                 rejectedAt: m.rejectedAt || "",
+                interventionReference: m.interventionReference || "",
               };
             }),
           };
@@ -4628,19 +4630,42 @@ export default function PublicPortal({
                         return;
                       }
 
-                      const reportId = "REP-" + Date.now();
-                      const submission = {
-                        ...updatedReport,
-                        id: reportId,
-                        techName:
-                          authenticatedUser?.name || "Technicien connecté",
-                        date:
-                          updatedReport.date ||
-                          new Date().toLocaleString("fr-FR"),
-                        validated: false, // Require validation in GMAO tab
-                      };
+                      const matchingExistingIndex = generatedReports.findIndex(r => 
+                        (updatedReport.interventionReference && r.interventionReference === updatedReport.interventionReference) ||
+                        (updatedReport.missionId && r.missionId === updatedReport.missionId)
+                      );
 
-                      saveReports([submission, ...generatedReports]);
+                      let updatedReportsList = [...generatedReports];
+                      let submission: any = null;
+
+                      if (matchingExistingIndex !== -1) {
+                        const existingRep = generatedReports[matchingExistingIndex];
+                        submission = {
+                          ...existingRep,
+                          ...updatedReport,
+                          id: existingRep.id,
+                          isUpcoming: false,
+                          status: 'Modération',
+                          missionStatus: 'Effectué',
+                          techName: authenticatedUser?.name || existingRep.techName || "Technicien connecté",
+                          date: updatedReport.date || new Date().toLocaleString("fr-FR"),
+                          validated: false,
+                        };
+                        updatedReportsList[matchingExistingIndex] = submission;
+                      } else {
+                        const reportId = "REP-" + Date.now();
+                        submission = {
+                          ...updatedReport,
+                          id: reportId,
+                          techName: authenticatedUser?.name || "Technicien connecté",
+                          date: updatedReport.date || new Date().toLocaleString("fr-FR"),
+                          validated: false,
+                          missionStatus: 'Effectué',
+                        };
+                        updatedReportsList = [submission, ...generatedReports];
+                      }
+
+                      saveReports(updatedReportsList);
 
                       if (onAddNotification) {
                         const name_technician = authenticatedUser?.name || "Un technicien";
@@ -7031,6 +7056,18 @@ export default function PublicPortal({
                                                 </span>
                                               </p>
                                             )}
+
+                                          {p.interventionReference && (
+                                            <p style={{ color: "#000000" }}>
+                                              Référence intervention :{" "}
+                                              <span
+                                                className="font-semibold"
+                                                style={{ color: "#000000" }}
+                                              >
+                                                {p.interventionReference}
+                                              </span>
+                                            </p>
+                                          )}
 
                                           {/* Bon de commande */}
                                           <p style={{ color: "#000000" }}>

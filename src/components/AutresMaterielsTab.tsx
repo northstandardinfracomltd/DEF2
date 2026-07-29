@@ -681,7 +681,7 @@ export default function AutresMaterielsTab({
         equipmentType: item?.categorie || 'Autre Matériel',
         reason: 'Maintenance Autre matériel',
         requiredParts: [],
-        status: 'À faire',
+        status: 'Brouillon',
         priority: 'Normale',
         time: '14:00'
       };
@@ -719,7 +719,7 @@ export default function AutresMaterielsTab({
         equipmentType: item?.categorie || 'Autre Matériel',
         reason: 'Maintenance Autre matériel',
         requiredParts: [],
-        status: 'À faire',
+        status: 'Brouillon',
         priority: 'Normale',
         time: '14:00'
       };
@@ -783,7 +783,7 @@ export default function AutresMaterielsTab({
             equipmentType: item?.categorie || 'Autre Matériel',
             reason: 'Maintenance Autre matériel',
             requiredParts: [],
-            status: 'À faire',
+            status: 'Brouillon',
             priority: 'Normale',
             time: '14:00'
           };

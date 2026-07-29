@@ -790,7 +790,7 @@ export default function DefibTab({
         equipmentType: 'Défibrillateur',
         reason: 'Maintenance',
         requiredParts: [],
-        status: 'À faire',
+        status: 'Brouillon',
         priority: 'Normale',
         time: '14:00'
       };
@@ -830,7 +830,7 @@ export default function DefibTab({
         equipmentType: 'Défibrillateur',
         reason: 'Maintenance',
         requiredParts: [],
-        status: 'À faire',
+        status: 'Brouillon',
         priority: 'Normale',
         time: '14:00'
       };
@@ -894,7 +894,7 @@ export default function DefibTab({
             equipmentType: 'Défibrillateur',
             reason: 'Maintenance',
             requiredParts: [],
-            status: 'À faire',
+            status: 'Brouillon',
             priority: 'Normale',
             time: '14:00'
           };

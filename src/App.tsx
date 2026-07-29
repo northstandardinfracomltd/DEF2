@@ -8541,10 +8541,10 @@ export default function App() {
                             />
                           </div>
 
-                          {/* Field A: Drapeau(x) */}
+                          {/* Field A: Drapeau GMAO */}
                           <div className="space-y-2">
                             <label className="block text-[16px] font-medium text-[#000]">
-                              Drapeau(x)
+                              Drapeau GMAO
                             </label>
 
                             {/* Select Lookup Dropdown */}
@@ -8553,7 +8553,7 @@ export default function App() {
                               onChange={(e) => {
                                 const valId = e.target.value;
                                 if (!valId) return;
-                                const foundVar = variables.find(v => v.id === valId && v.category === 'Drapeau post-intervention');
+                                const foundVar = variables.find(v => v.id === valId && (v.category === 'Drapeau GMAO' || v.category === 'Drapeau post-intervention'));
                                 if (foundVar) {
                                   const currentFlags = managingReport.drapeaux || [];
                                   if (!currentFlags.some((f: any) => f.id === foundVar.id || f.nom === foundVar.nom)) {
@@ -8571,9 +8571,9 @@ export default function App() {
                               }}
                               className="w-full p-2.5 text-[16px] text-[#000] border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-0 focus:border-slate-300 cursor-pointer"
                             >
-                              <option value="">-- Sélectionner un drapeau post-intervention --</option>
+                              <option value="">-- Sélectionner un drapeau GMAO --</option>
                               {variables
-                                .filter(v => v.category === 'Drapeau post-intervention')
+                                .filter(v => v.category === 'Drapeau GMAO' || v.category === 'Drapeau post-intervention')
                                 .map(v => (
                                   <option key={v.id} value={v.id}>
                                     {v.nom} {v.couleurHex ? `(${v.couleurHex})` : ''}

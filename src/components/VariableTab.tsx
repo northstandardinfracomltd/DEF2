@@ -94,7 +94,7 @@ const CATEGORIES: VariableCategory[] = [
   'Modèle Service',
   'Fournisseur',
   'Modèle Raison Prestation',
-  'Drapeau post-intervention',
+  'Drapeau GMAO',
   'Type Filtre Purificateur',
   'Modèle Filtre Purificateur',
 ];
@@ -424,10 +424,10 @@ export default function VariableTab({
       return;
     }
 
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau GMAO' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
 
     let formattedHex = couleurHex.trim();
-    if (category === 'Drapeau post-intervention' && formattedHex) {
+    if ((category === 'Drapeau GMAO' || category === 'Drapeau post-intervention') && formattedHex) {
       if (!formattedHex.startsWith('#')) {
         formattedHex = '#' + formattedHex;
       }
@@ -439,7 +439,7 @@ export default function VariableTab({
       marque: marque.trim() || 'Standard',
       description: description.trim(),
       imageUrl: category === 'Modèle Défibrillateur' ? imageUrl.trim() : undefined,
-      couleurHex: category === 'Drapeau post-intervention' ? (formattedHex || undefined) : undefined,
+      couleurHex: (category === 'Drapeau GMAO' || category === 'Drapeau post-intervention') ? (formattedHex || undefined) : undefined,
       identifiant: identifiant.trim() || undefined,
       rappelAlerteOption: hideRappelAlerte ? undefined : (rappelAlerteOption || undefined),
       rappelDateDebut: hideRappelAlerte ? undefined : (rappelDateDebut || undefined),
@@ -493,7 +493,7 @@ export default function VariableTab({
   };
 
   if (isModalOpen) {
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau GMAO' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
 
     return (
       <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="variable-form-overlay">
@@ -703,8 +703,8 @@ export default function VariableTab({
                   </div>
                 )}
 
-                {/* Couleur hexadécimale (spécifique à Drapeau post-intervention) */}
-                {category === 'Drapeau post-intervention' && (
+                {/* Couleur hexadécimale (spécifique à Drapeau GMAO) */}
+                {(category === 'Drapeau GMAO' || category === 'Drapeau post-intervention') && (
                   <div className="space-y-1">
                     <label htmlFor="input-variable-couleur-hex" className="block text-[11px] font-bold text-slate-500 uppercase">
                       Couleur hexadécimale (ex: #FF0000).

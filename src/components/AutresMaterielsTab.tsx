@@ -2311,6 +2311,19 @@ export default function AutresMaterielsTab({
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
+                          <label>Modèle de filtre.</label>
+                          <select 
+                            value={specifiques.modeleFiltre || ''} 
+                            onChange={(e) => handleSpecifiqueChange('modeleFiltre', e.target.value)}
+                          >
+                            <option value="">Sélectionner un modèle de filtre</option>
+                            {(variables || []).filter(v => v.category === 'Modèle Filtre Purificateur').map(v => (
+                              <option key={v.id} value={v.nom}>{v.nom}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1">
                           <label>Dernière intervention.</label>
                           <input 
                             type="date" 
@@ -2318,7 +2331,9 @@ export default function AutresMaterielsTab({
                             onChange={(e) => handleSpecifiqueChange('derniereIntervention', e.target.value)} 
                           />
                         </div>
+                      </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label>Nettoyage lors de la dernière intervention.</label>
                           <div className="flex space-x-4 py-1">
@@ -2326,9 +2341,7 @@ export default function AutresMaterielsTab({
                             <CustomPinkRadio value="Non" currentValue={specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageDerniereIntervention', v)} label="Non" />
                           </div>
                         </div>
-                      </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label>Désinfection lors de la dernière intervention.</label>
                           <div className="flex space-x-4 py-1">
@@ -2336,7 +2349,9 @@ export default function AutresMaterielsTab({
                             <CustomPinkRadio value="Non" currentValue={specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionDerniereIntervention', v)} label="Non" />
                           </div>
                         </div>
+                      </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
                           <label>Test de fonctionnement lors de la dernière intervention.</label>
                           <div className="flex space-x-4 py-1">

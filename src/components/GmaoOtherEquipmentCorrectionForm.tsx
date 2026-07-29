@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Client, Variable } from '../types';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Client, Variable, StockRecord } from '../types';
 import { BarcodeScannerModal } from './BarcodeScannerModal';
 import { getRegionsForCountry } from '../utils/regions';
 
@@ -14,6 +14,7 @@ interface GmaoOtherEquipmentCorrectionFormProps {
   otherEquipments?: any[];
   defibrillateurs?: any[];
   variables?: Variable[];
+  stocks?: StockRecord[];
   onSelectDefibrillator?: (defibId: string) => void;
   onSelectOtherEquipment?: (otherEquipment: any) => void;
 }
@@ -239,6 +240,7 @@ export default function GmaoOtherEquipmentCorrectionForm({
   otherEquipments = [],
   defibrillateurs = [],
   variables = [],
+  stocks = [],
   onSelectDefibrillator,
   onSelectOtherEquipment
 }: GmaoOtherEquipmentCorrectionFormProps) {
@@ -294,8 +296,77 @@ export default function GmaoOtherEquipmentCorrectionForm({
 
   // Photograph & Signature fields
   const [photoUrl, setPhotoUrl] = useState(otherEquipment?.photoUrl || '');
+  const [photoGlobaleUrl, setPhotoGlobaleUrl] = useState(otherEquipment?.photoGlobaleUrl || otherEquipment?.photoUrl || '');
+  const [photoArriereUrl, setPhotoArriereUrl] = useState(otherEquipment?.photoArriereUrl || '');
+  const [photoLedsUrl, setPhotoLedsUrl] = useState(otherEquipment?.photoLedsUrl || '');
   const [techSignature, setTechSignature] = useState(otherEquipment?.techSignature || '');
   const [endTimeStamp, setEndTimeStamp] = useState(otherEquipment?.endTimeStamp || '');
+
+  const fileInputGlobaleRef = useRef<HTMLInputElement | null>(null);
+  const fileInputArriereRef = useRef<HTMLInputElement | null>(null);
+  const fileInputLedsRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileChangeGlobale = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoGlobaleUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileChangeArriere = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoArriereUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileChangeLeds = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoLedsUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const purifierFilterStockOptions = useMemo(() => {
+    const options: { id: string; name: string }[] = [];
+    const addedNames = new Set<string>();
+
+    (stocks || []).forEach(st => {
+      const varObj = (variables || []).find(v => v.id === st.denominationPieceId);
+      if (varObj && varObj.category === 'Modèle Filtre Purificateur') {
+        const name = varObj.marque && varObj.marque !== 'Standard'
+          ? `${varObj.nom} (${varObj.marque})`
+          : varObj.nom;
+        const label = `${name}${st.ugs ? ` (UGS: ${st.ugs})` : ''}`;
+        if (!addedNames.has(label)) {
+          addedNames.add(label);
+          options.push({ id: st.id, name: label });
+        }
+      }
+    });
+
+    (variables || []).filter(v => v.category === 'Modèle Filtre Purificateur').forEach(v => {
+      const label = v.marque && v.marque !== 'Standard' ? `${v.nom} (${v.marque})` : v.nom;
+      if (!addedNames.has(label)) {
+        addedNames.add(label);
+        options.push({ id: v.id, name: label });
+      }
+    });
+
+    return options;
+  }, [stocks, variables]);
 
   useEffect(() => {
     if (otherEquipment) {
@@ -336,6 +407,9 @@ export default function GmaoOtherEquipmentCorrectionForm({
       setIdentifiant(otherEquipment.identifiant || '');
       setSpecifiques(otherEquipment.specifiques || {});
       setPhotoUrl(otherEquipment.photoUrl || '');
+      setPhotoGlobaleUrl(otherEquipment.photoGlobaleUrl || otherEquipment.photoUrl || '');
+      setPhotoArriereUrl(otherEquipment.photoArriereUrl || '');
+      setPhotoLedsUrl(otherEquipment.photoLedsUrl || '');
       setTechSignature(otherEquipment.techSignature || '');
       setEndTimeStamp(otherEquipment.endTimeStamp || '');
     }
@@ -520,6 +594,23 @@ export default function GmaoOtherEquipmentCorrectionForm({
     e.preventDefault();
     setSaving(true);
 
+    const interventionDate = new Date().toISOString().split('T')[0];
+
+    const updatedSpecifiques = {
+      ...specifiques,
+      ...(categorie === 'Purificateur d’air' ? {
+        serie: specifiques.serie || identifiant || '',
+        typeFiltre: specifiques.typeFiltre || '',
+        modeleFiltre: specifiques.modeleFiltre || '',
+        derniereIntervention: interventionDate,
+        nettoyageDerniereIntervention: specifiques.nettoyageEffectue || specifiques.nettoyageDerniereIntervention || 'Oui',
+        desinfectionDerniereIntervention: specifiques.desinfectionEffectuee || specifiques.desinfectionDerniereIntervention || 'Oui',
+        testFonctionnementDerniereIntervention: specifiques.testFonctionnementEffectue || specifiques.testFonctionnementDerniereIntervention || 'Oui',
+        pieceFiltreDerniereMaintenance: specifiques.changementPieceFiltre || specifiques.pieceFiltreDerniereMaintenance || '',
+        autrePieceConsommableDerniereMaintenance: specifiques.changementAutrePieceConsommable || specifiques.autrePieceConsommableDerniereMaintenance || ''
+      } : {})
+    };
+
     const snapshotPayload = {
       ...otherEquipment,
       clientId,
@@ -546,14 +637,14 @@ export default function GmaoOtherEquipmentCorrectionForm({
       expirationGarantie,
       fabrication,
       miseEnService,
-      derniereMaintenance,
+      derniereMaintenance: interventionDate,
       sortieUsine,
       prochaineMaintenance,
       categorie,
-      identifiant,
-      specifiques,
+      identifiant: (categorie === 'Purificateur d’air' && specifiques.serie) ? specifiques.serie : (identifiant || otherEquipment?.identifiant || ''),
+      specifiques: updatedSpecifiques,
       endTimeStamp: endTimeStamp || new Date().toLocaleString('fr-FR'),
-      photoUrl: photoUrl || undefined,
+      photoUrl: photoGlobaleUrl || photoUrl || undefined,
       techSignature: techSignature || undefined
     };
 
@@ -561,7 +652,10 @@ export default function GmaoOtherEquipmentCorrectionForm({
       onSave({
         title: `RAPPORT TECHNIQUE - ${categorie.toUpperCase()}`,
         defibSnapshot: snapshotPayload, // store other equipment inside defibSnapshot so existing backoffice table properties resolve automatically
-        photoUrl: photoUrl || undefined,
+        photoUrl: photoGlobaleUrl || photoUrl || undefined,
+        photoGlobaleUrl: photoGlobaleUrl || undefined,
+        photoArriereUrl: photoArriereUrl || undefined,
+        photoLedsUrl: photoLedsUrl || undefined,
         techSignature: techSignature || undefined,
         endTimeStamp: endTimeStamp || new Date().toLocaleString('fr-FR')
       });
@@ -1100,20 +1194,22 @@ export default function GmaoOtherEquipmentCorrectionForm({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label>Série.</label>
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Série.</label>
                       <input 
                         type="text" 
-                        value={specifiques.serie || ''} 
+                        value={specifiques.serie || identifiant || ''} 
                         placeholder="Série" 
                         onChange={(e) => handleSpecifiqueChange('serie', e.target.value)} 
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm"
                       />
                     </div>
 
                     <div className="space-y-1">
-                      <label>Type de filtre.</label>
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Type de filtre.</label>
                       <select 
                         value={specifiques.typeFiltre || ''} 
                         onChange={(e) => handleSpecifiqueChange('typeFiltre', e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
                       >
                         <option value="">Sélectionner un type de filtre</option>
                         {(variables || []).filter(v => v.category === 'Type Filtre Purificateur').map(v => (
@@ -1125,64 +1221,195 @@ export default function GmaoOtherEquipmentCorrectionForm({
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label>Dernière intervention.</label>
-                      <input 
-                        type="date" 
-                        value={specifiques.derniereIntervention || ''} 
-                        onChange={(e) => handleSpecifiqueChange('derniereIntervention', e.target.value)} 
-                      />
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Modèle de filtre.</label>
+                      <select 
+                        value={specifiques.modeleFiltre || ''} 
+                        onChange={(e) => handleSpecifiqueChange('modeleFiltre', e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="">Sélectionner un modèle de filtre</option>
+                        {(variables || []).filter(v => v.category === 'Modèle Filtre Purificateur').map(v => (
+                          <option key={v.id} value={v.nom}>{v.nom}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1">
-                      <label>Nettoyage lors de la dernière intervention.</label>
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Nettoyage effectué.</label>
                       <div className="flex space-x-4 py-1">
-                        <CustomPinkRadio value="Oui" currentValue={specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageDerniereIntervention', v)} label="Oui" />
-                        <CustomPinkRadio value="Non" currentValue={specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageDerniereIntervention', v)} label="Non" />
+                        <CustomPinkRadio value="Oui" currentValue={specifiques.nettoyageEffectue || specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageEffectue', v)} label="Oui" />
+                        <CustomPinkRadio value="Non" currentValue={specifiques.nettoyageEffectue || specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageEffectue', v)} label="Non" />
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label>Désinfection lors de la dernière intervention.</label>
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Désinfection effectuée.</label>
                       <div className="flex space-x-4 py-1">
-                        <CustomPinkRadio value="Oui" currentValue={specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionDerniereIntervention', v)} label="Oui" />
-                        <CustomPinkRadio value="Non" currentValue={specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionDerniereIntervention', v)} label="Non" />
+                        <CustomPinkRadio value="Oui" currentValue={specifiques.desinfectionEffectuee || specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionEffectuee', v)} label="Oui" />
+                        <CustomPinkRadio value="Non" currentValue={specifiques.desinfectionEffectuee || specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionEffectuee', v)} label="Non" />
                       </div>
                     </div>
 
                     <div className="space-y-1">
-                      <label>Test de fonctionnement lors de la dernière intervention.</label>
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Test de fonctionnement effectué.</label>
                       <div className="flex space-x-4 py-1">
-                        <CustomPinkRadio value="Oui" currentValue={specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementDerniereIntervention', v)} label="Oui" />
-                        <CustomPinkRadio value="Non" currentValue={specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementDerniereIntervention', v)} label="Non" />
+                        <CustomPinkRadio value="Oui" currentValue={specifiques.testFonctionnementEffectue || specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementEffectue', v)} label="Oui" />
+                        <CustomPinkRadio value="Non" currentValue={specifiques.testFonctionnementEffectue || specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementEffectue', v)} label="Non" />
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                      <label>Pièce filtre lors de la dernière maintenance.</label>
-                      <input 
-                        type="text" 
-                        disabled 
-                        readOnly 
-                        className="bg-slate-100 text-slate-500 cursor-not-allowed" 
-                        value={specifiques.pieceFiltreDerniereMaintenance || ''} 
-                        placeholder="Inconnu" 
-                      />
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Changement de pièce filtre.</label>
+                      <select 
+                        value={specifiques.changementPieceFiltre || specifiques.pieceFiltreDerniereMaintenance || ''} 
+                        onChange={(e) => handleSpecifiqueChange('changementPieceFiltre', e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="">Aucune</option>
+                        {purifierFilterStockOptions.map(opt => (
+                          <option key={opt.id} value={opt.name}>{opt.name}</option>
+                        ))}
+                      </select>
                     </div>
 
                     <div className="space-y-1">
-                      <label>Autre pièce consommable lors de la dernière maintenance.</label>
-                      <input 
-                        type="text" 
-                        disabled 
-                        readOnly 
-                        className="bg-slate-100 text-slate-500 cursor-not-allowed" 
-                        value={specifiques.autrePieceConsommableDerniereMaintenance || ''} 
-                        placeholder="Inconnu" 
-                      />
+                      <label className="text-[11px] font-bold text-black uppercase tracking-wider block">Changement autre pièce consommable.</label>
+                      <select 
+                        value={specifiques.changementAutrePieceConsommable || specifiques.autrePieceConsommableDerniereMaintenance || ''} 
+                        onChange={(e) => handleSpecifiqueChange('changementAutrePieceConsommable', e.target.value)}
+                        className="w-full border border-slate-300 rounded px-3 py-2 text-sm bg-white"
+                      >
+                        <option value="">Aucune</option>
+                        {purifierFilterStockOptions.map(opt => (
+                          <option key={opt.id} value={opt.name}>{opt.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2 border-t border-slate-200 mt-2">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                        Photographie globale du matériel.
+                      </label>
+                      {photoGlobaleUrl && (
+                        <div className="text-[14px] text-green-600 font-bold leading-none py-1 flex items-center gap-2">
+                          <span>✓ Chargé</span>
+                          <img src={photoGlobaleUrl} alt="Aperçu globale" className="h-12 w-12 object-cover rounded border" />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => fileInputGlobaleRef.current?.click()}
+                          style={rowActionButton18Style}
+                          className="transition-colors cursor-pointer font-sans"
+                        >
+                          Photographier
+                        </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          ref={fileInputGlobaleRef}
+                          onChange={handleFileChangeGlobale}
+                          className="hidden"
+                        />
+                        {photoGlobaleUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoGlobaleUrl('')}
+                            style={{ ...rowActionButton18Style, backgroundColor: '#ef4444', color: '#ffffff' }}
+                            className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                        Photographie arrière / étiquette.
+                      </label>
+                      {photoArriereUrl && (
+                        <div className="text-[14px] text-green-600 font-bold leading-none py-1 flex items-center gap-2">
+                          <span>✓ Chargé</span>
+                          <img src={photoArriereUrl} alt="Aperçu arrière" className="h-12 w-12 object-cover rounded border" />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => fileInputArriereRef.current?.click()}
+                          style={rowActionButton18Style}
+                          className="transition-colors cursor-pointer font-sans"
+                        >
+                          Photographier
+                        </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          ref={fileInputArriereRef}
+                          onChange={handleFileChangeArriere}
+                          className="hidden"
+                        />
+                        {photoArriereUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoArriereUrl('')}
+                            style={{ ...rowActionButton18Style, backgroundColor: '#ef4444', color: '#ffffff' }}
+                            className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-bold text-black uppercase tracking-wider">
+                        Photographie en fonctionnement (leds).
+                      </label>
+                      {photoLedsUrl && (
+                        <div className="text-[14px] text-green-600 font-bold leading-none py-1 flex items-center gap-2">
+                          <span>✓ Chargé</span>
+                          <img src={photoLedsUrl} alt="Aperçu leds" className="h-12 w-12 object-cover rounded border" />
+                        </div>
+                      )}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => fileInputLedsRef.current?.click()}
+                          style={rowActionButton18Style}
+                          className="transition-colors cursor-pointer font-sans"
+                        >
+                          Photographier
+                        </button>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          ref={fileInputLedsRef}
+                          onChange={handleFileChangeLeds}
+                          className="hidden"
+                        />
+                        {photoLedsUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoLedsUrl('')}
+                            style={{ ...rowActionButton18Style, backgroundColor: '#ef4444', color: '#ffffff' }}
+                            className="transition-colors cursor-pointer font-sans hover:bg-red-600"
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

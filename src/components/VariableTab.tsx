@@ -96,6 +96,7 @@ const CATEGORIES: VariableCategory[] = [
   'Modèle Raison Prestation',
   'Drapeau post-intervention',
   'Type Filtre Purificateur',
+  'Modèle Filtre Purificateur',
 ];
 
 export default function VariableTab({
@@ -423,7 +424,7 @@ export default function VariableTab({
       return;
     }
 
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
 
     let formattedHex = couleurHex.trim();
     if (category === 'Drapeau post-intervention' && formattedHex) {
@@ -492,7 +493,7 @@ export default function VariableTab({
   };
 
   if (isModalOpen) {
-    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur';
+    const hideRappelAlerte = category === 'Modèle Contrat' || category === 'Modèle Service' || category === 'Fournisseur' || category === 'Modèle Raison Prestation' || category === 'Drapeau post-intervention' || category === 'Type Filtre Purificateur' || category === 'Modèle Filtre Purificateur';
 
     return (
       <div className="w-full space-y-6 font-sans animate-fadeIn max-w-[1000px] mx-auto" id="variable-form-overlay">

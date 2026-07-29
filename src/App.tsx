@@ -605,7 +605,7 @@ export default function App() {
   const [fsmPieceSearch, setFsmPieceSearch] = useState('');
   const [fsmSearchQuery, setFsmSearchQuery] = useState('');
   const [gmaoSearchQuery, setGmaoSearchQuery] = useState('');
-  const [gmaoFilter, setGmaoFilter] = useState<'validated' | 'moderation'>('validated');
+  const [gmaoFilter, setGmaoFilter] = useState<'upcoming' | 'moderation' | 'validated'>('moderation');
   const [managingReportId, setManagingReportId] = useState<string | null>(null);
   const [fsmDateFilter, setFsmDateFilter] = useState<string>('Tous');
   const [fsmRegionFilter, setFsmRegionFilter] = useState<string>('Tous');
@@ -7126,51 +7126,23 @@ export default function App() {
                                           />
                                         </div>
 
-                                        {/* Situation. */}
-                                        <div className="space-y-0.5 font-sans relative bg-transparent">
-                                          <label className="block mb-1 fsm-label-style">Situation.</label>
-                                          <div className="relative flex items-center bg-transparent">
-                                            <div 
-                                              style={{
-                                                position: "absolute",
-                                                left: "14px",
-                                                top: "50%",
-                                                transform: "translateY(-50%)",
-                                                width: "10px",
-                                                height: "10px",
-                                                borderRadius: "50%",
-                                                backgroundColor: 
-                                                  (m.status || "À faire") === "Brouillon" ? "#94a3b8" : 
-                                                  (m.status || "À faire") === "À faire" ? "#3b82f6" :  
-                                                  (m.status || "À faire") === "En cours" ? "#ef4444" :  
-                                                  (m.status || "À faire") === "Effectué" ? "#22c55e" :  
-                                                  (m.status || "À faire") === "Attente" ? "#94a3b8" :  
-                                                  "#3b82f6",
-                                                zIndex: 10,
-                                                pointerEvents: "none"
-                                              }}
-                                            />
-                                            <select
-                                              value={m.status || "À faire"}
-                                              onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
-                                              style={{
-                                                paddingLeft: "34px",
-                                                paddingRight: "12px",
-                                                paddingTop: "12px",
-                                                paddingBottom: "12px",
-                                                width: "100%",
-                                                border: "1px solid #dedede",
-                                                borderRadius: "13px",
-                                                fontSize: "16px",
-                                                backgroundColor: "#ffffff"
-                                              }}
-                                              className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
-                                            >
-                                              <option value="À faire">À faire</option>
-                                              <option value="Attente">Attente</option>
-                                              <option value="Effectué">Effectué</option>
-                                            </select>
-                                          </div>
+                                        {/* Référence intervention. */}
+                                        <div className="space-y-0.5 bg-transparent">
+                                          <label className="block mb-1 fsm-label-style">Référence intervention.</label>
+                                          <input
+                                            type="text"
+                                            value={(() => {
+                                              if (m.interventionReference) return m.interventionReference;
+                                              const matchedReport = generatedReports.find((r: any) => 
+                                                (r.missionId && r.missionId === m.id) || 
+                                                (r.defibIdentifiant && r.defibIdentifiant === m.defibIdentifiant)
+                                              );
+                                              return matchedReport?.interventionReference || "";
+                                            })()}
+                                            disabled={true}
+                                            className="w-full font-sans cursor-not-allowed"
+                                            placeholder="Non renseignée"
+                                          />
                                         </div>
 
                                         {/* Bon de commande. */}
@@ -7806,24 +7778,74 @@ export default function App() {
                                     );
                                   })()}
 
-                                  {/* Full-width Supprimer button */}
-                                  <div className="pt-2 bg-transparent">
-                                    <button
-                                      type="button"
-                                      onClick={() => deleteFsmMission(t.id, m.id)}
-                                      style={{
-                                        ...rowActionButtonStyle,
-                                        width: '100%',
-                                        display: 'flex',
-                                        justifyContent: 'center',
-                                        alignItems: 'center',
-                                        padding: '10px 16px',
-                                        fontSize: '18px'
-                                      }}
-                                      className="cursor-pointer"
-                                    >
-                                      Supprimer
-                                    </button>
+                                  {/* Bottom row: Situation & Supprimer side-by-side (50% / 50%) */}
+                                  <div className="pt-2 grid grid-cols-2 gap-3 w-full bg-transparent items-end">
+                                    {/* Situation. */}
+                                    <div className="space-y-0.5 font-sans relative bg-transparent">
+                                      <label className="block mb-1 fsm-label-style">Situation.</label>
+                                      <div className="relative flex items-center bg-transparent">
+                                        <div 
+                                          style={{
+                                            position: "absolute",
+                                            left: "14px",
+                                            top: "50%",
+                                            transform: "translateY(-50%)",
+                                            width: "10px",
+                                            height: "10px",
+                                            borderRadius: "50%",
+                                            backgroundColor: 
+                                              (m.status || "À faire") === "Brouillon" ? "#94a3b8" : 
+                                              (m.status || "À faire") === "À faire" ? "#3b82f6" :  
+                                              (m.status || "À faire") === "En cours" ? "#ef4444" :  
+                                              (m.status || "À faire") === "Effectué" ? "#22c55e" :  
+                                              (m.status || "À faire") === "Attente" ? "#94a3b8" :  
+                                              "#3b82f6",
+                                            zIndex: 10,
+                                            pointerEvents: "none"
+                                          }}
+                                        />
+                                        <select
+                                          value={m.status || "À faire"}
+                                          onChange={(e) => updateFsmMission(t.id, m.id, { status: e.target.value })}
+                                          style={{
+                                            paddingLeft: "34px",
+                                            paddingRight: "12px",
+                                            paddingTop: "12px",
+                                            paddingBottom: "12px",
+                                            width: "100%",
+                                            border: "1px solid #dedede",
+                                            borderRadius: "13px",
+                                            fontSize: "16px",
+                                            backgroundColor: "#ffffff"
+                                          }}
+                                          className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
+                                        >
+                                          <option value="À faire">À faire</option>
+                                          <option value="Attente">Attente</option>
+                                          <option value="Effectué">Effectué</option>
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {/* Supprimer button */}
+                                    <div className="bg-transparent flex flex-col justify-end">
+                                      <button
+                                        type="button"
+                                        onClick={() => deleteFsmMission(t.id, m.id)}
+                                        style={{
+                                          ...rowActionButtonStyle,
+                                          width: '100%',
+                                          display: 'flex',
+                                          justifyContent: 'center',
+                                          alignItems: 'center',
+                                          padding: '12px 16px',
+                                          fontSize: '18px'
+                                        }}
+                                        className="cursor-pointer"
+                                      >
+                                        Supprimer
+                                      </button>
+                                    </div>
                                   </div>
                                 </div>
                               );
@@ -7904,8 +7926,14 @@ export default function App() {
             })();
 
             const filteredReports = generatedReports.filter((rep) => {
-              if (gmaoFilter === 'validated' && !rep.validated) return false;
-              if (gmaoFilter === 'moderation' && rep.validated) return false;
+              const isUpcoming = rep.isUpcoming || rep.status === 'À venir' || rep.status === 'upcoming' || rep.upcoming || rep.isFuture;
+              if (gmaoFilter === 'upcoming') {
+                if (!isUpcoming) return false;
+              } else if (gmaoFilter === 'validated') {
+                if (!rep.validated) return false;
+              } else if (gmaoFilter === 'moderation') {
+                if (rep.validated || isUpcoming) return false;
+              }
 
               const query = gmaoSearchQuery.toLowerCase().trim();
               if (!query) return true;
@@ -8022,49 +8050,41 @@ export default function App() {
                         />
                       </div>
 
-                      {/* Apple-style toggle for filtering 'Modération' / 'Validé(s)' */}
-                      <div className="flex items-center gap-3 select-none">
-                        <span 
-                          onClick={() => setGmaoFilter('moderation')}
-                          className="font-sans font-bold text-sm transition-colors duration-200 cursor-pointer"
-                          style={{
-                            color: '#000000',
-                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                            fontSize: '18px'
-                          }}
-                        >
-                          {t("Modération")}
-                        </span>
-                        
+                      {/* 3-item Segmented Toggle for 'À venir' / 'Modération' / 'Validés' */}
+                      <div className="flex items-center p-1 bg-slate-100 rounded-xl select-none border border-slate-200" style={{ fontFamily: "'DefibeoMain', 'Civilprom', sans-serif" }}>
                         <button
                           type="button"
-                          onClick={() => setGmaoFilter(gmaoFilter === 'validated' ? 'moderation' : 'validated')}
-                          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300 focus:outline-none"
-                          style={{
-                            backgroundColor: gmaoFilter === 'validated' ? '#fe4eba' : '#cbd5e1',
-                            cursor: 'pointer',
-                            border: 'none',
-                          }}
+                          onClick={() => setGmaoFilter('upcoming')}
+                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
+                            gmaoFilter === 'upcoming'
+                              ? 'bg-[#fe4eba] text-white shadow-sm'
+                              : 'text-slate-700 hover:text-black bg-transparent'
+                          }`}
                         >
-                          <span
-                            className="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-300 shadow-sm"
-                            style={{
-                              transform: gmaoFilter === 'validated' ? 'translateX(24px)' : 'translateX(4px)',
-                            }}
-                          />
+                          {t("À venir")}
                         </button>
-
-                        <span 
-                          onClick={() => setGmaoFilter('validated')}
-                          className="font-sans font-bold text-sm transition-colors duration-200 cursor-pointer"
-                          style={{
-                            color: gmaoFilter === 'validated' ? '#fe4eba' : '#000000',
-                            fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
-                            fontSize: '18px'
-                          }}
+                        <button
+                          type="button"
+                          onClick={() => setGmaoFilter('moderation')}
+                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
+                            gmaoFilter === 'moderation'
+                              ? 'bg-[#fe4eba] text-white shadow-sm'
+                              : 'text-slate-700 hover:text-black bg-transparent'
+                          }`}
                         >
-                          {t("Validé(s)")}
-                        </span>
+                          {t("Modération")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setGmaoFilter('validated')}
+                          className={`px-4 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 cursor-pointer border-none ${
+                            gmaoFilter === 'validated'
+                              ? 'bg-[#fe4eba] text-white shadow-sm'
+                              : 'text-slate-700 hover:text-black bg-transparent'
+                          }`}
+                        >
+                          {t("Validés")}
+                        </button>
                       </div>
 
                       {/* No Actualiser button */}

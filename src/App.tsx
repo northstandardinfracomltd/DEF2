@@ -8182,11 +8182,12 @@ export default function App() {
 
                       {/* 3-item Segmented Toggle for 'À venir' / 'Modération' / 'Validés' */}
                       <div 
-                        className="flex items-center p-1 bg-slate-100 select-none" 
+                        className="flex items-center p-1 bg-white select-none" 
                         style={{ 
                           fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
                           borderRadius: '15px',
                           border: '1px solid #dadada',
+                          backgroundColor: '#ffffff',
                         }}
                       >
                         <button
@@ -8859,11 +8860,7 @@ export default function App() {
                                   );
                                 })}
                               </div>
-                            ) : (
-                              <div className="text-sm text-slate-400 italic pt-1">
-                                Aucun drapeau sélectionné.
-                              </div>
-                            )}
+                            ) : null}
                           </div>
 
                           {/* Field B: Commentaire */}

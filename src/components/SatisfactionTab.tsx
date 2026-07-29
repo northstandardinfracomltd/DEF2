@@ -6,7 +6,14 @@ interface Review {
   id: string;
   clientName: string;
   comment: string;
-  label: string;
+  label?: string;
+  defibId?: string;
+  qualite?: number;
+  ponctualite?: number;
+  politesse?: number;
+  clartePdf?: number;
+  explications?: number;
+  sensibilisation?: number;
   dateStr?: string;
 }
 
@@ -33,6 +40,25 @@ export default function SatisfactionTab({
       return `${parts[2]}-${parts[1]}-${parts[0]}`;
     }
     return dateStr;
+  };
+
+  const getNoteGlobale = (rev: Review): string => {
+    const nums = [rev.qualite, rev.ponctualite, rev.politesse, rev.clartePdf, rev.explications, rev.sensibilisation].filter(
+      (v): v is number => typeof v === 'number' && !isNaN(v)
+    );
+    if (nums.length > 0) {
+      const sum = nums.reduce((a, b) => a + b, 0);
+      const avg = sum / nums.length;
+      return avg % 1 === 0 ? avg.toFixed(0) : avg.toFixed(1);
+    }
+    // Backward compatibility for old review label
+    if (rev.label) {
+      if (rev.label === 'Excellent' || rev.label === 'Parfait') return '4';
+      if (rev.label === 'Moyen') return '2.5';
+      if (rev.label === 'Décevant') return '1.5';
+      if (rev.label === 'Médiocre') return '1';
+    }
+    return '-';
   };
 
   const handleDeleteReview = (id: string) => {
@@ -87,9 +113,9 @@ export default function SatisfactionTab({
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return (
-      rev.clientName.toLowerCase().includes(q) ||
-      rev.comment.toLowerCase().includes(q) ||
-      rev.label.toLowerCase().includes(q)
+      (rev.clientName && rev.clientName.toLowerCase().includes(q)) ||
+      (rev.comment && rev.comment.toLowerCase().includes(q)) ||
+      (rev.label && rev.label.toLowerCase().includes(q))
     );
   });
 
@@ -174,72 +200,109 @@ export default function SatisfactionTab({
             <table className="w-full text-left font-sans border-collapse text-xs" id="satisfaction-table" style={{ borderTop: '1px solid rgb(218, 218, 218)', borderBottom: '1px solid rgb(218, 218, 218)' }}>
               <thead>
                 <tr className="bg-transparent">
-                  <th className="px-5 py-3.5 w-32 whitespace-nowrap" style={thStyle}>{t("Date.")}</th>
-                  <th className="px-5 py-3.5 w-1/4" style={thStyle}>{t("Rédacteur.")}</th>
-                  <th className="px-5 py-3.5" style={thStyle}>{t("Évaluation.")}</th>
-                  <th className="px-5 py-3.5 text-left w-48" style={thStyle}>{t("Satisfaction.")}</th>
-                  <th className="px-5 py-3.5 text-right w-24" style={thStyle}>{t("Action.")}</th>
+                  <th className="px-4 py-3.5 text-center w-28 whitespace-nowrap" style={thStyle}>{t("Note globale.")}</th>
+                  <th className="px-4 py-3.5 w-28 whitespace-nowrap" style={thStyle}>{t("Date.")}</th>
+                  <th className="px-4 py-3.5 w-40" style={thStyle}>{t("Rédacteur.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Qualité.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Ponctualité.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Politesse.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Clarté PDF.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Explications.")}</th>
+                  <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Sensibilisation.")}</th>
+                  <th className="px-4 py-3.5" style={thStyle}>{t("Évaluation.")}</th>
+                  <th className="px-4 py-3.5 text-right w-24 whitespace-nowrap" style={thStyle}>{t("Action.")}</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700 text-xs text-black">
                 {filteredReviews.map((rev) => {
-                  const truncatedClientName = rev.clientName.length > 15 
+                  const truncatedClientName = rev.clientName && rev.clientName.length > 15 
                     ? `${rev.clientName.substring(0, 15)}...` 
-                    : rev.clientName;
+                    : rev.clientName || '-';
 
-                  const truncatedComment = rev.comment.length > 200 
-                    ? `${rev.comment.substring(0, 200)}...` 
-                    : rev.comment;
+                  const truncatedComment = rev.comment && rev.comment.length > 150 
+                    ? `${rev.comment.substring(0, 150)}...` 
+                    : rev.comment || '-';
+
+                  const noteGlobale = getNoteGlobale(rev);
 
                   return (
                     <tr key={rev.id} className="group hover:bg-[#ffecf8] transition-all cursor-pointer">
                       
+                      {/* Round badge for Note globale */}
+                      <td className="px-4 py-4 align-middle text-center cursor-default">
+                        <div 
+                          style={{ 
+                            width: '38px', 
+                            height: '38px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#fe4eba', 
+                            color: '#ffffff', 
+                            fontWeight: 'bold', 
+                            fontSize: '15px', 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                            margin: '0 auto'
+                          }}
+                        >
+                          {noteGlobale}
+                        </div>
+                      </td>
+
                       {/* Date of review */}
-                      <td className="px-5 py-5 font-sans align-middle cursor-default" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
-                        <div className="text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                      <td className="px-4 py-4 font-sans align-middle cursor-default whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        <div className="text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                           {formatToDisplayDate(rev.dateStr) || '-'}
                         </div>
                       </td>
 
                       {/* Customer Info (Rédacteur) */}
-                      <td className="px-5 py-5 font-sans align-middle cursor-default" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
-                        <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                      <td className="px-4 py-4 font-sans align-middle cursor-default" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                           {truncatedClientName}
                         </div>
                       </td>
- 
+
+                      {/* Qualité */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.qualite ?? '-'}
+                      </td>
+
+                      {/* Ponctualité */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.ponctualite ?? '-'}
+                      </td>
+
+                      {/* Politesse */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.politesse ?? '-'}
+                      </td>
+
+                      {/* Clarté PDF */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.clartePdf ?? '-'}
+                      </td>
+
+                      {/* Explications */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.explications ?? '-'}
+                      </td>
+
+                      {/* Sensibilisation */}
+                      <td className="px-3 py-4 text-center align-middle font-medium" style={{ fontSize: '16px', color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        {rev.sensibilisation ?? '-'}
+                      </td>
+
                       {/* Comment (Évaluation) */}
-                      <td className="px-5 py-5 font-sans align-middle cursor-default" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
-                        <div className="text-black" style={{ color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif', cursor: 'default' }}>
+                      <td className="px-4 py-4 font-sans align-middle cursor-default" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        <div className="text-black" style={{ color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                           {truncatedComment}
                         </div>
                       </td>
- 
-                      {/* Badge evaluation status (Satisfaction) */}
-                      <td className="px-5 py-5 text-left align-middle whitespace-nowrap">
-                        <span 
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            borderRadius: '1000px',
-                            backgroundColor: 'rgb(74, 19, 80)',
-                            border: '1px solid rgb(74, 19, 80)',
-                            color: '#fff',
-                            fontSize: '16px',
-                            fontWeight: 600,
-                            padding: '6px 14px',
-                            whiteSpace: 'nowrap',
-                            fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                            cursor: 'default'
-                          }}
-                        >
-                          {t(rev.label)}
-                        </span>
-                      </td>
- 
+
                       {/* Actions (Action) */}
-                      <td className="px-5 py-5 text-right align-middle whitespace-nowrap bg-transparent" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-4 text-right align-middle whitespace-nowrap bg-transparent" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
                           onClick={() => handleDeleteReview(rev.id)}
@@ -262,3 +325,4 @@ export default function SatisfactionTab({
     </div>
   );
 }
+

@@ -5,11 +5,32 @@ import { doc, setDoc } from 'firebase/firestore';
 import { t } from '../utils/translate';
 import { getParisTimestamp } from '../utils/dateUtils';
 
+interface CriteriaConfig {
+  key: 'qualite' | 'ponctualite' | 'politesse' | 'clartePdf' | 'explications' | 'sensibilisation';
+  label: string;
+}
+
+const CRITERIA_LIST: CriteriaConfig[] = [
+  { key: 'qualite', label: 'Qualité de la prestation réalisée.' },
+  { key: 'ponctualite', label: 'Ponctualité du technicien.' },
+  { key: 'politesse', label: 'Politesse et présentation du technicien.' },
+  { key: 'clartePdf', label: "Clarté du rapport d'intervention." },
+  { key: 'explications', label: 'Explications fournies sur la maintenance.' },
+  { key: 'sensibilisation', label: 'Qualité de la sensibilisation au matériel.' },
+];
+
 export default function SatisfactionFormPage() {
   const [defibId, setDefibId] = useState('');
   const [nomPrenom, setNomPrenom] = useState('');
   const [commentaire, setCommentaire] = useState('');
-  const [mention, setMention] = useState<'Excellent' | 'Parfait' | 'Moyen' | 'Décevant' | 'Médiocre'>('Excellent');
+
+  // 6 Criteria Ratings (1-4)
+  const [qualite, setQualite] = useState<number | null>(null);
+  const [ponctualite, setPonctualite] = useState<number | null>(null);
+  const [politesse, setPolitesse] = useState<number | null>(null);
+  const [clartePdf, setClartePdf] = useState<number | null>(null);
+  const [explications, setExplications] = useState<number | null>(null);
+  const [sensibilisation, setSensibilisation] = useState<number | null>(null);
   
   const [isCheckingId, setIsCheckingId] = useState(false);
   const [isIdValid, setIsIdValid] = useState<boolean | null>(null);
@@ -17,6 +38,24 @@ export default function SatisfactionFormPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  const criteriaValues = useMemo(() => ({
+    qualite,
+    ponctualite,
+    politesse,
+    clartePdf,
+    explications,
+    sensibilisation,
+  }), [qualite, ponctualite, politesse, clartePdf, explications, sensibilisation]);
+
+  const setCriteriaValue = (key: CriteriaConfig['key'], val: number) => {
+    if (key === 'qualite') setQualite(val);
+    else if (key === 'ponctualite') setPonctualite(val);
+    else if (key === 'politesse') setPolitesse(val);
+    else if (key === 'clartePdf') setClartePdf(val);
+    else if (key === 'explications') setExplications(val);
+    else if (key === 'sensibilisation') setSensibilisation(val);
+  };
 
   // Live lookup check of defibrillator identifier against main software's registry
   useEffect(() => {
@@ -48,12 +87,20 @@ export default function SatisfactionFormPage() {
 
   // Combined validity check
   const isFormValid = useMemo(() => {
+    const allCriteriaSelected = qualite !== null &&
+                                ponctualite !== null &&
+                                politesse !== null &&
+                                clartePdf !== null &&
+                                explications !== null &&
+                                sensibilisation !== null;
+
     return defibId.trim().length > 0 &&
            nomPrenom.trim().length > 0 &&
            commentaire.trim().length > 0 &&
+           allCriteriaSelected &&
            isIdValid === true &&
            !isCheckingId;
-  }, [defibId, nomPrenom, commentaire, isIdValid, isCheckingId]);
+  }, [defibId, nomPrenom, commentaire, qualite, ponctualite, politesse, clartePdf, explications, sensibilisation, isIdValid, isCheckingId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,11 +124,20 @@ export default function SatisfactionFormPage() {
       const key = tenantId === 'demo' ? 'customerReviews' : `${tenantId}_customerReviews`;
       const existingReviews = await fetchRawCollectionFromFirestore<any[]>(key) || [];
 
+      const scores = [qualite, ponctualite, politesse, clartePdf, explications, sensibilisation].filter((v): v is number => typeof v === 'number');
+      const avgVal = scores.length > 0 ? (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1) : '4.0';
+
       const newReview = {
         id: 'rev-' + Date.now(),
         clientName: nomPrenom.trim(),
         comment: commentaire.trim(),
-        label: mention,
+        defibId: defibId.trim(),
+        qualite,
+        ponctualite,
+        politesse,
+        clartePdf,
+        explications,
+        sensibilisation,
         dateStr: new Date().toISOString().split('T')[0]
       };
 
@@ -95,12 +151,11 @@ export default function SatisfactionFormPage() {
         const notifKey = tenantId === 'demo' ? 'notifications' : `${tenantId}_notifications`;
         const existingNotifications = await fetchRawCollectionFromFirestore<any[]>(notifKey) || [];
         const client_denomination = nomPrenom.trim() || "Un client anonyme";
-        const label_review = mention;
         const comment_text = commentaire.trim() ? ` (${commentaire.trim()})` : "";
         const newNotif = {
           id: 'notif_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
           category: 'Système',
-          title: `Le client ${client_denomination} signale sa satisfaction avec la mention : ${label_review}${comment_text}.`,
+          title: `Le client ${client_denomination} a soumis un avis de satisfaction (Note globale : ${avgVal}/4)${comment_text}.`,
           timestamp: getParisTimestamp(),
           situation: 'Nouveau',
         };
@@ -122,11 +177,16 @@ export default function SatisfactionFormPage() {
       }
 
       setIsSubmitted(true);
-      // Optional: clear inputs
+      // Clear inputs
       setDefibId('');
       setNomPrenom('');
       setCommentaire('');
-      setMention('Excellent');
+      setQualite(null);
+      setPonctualite(null);
+      setPolitesse(null);
+      setClartePdf(null);
+      setExplications(null);
+      setSensibilisation(null);
     } catch (err: any) {
       console.error("Error submitting review:", err);
       setErrorMessage("Une erreur est survenue lors de l'enregistrement de votre évaluation.");
@@ -166,11 +226,11 @@ export default function SatisfactionFormPage() {
         }
       `}</style>
 
-      <div className="sm:mx-auto w-full max-w-md">
-        {/* Outer Container with white background, without box-shadow/border as requested */}
+      <div className="sm:mx-auto w-full max-w-lg">
+        {/* Outer Container */}
         <div className="bg-white p-2 sm:p-4 relative overflow-hidden" id="satisfaction-card">
           
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-6">
             
             {errorMessage && (
               <div className="p-4 bg-rose-50 text-rose-700 border border-rose-100 rounded-xl text-xs font-sans">
@@ -226,60 +286,68 @@ export default function SatisfactionFormPage() {
               />
             </div>
 
-            {/* MENTION (RATING) EMOTIONS BUTTON PILLS */}
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-slate-700 font-sans">
-                {t("Sélectionnez une mention.")}
-              </label>
-              <div className="grid grid-cols-2 gap-2 text-center">
-                {(['Excellent', 'Parfait', 'Moyen', 'Décevant', 'Médiocre'] as const).map((opt) => {
-                  const isSelected = mention === opt;
-                  
-                  // Blue theme colors and shadows for selection
-                  const btnStyle: React.CSSProperties = isSelected
-                    ? {
-                        backgroundColor: 'rgb(53, 86, 236)',
-                        color: '#ffffff',
-                        boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
-                        border: 'none',
-                        borderRadius: '12px',
-                        fontSize: '18px',
-                        padding: '12px 14px',
-                        fontWeight: '100',
-                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                        cursor: 'pointer',
-                        transition: '0s',
-                      }
-                    : {
-                        backgroundColor: '#f1f5f9', // grey
-                        color: '#475569', // grey text
-                        border: '1px solid #cbd5e1', // grey border
-                        borderRadius: '12px',
-                        fontSize: '18px',
-                        padding: '12px 14px',
-                        fontWeight: '100',
-                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
-                        cursor: 'pointer',
-                        transition: '0s',
-                      };
+            {/* 6 CRITERIA RADIOS (1 à 4) */}
+            <div className="space-y-5 pt-2 border-t border-slate-100">
+              {CRITERIA_LIST.map((crit) => {
+                const currentVal = criteriaValues[crit.key];
 
-                  return (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => setMention(opt)}
-                      style={btnStyle}
-                      className="active:scale-98"
-                    >
-                      {t(opt)}
-                    </button>
-                  );
-                })}
-              </div>
+                return (
+                  <div key={crit.key} className="flex flex-col gap-2">
+                    <label className="text-sm font-bold text-slate-700 font-sans">
+                      {t(crit.label)}
+                    </label>
+                    <div className="grid grid-cols-4 gap-2 text-center">
+                      {[1, 2, 3, 4].map((num) => {
+                        const isSelected = currentVal === num;
+                        const labelText = num === 1 ? '1 (Décevant)' : num === 4 ? '4 (Excellent)' : `${num}`;
+
+                        const btnStyle: React.CSSProperties = isSelected
+                          ? {
+                              backgroundColor: 'rgb(53, 86, 236)',
+                              color: '#ffffff',
+                              boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
+                              border: 'none',
+                              borderRadius: '12px',
+                              fontSize: '15px',
+                              padding: '10px 4px',
+                              fontWeight: '100',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                              cursor: 'pointer',
+                              transition: '0s',
+                            }
+                          : {
+                              backgroundColor: '#f1f5f9',
+                              color: '#475569',
+                              border: '1px solid #cbd5e1',
+                              borderRadius: '12px',
+                              fontSize: '15px',
+                              padding: '10px 4px',
+                              fontWeight: '100',
+                              fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
+                              cursor: 'pointer',
+                              transition: '0s',
+                            };
+
+                        return (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => setCriteriaValue(crit.key, num)}
+                            style={btnStyle}
+                            className="active:scale-98"
+                          >
+                            {t(labelText)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* COMMENTAIRE */}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-1.5 pt-2">
               <label htmlFor="commentaire" className="text-sm font-bold text-slate-700 font-sans">
                 {t("Commentaire.")}
               </label>
@@ -335,3 +403,4 @@ export default function SatisfactionFormPage() {
     </div>
   );
 }
+

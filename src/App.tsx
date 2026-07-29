@@ -8163,6 +8163,7 @@ export default function App() {
                             <th className="px-4 py-3.5" style={thStyle}>Série.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Identifiant.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Technicien.</th>
+                            <th className="px-4 py-3.5" style={thStyle}>Réf. Intervention.</th>
                             <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions</th>
                           </tr>
                         </thead>
@@ -8298,8 +8299,29 @@ export default function App() {
                                 {/* Technicien */}
                                 <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                                   {rep.techName && rep.techName.trim() ? (
-                                    <div className="font-medium text-slate-800 whitespace-nowrap" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                    <div className="font-medium text-[#000000] whitespace-nowrap" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                                       {rep.techName}
+                                    </div>
+                                  ) : null}
+                                </td>
+
+                                {/* Réf. Intervention */}
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  {rep.interventionReference && rep.interventionReference.trim() ? (
+                                    <div 
+                                      style={{ 
+                                        display: 'inline-flex', 
+                                        alignItems: 'center', 
+                                        gap: '8px',
+                                        border: '1px solid rgb(231, 231, 231)',
+                                        borderRadius: '1000px',
+                                        padding: '4px 12px',
+                                        backgroundColor: '#ffffff',
+                                        fontFamily: '"DefibeoMain", "Civilprom", sans-serif'
+                                      }} 
+                                      className="whitespace-nowrap font-medium"
+                                    >
+                                      {rep.interventionReference}
                                     </div>
                                   ) : null}
                                 </td>

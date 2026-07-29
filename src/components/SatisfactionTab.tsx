@@ -108,6 +108,58 @@ export default function SatisfactionTab({
     transition: 'all 0s',
   };
 
+  // CSV Export handler
+  const handleExportCSV = () => {
+    const headers = [
+      "Note globale",
+      "Date",
+      "Rédacteur",
+      "Qualité",
+      "Ponctualité",
+      "Politesse",
+      "Clarté PDF",
+      "Explications",
+      "Sensibilisation",
+      "Évaluation"
+    ];
+
+    const rows = filteredReviews.map(rev => {
+      const note = getNoteGlobale(rev);
+      const date = formatToDisplayDate(rev.dateStr) || '';
+      const client = rev.clientName || '';
+      const qualite = rev.qualite ?? '';
+      const ponctualite = rev.ponctualite ?? '';
+      const politesse = rev.politesse ?? '';
+      const clartePdf = rev.clartePdf ?? '';
+      const explications = rev.explications ?? '';
+      const sensibilisation = rev.sensibilisation ?? '';
+      const evaluation = (rev.comment || '').replace(/"/g, '""').replace(/\r?\n|\r/g, ' ');
+
+      return [
+        `"${note}"`,
+        `"${date}"`,
+        `"${client.replace(/"/g, '""')}"`,
+        `"${qualite}"`,
+        `"${ponctualite}"`,
+        `"${politesse}"`,
+        `"${clartePdf}"`,
+        `"${explications}"`,
+        `"${sensibilisation}"`,
+        `"${evaluation}"`
+      ].join(';');
+    });
+
+    const csvContent = "\uFEFF" + [headers.join(';'), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `evaluations_satisfaction_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Searching logic
   const filteredReviews = customerReviews.filter((rev) => {
     const q = search.trim().toLowerCase();
@@ -178,6 +230,16 @@ export default function SatisfactionTab({
                 onBlur={() => setIsSearchFocused(false)}
               />
             </div>
+
+            {/* Export CSV Button */}
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              style={rowActionButtonStyle}
+              className="cursor-pointer font-sans whitespace-nowrap hover:opacity-80 transition-all"
+            >
+              <span>{t("Exporter")}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -219,9 +281,10 @@ export default function SatisfactionTab({
                     ? `${rev.clientName.substring(0, 15)}...` 
                     : rev.clientName || '-';
 
-                  const truncatedComment = rev.comment && rev.comment.length > 150 
-                    ? `${rev.comment.substring(0, 150)}...` 
-                    : rev.comment || '-';
+                  const cleanComment = rev.comment ? rev.comment.replace(/\r?\n|\r/g, " ").trim() : '';
+                  const truncatedComment = cleanComment.length > 30 
+                    ? `${cleanComment.substring(0, 30)}...` 
+                    : cleanComment || '-';
 
                   const noteGlobale = getNoteGlobale(rev);
 
@@ -295,7 +358,7 @@ export default function SatisfactionTab({
                       </td>
 
                       {/* Comment (Évaluation) */}
-                      <td className="px-4 py-4 font-sans align-middle cursor-default" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                      <td className="px-4 py-4 font-sans align-middle cursor-default whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                         <div className="text-black" style={{ color: '#000000', fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                           {truncatedComment}
                         </div>

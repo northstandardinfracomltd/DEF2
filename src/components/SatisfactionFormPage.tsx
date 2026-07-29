@@ -240,8 +240,8 @@ export default function SatisfactionFormPage() {
 
             {/* ID DEFIB FIELD */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="defib_id" className="text-sm font-bold text-slate-700 font-sans">
-                {t("Identifiant du défibrillateur.")}
+              <label htmlFor="defib_id" className="font-bold font-sans" style={{ color: '#000000', fontSize: '18px' }}>
+                {t("Identifiant du matériel.")}
               </label>
               <input
                 id="defib_id"
@@ -254,25 +254,25 @@ export default function SatisfactionFormPage() {
               />
               
               {isCheckingId && (
-                <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
+                <p className="text-[16px] text-slate-500 font-bold font-sans mt-0.5">
                   {t("Vérification de l'identifiant...")}
                 </p>
               )}
               {!isCheckingId && isIdValid === true && (
-                <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
-                  {t("Identifiant défibrillateur valide.")}
+                <p className="text-[16px] text-emerald-600 font-bold font-sans mt-0.5">
+                  {t("Identifiant matériel valide.")}
                 </p>
               )}
               {!isCheckingId && isIdValid === false && (
                 <p className="text-[16px] text-red-600 font-bold font-sans mt-0.5">
-                  {t("Identifiant défibrillateur invalide.")}
+                  {t("Identifiant matériel invalide.")}
                 </p>
               )}
             </div>
 
             {/* NOM PRENOM */}
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="nom_prenom" className="text-sm font-bold text-slate-700 font-sans">
+              <label htmlFor="nom_prenom" className="font-bold font-sans" style={{ color: '#000000', fontSize: '18px' }}>
                 {t("Votre nom et prénom.")}
               </label>
               <input
@@ -284,22 +284,25 @@ export default function SatisfactionFormPage() {
                 onChange={(e) => setNomPrenom(e.target.value)}
                 className="w-full text-black"
               />
+              <p className="text-[15px] font-sans pt-1" style={{ color: '#000000' }}>
+                {t("Évaluez notre service selon les critères suivants de 1 (Décevant) à 4 (Excellent).")}
+              </p>
             </div>
 
             {/* 6 CRITERIA RADIOS (1 à 4) */}
-            <div className="space-y-5 pt-2 border-t border-slate-100">
+            <div className="space-y-5 pt-2">
               {CRITERIA_LIST.map((crit) => {
                 const currentVal = criteriaValues[crit.key];
 
                 return (
                   <div key={crit.key} className="flex flex-col gap-2">
-                    <label className="text-sm font-bold text-slate-700 font-sans">
+                    <label className="font-bold font-sans" style={{ color: '#000000', fontSize: '18px' }}>
                       {t(crit.label)}
                     </label>
                     <div className="grid grid-cols-4 gap-2 text-center">
                       {[1, 2, 3, 4].map((num) => {
                         const isSelected = currentVal === num;
-                        const labelText = num === 1 ? '1 (Décevant)' : num === 4 ? '4 (Excellent)' : `${num}`;
+                        const labelText = `${num}`;
 
                         const btnStyle: React.CSSProperties = isSelected
                           ? {
@@ -308,9 +311,9 @@ export default function SatisfactionFormPage() {
                               boxShadow: 'rgba(255, 255, 255, 0.2) 0px 1px 1px inset, rgba(8, 8, 8, 0.2) 0px 1px 2px, rgba(8, 8, 8, 0.08) 0px 4px 4px, rgb(53, 86, 236) 0px 7px 0px -12px, rgba(255, 255, 255, 0.12) 0px 6px 12px inset',
                               border: 'none',
                               borderRadius: '12px',
-                              fontSize: '15px',
+                              fontSize: '18px',
                               padding: '10px 4px',
-                              fontWeight: '100',
+                              fontWeight: 'bold',
                               fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
                               cursor: 'pointer',
                               transition: '0s',
@@ -320,9 +323,9 @@ export default function SatisfactionFormPage() {
                               color: '#475569',
                               border: '1px solid #cbd5e1',
                               borderRadius: '12px',
-                              fontSize: '15px',
+                              fontSize: '18px',
                               padding: '10px 4px',
-                              fontWeight: '100',
+                              fontWeight: 'bold',
                               fontFamily: '"DefibeoMain", "Civilprom", sans-serif',
                               cursor: 'pointer',
                               transition: '0s',
@@ -348,7 +351,7 @@ export default function SatisfactionFormPage() {
 
             {/* COMMENTAIRE */}
             <div className="flex flex-col gap-1.5 pt-2">
-              <label htmlFor="commentaire" className="text-sm font-bold text-slate-700 font-sans">
+              <label htmlFor="commentaire" className="font-bold font-sans" style={{ color: '#000000', fontSize: '18px' }}>
                 {t("Commentaire.")}
               </label>
               <textarea

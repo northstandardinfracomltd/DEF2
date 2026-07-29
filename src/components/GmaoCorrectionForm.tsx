@@ -2021,7 +2021,7 @@ export default function GmaoCorrectionForm({
   };
 
   return (
-    <div className={isWebapp ? "w-full space-y-6 font-sans animate-fadeIn max-w-full text-black pb-48 px-2 sm:px-4 bg-white" : "w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-3xl lg:max-w-5xl mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl"} id="gmao-correction-layout">
+    <div className={isWebapp || forceSmartphoneLayout ? "w-full space-y-6 font-sans animate-fadeIn max-w-full text-black pb-48 px-2 sm:px-4 bg-white" : "w-full space-y-6 font-sans animate-fadeIn max-w-full md:max-w-3xl lg:max-w-5xl mx-auto text-black pb-48 px-0 md:px-4 bg-white md:border md:border-slate-200 md:shadow-lg md:rounded-3xl"} id="gmao-correction-layout">
       {isWebapp && isNew && (
         <div className="sticky top-0 right-0 z-50 flex justify-end pointer-events-none w-full -mr-0 md:-mr-4 mt-0 mb-[-36px]">
           <div 
@@ -5149,10 +5149,10 @@ export default function GmaoCorrectionForm({
 
       {/* Fixed Error Code Helper Box */}
       <div 
-        className="fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-2.5 px-3 z-40 space-y-2 w-full animate-fade-in" 
+        className={isWebapp || forceSmartphoneLayout ? "sticky bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-2.5 px-3 z-40 space-y-2 w-full animate-fade-in" : "fixed bottom-0 left-0 right-0 bg-white border border-b-0 border-slate-200 p-2.5 px-3 z-40 space-y-2 w-full animate-fade-in"} 
         style={{ 
           boxShadow: '0 -4px 20px -2px rgba(0, 0, 0, 0.08)',
-          maxWidth: '1000px',
+          maxWidth: isWebapp || forceSmartphoneLayout ? '100%' : '1000px',
           marginLeft: 'auto',
           marginRight: 'auto',
           borderTopLeftRadius: '0px',

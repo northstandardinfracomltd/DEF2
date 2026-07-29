@@ -7843,74 +7843,6 @@ export default function App() {
           {/* GMAO MODULE */}
           {/* ======================================= */}
           {activeTab === 'gmao' && (() => {
-            if (editingReportId) {
-              const repToEdit = generatedReports.find(r => r.id === editingReportId);
-              if (repToEdit) {
-                return (
-                  <GmaoCorrectionForm
-                    report={repToEdit}
-                    onSave={(updatedReport) => {
-                      const updatedReports = generatedReports.map(r => r.id === editingReportId ? updatedReport : r);
-                      saveReports(updatedReports);
-                      if (updatedReport.defibSnapshot) {
-                        handleUpdateDefib(updatedReport.defibSnapshot);
-                      }
-                      
-                      // Match and validate the client signature pin if present
-                      if (updatedReport.clientPinCode && updatedReport.defibSnapshot?.clientId) {
-                        const targetClientId = updatedReport.defibSnapshot.clientId;
-                        const typedPin = updatedReport.clientPinCode.trim().toUpperCase();
-                        
-                        const updatedClients = clients.map(cl => {
-                          if (cl.id === targetClientId) {
-                            const originalPins = cl.signaturePins || [];
-                            const matchIndex = originalPins.findIndex(p => p.code.toUpperCase() === typedPin);
-                            let newPins = [...originalPins];
-                            if (matchIndex !== -1) {
-                              newPins[matchIndex] = {
-                                ...newPins[matchIndex],
-                                status: 'validé',
-                                validatedAt: new Date().toISOString(),
-                                reportTitle: updatedReport.title || 'Rapport d\'Intervention'
-                              };
-                            } else {
-                              // If there wasn't an emitted pin match but format was valid, record it as a custom validated pin!
-                              newPins.push({
-                                code: typedPin,
-                                createdAt: new Date().toISOString(),
-                                status: 'validé',
-                                validatedAt: new Date().toISOString(),
-                                reportTitle: updatedReport.title || 'Rapport d\'Intervention'
-                              });
-                            }
-                            return {
-                              ...cl,
-                              signaturePins: newPins
-                            };
-                          }
-                          return cl;
-                        });
-                        saveClients(updatedClients);
-                      }
-
-                      setEditingReportId(null);
-                      setEditReportForm(null);
-                    }}
-                    onCancel={() => {
-                      setEditingReportId(null);
-                      setEditReportForm(null);
-                    }}
-                    clients={clients}
-                    variables={variables}
-                    defibrillateurs={defibrillateurs}
-                    stocks={stocks}
-                    onUpdateStocks={saveStocks}
-                    members={members}
-                  />
-                );
-              }
-            }
-
             const customButtonStyle: React.CSSProperties = {
               backgroundColor: '#000',
               color: '#fff',
@@ -8753,6 +8685,96 @@ export default function App() {
                               Fermer
                             </button>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Side-bar popup for editing report correction form (Corriger) */}
+                {(() => {
+                  if (!editingReportId) return null;
+                  const repToEdit = generatedReports.find(r => r.id === editingReportId);
+                  if (!repToEdit) return null;
+
+                  return (
+                    <div 
+                      className="fixed inset-0 z-[9999] flex justify-end bg-black/40 backdrop-blur-xs animate-fadeIn"
+                      style={{ top: 0, left: 0, right: 0, bottom: 0, height: '100vh', width: '100vw' }}
+                      onClick={() => {
+                        setEditingReportId(null);
+                        setEditReportForm(null);
+                      }}
+                    >
+                      <div 
+                        className="relative w-full max-w-xl md:max-w-2xl bg-white flex flex-col overflow-hidden animate-slideLeft h-full"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          boxShadow: '-4px 0 24px rgba(0,0,0,0.18)',
+                          borderLeft: '1px solid #e2e8f0',
+                        }}
+                      >
+                        <div className="flex-1 overflow-y-auto bg-white font-sans relative">
+                          <GmaoCorrectionForm
+                            report={repToEdit}
+                            isWebapp={true}
+                            forceSmartphoneLayout={true}
+                            onSave={(updatedReport) => {
+                              const updatedReports = generatedReports.map(r => r.id === editingReportId ? updatedReport : r);
+                              saveReports(updatedReports);
+                              if (updatedReport.defibSnapshot) {
+                                handleUpdateDefib(updatedReport.defibSnapshot);
+                              }
+                              
+                              if (updatedReport.clientPinCode && updatedReport.defibSnapshot?.clientId) {
+                                const targetClientId = updatedReport.defibSnapshot.clientId;
+                                const typedPin = updatedReport.clientPinCode.trim().toUpperCase();
+                                
+                                const updatedClients = clients.map(cl => {
+                                  if (cl.id === targetClientId) {
+                                    const originalPins = cl.signaturePins || [];
+                                    const matchIndex = originalPins.findIndex(p => p.code.toUpperCase() === typedPin);
+                                    let newPins = [...originalPins];
+                                    if (matchIndex !== -1) {
+                                      newPins[matchIndex] = {
+                                        ...newPins[matchIndex],
+                                        status: 'validé',
+                                        validatedAt: new Date().toISOString(),
+                                        reportTitle: updatedReport.title || 'Rapport d\'Intervention'
+                                      };
+                                    } else {
+                                      newPins.push({
+                                        code: typedPin,
+                                        createdAt: new Date().toISOString(),
+                                        status: 'validé',
+                                        validatedAt: new Date().toISOString(),
+                                        reportTitle: updatedReport.title || 'Rapport d\'Intervention'
+                                      });
+                                    }
+                                    return {
+                                      ...cl,
+                                      signaturePins: newPins
+                                    };
+                                  }
+                                  return cl;
+                                });
+                                saveClients(updatedClients);
+                              }
+
+                              setEditingReportId(null);
+                              setEditReportForm(null);
+                            }}
+                            onCancel={() => {
+                              setEditingReportId(null);
+                              setEditReportForm(null);
+                            }}
+                            clients={clients}
+                            variables={variables}
+                            defibrillateurs={defibrillateurs}
+                            stocks={stocks}
+                            onUpdateStocks={saveStocks}
+                            members={members}
+                          />
                         </div>
                       </div>
                     </div>

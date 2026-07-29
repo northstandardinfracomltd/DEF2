@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { OtherEquipment, Client } from '../types';
+import { OtherEquipment, Client, Variable } from '../types';
 import { Plus, Search, Trash2, Edit } from 'lucide-react';
 import { generateRandomShortCode } from '../utils';
 import { getRegionsForCountry } from '../utils/regions';
@@ -186,6 +186,7 @@ interface AutresMaterielsTabProps {
   setActiveTab?: (tab: any) => void;
   members?: any[];
   defibrillateurs?: any[];
+  variables?: Variable[];
 }
 
 // Custom Pink Radio Component
@@ -243,6 +244,7 @@ export default function AutresMaterielsTab({
   setActiveTab,
   members = [],
   defibrillateurs = [],
+  variables = [],
 }: AutresMaterielsTabProps) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [isTourDropdownOpen, setIsTourDropdownOpen] = useState(false);
@@ -2284,49 +2286,89 @@ export default function AutresMaterielsTab({
                     <div className="space-y-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label>Spécifier le type de filtre à remplacer</label>
-                          <select 
-                            value={specifiques.filtreRemplacer || 'Aucun'} 
-                            onChange={(e) => handleSpecifiqueChange('filtreRemplacer', e.target.value)}
-                          >
-                            <option value="Aucun">Aucun</option>
-                            <option value="Pré-filtre">Pré-filtre</option>
-                            <option value="HEPA H13">HEPA H13</option>
-                            <option value="HEPA H14">HEPA H14</option>
-                            <option value="Charbon actif">Charbon actif</option>
-                          </select>
+                          <label>Série.</label>
+                          <input 
+                            type="text" 
+                            value={specifiques.serie || ''} 
+                            placeholder="Série" 
+                            onChange={(e) => handleSpecifiqueChange('serie', e.target.value)} 
+                          />
                         </div>
 
                         <div className="space-y-1">
-                          <label>Saisir le pourcentage d'usure des filtres</label>
-                          <input 
-                            type="text" 
-                            value={specifiques.usureFiltre || ''} 
-                            placeholder="Ex: 45%" 
-                            onChange={(e) => handleSpecifiqueChange('usureFiltre', e.target.value)} 
-                          />
+                          <label>Type de filtre.</label>
+                          <select 
+                            value={specifiques.typeFiltre || ''} 
+                            onChange={(e) => handleSpecifiqueChange('typeFiltre', e.target.value)}
+                          >
+                            <option value="">Sélectionner un type de filtre</option>
+                            {(variables || []).filter(v => v.category === 'Type Filtre Purificateur').map(v => (
+                              <option key={v.id} value={v.nom}>{v.nom}</option>
+                            ))}
+                          </select>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label>Tester le changement de vitesse du flux d'air</label>
+                          <label>Dernière intervention.</label>
+                          <input 
+                            type="date" 
+                            value={specifiques.derniereIntervention || ''} 
+                            onChange={(e) => handleSpecifiqueChange('derniereIntervention', e.target.value)} 
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label>Nettoyage lors de la dernière intervention.</label>
                           <div className="flex space-x-4 py-1">
-                            <CustomPinkRadio value="Fonctionnel" currentValue={specifiques.fluxAir || 'Fonctionnel'} onChange={(v) => handleSpecifiqueChange('fluxAir', v)} label="Fonctionnel" />
-                            <CustomPinkRadio value="Défectueux" currentValue={specifiques.fluxAir || 'Fonctionnel'} onChange={(v) => handleSpecifiqueChange('fluxAir', v)} label="Défectueux" />
+                            <CustomPinkRadio value="Oui" currentValue={specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageDerniereIntervention', v)} label="Oui" />
+                            <CustomPinkRadio value="Non" currentValue={specifiques.nettoyageDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('nettoyageDerniereIntervention', v)} label="Non" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label>Désinfection lors de la dernière intervention.</label>
+                          <div className="flex space-x-4 py-1">
+                            <CustomPinkRadio value="Oui" currentValue={specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionDerniereIntervention', v)} label="Oui" />
+                            <CustomPinkRadio value="Non" currentValue={specifiques.desinfectionDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('desinfectionDerniereIntervention', v)} label="Non" />
                           </div>
                         </div>
 
                         <div className="space-y-1">
-                          <label>Vérifier l'état de propreté des capteurs</label>
-                          <select 
-                            value={specifiques.propreteCapteurs || 'Propre'} 
-                            onChange={(e) => handleSpecifiqueChange('propreteCapteurs', e.target.value)}
-                          >
-                            <option value="Propre">Propre</option>
-                            <option value="Encrassé">Encrassé</option>
-                            <option value="À nettoyer d'urgence">À nettoyer d'urgence</option>
-                          </select>
+                          <label>Test de fonctionnement lors de la dernière intervention.</label>
+                          <div className="flex space-x-4 py-1">
+                            <CustomPinkRadio value="Oui" currentValue={specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementDerniereIntervention', v)} label="Oui" />
+                            <CustomPinkRadio value="Non" currentValue={specifiques.testFonctionnementDerniereIntervention || 'Oui'} onChange={(v) => handleSpecifiqueChange('testFonctionnementDerniereIntervention', v)} label="Non" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label>Pièce filtre lors de la dernière maintenance.</label>
+                          <input 
+                            type="text" 
+                            disabled 
+                            readOnly 
+                            className="bg-slate-100 text-slate-500 cursor-not-allowed" 
+                            value={specifiques.pieceFiltreDerniereMaintenance || ''} 
+                            placeholder="Inconnu" 
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label>Autre pièce consommable lors de la dernière maintenance.</label>
+                          <input 
+                            type="text" 
+                            disabled 
+                            readOnly 
+                            className="bg-slate-100 text-slate-500 cursor-not-allowed" 
+                            value={specifiques.autrePieceConsommableDerniereMaintenance || ''} 
+                            placeholder="Inconnu" 
+                          />
                         </div>
                       </div>
                     </div>

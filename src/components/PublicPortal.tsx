@@ -4514,6 +4514,7 @@ export default function PublicPortal({
                     isWebapp={true}
                     otherEquipments={otherEquipments}
                     defibrillateurs={defibrillateurs}
+                    variables={variables}
                     onSelectDefibrillator={(defibId) => {
                       setSelectedOtherEquipmentUnique(null);
                       setSelectedDefibId(defibId);

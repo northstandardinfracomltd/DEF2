@@ -5566,6 +5566,7 @@ export default function App() {
               setActiveTab={setActiveTab}
               members={members}
               defibrillateurs={defibrillateurs}
+              variables={variables}
             />
           )}
 

@@ -7924,6 +7924,8 @@ export default function App() {
                                             borderRadius: "50%",
                                             backgroundColor: 
                                               (m.status || "Brouillon") === "Brouillon" ? "#94a3b8" : 
+                                              (m.status || "Brouillon") === "Accepté Client" ? "#16a34a" : 
+                                              (m.status || "Brouillon") === "Refusé Client" ? "#dc2626" : 
                                               (m.status || "Brouillon") === "À faire" ? "#3b82f6" :  
                                               (m.status || "Brouillon") === "En cours" ? "#ef4444" :  
                                               (m.status || "Brouillon") === "Effectué" ? "#22c55e" :  
@@ -7950,6 +7952,8 @@ export default function App() {
                                           className="w-full font-sans focus:outline-none cursor-pointer font-semibold padding-with-dot"
                                         >
                                           <option value="Brouillon">Brouillon</option>
+                                          <option value="Accepté Client">Accepté Client</option>
+                                          <option value="Refusé Client">Refusé Client</option>
                                           <option value="À faire">À faire</option>
                                           <option value="Attente">Attente</option>
                                           <option value="Effectué">Effectué</option>

@@ -197,6 +197,7 @@ export default function ClientPortal({
   onAddNotification,
 }: ClientPortalProps) {
   const [activePortalTab, setActivePortalTab] = useState<'defibs' | 'bills' | 'reports' | 'info' | 'autovigilance'>('defibs');
+  const [reportsFilter, setReportsFilter] = useState<'upcoming' | 'validated'>('validated');
   const [isCommunicationDismissed, setIsCommunicationDismissed] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('dismissed_portal_communication') === 'true';
@@ -2543,7 +2544,7 @@ export default function ClientPortal({
               }`}
               style={{ borderRadius: '12px' }}
             >
-              {t('Devis et factures')}
+              {t('Commandes')}
             </button>
           )}
           <button
@@ -2555,7 +2556,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            {t('Rapports PDF')}
+            {t('Interventions')}
           </button>
           <button
             onClick={() => setActivePortalTab('info')}
@@ -2578,30 +2579,42 @@ export default function ClientPortal({
             <div className="space-y-6">
               {companyInfo?.communicationPortailClient && !isCommunicationDismissed && (
                 <div 
-                  className="p-5 rounded-2xl border border-pink-200 bg-pink-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans text-black relative animate-fadeIn"
+                  className="p-5 font-sans text-black relative animate-fadeIn flex flex-col gap-4"
                   style={{
-                    backgroundColor: '#fff5fb',
-                    borderColor: '#fbcfe8'
+                    backgroundColor: 'rgb(255 255 255)',
+                    borderColor: 'rgb(161 161 161)',
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderRadius: '13px'
                   }}
                 >
-                  <div className="space-y-1.5 flex-1 text-left">
-                    <strong className="block text-[12px] uppercase tracking-wider text-[#fe4eba] font-bold">
-                      {t("Communication portail client")}
-                    </strong>
-                    <p className="text-sm font-medium text-slate-800 leading-relaxed whitespace-pre-line">
+                  <div className="text-left">
+                    <p className="font-medium leading-relaxed whitespace-pre-line" style={{ color: '#000', fontSize: '16px', cursor: 'default' }}>
                       {companyInfo.communicationPortailClient}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sessionStorage.setItem('dismissed_portal_communication', 'true');
-                      setIsCommunicationDismissed(true);
-                    }}
-                    className="self-start md:self-center px-4 py-2 bg-[#fe4eba] hover:bg-[#e1389e] text-white font-semibold text-xs rounded-xl shadow-sm transition-all border-none cursor-pointer"
-                  >
-                    {t("J'ai compris")}
-                  </button>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sessionStorage.setItem('dismissed_portal_communication', 'true');
+                        setIsCommunicationDismissed(true);
+                      }}
+                      style={{
+                        fontSize: '18px',
+                        backgroundColor: '#000000',
+                        color: '#ffffff',
+                        boxShadow: 'none',
+                        borderRadius: '13px',
+                        border: 'none',
+                        padding: '10px 20px',
+                        cursor: 'pointer'
+                      }}
+                      className="font-semibold transition-all"
+                    >
+                      {t("J'ai compris")}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2856,7 +2869,7 @@ export default function ClientPortal({
             )
           )}
 
-          {/* Section 4: Rapports PDF */}
+          {/* Section 4: Interventions */}
           {activePortalTab === 'reports' && (
             (() => {
               const clientDefibIds = new Set(clientDefibs.map(df => df.id));
@@ -2865,7 +2878,12 @@ export default function ClientPortal({
               const clientOtherIdents = new Set(clientOthers.map(o => o.identifiant));
 
               const clientReports = generatedReports.filter(rep => {
-                if (!rep.validated) return false;
+                const isUpcoming = rep.isUpcoming || rep.status === 'À venir' || rep.status === 'upcoming' || rep.upcoming || rep.isFuture;
+                if (reportsFilter === 'upcoming') {
+                  if (!isUpcoming) return false;
+                } else {
+                  if (isUpcoming || !rep.validated) return false;
+                }
                 const snapClientId = rep.defibSnapshot?.clientId;
                 if (snapClientId && snapClientId === authenticatedClient.id) return true;
                 if (rep.defibId && (clientDefibIds.has(rep.defibId) || clientOtherIds.has(rep.defibId))) return true;
@@ -2873,170 +2891,222 @@ export default function ClientPortal({
                 return false;
               });
 
-              const formatTitle = (str: string) => {
-                const s = (str || 'Constat de maintenance').trim();
-                if (!s) return '';
-                return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-              };
-
-              return clientReports.length === 0 ? null : (
+              return (
                 <div className="space-y-6">
-                  {clientReports.map((rep) => {
-                    const snap = rep.defibSnapshot || {};
-                    return (
-                      <div
-                        key={rep.id}
-                        className="bg-white p-6 space-y-6"
-                        style={{
-                          border: '1px solid #cfcfcf',
-                          borderRadius: '13px',
-                        }}
-                      >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                          {/* Horodatage entrant. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Horodatage entrant.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.date || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
+                  {/* Toggle Segmenté À venir / Validées */}
+                  <div 
+                    className="flex items-center p-1 bg-white select-none w-fit" 
+                    style={{ 
+                      fontFamily: "'DefibeoMain', 'Civilprom', sans-serif",
+                      borderRadius: '15px',
+                      border: '1px solid #dadada',
+                      backgroundColor: '#ffffff',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setReportsFilter('upcoming')}
+                      style={{
+                        fontSize: '18px',
+                        borderRadius: '13px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: reportsFilter === 'upcoming' ? '#fe4eba' : 'transparent',
+                        color: reportsFilter === 'upcoming' ? '#ffffff' : '#000000',
+                        transition: 'none',
+                      }}
+                      className={`px-4 py-1.5 font-bold ${
+                        reportsFilter === 'upcoming' ? 'shadow-sm' : ''
+                      }`}
+                    >
+                      {t("À venir")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReportsFilter('validated')}
+                      style={{
+                        fontSize: '18px',
+                        borderRadius: '13px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: reportsFilter === 'validated' ? '#fe4eba' : 'transparent',
+                        color: reportsFilter === 'validated' ? '#ffffff' : '#000000',
+                        transition: 'none',
+                      }}
+                      className={`px-4 py-1.5 font-bold ${
+                        reportsFilter === 'validated' ? 'shadow-sm' : ''
+                      }`}
+                    >
+                      {t("Validées")}
+                    </button>
+                  </div>
 
-                          {/* Horodatage de clôture. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Horodatage de clôture.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.endTimeStamp || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Catégorie matériel. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Catégorie matériel.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={snap.categorie || 'Défibrillateur'}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Série. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Série.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={snap.numeroSerie || snap.specifiques?.numeroSerie || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Identifiant. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Identifiant.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.defibIdentifiant || snap.identifiant || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Technicien. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Technicien.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.techName || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Titre du document. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Titre du document.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.title || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Commentaire de diagnostic et de clôture. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Commentaire de diagnostic et de clôture.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={snap.commentaire || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Commentaire interne. */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Commentaire interne.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={snap.commentaireInterne || ''}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-
-                          {/* Facture émise. (Émettre une facture brouillon.) */}
-                          <div className="space-y-1">
-                            <label className="block text-[18px] font-bold text-black font-sans select-none">
-                              {t("Facture émise.")}
-                            </label>
-                            <input
-                              type="text"
-                              value={rep.emettreFactureBrouillon || 'Non'}
-                              disabled
-                              className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Télécharger Button */}
-                        <div className="mt-6">
-                          <button
-                            type="button"
-                            onClick={() => handleDownloadReport(rep)}
-                            className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                  {clientReports.length === 0 ? (
+                    <div className="text-center py-10 bg-white border border-slate-200 rounded-2xl p-5 text-slate-500 font-sans">
+                      {reportsFilter === 'upcoming'
+                        ? t("Aucune intervention à venir.")
+                        : t("Aucune intervention validée.")}
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {clientReports.map((rep) => {
+                        const snap = rep.defibSnapshot || {};
+                        return (
+                          <div
+                            key={rep.id}
+                            className="bg-white p-6 space-y-6"
+                            style={{
+                              border: '1px solid #cfcfcf',
+                              borderRadius: '13px',
+                            }}
                           >
-                            {t("Télécharger")}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                              {/* Horodatage entrant. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Horodatage entrant.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.date || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Horodatage de clôture. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Horodatage de clôture.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.endTimeStamp || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Catégorie matériel. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Catégorie matériel.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={snap.categorie || 'Défibrillateur'}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Série. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Série.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={snap.numeroSerie || snap.specifiques?.numeroSerie || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Identifiant. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Identifiant.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.defibIdentifiant || snap.identifiant || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Technicien. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Technicien.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.techName || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Titre du document. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Titre du document.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.title || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Commentaire de diagnostic et de clôture. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Commentaire de diagnostic et de clôture.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={snap.commentaire || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Commentaire interne. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Commentaire interne.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={snap.commentaireInterne || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
+                              {/* Facture émise. (Émettre une facture brouillon.) */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Facture émise.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={rep.emettreFactureBrouillon || 'Non'}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+                            </div>
+
+                            {/* Télécharger Button */}
+                            <div className="mt-6">
+                              <button
+                                type="button"
+                                onClick={() => handleDownloadReport(rep)}
+                                className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                              >
+                                {t("Télécharger")}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })()

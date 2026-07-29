@@ -264,7 +264,7 @@ export default function SatisfactionTab({
                 <tr className="bg-transparent">
                   <th className="px-4 py-3.5 text-center w-28 whitespace-nowrap" style={thStyle}>{t("Note globale.")}</th>
                   <th className="px-4 py-3.5 w-28 whitespace-nowrap" style={thStyle}>{t("Date.")}</th>
-                  <th className="px-4 py-3.5 w-40" style={thStyle}>{t("Rédacteur.")}</th>
+                  <th className="px-4 py-3.5 w-40 whitespace-nowrap" style={thStyle}>{t("Rédacteur.")}</th>
                   <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Qualité.")}</th>
                   <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Ponctualité.")}</th>
                   <th className="px-3 py-3.5 text-center whitespace-nowrap" style={thStyle}>{t("Politesse.")}</th>
@@ -321,8 +321,8 @@ export default function SatisfactionTab({
                       </td>
 
                       {/* Customer Info (Rédacteur) */}
-                      <td className="px-4 py-4 font-sans align-middle cursor-default" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
-                        <div className="font-bold text-black" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                      <td className="px-4 py-4 font-sans align-middle cursor-default whitespace-nowrap" style={{ fontSize: '15px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                        <div className="font-bold text-black whitespace-nowrap" style={{ fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
                           {truncatedClientName}
                         </div>
                       </td>

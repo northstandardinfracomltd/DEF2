@@ -284,9 +284,21 @@ export default function SatisfactionFormPage() {
                 onChange={(e) => setNomPrenom(e.target.value)}
                 className="w-full text-black"
               />
-              <p className="text-[15px] font-sans pt-1" style={{ color: '#000000' }}>
-                {t("Évaluez notre service selon les critères suivants de 1 (Décevant) à 4 (Excellent).")}
-              </p>
+              <div 
+                style={{ 
+                  color: '#fff', 
+                  fontSize: '16px', 
+                  textAlign: 'center', 
+                  marginTop: '55px', 
+                  background: '#7e2e86', 
+                  border: 'none', 
+                  borderRadius: '13px', 
+                  padding: '12px' 
+                }} 
+                className="font-sans"
+              >
+                {t("Ci-dessous, évaluez notre service selon les critères suivants de 1 (Décevant) à 4 (Excellent).")}
+              </div>
             </div>
 
             {/* 6 CRITERIA RADIOS (1 à 4) */}

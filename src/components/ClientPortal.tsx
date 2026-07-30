@@ -295,6 +295,8 @@ export default function ClientPortal({
   const [portalSignatureClientContratImage, setPortalSignatureClientContratImage] = useState('');
   const [contractSaveSuccess, setContractSaveSuccess] = useState(false);
   const [portalAccessKey, setPortalAccessKey] = useState('');
+  const [portalEmail, setPortalEmail] = useState('');
+  const [portalPhone, setPortalPhone] = useState('');
   const [passwordSaveSuccess, setPasswordSaveSuccess] = useState(false);
 
   const portalContractCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -307,6 +309,8 @@ export default function ClientPortal({
       setPortalSigneParContrat(authenticatedClient.signeParContrat || '');
       setPortalSignatureClientContratImage(authenticatedClient.signatureClientContratImage || '');
       setPortalAccessKey(authenticatedClient.accessKey || '');
+      setPortalEmail(authenticatedClient.email || '');
+      setPortalPhone(authenticatedClient.phone || '');
     }
   }, [authenticatedClient]);
 
@@ -744,6 +748,8 @@ export default function ClientPortal({
     if (onUpdateClient) {
       const updated: Client = {
         ...authenticatedClient,
+        email: portalEmail.trim(),
+        phone: portalPhone.trim(),
         accessKey: portalAccessKey.trim()
       };
       onUpdateClient(updated);
@@ -2538,7 +2544,7 @@ export default function ClientPortal({
             }`}
             style={{ borderRadius: '12px' }}
           >
-            {t('Pointages auto-vigilance')}
+            {t('Pointages')}
           </button>
           {companyInfo?.enableDevisFactures !== 'Non' && (
             <button
@@ -2585,14 +2591,7 @@ export default function ClientPortal({
             <div className="space-y-6">
               {companyInfo?.communicationPortailClient && !isCommunicationDismissed && (
                 <div 
-                  className="p-5 font-sans text-black relative animate-fadeIn flex flex-col gap-4"
-                  style={{
-                    backgroundColor: 'rgb(255 255 255)',
-                    borderColor: 'rgb(161 161 161)',
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderRadius: '13px'
-                  }}
+                  className="font-sans text-black relative animate-fadeIn flex flex-col gap-4"
                 >
                   <div className="text-left">
                     <p className="font-medium leading-relaxed whitespace-pre-line" style={{ color: '#000', fontSize: '16px', cursor: 'default' }}>
@@ -2660,6 +2659,15 @@ export default function ClientPortal({
                         }
                       });
 
+                      let recurrenceAutoVigilance = 'Aucune';
+                      if (df.rappelMensuelAuto === 'Oui') {
+                        recurrenceAutoVigilance = 'Mensuelle';
+                      } else if (df.rappelHebdoAuto === 'Oui') {
+                        recurrenceAutoVigilance = 'Hebdomadaire';
+                      } else if (df.rappelJournalierAuto === 'Oui') {
+                        recurrenceAutoVigilance = 'Journalière';
+                      }
+
                       return (
                         <div
                           key={df.id}
@@ -2669,7 +2677,7 @@ export default function ClientPortal({
                             borderRadius: '13px',
                           }}
                         >
-                          <div className="flex items-center gap-3 select-none">
+                          <div className="flex items-center gap-3 select-none flex-wrap">
                             <h2 className="text-[18px] font-black text-[#7e2e86]" style={{ letterSpacing: 'normal' }}>
                               {df.identifiant}
                             </h2>
@@ -2686,6 +2694,20 @@ export default function ClientPortal({
                               className="font-sans"
                             >
                               Défibrillateur
+                            </span>
+                            <span 
+                              style={{ 
+                                backgroundColor: '#45114a',
+                                color: '#fff',
+                                fontSize: '18px',
+                                borderRadius: '100px',
+                                padding: '10px 15px',
+                                fontWeight: 'bold',
+                                lineHeight: 'normal'
+                              }}
+                              className="font-sans"
+                            >
+                              {`Pointage : ${recurrenceAutoVigilance}`}
                             </span>
                           </div>
 
@@ -2736,17 +2758,6 @@ export default function ClientPortal({
                             {renderField('Électrode Adulte ou Mixte, Péremption', electrodeAPeremp, true)}
                             {renderField('Électrode Pédiatrique, Péremption', electrodePPeremp, true)}
                             {renderField('Batterie, Péremption', batteriePeremp, true)}
-                            {(() => {
-                              let recurrenceAutoVigilance = 'Aucune';
-                              if (df.rappelMensuelAuto === 'Oui') {
-                                recurrenceAutoVigilance = 'Mensuelle';
-                              } else if (df.rappelHebdoAuto === 'Oui') {
-                                recurrenceAutoVigilance = 'Hebdomadaire';
-                              } else if (df.rappelJournalierAuto === 'Oui') {
-                                recurrenceAutoVigilance = 'Journalière';
-                              }
-                              return renderField('Récurrence auto-vigilance', recurrenceAutoVigilance, true);
-                            })()}
                           </div>
                         </div>
                       );
@@ -2992,18 +3003,103 @@ export default function ClientPortal({
                     </button>
                   </div>
 
-                  {clientReports.length === 0 ? (
-                    <div className="text-center py-10 bg-white border border-slate-200 rounded-2xl p-5 text-slate-500 font-sans">
-                      {reportsFilter === 'upcoming'
-                        ? t("Aucune intervention à venir.")
-                        : t("Aucune intervention validée.")}
-                    </div>
-                  ) : (
+                  {clientReports.length === 0 ? null : (
                     <div className="space-y-6">
                       {clientReports.map((rep) => {
                         const snap = rep.defibSnapshot || {};
                         const isUpcoming = rep.isUpcoming || rep.status === 'À venir' || rep.status === 'upcoming' || rep.upcoming || rep.isFuture;
                         const currentSituation = rep.missionStatus || (isUpcoming ? 'Brouillon' : 'Effectué');
+
+                        let matchMission: any = null;
+                        let matchTour: any = null;
+                        if (fsmTours && fsmTours.length > 0) {
+                          for (const tour of fsmTours) {
+                            if (!tour.missions) continue;
+                            const found = tour.missions.find((m: any) => 
+                              (rep.missionId && m.id === rep.missionId) ||
+                              (rep.interventionReference && m.interventionReference && m.interventionReference === rep.interventionReference) ||
+                              (rep.defibIdentifiant && m.defibIdentifiant && m.defibIdentifiant === rep.defibIdentifiant)
+                            );
+                            if (found) {
+                              matchMission = found;
+                              matchTour = tour;
+                              break;
+                            }
+                          }
+                        }
+
+                        let dateVal = '';
+                        let slotVal = '';
+
+                        if (isUpcoming) {
+                          dateVal = matchMission?.estimatedDate || rep.estimatedDate || matchTour?.startDate || matchTour?.date || rep.tourDate || rep.date || '';
+                          slotVal = matchMission?.estimatedSlot || rep.estimatedSlot || matchMission?.creneau || '09:00';
+                        } else {
+                          dateVal = rep.date || matchMission?.executedAt || matchMission?.completedAt || '';
+                          slotVal = rep.endTimeStamp || rep.time || matchMission?.endTimeStamp || '';
+                        }
+
+                        const formatDateTimeDisplay = (dStr: string, sStr: string) => {
+                          const cleanD = (dStr || '').trim();
+                          const cleanS = (sStr || '').trim();
+                          if (!cleanD || cleanD === 'À venir') return '—';
+
+                          let dPart = '';
+                          let tPart = '';
+
+                          if (cleanD.includes(' ')) {
+                            const parts = cleanD.split(/\s+/);
+                            dPart = parts[0];
+                            tPart = parts[1] || cleanS;
+                          } else if (cleanD.includes('T')) {
+                            const parts = cleanD.split('T');
+                            dPart = parts[0];
+                            tPart = (parts[1] || '').substring(0, 5);
+                          } else {
+                            dPart = cleanD;
+                            tPart = cleanS;
+                          }
+
+                          let formattedDate = dPart;
+                          if (dPart.includes('-')) {
+                            const segs = dPart.split('-');
+                            if (segs.length === 3) {
+                              if (segs[0].length === 4) {
+                                formattedDate = `${segs[2].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[0]}`;
+                              } else if (segs[2].length === 4) {
+                                formattedDate = `${segs[0].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[2]}`;
+                              }
+                            }
+                          } else if (dPart.includes('/')) {
+                            const segs = dPart.split('/');
+                            if (segs.length === 3) {
+                              if (segs[0].length === 4) {
+                                formattedDate = `${segs[2].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[0]}`;
+                              } else {
+                                formattedDate = `${segs[0].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[2]}`;
+                              }
+                            }
+                          }
+
+                          let formattedTime = '00:00';
+                          if (tPart) {
+                            const match = tPart.match(/(\d{1,2})[:hH](\d{2})/);
+                            if (match) {
+                              formattedTime = `${match[1].padStart(2, '0')}:${match[2]}`;
+                            } else if (/^\d{1,2}$/.test(tPart)) {
+                              formattedTime = `${tPart.padStart(2, '0')}:00`;
+                            } else {
+                              formattedTime = tPart;
+                            }
+                          } else {
+                            formattedTime = '09:00';
+                          }
+
+                          if (!formattedDate || formattedDate === 'À venir') return '—';
+                          return `${formattedDate} ${formattedTime}`;
+                        };
+
+                        const planifiedEffectueVal = formatDateTimeDisplay(dateVal, slotVal);
 
                         return (
                           <div
@@ -3015,27 +3111,14 @@ export default function ClientPortal({
                             }}
                           >
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                              {/* Horodatage entrant. */}
+                              {/* Planifié/Effectué. */}
                               <div className="space-y-1">
                                 <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Horodatage entrant.")}
+                                  {t("Planifié/Effectué.")}
                                 </label>
                                 <input
                                   type="text"
-                                  value={rep.date || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Horodatage de clôture. */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Horodatage de clôture.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={rep.endTimeStamp || ''}
+                                  value={planifiedEffectueVal}
                                   disabled
                                   className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
                                 />
@@ -3054,19 +3137,6 @@ export default function ClientPortal({
                                 />
                               </div>
 
-                              {/* Série. */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Série.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={snap.numeroSerie || snap.specifiques?.numeroSerie || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
                               {/* Identifiant. */}
                               <div className="space-y-1">
                                 <label className="block text-[18px] font-bold text-black font-sans select-none">
@@ -3080,6 +3150,19 @@ export default function ClientPortal({
                                 />
                               </div>
 
+                              {/* Série. */}
+                              <div className="space-y-1">
+                                <label className="block text-[18px] font-bold text-black font-sans select-none">
+                                  {t("Série.")}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={snap.numeroSerie || snap.specifiques?.numeroSerie || ''}
+                                  disabled
+                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                                />
+                              </div>
+
                               {/* Technicien. */}
                               <div className="space-y-1">
                                 <label className="block text-[18px] font-bold text-black font-sans select-none">
@@ -3088,58 +3171,6 @@ export default function ClientPortal({
                                 <input
                                   type="text"
                                   value={rep.techName || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Titre du document. */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Titre du document.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={rep.title || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Commentaire de diagnostic et de clôture. */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Commentaire de diagnostic et de clôture.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={snap.commentaire || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Commentaire interne. */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Commentaire interne.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={snap.commentaireInterne || ''}
-                                  disabled
-                                  className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
-                                />
-                              </div>
-
-                              {/* Facture émise. (Émettre une facture brouillon.) */}
-                              <div className="space-y-1">
-                                <label className="block text-[18px] font-bold text-black font-sans select-none">
-                                  {t("Facture émise.")}
-                                </label>
-                                <input
-                                  type="text"
-                                  value={rep.emettreFactureBrouillon || 'Non'}
                                   disabled
                                   className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
                                 />
@@ -3165,30 +3196,34 @@ export default function ClientPortal({
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateSituation(rep, 'Accepté Client')}
-                                  className="flex-1 py-3 bg-[#16a34a] hover:bg-[#15803d] text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer shadow-md text-center"
+                                  style={{ backgroundColor: 'rgb(55 131 83)', boxShadow: 'none' }}
+                                  className="flex-1 py-3 text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer text-center"
                                 >
                                   {t("Autoriser")}
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleUpdateSituation(rep, 'Refusé Client')}
-                                  className="flex-1 py-3 bg-[#dc2626] hover:bg-[#b91c1c] text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer shadow-md text-center shadow-red-200"
+                                  style={{ backgroundColor: 'rgb(157 33 33)', boxShadow: 'none' }}
+                                  className="flex-1 py-3 text-white text-[18px] rounded-xl font-sans font-bold transition-all border-none cursor-pointer text-center"
                                 >
                                   {t("Refuser")}
                                 </button>
                               </div>
                             )}
 
-                            {/* Télécharger Button */}
-                            <div className="mt-6">
-                              <button
-                                type="button"
-                                onClick={() => handleDownloadReport(rep)}
-                                className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                              >
-                                {t("Télécharger")}
-                              </button>
-                            </div>
+                            {/* Télécharger Button - visible only when status is Effectué */}
+                            {currentSituation === 'Effectué' && (
+                              <div className="mt-6">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadReport(rep)}
+                                  className="w-full py-3 bg-[#3556ec] text-white text-[18px] rounded-xl font-sans font-bold hover:bg-[#2b48cd] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                                >
+                                  {t("Télécharger")}
+                                </button>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -3210,6 +3245,9 @@ export default function ClientPortal({
                   maxWidth: '100%',
                 }}
               >
+                <div className="font-bold text-[18px] text-[#7e2e86]">
+                  {t("Réservé uniquement aux contrôles des défibrillateurs. Le pointage d’auto-vigilance n’est pas destiné aux autres types de matériels.")}
+                </div>
                 <div className="font-bold text-[18px] text-black">
                   {t("Quatre vérifications simples pour votre pointage :")}
                 </div>
@@ -3278,7 +3316,7 @@ export default function ClientPortal({
                           }}
                         >
                           <option value="">{t('-- Choisir un matériel --')}</option>
-                          {filteredAssignedEquipment.map((eq) => (
+                          {filteredAssignedEquipment.filter(eq => eq.type === 'defib').map((eq) => (
                             <option key={eq.id} value={eq.id}>
                               {eq.nom}
                             </option>
@@ -3448,9 +3486,9 @@ export default function ClientPortal({
                     </label>
                     <input
                       type="text"
-                      value={authenticatedClient.email || ''}
-                      disabled
-                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      value={portalEmail}
+                      onChange={(e) => setPortalEmail(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white hover:border-[#772a7e] focus:border-[#772a7e] focus:outline-none font-sans"
                     />
                   </div>
 
@@ -3461,9 +3499,9 @@ export default function ClientPortal({
                     </label>
                     <input
                       type="text"
-                      value={authenticatedClient.phone || ''}
-                      disabled
-                      className="w-full border-none rounded-xl p-3 text-[18px] font-bold text-[#772a7e] bg-[#fdeaff] focus:outline-none disabled:bg-[#fdeaff] disabled:text-[#772a7e] font-sans cursor-not-allowed"
+                      value={portalPhone}
+                      onChange={(e) => setPortalPhone(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl p-3 text-[18px] text-black bg-white hover:border-[#772a7e] focus:border-[#772a7e] focus:outline-none font-sans"
                     />
                   </div>
 
@@ -3760,12 +3798,15 @@ export default function ClientPortal({
                     <h3 className="text-[18px] font-black text-black select-none font-sans" style={{ letterSpacing: 'normal' }}>
                       {t("Contacts.")}
                     </h3>
+                    <div className="mt-2 text-[16px] text-slate-600 font-sans leading-relaxed">
+                      {t("Pour information, tous les contacts de type Planification reçoivent les communications relatives aux interventions des techniciens et les rapports PDF émis par notre entreprise.")}
+                    </div>
                   </div>
                 </div>
 
                 <div className="space-y-6 pt-2">
                   {/* Edit Contact 1 */}
-                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                  <div className="pb-2">
                     <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                       Contact 1
                     </div>
@@ -3778,7 +3819,7 @@ export default function ClientPortal({
                   </div>
 
                   {/* Edit Contact 2 */}
-                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                  <div className="pb-2">
                     <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                       Contact 2
                     </div>
@@ -3791,7 +3832,7 @@ export default function ClientPortal({
                   </div>
 
                   {/* Edit Contact 3 */}
-                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                  <div className="pb-2">
                     <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                       Contact 3
                     </div>
@@ -3804,7 +3845,7 @@ export default function ClientPortal({
                   </div>
 
                   {/* Edit Contact 4 */}
-                  <div className="pb-6 border-b border-slate-100 last:border-none">
+                  <div className="pb-2">
                     <div className="inline-block px-3 py-1 text-[14px] font-bold rounded-full font-sans select-none mb-3" style={{ backgroundColor: '#411046', color: '#ffffff' }}>
                       Contact 4
                     </div>

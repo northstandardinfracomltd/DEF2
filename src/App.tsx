@@ -1395,6 +1395,8 @@ export default function App() {
             validated: false,
             techName: tour.techName || 'Non assigné',
             date: tour.startDate || tour.date || 'À venir',
+            estimatedDate: m.estimatedDate || tour.startDate || tour.date || '',
+            estimatedSlot: m.estimatedSlot || '',
             tourName: tour.title || tour.name || `Tournée ${tour.id}`,
             tourDate: tour.startDate || tour.date || '',
             origin: tourOrigin,
@@ -1414,7 +1416,9 @@ export default function App() {
               existing.missionStatus !== (m.status || 'Brouillon') ||
               existing.techName !== (tour.techName || 'Non assigné') ||
               existing.origin !== tourOrigin ||
-              existing.defibIdentifiant !== m.defibIdentifiant
+              existing.defibIdentifiant !== m.defibIdentifiant ||
+              existing.estimatedDate !== (m.estimatedDate || tour.startDate || tour.date || '') ||
+              existing.estimatedSlot !== (m.estimatedSlot || '')
             ) {
               reportsChanged = true;
               updatedReports[existingReportIndex] = {
@@ -1423,6 +1427,8 @@ export default function App() {
                 techName: tour.techName || 'Non assigné',
                 tourName: tour.title || tour.name || `Tournée ${tour.id}`,
                 tourDate: tour.startDate || tour.date || '',
+                estimatedDate: m.estimatedDate || tour.startDate || tour.date || '',
+                estimatedSlot: m.estimatedSlot || '',
                 origin: tourOrigin,
                 defibIdentifiant: m.defibIdentifiant,
                 defibSnapshot: { ...existing.defibSnapshot, identifiant: m.defibIdentifiant }
@@ -8356,6 +8362,7 @@ export default function App() {
                             <th className="px-4 py-3.5" style={thStyle}>Technicien.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Réf. Intervention.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Origine.</th>
+                            <th className="px-4 py-3.5" style={thStyle}>Planifié/Effectué.</th>
                             <th className="px-4 py-3.5" style={thStyle}>Situation.</th>
                             <th className="px-4 py-3.5 text-right w-12" style={thStyle}>Actions</th>
                           </tr>
@@ -8526,6 +8533,102 @@ export default function App() {
                                     const raw = (rep.origin || `${rep.tourDate || ''} ${rep.tourName || ''}`).trim();
                                     if (!raw) return '—';
                                     return raw.length > 20 ? raw.substring(0, 20) + '...' : raw;
+                                  })()}
+                                </td>
+
+                                {/* Planifié/Effectué. */}
+                                <td className="px-4 py-5 whitespace-nowrap" style={{ fontSize: '16px', color: '#000000', fontWeight: 100, fontFamily: '"DefibeoMain", "Civilprom", sans-serif' }}>
+                                  {(() => {
+                                    let matchMission: any = null;
+                                    let matchTour: any = null;
+                                    if (fsmTours && fsmTours.length > 0) {
+                                      for (const tour of fsmTours) {
+                                        if (!tour.missions) continue;
+                                        const found = tour.missions.find((m: any) => 
+                                          (rep.missionId && m.id === rep.missionId) ||
+                                          (rep.interventionReference && m.interventionReference && m.interventionReference === rep.interventionReference) ||
+                                          (rep.defibIdentifiant && m.defibIdentifiant && m.defibIdentifiant === rep.defibIdentifiant)
+                                        );
+                                        if (found) {
+                                          matchMission = found;
+                                          matchTour = tour;
+                                          break;
+                                        }
+                                      }
+                                    }
+
+                                    let dateVal = '';
+                                    let slotVal = '';
+
+                                    if (isUpcoming) {
+                                      dateVal = matchMission?.estimatedDate || rep.estimatedDate || matchTour?.startDate || matchTour?.date || rep.tourDate || rep.date || '';
+                                      slotVal = matchMission?.estimatedSlot || rep.estimatedSlot || matchMission?.creneau || '09:00';
+                                    } else {
+                                      dateVal = rep.date || matchMission?.executedAt || matchMission?.completedAt || '';
+                                      slotVal = rep.endTimeStamp || rep.time || matchMission?.endTimeStamp || '';
+                                    }
+
+                                    const formatDateTimeDisplay = (dStr: string, sStr: string) => {
+                                      const cleanD = (dStr || '').trim();
+                                      const cleanS = (sStr || '').trim();
+                                      if (!cleanD || cleanD === 'À venir') return '—';
+
+                                      let dPart = '';
+                                      let tPart = '';
+
+                                      if (cleanD.includes(' ')) {
+                                        const parts = cleanD.split(/\s+/);
+                                        dPart = parts[0];
+                                        tPart = parts[1] || cleanS;
+                                      } else if (cleanD.includes('T')) {
+                                        const parts = cleanD.split('T');
+                                        dPart = parts[0];
+                                        tPart = (parts[1] || '').substring(0, 5);
+                                      } else {
+                                        dPart = cleanD;
+                                        tPart = cleanS;
+                                      }
+
+                                      let formattedDate = dPart;
+                                      if (dPart.includes('-')) {
+                                        const segs = dPart.split('-');
+                                        if (segs.length === 3) {
+                                          if (segs[0].length === 4) {
+                                            formattedDate = `${segs[2].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[0]}`;
+                                          } else if (segs[2].length === 4) {
+                                            formattedDate = `${segs[0].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[2]}`;
+                                          }
+                                        }
+                                      } else if (dPart.includes('/')) {
+                                        const segs = dPart.split('/');
+                                        if (segs.length === 3) {
+                                          if (segs[0].length === 4) {
+                                            formattedDate = `${segs[2].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[0]}`;
+                                          } else {
+                                            formattedDate = `${segs[0].padStart(2, '0')}/${segs[1].padStart(2, '0')}/${segs[2]}`;
+                                          }
+                                        }
+                                      }
+
+                                      let formattedTime = '00:00';
+                                      if (tPart) {
+                                        const match = tPart.match(/(\d{1,2})[:hH](\d{2})/);
+                                        if (match) {
+                                          formattedTime = `${match[1].padStart(2, '0')}:${match[2]}`;
+                                        } else if (/^\d{1,2}$/.test(tPart)) {
+                                          formattedTime = `${tPart.padStart(2, '0')}:00`;
+                                        } else {
+                                          formattedTime = tPart;
+                                        }
+                                      } else {
+                                        formattedTime = '09:00';
+                                      }
+
+                                      if (!formattedDate || formattedDate === 'À venir') return '—';
+                                      return `${formattedDate} ${formattedTime}`;
+                                    };
+
+                                    return formatDateTimeDisplay(dateVal, slotVal);
                                   })()}
                                 </td>
 
